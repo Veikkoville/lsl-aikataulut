@@ -14,6 +14,8 @@ tasalla ilman ylläpitoa.
 - Pysäkkikohtaiset seuraavat lähdöt **reaaliajassa** (GTFS-RT), päivittyy 30 s välein
 - Pysäkkihaku nimellä
 - Voimassa olevat häiriötiedotteet etusivulla (GTFS-RT service alerts)
+- Reittikartta linjasivulla (reittiviiva + klikattavat pysäkit) ja sijaintikartta
+  pysäkkisivulla (Leaflet + OpenStreetMap)
 
 ## Käyttöönotto
 
@@ -42,6 +44,8 @@ tasalla ilman ylläpitoa.
 ## Jatkokehitysideoita
 
 - Pysäkkihaku sijainnin perusteella (lähimmät pysäkit)
+- Bussien sijainnit kartalle (Waltin reaaliaikadata MQTT-kanavasta;
+  reititysrajapinnan vehiclePositions-kenttä on Waltti-alueilla tyhjä)
 - Tulostettava PDF-aikataulu linjalle
 - Saavutettavuusauditointi (tavoite WCAG 2.1 AA)
 - Sama sovellus muille Waltti-kaupungeille pelkällä feed-konfiguraatiolla

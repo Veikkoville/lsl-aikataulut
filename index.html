@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lahden bussiaikataulut (epävirallinen)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root {
     --blue: #0a4ea3;
@@ -124,6 +126,9 @@
   details.alert p { margin: 0.4rem 0 0.2rem; white-space: pre-line; font-size: 0.9rem; }
   details.alert.sev-SEVERE { border-left-color: #c0392b; }
   details.alert.sev-WARNING { border-left-color: #d68910; }
+  .map { height: 320px; border-radius: 6px; margin: 0.5rem 0; z-index: 0; }
+  .map-small { height: 220px; }
+  .leaflet-popup-content a { color: var(--blue); }
   nav.crumb { margin-bottom: 0.75rem; font-size: 0.9rem; }
   nav.crumb a { color: var(--blue); }
   footer { max-width: 640px; margin: 0 auto; padding: 0 1rem 2rem; font-size: 0.78rem; color: var(--muted); }
@@ -216,6 +221,38 @@ function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+
+// Google encoded polyline, precision 1e-5 (OTP:n patternGeometry-muoto)
+function decodePolyline(str) {
+  let index = 0, lat = 0, lng = 0;
+  const coords = [];
+  while (index < str.length) {
+    for (const which of [0, 1]) {
+      let result = 0, shift = 0, b;
+      do {
+        b = str.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const delta = (result & 1) ? ~(result >> 1) : (result >> 1);
+      if (which === 0) lat += delta; else lng += delta;
+    }
+    coords.push([lat / 1e5, lng / 1e5]);
+  }
+  return coords;
+}
+
+function makeMap(elId, center, zoom) {
+  const map = L.map(elId, { scrollWheelZoom: false });
+  if (center) map.setView(center, zoom || 14);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-tekijät',
+    maxZoom: 19,
+  }).addTo(map);
+  return map;
+}
+
+const STOP_MARKER = { radius: 5, color: "#0a4ea3", weight: 2, fillColor: "#fff", fillOpacity: 1 };
 
 function stopRefresh() {
   if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
@@ -364,7 +401,7 @@ async function viewRoute(routeId, patternCode, date) {
     `query ($id: String!) {
        route(id: $id) {
          shortName longName
-         patterns { code name stops { gtfsId name } }
+         patterns { code name stops { gtfsId name lat lon } }
        }
      }`, { id: routeId });
   const route = data.route;
@@ -390,7 +427,8 @@ async function viewRoute(routeId, patternCode, date) {
       <div id="timetable"><p class="muted">Haetaan lähtöjä…</p></div>
     </div>
     <div class="card">
-      <h2>Pysäkit tällä suunnalla</h2>
+      <h2>Reitti kartalla ja pysäkit</h2>
+      <div id="routeMap" class="map" aria-label="Reitti kartalla"></div>
       <p class="muted">Avaa pysäkki nähdäksesi seuraavat lähdöt reaaliajassa.</p>
       <ul class="plain">
         ${(current?.stops || []).map(s => `
@@ -405,6 +443,37 @@ async function viewRoute(routeId, patternCode, date) {
   document.getElementById("dateInput").addEventListener("change", e => {
     location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(current.code)}/${e.target.value}`;
   });
+
+  // Map is drawn concurrently with the timetable fetch below
+  (async () => {
+    const mapEl = document.getElementById("routeMap");
+    if (!mapEl || !current) return;
+    if (typeof L === "undefined") {
+      mapEl.outerHTML = `<p class="muted">Karttaa ei voitu ladata (ei verkkoyhteyttä karttapalveluun).</p>`;
+      return;
+    }
+    try {
+      const geo = await gql(
+        `query ($code: String!) { pattern(id: $code) { patternGeometry { points } } }`,
+        { code: current.code });
+      const map = makeMap("routeMap");
+      const pts = decodePolyline(geo.pattern?.patternGeometry?.points || "");
+      let bounds = null;
+      if (pts.length) {
+        const line = L.polyline(pts, { color: "#0a4ea3", weight: 4, opacity: 0.85 }).addTo(map);
+        bounds = line.getBounds();
+      }
+      const located = current.stops.filter(s => s.lat != null);
+      for (const s of located) {
+        L.circleMarker([s.lat, s.lon], STOP_MARKER).addTo(map)
+          .bindPopup(`<a href="#/pysakki/${encodeURIComponent(s.gtfsId)}">${esc(s.name)}</a>`);
+      }
+      if (!bounds && located.length) bounds = L.latLngBounds(located.map(s => [s.lat, s.lon]));
+      if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
+    } catch (err) {
+      mapEl.outerHTML = `<div class="error">Kartan haku epäonnistui: ${esc(err.message)}</div>`;
+    }
+  })();
 
   // Departure times from the pattern's first stop = classic line timetable
   const box = document.getElementById("timetable");
@@ -441,22 +510,24 @@ async function viewStop(stopId) {
   if (!apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">Haetaan pysäkin lähtöjä…</p>`);
 
-  const load = async () => {
+  const fetchStop = async () => {
     const data = await gql(
       `query ($id: String!) {
          stop(id: $id) {
-           name code
+           name code lat lon
            stoptimesWithoutPatterns(numberOfDepartures: 15, omitNonPickups: true) {
              scheduledDeparture realtimeDeparture realtime serviceDay headsign
              trip { route { shortName } }
            }
          }
        }`, { id: stopId });
-    const stop = data.stop;
-    if (!stop) throw new Error("Pysäkkiä ei löytynyt: " + stopId);
+    if (!data.stop) throw new Error("Pysäkkiä ei löytynyt: " + stopId);
+    return data.stop;
+  };
 
+  const renderRows = stop => {
     const now = Date.now();
-    const rows = (stop.stoptimesWithoutPatterns || []).map(st => {
+    return (stop.stoptimesWithoutPatterns || []).map(st => {
       const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
       const epoch = (st.serviceDay + dep) * 1000;
       const mins = Math.round((epoch - now) / 60000);
@@ -466,24 +537,41 @@ async function viewStop(stopId) {
         <td>${esc(st.headsign || "")}</td>
         <td class="${st.realtime ? "rt" : ""}">${when}${st.realtime ? " ●" : ""}</td>
       </tr>`;
-    }).join("");
-
-    setView(`
-      <nav class="crumb"><a href="javascript:history.back()">← Takaisin</a> · <a href="#/">Kaikki linjat</a></nav>
-      <div class="card">
-        <h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
-        <table>
-          <thead><tr><th>Linja</th><th>Määränpää</th><th>Lähtee</th></tr></thead>
-          <tbody>${rows || `<tr><td colspan="3" class="muted">Ei tulevia lähtöjä.</td></tr>`}</tbody>
-        </table>
-        <p class="muted"><span class="rt">●</span> = reaaliaikainen arvio, muut aikataulun mukaan.
-        Päivittyy 30 s välein.</p>
-      </div>`);
+    }).join("") || `<tr><td colspan="3" class="muted">Ei tulevia lähtöjä.</td></tr>`;
   };
 
-  await load();
-  stopRefresh();
-  refreshTimer = setInterval(() => load().catch(showError), 30000);
+  const stop = await fetchStop();
+  setView(`
+    <nav class="crumb"><a href="javascript:history.back()">← Takaisin</a> · <a href="#/">Kaikki linjat</a></nav>
+    <div class="card">
+      <h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
+      <table>
+        <thead><tr><th>Linja</th><th>Määränpää</th><th>Lähtee</th></tr></thead>
+        <tbody id="depRows">${renderRows(stop)}</tbody>
+      </table>
+      <p class="muted"><span class="rt">●</span> = reaaliaikainen arvio, muut aikataulun mukaan.
+      Päivittyy 30 s välein.</p>
+      <div id="stopMap" class="map map-small" aria-label="Pysäkki kartalla"></div>
+    </div>`);
+
+  if (typeof L !== "undefined" && stop.lat != null) {
+    const map = makeMap("stopMap", [stop.lat, stop.lon], 16);
+    L.circleMarker([stop.lat, stop.lon], STOP_MARKER).addTo(map)
+      .bindPopup(esc(stop.name));
+  } else {
+    const el = document.getElementById("stopMap");
+    if (el) el.remove();
+  }
+
+  refreshTimer = setInterval(async () => {
+    try {
+      const fresh = await fetchStop();
+      const tbody = document.getElementById("depRows");
+      if (tbody) tbody.innerHTML = renderRows(fresh);
+    } catch (err) {
+      // verkkohikka: jätetään edelliset lähdöt näkyviin ja yritetään taas 30 s päästä
+    }
+  }, 30000);
 }
 
 /* ---------- Router ---------- */
