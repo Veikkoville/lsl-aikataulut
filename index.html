@@ -176,7 +176,7 @@
 
 // Kun worker/-hakemiston välityspalvelin on otettu käyttöön, laita sen
 // osoite tähän — silloin käyttäjiltä ei kysytä API-avainta.
-const PROXY_URL = "";
+const PROXY_URL = "https://lsl-aikataulut-proxy.veikkoville.workers.dev/";
 const API_URL = PROXY_URL || "https://api.digitransit.fi/routing/v2/waltti/gtfs/v1";
 const app = document.getElementById("app");
 
@@ -385,6 +385,15 @@ function showError(err) {
 /* ---------- Views ---------- */
 
 function viewSettings() {
+  if (PROXY_URL) {
+    setView(`
+      <div class="card">
+        <h2>Asetukset</h2>
+        <p>API-avainta ei tarvita — palvelu hakee tiedot välityspalvelimen kautta.</p>
+        <p><a href="#/">Etusivulle</a></p>
+      </div>`);
+    return;
+  }
   setView(`
     <div class="card">
       <h2>API-avain</h2>
