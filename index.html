@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lahden bussiaikataulut (epävirallinen)</title>
+<style>
+  :root {
+    --blue: #0a4ea3;
+    --blue-dark: #083d80;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1a2233;
+    --muted: #5a6478;
+    --green: #1a7f4b;
+    --border: #d8dee9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    background: var(--blue);
+    color: #fff;
+    padding: 0.75rem 1rem;
+  }
+  header h1 { margin: 0; font-size: 1.15rem; }
+  header p { margin: 0.1rem 0 0; font-size: 0.8rem; opacity: 0.85; }
+  main { max-width: 640px; margin: 0 auto; padding: 1rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  input[type="search"], input[type="password"], input[type="date"] {
+    font: inherit;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    width: 100%;
+  }
+  button {
+    font: inherit;
+    padding: 0.5rem 0.9rem;
+    border: none;
+    border-radius: 6px;
+    background: var(--blue);
+    color: #fff;
+    cursor: pointer;
+  }
+  button:hover { background: var(--blue-dark); }
+  button.linkish {
+    background: none;
+    color: var(--blue);
+    padding: 0.2rem 0.4rem;
+    text-decoration: underline;
+  }
+  .row { display: flex; gap: 0.5rem; align-items: center; }
+  ul.plain { list-style: none; margin: 0; padding: 0; }
+  ul.plain li { border-top: 1px solid var(--border); }
+  ul.plain li:first-child { border-top: none; }
+  a.item, button.item {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    width: 100%;
+    text-align: left;
+    padding: 0.55rem 0.25rem;
+    background: none;
+    border: none;
+    color: var(--text);
+    text-decoration: none;
+    cursor: pointer;
+    font: inherit;
+  }
+  a.item:hover, button.item:hover { background: #eef3fb; }
+  .badge {
+    display: inline-block;
+    min-width: 2.4em;
+    text-align: center;
+    background: var(--blue);
+    color: #fff;
+    border-radius: 5px;
+    padding: 0.05rem 0.4rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
+  .muted { color: var(--muted); font-size: 0.85rem; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
+  .tabs button {
+    background: #e7edf6;
+    color: var(--text);
+    font-size: 0.85rem;
+  }
+  .tabs button[aria-pressed="true"] { background: var(--blue); color: #fff; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); }
+  th { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+  .rt { color: var(--green); font-weight: 600; }
+  .timegrid { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .timegrid span {
+    background: #eef3fb;
+    border-radius: 5px;
+    padding: 0.15rem 0.45rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .error { background: #fdecec; border: 1px solid #f3b6b6; color: #8a1f1f; padding: 0.6rem; border-radius: 6px; }
+  nav.crumb { margin-bottom: 0.75rem; font-size: 0.9rem; }
+  nav.crumb a { color: var(--blue); }
+  footer { max-width: 640px; margin: 0 auto; padding: 0 1rem 2rem; font-size: 0.78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lahden bussiaikataulut</h1>
+  <p>Epävirallinen palvelu · data: Lahden seudun liikenne / Waltti (CC BY 4.0)</p>
+</header>
+
+<main id="app" aria-live="polite"></main>
+
+<footer>
+  Tämä on epävirallinen prototyyppi, joka ei ole Lahden seudun liikenteen tuottama.
+  Aikataulu- ja reaaliaikadata: LSL / Waltti avoin data (CC BY 4.0) Digitransit-rajapinnan kautta.
+</footer>
+
+<script>
+"use strict";
+
+const API_URL = "https://api.digitransit.fi/routing/v2/waltti/gtfs/v1";
+const app = document.getElementById("app");
+
+let apiKey = localStorage.getItem("digitransitKey") || "";
+let feedId = localStorage.getItem("lslFeedId") || "";
+let routesCache = null;
+let refreshTimer = null;
+
+/* ---------- API ---------- */
+
+async function gql(query, variables) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "digitransit-subscription-key": apiKey,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("API-avain puuttuu tai on virheellinen. Tarkista avain asetuksista.");
+  }
+  if (!res.ok) throw new Error("Rajapintavirhe: HTTP " + res.status);
+  const json = await res.json();
+  if (json.errors) throw new Error("Rajapintavirhe: " + json.errors.map(e => e.message).join("; "));
+  return json.data;
+}
+
+async function findLahtiFeed() {
+  if (feedId) return feedId;
+  const data = await gql(`{ feeds { feedId publisher { name } } }`);
+  const hit = data.feeds.find(f =>
+    /lahti/i.test(f.feedId) || /lahti/i.test(f.publisher?.name || ""));
+  if (!hit) throw new Error("Lahden syötettä ei löytynyt Waltti-rajapinnasta.");
+  feedId = hit.feedId;
+  localStorage.setItem("lslFeedId", feedId);
+  return feedId;
+}
+
+async function loadRoutes() {
+  if (routesCache) return routesCache;
+  const feed = await findLahtiFeed();
+  const data = await gql(
+    `query ($feeds: [String]) {
+       routes(feeds: $feeds) { gtfsId shortName longName mode }
+     }`, { feeds: [feed] });
+  routesCache = data.routes
+    .filter(r => r.mode === "BUS")
+    .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
+  return routesCache;
+}
+
+/* ---------- Helpers ---------- */
+
+function fmtSec(sec) {
+  const h = Math.floor(sec / 3600) % 24;
+  const m = Math.floor((sec % 3600) / 60);
+  return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+}
+
+function todayISO() {
+  const d = new Date();
+  return d.getFullYear() + "-" +
+    String(d.getMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getDate()).padStart(2, "0");
+}
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function stopRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+}
+
+function setView(html) {
+  stopRefresh();
+  app.innerHTML = html;
+}
+
+function showError(err) {
+  setView(`<div class="error">${esc(err.message || err)}</div>
+    <p><a href="#/asetukset">Asetukset</a> · <a href="#/">Etusivulle</a></p>`);
+}
+
+/* ---------- Views ---------- */
+
+function viewSettings() {
+  setView(`
+    <div class="card">
+      <h2>API-avain</h2>
+      <p class="muted">Hae ilmainen avain osoitteesta
+        <a href="https://portal-api.digitransit.fi/" target="_blank" rel="noopener">portal-api.digitransit.fi</a>
+        ja liitä se tähän. Avain tallentuu vain tämän selaimen muistiin.</p>
+      <form id="keyForm" class="row">
+        <input type="password" id="keyInput" value="${esc(apiKey)}"
+               placeholder="digitransit-subscription-key" aria-label="API-avain">
+        <button type="submit">Tallenna</button>
+      </form>
+    </div>`);
+  document.getElementById("keyForm").addEventListener("submit", e => {
+    e.preventDefault();
+    apiKey = document.getElementById("keyInput").value.trim();
+    localStorage.setItem("digitransitKey", apiKey);
+    location.hash = "#/";
+  });
+}
+
+async function viewRoutes() {
+  if (!apiKey) { location.hash = "#/asetukset"; return; }
+  setView(`<p class="muted">Haetaan linjoja…</p>`);
+  const routes = await loadRoutes();
+  setView(`
+    <div class="card">
+      <h2>Linjat</h2>
+      <input type="search" id="routeFilter" placeholder="Suodata linjaa tai määränpäätä…"
+             aria-label="Suodata linjoja">
+      <ul class="plain" id="routeList"></ul>
+    </div>
+    <p class="muted"><a href="#/asetukset">Asetukset</a></p>`);
+
+  const list = document.getElementById("routeList");
+  const render = filter => {
+    const f = filter.toLowerCase();
+    list.innerHTML = routes
+      .filter(r => !f || (r.shortName || "").toLowerCase().includes(f)
+                      || (r.longName || "").toLowerCase().includes(f))
+      .map(r => `<li><a class="item" href="#/linja/${encodeURIComponent(r.gtfsId)}">
+          <span class="badge">${esc(r.shortName)}</span>
+          <span>${esc(r.longName)}</span></a></li>`)
+      .join("") || `<li><p class="muted">Ei osumia.</p></li>`;
+  };
+  render("");
+  document.getElementById("routeFilter").addEventListener("input", e => render(e.target.value));
+}
+
+async function viewRoute(routeId, patternCode, date) {
+  if (!apiKey) { location.hash = "#/asetukset"; return; }
+  setView(`<p class="muted">Haetaan linjan tietoja…</p>`);
+  date = date || todayISO();
+
+  const data = await gql(
+    `query ($id: String!) {
+       route(id: $id) {
+         shortName longName
+         patterns { code name stops { gtfsId name } }
+       }
+     }`, { id: routeId });
+  const route = data.route;
+  if (!route) throw new Error("Linjaa ei löytynyt: " + routeId);
+
+  const patterns = route.patterns || [];
+  const current = patterns.find(p => p.code === patternCode) || patterns[0];
+
+  setView(`
+    <nav class="crumb"><a href="#/">← Kaikki linjat</a></nav>
+    <div class="card">
+      <h2><span class="badge">${esc(route.shortName)}</span> ${esc(route.longName)}</h2>
+      <div class="tabs" role="group" aria-label="Suunta">
+        ${patterns.map(p => `
+          <button data-pattern="${esc(p.code)}" aria-pressed="${p === current}">
+            ${esc(p.name)}
+          </button>`).join("")}
+      </div>
+      <div class="row">
+        <label for="dateInput" class="muted">Päivä</label>
+        <input type="date" id="dateInput" value="${esc(date)}">
+      </div>
+      <div id="timetable"><p class="muted">Haetaan lähtöjä…</p></div>
+    </div>
+    <div class="card">
+      <h2>Pysäkit tällä suunnalla</h2>
+      <p class="muted">Avaa pysäkki nähdäksesi seuraavat lähdöt reaaliajassa.</p>
+      <ul class="plain">
+        ${(current?.stops || []).map(s => `
+          <li><a class="item" href="#/pysakki/${encodeURIComponent(s.gtfsId)}">${esc(s.name)}</a></li>`).join("")}
+      </ul>
+    </div>`);
+
+  document.querySelectorAll("[data-pattern]").forEach(btn =>
+    btn.addEventListener("click", () => {
+      location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(btn.dataset.pattern)}/${date}`;
+    }));
+  document.getElementById("dateInput").addEventListener("change", e => {
+    location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(current.code)}/${e.target.value}`;
+  });
+
+  // Departure times from the pattern's first stop = classic line timetable
+  const box = document.getElementById("timetable");
+  if (!current || !current.stops.length) {
+    box.innerHTML = `<p class="muted">Suunnalle ei löytynyt pysäkkejä.</p>`;
+    return;
+  }
+  try {
+    const dateCompact = date.replace(/-/g, "");
+    const tt = await gql(
+      `query ($stopId: String!, $date: String!) {
+         stop(id: $stopId) {
+           stoptimesForServiceDate(date: $date, omitNonPickups: true) {
+             pattern { code }
+             stoptimes { scheduledDeparture }
+           }
+         }
+       }`, { stopId: current.stops[0].gtfsId, date: dateCompact });
+    const times = (tt.stop?.stoptimesForServiceDate || [])
+      .filter(g => g.pattern.code === current.code)
+      .flatMap(g => g.stoptimes)
+      .map(st => st.scheduledDeparture)
+      .sort((a, b) => a - b);
+    box.innerHTML = times.length
+      ? `<p class="muted">Lähdöt pysäkiltä ${esc(current.stops[0].name)}:</p>
+         <div class="timegrid">${times.map(t => `<span>${fmtSec(t)}</span>`).join("")}</div>`
+      : `<p class="muted">Ei lähtöjä valittuna päivänä.</p>`;
+  } catch (err) {
+    box.innerHTML = `<div class="error">${esc(err.message)}</div>`;
+  }
+}
+
+async function viewStop(stopId) {
+  if (!apiKey) { location.hash = "#/asetukset"; return; }
+  setView(`<p class="muted">Haetaan pysäkin lähtöjä…</p>`);
+
+  const load = async () => {
+    const data = await gql(
+      `query ($id: String!) {
+         stop(id: $id) {
+           name code
+           stoptimesWithoutPatterns(numberOfDepartures: 15, omitNonPickups: true) {
+             scheduledDeparture realtimeDeparture realtime serviceDay headsign
+             trip { route { shortName } }
+           }
+         }
+       }`, { id: stopId });
+    const stop = data.stop;
+    if (!stop) throw new Error("Pysäkkiä ei löytynyt: " + stopId);
+
+    const now = Date.now();
+    const rows = (stop.stoptimesWithoutPatterns || []).map(st => {
+      const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
+      const epoch = (st.serviceDay + dep) * 1000;
+      const mins = Math.round((epoch - now) / 60000);
+      const when = mins <= 0 ? "nyt" : mins < 60 ? mins + " min" : fmtSec(dep);
+      return `<tr>
+        <td><span class="badge">${esc(st.trip.route.shortName)}</span></td>
+        <td>${esc(st.headsign || "")}</td>
+        <td class="${st.realtime ? "rt" : ""}">${when}${st.realtime ? " ●" : ""}</td>
+      </tr>`;
+    }).join("");
+
+    setView(`
+      <nav class="crumb"><a href="javascript:history.back()">← Takaisin</a> · <a href="#/">Kaikki linjat</a></nav>
+      <div class="card">
+        <h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
+        <table>
+          <thead><tr><th>Linja</th><th>Määränpää</th><th>Lähtee</th></tr></thead>
+          <tbody>${rows || `<tr><td colspan="3" class="muted">Ei tulevia lähtöjä.</td></tr>`}</tbody>
+        </table>
+        <p class="muted"><span class="rt">●</span> = reaaliaikainen arvio, muut aikataulun mukaan.
+        Päivittyy 30 s välein.</p>
+      </div>`);
+  };
+
+  await load();
+  stopRefresh();
+  refreshTimer = setInterval(() => load().catch(showError), 30000);
+}
+
+/* ---------- Router ---------- */
+
+async function route() {
+  const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
+  try {
+    if (parts[0] === "asetukset") viewSettings();
+    else if (parts[0] === "linja" && parts[1]) await viewRoute(parts[1], parts[2], parts[3]);
+    else if (parts[0] === "pysakki" && parts[1]) await viewStop(parts[1]);
+    else await viewRoutes();
+  } catch (err) {
+    showError(err);
+  }
+}
+
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>
