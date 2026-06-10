@@ -12,6 +12,8 @@ tasalla ilman ylläpitoa.
 - Kaikki LSL:n bussilinjat suodatettavana listana
 - Linjakohtainen aikataulu (lähdöt lähtöpysäkiltä) valitulle päivälle, suunnittain
 - Pysäkkikohtaiset seuraavat lähdöt **reaaliajassa** (GTFS-RT), päivittyy 30 s välein
+- Pysäkkihaku nimellä
+- Voimassa olevat häiriötiedotteet etusivulla (GTFS-RT service alerts)
 
 ## Käyttöönotto
 
@@ -39,8 +41,7 @@ tasalla ilman ylläpitoa.
 
 ## Jatkokehitysideoita
 
-- Pysäkkihaku nimellä ja sijainnilla
-- Häiriötiedotteet (GTFS-RT service alerts)
+- Pysäkkihaku sijainnin perusteella (lähimmät pysäkit)
 - Tulostettava PDF-aikataulu linjalle
 - Saavutettavuusauditointi (tavoite WCAG 2.1 AA)
 - Sama sovellus muille Waltti-kaupungeille pelkällä feed-konfiguraatiolla

@@ -113,6 +113,17 @@
     font-variant-numeric: tabular-nums;
   }
   .error { background: #fdecec; border: 1px solid #f3b6b6; color: #8a1f1f; padding: 0.6rem; border-radius: 6px; }
+  details.alert {
+    border-left: 4px solid var(--blue);
+    background: #fff;
+    border-radius: 4px;
+    padding: 0.45rem 0.6rem;
+    margin: 0.4rem 0;
+  }
+  details.alert summary { cursor: pointer; font-weight: 600; }
+  details.alert p { margin: 0.4rem 0 0.2rem; white-space: pre-line; font-size: 0.9rem; }
+  details.alert.sev-SEVERE { border-left-color: #c0392b; }
+  details.alert.sev-WARNING { border-left-color: #d68910; }
   nav.crumb { margin-bottom: 0.75rem; font-size: 0.9rem; }
   nav.crumb a { color: var(--blue); }
   footer { max-width: 640px; margin: 0 auto; padding: 0 1rem 2rem; font-size: 0.78rem; color: var(--muted); }
@@ -243,11 +254,81 @@ function viewSettings() {
   });
 }
 
+const SEVERITY_ORDER = { SEVERE: 0, WARNING: 1, INFO: 2, UNKNOWN_SEVERITY: 3 };
+
+async function loadAlertsInto(box) {
+  try {
+    const feed = await findLahtiFeed();
+    const data = await gql(
+      `query ($feeds: [String!]) {
+         alerts(feeds: $feeds) {
+           alertHeaderText alertDescriptionText alertSeverityLevel alertUrl
+           effectiveStartDate effectiveEndDate
+         }
+       }`, { feeds: [feed] });
+    const now = Date.now() / 1000;
+    const seen = new Map();
+    for (const a of data.alerts || []) {
+      if (a.effectiveStartDate && a.effectiveStartDate > now) continue;
+      if (a.effectiveEndDate && a.effectiveEndDate < now) continue;
+      seen.set((a.alertHeaderText || "") + "|" + (a.alertDescriptionText || ""), a);
+    }
+    const alerts = [...seen.values()].sort((a, b) =>
+      (SEVERITY_ORDER[a.alertSeverityLevel] ?? 9) - (SEVERITY_ORDER[b.alertSeverityLevel] ?? 9));
+    if (!alerts.length) { box.innerHTML = ""; return; }
+    box.innerHTML = `
+      <div class="card">
+        <h2>Häiriötiedotteet</h2>
+        ${alerts.map(a => `
+          <details class="alert sev-${esc(a.alertSeverityLevel)}">
+            <summary>${esc(a.alertHeaderText || "Häiriötiedote")}</summary>
+            <p>${esc(a.alertDescriptionText || "")}</p>
+            ${a.alertUrl ? `<p><a href="${esc(a.alertUrl)}" target="_blank" rel="noopener">Lue lisää</a></p>` : ""}
+          </details>`).join("")}
+      </div>`;
+  } catch (err) {
+    box.innerHTML = `<div class="error">Häiriötiedotteiden haku epäonnistui: ${esc(err.message)}</div>`;
+  }
+}
+
+function bindStopSearch(input, results) {
+  let timer = null, seq = 0;
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 3) { results.innerHTML = ""; return; }
+    timer = setTimeout(async () => {
+      const mySeq = ++seq;
+      try {
+        const data = await gql(
+          `query ($name: String) { stops(name: $name) { gtfsId name code } }`, { name: q });
+        if (mySeq !== seq) return;
+        const hits = (data.stops || [])
+          .filter(s => s.gtfsId.startsWith(feedId + ":"))
+          .slice(0, 20);
+        results.innerHTML = hits.length
+          ? hits.map(s => `<li><a class="item" href="#/pysakki/${encodeURIComponent(s.gtfsId)}">
+              <span>${esc(s.name)}</span> <span class="muted">${esc(s.code || "")}</span></a></li>`).join("")
+          : `<li><p class="muted">Ei pysäkkejä haulla "${esc(q)}".</p></li>`;
+      } catch (err) {
+        if (mySeq === seq) results.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`;
+      }
+    }, 300);
+  });
+}
+
 async function viewRoutes() {
   if (!apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">Haetaan linjoja…</p>`);
   const routes = await loadRoutes();
   setView(`
+    <div id="alertsBox"></div>
+    <div class="card">
+      <h2>Pysäkkihaku</h2>
+      <input type="search" id="stopSearch" placeholder="Hae pysäkkiä nimellä (esim. Matkakeskus)…"
+             aria-label="Hae pysäkkiä nimellä">
+      <ul class="plain" id="stopResults"></ul>
+    </div>
     <div class="card">
       <h2>Linjat</h2>
       <input type="search" id="routeFilter" placeholder="Suodata linjaa tai määränpäätä…"
@@ -255,6 +336,9 @@ async function viewRoutes() {
       <ul class="plain" id="routeList"></ul>
     </div>
     <p class="muted"><a href="#/asetukset">Asetukset</a></p>`);
+
+  loadAlertsInto(document.getElementById("alertsBox"));
+  bindStopSearch(document.getElementById("stopSearch"), document.getElementById("stopResults"));
 
   const list = document.getElementById("routeList");
   const render = filter => {
