@@ -9,6 +9,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/mqtt@5/dist/mqtt.min.js"></script>
 <style>
   :root {
     --blue: #0a4ea3;
@@ -132,6 +133,18 @@
   .map { height: clamp(340px, 55vh, 540px); border-radius: 6px; margin: 0.5rem 0; z-index: 0; }
   .map-small { height: clamp(220px, 35vh, 340px); }
   .leaflet-popup-content a { color: var(--blue); }
+  .bus-marker {
+    background: #d35400;
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.68rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
   nav.crumb { margin-bottom: 0.75rem; font-size: 0.9rem; }
   nav.crumb a { color: var(--blue); }
   footer { max-width: 760px; margin: 0 auto; padding: 0 1rem 2rem; font-size: 0.78rem; color: var(--muted); }
@@ -161,7 +174,10 @@
 <script>
 "use strict";
 
-const API_URL = "https://api.digitransit.fi/routing/v2/waltti/gtfs/v1";
+// Kun worker/-hakemiston välityspalvelin on otettu käyttöön, laita sen
+// osoite tähän — silloin käyttäjiltä ei kysytä API-avainta.
+const PROXY_URL = "";
+const API_URL = PROXY_URL || "https://api.digitransit.fi/routing/v2/waltti/gtfs/v1";
 const app = document.getElementById("app");
 
 let apiKey = localStorage.getItem("digitransitKey") || "";
@@ -172,12 +188,11 @@ let refreshTimer = null;
 /* ---------- API ---------- */
 
 async function gql(query, variables) {
+  const headers = { "Content-Type": "application/json" };
+  if (!PROXY_URL) headers["digitransit-subscription-key"] = apiKey;
   const res = await fetch(API_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "digitransit-subscription-key": apiKey,
-    },
+    headers,
     body: JSON.stringify({ query, variables }),
   });
   if (res.status === 401 || res.status === 403) {
@@ -265,8 +280,96 @@ function makeMap(elId, center, zoom) {
 
 const STOP_MARKER = { radius: 5, color: "#0a4ea3", weight: 2, fillColor: "#fff", fillOpacity: 1 };
 
+/* ---------- Live vehicle positions (Waltti GTFS-RT via MQTT) ---------- */
+
+// Minimaalinen protobuf-kävelijä: riittää GTFS-RT VehiclePositionin
+// koordinaattien poimintaan ilman riippuvuuksia
+function pbParse(buf) {
+  const out = [];
+  let i = 0;
+  while (i < buf.length) {
+    let key = 0, shift = 0, b;
+    do { b = buf[i++]; key |= (b & 0x7f) << shift; shift += 7; } while (b & 0x80);
+    const field = key >>> 3, wire = key & 7;
+    if (wire === 0) {
+      do { b = buf[i++]; } while (b & 0x80);
+      out.push({ field, wire });
+    } else if (wire === 2) {
+      let len = 0; shift = 0;
+      do { b = buf[i++]; len |= (b & 0x7f) << shift; shift += 7; } while (b & 0x80);
+      out.push({ field, wire, bytes: buf.subarray(i, i + len) }); i += len;
+    } else if (wire === 5) { out.push({ field, wire, bytes: buf.subarray(i, i + 4) }); i += 4; }
+    else if (wire === 1) { out.push({ field, wire, bytes: buf.subarray(i, i + 8) }); i += 8; }
+    else return out; // tuntematon wire-tyyppi: lopetetaan siististi
+  }
+  return out;
+}
+
+function pbFloat(b) {
+  return new DataView(b.buffer, b.byteOffset, 4).getFloat32(0, true);
+}
+
+// FeedMessage(2: entity) -> FeedEntity(4: vehicle) -> VehiclePosition(2: position)
+function decodeVehiclePosition(buf) {
+  for (const fm of pbParse(buf)) {
+    if (fm.field !== 2 || fm.wire !== 2) continue;
+    for (const ent of pbParse(fm.bytes)) {
+      if (ent.field !== 4 || ent.wire !== 2) continue;
+      for (const vp of pbParse(ent.bytes)) {
+        if (vp.field === 2 && vp.wire === 2) {
+          const pos = {};
+          for (const p of pbParse(vp.bytes)) {
+            if (p.field === 1 && p.bytes) pos.lat = pbFloat(p.bytes);
+            if (p.field === 2 && p.bytes) pos.lon = pbFloat(p.bytes);
+          }
+          return pos;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+let mqttClient = null;
+let vehicleSweep = null;
+
+function startVehicles(map, routeId, shortName) {
+  if (typeof mqtt === "undefined") return;
+  const routeNum = routeId.split(":")[1];
+  const markers = new Map(); // vehicleId -> { marker, ts }
+  mqttClient = mqtt.connect("wss://mqtt.digitransit.fi:443/", { reconnectPeriod: 5000 });
+  mqttClient.on("connect", () => {
+    if (mqttClient) mqttClient.subscribe(`/gtfsrt/vp/${feedId}/+/+/+/${routeNum}/#`);
+  });
+  mqttClient.on("message", (topic, payload) => {
+    const seg = topic.split("/");
+    const vehId = seg[13] || topic;
+    const headsign = seg[9] || "";
+    const pos = decodeVehiclePosition(payload);
+    if (!pos || pos.lat == null || pos.lon == null) return;
+    let m = markers.get(vehId);
+    if (!m) {
+      const icon = L.divIcon({ className: "bus-marker", html: esc(shortName), iconSize: [26, 26] });
+      m = { marker: L.marker([pos.lat, pos.lon], { icon, zIndexOffset: 1000 }).addTo(map).bindTooltip("") };
+      markers.set(vehId, m);
+    }
+    m.marker.setLatLng([pos.lat, pos.lon]);
+    m.marker.setTooltipContent(`Linja ${esc(shortName)} → ${esc(headsign)}`);
+    m.ts = Date.now();
+  });
+  // siivoa bussit, joista ei ole kuulunut 90 sekuntiin (esim. päätepysäkillä)
+  vehicleSweep = setInterval(() => {
+    const cutoff = Date.now() - 90000;
+    for (const [id, m] of markers) {
+      if ((m.ts || 0) < cutoff) { map.removeLayer(m.marker); markers.delete(id); }
+    }
+  }, 15000);
+}
+
 function stopRefresh() {
   if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  if (vehicleSweep) { clearInterval(vehicleSweep); vehicleSweep = null; }
+  if (mqttClient) { try { mqttClient.end(true); } catch (e) {} mqttClient = null; }
 }
 
 function setView(html) {
@@ -440,7 +543,7 @@ function bindNearbyButton(btn, results) {
 }
 
 async function viewRoutes() {
-  if (!apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">Haetaan linjoja…</p>`);
   const routes = await loadRoutes();
   setView(`
@@ -482,7 +585,7 @@ async function viewRoutes() {
 }
 
 async function viewRoute(routeId, patternCode, date) {
-  if (!apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">Haetaan linjan tietoja…</p>`);
   date = date || todayISO();
 
@@ -520,7 +623,8 @@ async function viewRoute(routeId, patternCode, date) {
     <div class="card">
       <h2>Reitti kartalla ja pysäkit</h2>
       <div id="routeMap" class="map" aria-label="Reitti kartalla"></div>
-      <p class="muted">Avaa pysäkki nähdäksesi seuraavat lähdöt reaaliajassa.</p>
+      <p class="muted">Oranssit merkit ovat linjan busseja reaaliajassa.
+      Avaa pysäkki nähdäksesi seuraavat lähdöt.</p>
       <ul class="plain">
         ${(current?.stops || []).map(s => `
           <li><a class="item" href="#/pysakki/${encodeURIComponent(s.gtfsId)}">${esc(s.name)}</a></li>`).join("")}
@@ -573,6 +677,7 @@ async function viewRoute(routeId, patternCode, date) {
       }
       if (!bounds && located.length) bounds = L.latLngBounds(located.map(s => [s.lat, s.lon]));
       if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
+      startVehicles(map, routeId, route.shortName);
     } catch (err) {
       mapEl.outerHTML = `<div class="error">Kartan haku epäonnistui: ${esc(err.message)}</div>`;
     }
@@ -610,7 +715,7 @@ async function viewRoute(routeId, patternCode, date) {
 }
 
 async function viewStop(stopId) {
-  if (!apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">Haetaan pysäkin lähtöjä…</p>`);
 
   const fetchStop = async () => {

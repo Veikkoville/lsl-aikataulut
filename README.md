@@ -12,10 +12,14 @@ tasalla ilman ylläpitoa.
 - Kaikki LSL:n bussilinjat suodatettavana listana
 - Linjakohtainen aikataulu (lähdöt lähtöpysäkiltä) valitulle päivälle, suunnittain
 - Pysäkkikohtaiset seuraavat lähdöt **reaaliajassa** (GTFS-RT), päivittyy 30 s välein
-- Pysäkkihaku nimellä
-- Voimassa olevat häiriötiedotteet etusivulla (GTFS-RT service alerts)
+- Pysäkkihaku nimellä ja lähimmät pysäkit selaimen paikannuksella
+- Voimassa olevat häiriötiedotteet etusivulla ja linjakohtaisesti linjasivulla
 - Reittikartta linjasivulla (reittiviiva + klikattavat pysäkit) ja sijaintikartta
   pysäkkisivulla (Leaflet + OpenStreetMap)
+- Linjan bussit liikkuvat kartalla reaaliajassa (Waltti GTFS-RT,
+  mqtt.digitransit.fi)
+- Tulostettava / PDF:ksi tallennettava linja-aikataulu
+- Asennettavissa puhelimen kotinäytölle (PWA)
 
 ## Käyttöönotto
 
@@ -43,10 +47,8 @@ tasalla ilman ylläpitoa.
 
 ## Jatkokehitysideoita
 
-- Pysäkkihaku sijainnin perusteella (lähimmät pysäkit)
-- Bussien sijainnit kartalle (Waltin reaaliaikadata MQTT-kanavasta;
-  reititysrajapinnan vehiclePositions-kenttä on Waltti-alueilla tyhjä)
-- Tulostettava PDF-aikataulu linjalle
+- API-avaimen välityspalvelin käyttöön (ks. [worker/](worker/)), jotta sivu
+  toimii ilman omaa avainta
 - Saavutettavuusauditointi (tavoite WCAG 2.1 AA)
 - Sama sovellus muille Waltti-kaupungeille pelkällä feed-konfiguraatiolla
 
