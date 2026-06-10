@@ -1,0 +1,14 @@
+{
+  "name": "Lahden bussiaikataulut",
+  "short_name": "Bussit Lahti",
+  "description": "Epävirallinen aikataulupalvelu Lahden seudun busseille",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f4f6f9",
+  "theme_color": "#0a4ea3",
+  "lang": "fi",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

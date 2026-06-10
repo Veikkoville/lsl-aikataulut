@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lahden bussiaikataulut (epävirallinen)</title>
+<meta name="theme-color" content="#0a4ea3">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -32,7 +35,7 @@
   }
   header h1 { margin: 0; font-size: 1.15rem; }
   header p { margin: 0.1rem 0 0; font-size: 0.8rem; opacity: 0.85; }
-  main { max-width: 640px; margin: 0 auto; padding: 1rem; }
+  main { max-width: 760px; margin: 0 auto; padding: 1rem; }
   .card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -126,12 +129,20 @@
   details.alert p { margin: 0.4rem 0 0.2rem; white-space: pre-line; font-size: 0.9rem; }
   details.alert.sev-SEVERE { border-left-color: #c0392b; }
   details.alert.sev-WARNING { border-left-color: #d68910; }
-  .map { height: 320px; border-radius: 6px; margin: 0.5rem 0; z-index: 0; }
-  .map-small { height: 220px; }
+  .map { height: clamp(340px, 55vh, 540px); border-radius: 6px; margin: 0.5rem 0; z-index: 0; }
+  .map-small { height: clamp(220px, 35vh, 340px); }
   .leaflet-popup-content a { color: var(--blue); }
   nav.crumb { margin-bottom: 0.75rem; font-size: 0.9rem; }
   nav.crumb a { color: var(--blue); }
-  footer { max-width: 640px; margin: 0 auto; padding: 0 1rem 2rem; font-size: 0.78rem; color: var(--muted); }
+  footer { max-width: 760px; margin: 0 auto; padding: 0 1rem 2rem; font-size: 0.78rem; color: var(--muted); }
+  @media print {
+    body { background: #fff; }
+    header { background: none; color: #000; padding: 0 0 0.5rem; }
+    header p, nav.crumb, .tabs, .map, .map-small, .no-print, #routeAlerts, button { display: none !important; }
+    .card { border: none; padding: 0.25rem 0; margin: 0; break-inside: avoid; }
+    .badge { border: 1px solid #000; background: none; color: #000; }
+    .timegrid span { background: none; border: 1px solid #ccc; }
+  }
 </style>
 </head>
 <body>
@@ -243,7 +254,7 @@ function decodePolyline(str) {
 }
 
 function makeMap(elId, center, zoom) {
-  const map = L.map(elId, { scrollWheelZoom: false });
+  const map = L.map(elId, { scrollWheelZoom: true });
   if (center) map.setView(center, zoom || 14);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-tekijät',
@@ -293,35 +304,76 @@ function viewSettings() {
 
 const SEVERITY_ORDER = { SEVERE: 0, WARNING: 1, INFO: 2, UNKNOWN_SEVERITY: 3 };
 
+let alertsPromise = null;
+
+// Voimassa olevat tiedotteet, haetaan kerran per istunto
+function loadAlerts() {
+  if (!alertsPromise) {
+    alertsPromise = (async () => {
+      const feed = await findLahtiFeed();
+      const data = await gql(
+        `query ($feeds: [String!]) {
+           alerts(feeds: $feeds) {
+             alertHeaderText alertDescriptionText alertSeverityLevel alertUrl
+             effectiveStartDate effectiveEndDate
+             route { gtfsId } stop { gtfsId }
+           }
+         }`, { feeds: [feed] });
+      const now = Date.now() / 1000;
+      return (data.alerts || []).filter(a =>
+        !(a.effectiveStartDate && a.effectiveStartDate > now) &&
+        !(a.effectiveEndDate && a.effectiveEndDate < now));
+    })().catch(err => { alertsPromise = null; throw err; });
+  }
+  return alertsPromise;
+}
+
+function dedupAlerts(alerts) {
+  const seen = new Map();
+  for (const a of alerts) {
+    seen.set((a.alertHeaderText || "") + "|" + (a.alertDescriptionText || ""), a);
+  }
+  return [...seen.values()].sort((a, b) =>
+    (SEVERITY_ORDER[a.alertSeverityLevel] ?? 9) - (SEVERITY_ORDER[b.alertSeverityLevel] ?? 9));
+}
+
+function alertHtml(a) {
+  return `<details class="alert sev-${esc(a.alertSeverityLevel)}">
+    <summary>${esc(a.alertHeaderText || "Häiriötiedote")}</summary>
+    <p>${esc(a.alertDescriptionText || "")}</p>
+    ${a.alertUrl ? `<p><a href="${esc(a.alertUrl)}" target="_blank" rel="noopener">Lue lisää</a></p>` : ""}
+  </details>`;
+}
+
+// LSL ei kiinnitä tiedotteita linjaobjekteihin, joten linjat poimitaan myös
+// tiedotetekstin maininnoista: "linjoja 3, 6, 8(K)" -> 3, 6, 8, 8K
+function lineTokensFromText(text) {
+  const out = new Set();
+  for (const seg of text.matchAll(/linj\w*\s+([0-9][0-9A-ZÅÄÖ()\s,.ja-]*)/gi)) {
+    for (const tok of seg[1].matchAll(/(\d+)\s*(?:\(([A-ZÅÄÖ,\s]+)\))?([A-ZÅÄÖ]?)/g)) {
+      out.add(tok[1]);
+      if (tok[3]) out.add(tok[1] + tok[3]);
+      if (tok[2]) for (const l of tok[2].split(/[,\s]+/)) if (l) out.add(tok[1] + l);
+    }
+  }
+  return out;
+}
+
+function alertMatchesRoute(a, routeGtfsId, shortName, stopIds) {
+  if (a.route && a.route.gtfsId === routeGtfsId) return true;
+  if (a.stop && stopIds.has(a.stop.gtfsId)) return true;
+  const tokens = lineTokensFromText((a.alertHeaderText || "") + " " + (a.alertDescriptionText || ""));
+  return tokens.has((shortName || "").toUpperCase());
+}
+
 async function loadAlertsInto(box) {
   try {
-    const feed = await findLahtiFeed();
-    const data = await gql(
-      `query ($feeds: [String!]) {
-         alerts(feeds: $feeds) {
-           alertHeaderText alertDescriptionText alertSeverityLevel alertUrl
-           effectiveStartDate effectiveEndDate
-         }
-       }`, { feeds: [feed] });
-    const now = Date.now() / 1000;
-    const seen = new Map();
-    for (const a of data.alerts || []) {
-      if (a.effectiveStartDate && a.effectiveStartDate > now) continue;
-      if (a.effectiveEndDate && a.effectiveEndDate < now) continue;
-      seen.set((a.alertHeaderText || "") + "|" + (a.alertDescriptionText || ""), a);
-    }
-    const alerts = [...seen.values()].sort((a, b) =>
-      (SEVERITY_ORDER[a.alertSeverityLevel] ?? 9) - (SEVERITY_ORDER[b.alertSeverityLevel] ?? 9));
+    const alerts = dedupAlerts(await loadAlerts());
     if (!alerts.length) { box.innerHTML = ""; return; }
     box.innerHTML = `
       <div class="card">
         <h2>Häiriötiedotteet</h2>
-        ${alerts.map(a => `
-          <details class="alert sev-${esc(a.alertSeverityLevel)}">
-            <summary>${esc(a.alertHeaderText || "Häiriötiedote")}</summary>
-            <p>${esc(a.alertDescriptionText || "")}</p>
-            ${a.alertUrl ? `<p><a href="${esc(a.alertUrl)}" target="_blank" rel="noopener">Lue lisää</a></p>` : ""}
-          </details>`).join("")}
+        ${alerts.map(alertHtml).join("")}
       </div>`;
   } catch (err) {
     box.innerHTML = `<div class="error">Häiriötiedotteiden haku epäonnistui: ${esc(err.message)}</div>`;
@@ -354,6 +406,39 @@ function bindStopSearch(input, results) {
   });
 }
 
+function bindNearbyButton(btn, results) {
+  btn.addEventListener("click", () => {
+    if (!navigator.geolocation) {
+      results.innerHTML = `<li><div class="error">Selaimesi ei tue paikannusta.</div></li>`;
+      return;
+    }
+    results.innerHTML = `<li><p class="muted">Haetaan sijaintia…</p></li>`;
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try {
+        const data = await gql(
+          `query ($lat: Float!, $lon: Float!) {
+             stopsByRadius(lat: $lat, lon: $lon, radius: 800, first: 15) {
+               edges { node { distance stop { gtfsId name code } } }
+             }
+           }`, { lat: pos.coords.latitude, lon: pos.coords.longitude });
+        const nodes = (data.stopsByRadius?.edges || [])
+          .map(e => e.node)
+          .filter(n => n.stop && n.stop.gtfsId.startsWith(feedId + ":"))
+          .sort((a, b) => a.distance - b.distance);
+        results.innerHTML = nodes.length
+          ? nodes.map(n => `<li><a class="item" href="#/pysakki/${encodeURIComponent(n.stop.gtfsId)}">
+              <span>${esc(n.stop.name)}</span>
+              <span class="muted">${n.distance} m</span></a></li>`).join("")
+          : `<li><p class="muted">Ei pysäkkejä 800 metrin säteellä. Oletko Lahden seudulla?</p></li>`;
+      } catch (err) {
+        results.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`;
+      }
+    }, geoErr => {
+      results.innerHTML = `<li><div class="error">Sijaintia ei saatu: ${esc(geoErr.message)}</div></li>`;
+    }, { timeout: 10000 });
+  });
+}
+
 async function viewRoutes() {
   if (!apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">Haetaan linjoja…</p>`);
@@ -362,8 +447,11 @@ async function viewRoutes() {
     <div id="alertsBox"></div>
     <div class="card">
       <h2>Pysäkkihaku</h2>
-      <input type="search" id="stopSearch" placeholder="Hae pysäkkiä nimellä (esim. Matkakeskus)…"
-             aria-label="Hae pysäkkiä nimellä">
+      <div class="row">
+        <input type="search" id="stopSearch" placeholder="Hae pysäkkiä nimellä (esim. Matkakeskus)…"
+               aria-label="Hae pysäkkiä nimellä">
+        <button id="nearbyBtn" title="Näytä lähimmät pysäkit sijaintisi perusteella">📍 Lähellä</button>
+      </div>
       <ul class="plain" id="stopResults"></ul>
     </div>
     <div class="card">
@@ -376,6 +464,7 @@ async function viewRoutes() {
 
   loadAlertsInto(document.getElementById("alertsBox"));
   bindStopSearch(document.getElementById("stopSearch"), document.getElementById("stopResults"));
+  bindNearbyButton(document.getElementById("nearbyBtn"), document.getElementById("stopResults"));
 
   const list = document.getElementById("routeList");
   const render = filter => {
@@ -414,15 +503,17 @@ async function viewRoute(routeId, patternCode, date) {
     <nav class="crumb"><a href="#/">← Kaikki linjat</a></nav>
     <div class="card">
       <h2><span class="badge">${esc(route.shortName)}</span> ${esc(route.longName)}</h2>
+      <div id="routeAlerts"></div>
       <div class="tabs" role="group" aria-label="Suunta">
         ${patterns.map(p => `
           <button data-pattern="${esc(p.code)}" aria-pressed="${p === current}">
             ${esc(p.name)}
           </button>`).join("")}
       </div>
-      <div class="row">
+      <div class="row no-print">
         <label for="dateInput" class="muted">Päivä</label>
         <input type="date" id="dateInput" value="${esc(date)}">
+        <button id="printBtn" title="Tulosta tai tallenna PDF:nä">🖨 Tulosta</button>
       </div>
       <div id="timetable"><p class="muted">Haetaan lähtöjä…</p></div>
     </div>
@@ -443,6 +534,18 @@ async function viewRoute(routeId, patternCode, date) {
   document.getElementById("dateInput").addEventListener("change", e => {
     location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(current.code)}/${e.target.value}`;
   });
+  document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+  // Linjaa koskevat poikkeustiedotteet (ei estä muun sivun latausta)
+  (async () => {
+    try {
+      const stopIds = new Set(patterns.flatMap(p => p.stops.map(s => s.gtfsId)));
+      const matched = dedupAlerts((await loadAlerts())
+        .filter(a => alertMatchesRoute(a, routeId, route.shortName, stopIds)));
+      const el = document.getElementById("routeAlerts");
+      if (el && matched.length) el.innerHTML = matched.map(alertHtml).join("");
+    } catch (err) { /* tiedotteiden puuttuminen ei kaada linjasivua */ }
+  })();
 
   // Map is drawn concurrently with the timetable fetch below
   (async () => {
@@ -590,6 +693,10 @@ async function route() {
 
 window.addEventListener("hashchange", route);
 route();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 </script>
 </body>
 </html>
