@@ -542,6 +542,9 @@ const STRINGS = {
     share: "Jaa", linkCopied: "Linkki kopioitu!",
     recent: "Viimeksi haetut",
     filterByRoute: "Näytä vain linjan {line} lähdöt",
+    showEarlier: "Näytä aikaisempia lähtöjä",
+    lastSearch: "Viimeisin haku",
+    stopBusesHint: "Oranssit merkit ovat pysäkkiä liikennöivien linjojen busseja reaaliajassa.",
   },
   en: {
     appTitle: "{city} bus timetables",
@@ -659,6 +662,9 @@ const STRINGS = {
     share: "Share", linkCopied: "Link copied!",
     recent: "Recent searches",
     filterByRoute: "Show only route {line} departures",
+    showEarlier: "Show earlier departures",
+    lastSearch: "Latest search",
+    stopBusesHint: "Orange markers are buses of the routes serving this stop, in real time.",
   },
   sv: {
     appTitle: "Busstidtabeller i {city}",
@@ -776,6 +782,9 @@ const STRINGS = {
     share: "Dela", linkCopied: "Länken kopierad!",
     recent: "Senaste sökningar",
     filterByRoute: "Visa endast linje {line}",
+    showEarlier: "Visa tidigare avgångar",
+    lastSearch: "Senaste sökning",
+    stopBusesHint: "Orange markörer är bussar på linjerna som trafikerar hållplatsen, i realtid.",
   },
 };
 
@@ -1754,6 +1763,7 @@ async function viewRoutes() {
     <div class="card">
       <h2>${t("planTitle")}</h2>
       <p><a class="item" href="#/reitti">🧭 ${t("planLink")}</a></p>
+      <div id="lastPlanRow"></div>
     </div>
     <div class="card">
       <h2>${t("stopSearchTitle")}</h2>
@@ -1773,6 +1783,14 @@ async function viewRoutes() {
     <p class="muted"><a href="#/asetukset">${t("settings")}</a></p>`);
 
   loadAlertsInto(document.getElementById("alertsBox"));
+  try {
+    const lp = JSON.parse(localStorage.getItem("lastPlan") || "null");
+    if (lp?.hash) {
+      document.getElementById("lastPlanRow").innerHTML =
+        `<p><a class="item" href="${esc(lp.hash)}">↻ <span>${esc(lp.from)} → ${esc(lp.to)}</span>
+           <span class="muted">${t("lastSearch")}</span></a></p>`;
+    }
+  } catch (e) { /* rikkinäinen merkintä ohitetaan */ }
   renderFavorites();
   initNearby(document.getElementById("nearbyBody"));
   bindStopSearch(document.getElementById("stopSearch"), document.getElementById("stopResults"));
@@ -2064,6 +2082,7 @@ async function viewStop(stopId) {
       </table>
       <p class="muted"><span class="rt">●</span> ${t("rtLegendStop")}</p>
       <div id="stopMap" class="map map-small" aria-label="${t("stopMapAria")}"></div>
+      <p class="muted" id="stopMapHint" hidden>${t("stopBusesHint")}</p>
     </div>`);
 
   bindFavButton({ type: "stop", id: stopId, name: stop.name });
@@ -2086,6 +2105,13 @@ async function viewStop(stopId) {
       const map = makeMap("stopMap", [stop.lat, stop.lon], 16);
       L.circleMarker([stop.lat, stop.lon], STOP_MARKER).addTo(map)
         .bindPopup(esc(stop.name));
+      // pysäkkiä liikennöivien linjojen bussit lähestymässä
+      const routes = (stop.routes || []).slice(0, 15);
+      if (routes.length) {
+        startVehicles(map, routes);
+        const hint = document.getElementById("stopMapHint");
+        if (hint) hint.hidden = false;
+      }
     }).catch(() => { document.getElementById("stopMap")?.remove(); });
   } else {
     const el = document.getElementById("stopMap");
@@ -2214,7 +2240,32 @@ function bindPlaceInput(input, listEl, onPick) {
       }
     }, 300);
   });
-  input.addEventListener("blur", () => setTimeout(close, 200));
+  // suljetaan vasta kun fokus poistuu koko hakukomponentista, jotta
+  // nuolinäppäimillä liikkuminen ehdotuksiin ei sulje listaa
+  const wrap = input.closest(".suggest") || input.parentElement;
+  wrap.addEventListener("focusout", e => {
+    if (!wrap.contains(e.relatedTarget)) setTimeout(close, 150);
+  });
+  input.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown") {
+      const first = listEl.querySelector("button");
+      if (first) { e.preventDefault(); first.focus(); }
+    } else if (e.key === "Escape") {
+      close();
+    }
+  });
+  listEl.addEventListener("keydown", e => {
+    const btns = [...listEl.querySelectorAll("button")];
+    const i = btns.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" && i >= 0 && i < btns.length - 1) {
+      e.preventDefault(); btns[i + 1].focus();
+    } else if (e.key === "ArrowUp" && i >= 0) {
+      e.preventDefault();
+      if (i > 0) btns[i - 1].focus(); else input.focus();
+    } else if (e.key === "Escape") {
+      close(); input.focus();
+    }
+  });
 }
 
 /* ---------- A→B-reitinhaku (planConnection) ---------- */
@@ -2240,11 +2291,11 @@ function nowLocalInput() {
 
 /* Jaettava reittilinkki: hakuehdot talteen URL:iin (replaceState ei laukaise
    hashchangea, joten näkymä ei piirry turhaan uudelleen) */
-function planHash() {
+function planHash(includeTime = true) {
   const enc = p => encodeURIComponent(`${p.lat.toFixed(5)},${p.lon.toFixed(5)},${p.name}`);
   const opts = new URLSearchParams();
-  if (planState.time) opts.set("t", planState.time);
-  if (planState.timeMode === "arr") opts.set("m", "arr");
+  if (includeTime && planState.time) opts.set("t", planState.time);
+  if (includeTime && planState.timeMode === "arr") opts.set("m", "arr");
   if (planState.wheelchair) opts.set("wc", "1");
   if (planState.lessWalk) opts.set("lw", "1");
   const o = opts.toString();
@@ -2281,11 +2332,13 @@ function isoWithOffset(local) {
 
 const PLAN_QUERY = `
   query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!,
-         $first: Int, $after: String, $dateTime: PlanDateTimeInput, $preferences: PlanPreferencesInput) {
+         $first: Int, $after: String, $last: Int, $before: String,
+         $dateTime: PlanDateTimeInput, $preferences: PlanPreferencesInput) {
     planConnection(origin: $origin, destination: $destination,
-                   first: $first, after: $after, searchWindow: "PT2H", dateTime: $dateTime,
+                   first: $first, after: $after, last: $last, before: $before,
+                   searchWindow: "PT2H", dateTime: $dateTime,
                    preferences: $preferences) {
-      pageInfo { endCursor hasNextPage }
+      pageInfo { startCursor endCursor hasNextPage hasPreviousPage }
       edges { node {
         start end numberOfTransfers walkDistance
         legs {
@@ -2569,9 +2622,10 @@ async function viewPlan(parts) {
   });
 
   const results = document.getElementById("planResults");
-  let nodes = [], cursor = null, directNodes = {}, lastHasNext = false, mainDone = false;
+  let nodes = [], cursor = null, prevCursor = null, directNodes = {};
+  let lastHasNext = false, lastHasPrev = false, mainDone = false;
 
-  const renderResults = hasNext => {
+  const renderResults = () => {
     const directRow = ["walk", "bike"]
       .filter(k => directNodes[k])
       .map(k => directHtml(directNodes[k], k))
@@ -2581,8 +2635,9 @@ async function viewPlan(parts) {
            <h2>${t("itinerariesTitle")}
              <button id="shareBtn" class="linkish no-print" style="float:right">🔗 ${t("share")}</button></h2>
            ${directRow}
+           ${lastHasPrev && nodes.length ? `<button id="earlierBtn" class="linkish no-print">↑ ${t("showEarlier")}</button>` : ""}
            ${nodes.map((n, i) => itinHtml(n, i)).join("")}
-           ${hasNext ? `<button id="moreBtn" class="no-print">${t("showLater")}</button>` : ""}
+           ${lastHasNext ? `<button id="moreBtn" class="no-print">${t("showLater")}</button>` : ""}
          </div>`
       : `<div class="card"><p class="muted">${t("noItineraries")}</p></div>`;
     results.querySelectorAll("details.itin[data-itin]").forEach(d =>
@@ -2593,7 +2648,8 @@ async function viewPlan(parts) {
       d.addEventListener("toggle", () => {
         if (d.open) drawItineraryMap("directMap" + d.dataset.direct, directNodes[d.dataset.direct]).catch(() => {});
       }));
-    document.getElementById("moreBtn")?.addEventListener("click", () => search(true));
+    document.getElementById("moreBtn")?.addEventListener("click", () => search("more"));
+    document.getElementById("earlierBtn")?.addEventListener("click", () => search("earlier"));
     document.getElementById("shareBtn")?.addEventListener("click", async e => {
       const url = location.origin + location.pathname + planHash();
       try {
@@ -2621,17 +2677,19 @@ async function viewPlan(parts) {
     if (directNodes.walk && directNodes.walk.legs.reduce((s, l) => s + l.duration, 0) > 7200) {
       directNodes.walk = null;
     }
-    if (mainDone && document.getElementById("planResults") === results) renderResults(lastHasNext);
+    if (mainDone && document.getElementById("planResults") === results) renderResults();
   };
 
-  const search = async append => {
+  // mode: false/"new" = uusi haku, "more" = myöhemmät, "earlier" = aikaisemmat
+  const search = async mode => {
     const msg = document.getElementById("planMsg");
     if (!planState.from || !planState.to) {
       msg.innerHTML = `<div class="error">${t("choosePlaces")}</div>`;
       return;
     }
+    const append = mode === "more" || mode === "earlier";
     if (!append) {
-      cursor = null; nodes = []; directNodes = {}; mainDone = false;
+      cursor = null; prevCursor = null; nodes = []; directNodes = {}; mainDone = false;
       results.innerHTML = `<p class="muted">${t("searchingRoutes")}</p>`;
       fetchDirects().catch(() => {});
     }
@@ -2650,21 +2708,44 @@ async function viewPlan(parts) {
     history.replaceState(null, "", planHash());
     addRecent(planState.from);
     addRecent(planState.to);
+    // etusivun "viimeisin haku" -pikalinkki (ilman aikaa → haetaan avattaessa nyt-ajalla)
     try {
-      const data = await gql(PLAN_QUERY, {
+      localStorage.setItem("lastPlan", JSON.stringify({
+        from: planState.from.name, to: planState.to.name, hash: planHash(false),
+      }));
+    } catch (e) {}
+    try {
+      const vars = {
         origin: { location: { coordinate: { latitude: planState.from.lat, longitude: planState.from.lon } } },
         destination: { location: { coordinate: { latitude: planState.to.lat, longitude: planState.to.lon } } },
-        first: 5,
-        after: append ? cursor : null,
         dateTime,
         preferences,
-      });
+      };
+      if (mode === "earlier") {
+        vars.last = 5;
+        vars.before = prevCursor;
+      } else {
+        vars.first = 5;
+        vars.after = mode === "more" ? cursor : null;
+      }
+      const data = await gql(PLAN_QUERY, vars);
       const conn = data.planConnection;
-      cursor = conn.pageInfo.endCursor;
-      nodes = nodes.concat((conn.edges || []).map(e => e.node));
-      lastHasNext = conn.pageInfo.hasNextPage;
+      const newNodes = (conn.edges || []).map(e => e.node);
+      if (mode === "earlier") {
+        nodes = newNodes.concat(nodes);
+        prevCursor = conn.pageInfo.startCursor;
+        lastHasPrev = conn.pageInfo.hasPreviousPage;
+      } else {
+        nodes = nodes.concat(newNodes);
+        cursor = conn.pageInfo.endCursor;
+        lastHasNext = conn.pageInfo.hasNextPage;
+        if (!append) {
+          prevCursor = conn.pageInfo.startCursor;
+          lastHasPrev = conn.pageInfo.hasPreviousPage;
+        }
+      }
       mainDone = true;
-      renderResults(lastHasNext);
+      renderResults();
     } catch (err) {
       results.innerHTML = `<div class="error">${esc(err.message)}</div>`;
     }
