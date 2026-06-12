@@ -115,6 +115,14 @@
     flex-shrink: 0;
   }
   .muted { color: var(--muted); font-size: 0.85rem; }
+  h3.stophead {
+    font-size: 0.95rem;
+    margin: 0.7rem 0 0.15rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+  }
+  h3.stophead a { color: var(--text); }
   .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
   .tabs button {
     background: #e7edf6;
@@ -256,6 +264,13 @@ async function findLahtiFeed() {
 
 async function loadRoutes() {
   if (routesCache) return routesCache;
+  try {
+    const cached = JSON.parse(localStorage.getItem("routesCache") || "null");
+    if (cached && Date.now() - cached.ts < 24 * 3600 * 1000 && cached.routes?.length) {
+      routesCache = cached.routes;
+      return routesCache;
+    }
+  } catch (e) { /* rikkinäinen välimuisti ohitetaan */ }
   const feed = await findLahtiFeed();
   const data = await gql(
     `query ($feeds: [String]) {
@@ -264,6 +279,9 @@ async function loadRoutes() {
   routesCache = data.routes
     .filter(r => r.mode === "BUS")
     .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
+  try {
+    localStorage.setItem("routesCache", JSON.stringify({ ts: Date.now(), routes: routesCache }));
+  } catch (e) { /* täysi localStorage ei ole este */ }
   return routesCache;
 }
 
@@ -273,6 +291,15 @@ function fmtSec(sec) {
   const h = Math.floor(sec / 3600) % 24;
   const m = Math.floor((sec % 3600) / 60);
   return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+}
+
+// Lähtöajan esitys: "nyt" / "5 min" / "14:32"; rt = reaaliaikainen arvio
+function depInfo(st) {
+  const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
+  const epoch = (st.serviceDay + dep) * 1000;
+  const mins = Math.round((epoch - Date.now()) / 60000);
+  const when = mins <= 0 ? "nyt" : mins < 60 ? mins + " min" : fmtSec(dep);
+  return { when, rt: !!st.realtime };
 }
 
 function todayISO() {
@@ -640,12 +667,105 @@ function bindNearbyButton(btn, results) {
   });
 }
 
+/* ---------- Etusivun lähimmät lähdöt ---------- */
+
+const NEARBY_QUERY = `
+  query ($lat: Float!, $lon: Float!) {
+    stopsByRadius(lat: $lat, lon: $lon, radius: 800, first: 25) {
+      edges { node { distance stop {
+        gtfsId name code
+        stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
+          scheduledDeparture realtimeDeparture realtime serviceDay headsign
+          trip { route { shortName } }
+        }
+      } } }
+    }
+  }`;
+
+let lastCoords = null;
+
+function depTableRows(stoptimes) {
+  return (stoptimes || []).map(st => {
+    const d = depInfo(st);
+    return `<tr>
+      <td><span class="badge">${esc(st.trip.route.shortName)}</span></td>
+      <td>${esc(st.headsign || "")}</td>
+      <td class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</td>
+    </tr>`;
+  }).join("");
+}
+
+function stopDepGroupHtml(stop, extra) {
+  const rows = depTableRows(stop.stoptimesWithoutPatterns);
+  if (!rows) return "";
+  return `<h3 class="stophead"><a href="#/pysakki/${encodeURIComponent(stop.gtfsId)}">${esc(stop.name)}</a>
+      ${extra ? `<span class="muted">${extra}</span>` : ""}</h3>
+    <table><tbody>${rows}</tbody></table>`;
+}
+
+async function renderNearby() {
+  const el = document.getElementById("nearbyBody");
+  if (!el || !lastCoords) return;
+  try {
+    await findLahtiFeed();
+    const data = await gql(NEARBY_QUERY, lastCoords);
+    if (!document.getElementById("nearbyBody")) return;
+    const groups = (data.stopsByRadius?.edges || [])
+      .map(e => e.node)
+      .filter(n => n.stop && n.stop.gtfsId.startsWith(feedId + ":")
+                && (n.stop.stoptimesWithoutPatterns || []).length)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 5);
+    document.getElementById("nearbyBody").innerHTML = groups.length
+      ? groups.map(n => stopDepGroupHtml(n.stop, n.distance + " m")).join("")
+        + `<p class="muted"><span class="rt">●</span> = reaaliaikainen arvio. Päivittyy 30 s välein.</p>`
+      : `<p class="muted">Ei lähteviä busseja 800 metrin säteellä. Oletko Lahden seudulla?</p>`;
+  } catch (err) {
+    const box = document.getElementById("nearbyBody");
+    if (box && !box.querySelector("table")) {
+      box.innerHTML = `<div class="error">${esc(err.message)}</div>`;
+    } // jos vanhat lähdöt näkyvät, verkkohikka ei pyyhi niitä pois
+  }
+}
+
+function initNearby(body) {
+  if (!navigator.geolocation) {
+    body.innerHTML = `<p class="muted">Selaimesi ei tue paikannusta — käytä pysäkkihakua alla.</p>`;
+    return;
+  }
+  const locate = () => {
+    body.innerHTML = `<p class="muted">Haetaan sijaintia…</p>`;
+    navigator.geolocation.getCurrentPosition(pos => {
+      localStorage.setItem("geoAllowed", "1");
+      lastCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      renderNearby();
+    }, err => {
+      localStorage.removeItem("geoAllowed");
+      body.innerHTML = `<div class="error">Sijaintia ei saatu: ${esc(err.message)}</div>
+        <p class="muted">Voit etsiä pysäkkejä myös nimellä alta.</p>`;
+    }, { timeout: 10000, maximumAge: 60000 });
+  };
+  if (localStorage.getItem("geoAllowed")) {
+    locate();
+  } else {
+    body.innerHTML = `
+      <button id="nearbyStart">📍 Näytä lähimmät lähdöt</button>
+      <p class="muted">Sijaintia käytetään vain lähimpien pysäkkien hakuun Digitransit-rajapinnasta,
+      eikä sitä tallenneta mihinkään.</p>`;
+    document.getElementById("nearbyStart").addEventListener("click", locate);
+  }
+}
+
 async function viewRoutes() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">Haetaan linjoja…</p>`);
   const routes = await loadRoutes();
   setView(`
     <div id="alertsBox"></div>
+    <div class="card">
+      <h2>Lähimmät lähdöt</h2>
+      <div id="nearbyBody"></div>
+    </div>
     <div class="card">
       <h2>Reittihaku</h2>
       <p><a class="item" href="#/reitti">🧭 Hae reitti osoitteesta osoitteeseen</a></p>
@@ -668,8 +788,10 @@ async function viewRoutes() {
     <p class="muted"><a href="#/asetukset">Asetukset</a></p>`);
 
   loadAlertsInto(document.getElementById("alertsBox"));
+  initNearby(document.getElementById("nearbyBody"));
   bindStopSearch(document.getElementById("stopSearch"), document.getElementById("stopResults"));
   bindNearbyButton(document.getElementById("nearbyBtn"), document.getElementById("stopResults"));
+  refreshTimer = setInterval(() => { renderNearby(); }, 30000);
 
   const list = document.getElementById("routeList");
   const render = filter => {
@@ -836,16 +958,12 @@ async function viewStop(stopId) {
   };
 
   const renderRows = stop => {
-    const now = Date.now();
     return (stop.stoptimesWithoutPatterns || []).map(st => {
-      const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
-      const epoch = (st.serviceDay + dep) * 1000;
-      const mins = Math.round((epoch - now) / 60000);
-      const when = mins <= 0 ? "nyt" : mins < 60 ? mins + " min" : fmtSec(dep);
+      const d = depInfo(st);
       return `<tr>
         <td><span class="badge">${esc(st.trip.route.shortName)}</span></td>
         <td>${esc(st.headsign || "")}</td>
-        <td class="${st.realtime ? "rt" : ""}">${when}${st.realtime ? " ●" : ""}</td>
+        <td class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</td>
       </tr>`;
     }).join("") || `<tr><td colspan="3" class="muted">Ei tulevia lähtöjä.</td></tr>`;
   };
