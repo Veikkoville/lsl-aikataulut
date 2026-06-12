@@ -96,8 +96,26 @@
     color: #fff;
     padding: 0.85rem 1rem;
   }
+  .brand {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 14px;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+  }
   header h1 { margin: 0; font-size: 1.2rem; letter-spacing: 0.01em; }
-  header p { margin: 0.1rem 0 0; font-size: 0.8rem; opacity: 0.88; }
+  header p { margin: 0.1rem 0 0; font-size: 0.78rem; opacity: 0.88; }
   main { max-width: 760px; margin: 0 auto; padding: 1rem; }
   .card {
     background: var(--card);
@@ -196,13 +214,25 @@
   button.star:hover { background: none; }
   button.star[aria-pressed="false"] { color: var(--border); }
   h3.stophead {
-    font-size: 0.95rem;
-    margin: 0.7rem 0 0.15rem;
+    font-size: 0.98rem;
+    margin: 0.85rem 0 0.15rem;
     display: flex;
     gap: 0.5rem;
     align-items: baseline;
   }
-  h3.stophead a { color: var(--text); }
+  h3.stophead a { color: var(--text); text-decoration: none; }
+  h3.stophead a:hover { color: var(--blue); text-decoration: underline; }
+  .dist {
+    background: var(--chip);
+    color: var(--muted);
+    border-radius: 99px;
+    padding: 0.05rem 0.55rem;
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+  details.alertsum { border-left: 4px solid var(--sev-warning); }
+  details.alertsum summary { cursor: pointer; padding: 0.1rem 0; }
+  details.alertsum[open] summary { margin-bottom: 0.3rem; }
   .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
   .tabs button {
     background: var(--chip);
@@ -213,6 +243,13 @@
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); }
   th { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+  table.deps th:last-child, table.deps td:last-child {
+    white-space: nowrap;
+    text-align: right;
+    font-weight: 600;
+  }
+  table.deps td:first-child { width: 3em; }
+  tbody tr:last-child td { border-bottom: none; }
   .rt { color: var(--green); font-weight: 600; }
   .timegrid { display: flex; flex-wrap: wrap; gap: 0.35rem; }
   .timegrid span {
@@ -360,7 +397,7 @@
     }
     body { background: #fff; }
     header { background: none; color: #000; padding: 0 0 0.5rem; }
-    header p, nav.crumb, .tabs, .map, .map-small, .no-print, #routeAlerts, button { display: none !important; }
+    header p, .logo, nav.crumb, .tabs, .map, .map-small, .no-print, #routeAlerts, button { display: none !important; }
     .card { border: none; padding: 0.25rem 0; margin: 0; break-inside: avoid; }
     .badge { border: 1px solid #000; background: none; color: #000; }
     .timegrid span { background: none; border: 1px solid #ccc; }
@@ -369,8 +406,13 @@
 </head>
 <body>
 <header>
-  <h1 id="appTitle">Lahden bussiaikataulut</h1>
-  <p id="appSub">Epävirallinen palvelu · data: Lahden seudun liikenne / Waltti (CC BY 4.0)</p>
+  <div class="brand">
+    <span class="logo" aria-hidden="true">🚌</span>
+    <div>
+      <h1 id="appTitle">Lahden bussiaikataulut</h1>
+      <p id="appSub">Epävirallinen palvelu · data: Lahden seudun liikenne / Waltti (CC BY 4.0)</p>
+    </div>
+  </div>
 </header>
 
 <main id="app" aria-live="polite"></main>
@@ -452,6 +494,7 @@ const STRINGS = {
     apiKeyHelp: 'Hae ilmainen avain osoitteesta <a href="https://portal-api.digitransit.fi/" target="_blank" rel="noopener">portal-api.digitransit.fi</a> ja liitä se tähän. Avain tallentuu vain tämän selaimen muistiin.',
     // häiriöt
     alertsTitle: "Häiriötiedotteet", alertDefault: "Häiriötiedote",
+    alertsCount1: "1 häiriötiedote", alertsCountN: "{n} häiriötiedotetta",
     readMore: "Lue lisää",
     alertsFail: "Häiriötiedotteiden haku epäonnistui: ",
     legAlertDefault: "Häiriö linjalla",
@@ -580,6 +623,7 @@ const STRINGS = {
     apiKeyNotNeeded: "No API key is needed — data is fetched through a proxy.",
     apiKeyHelp: 'Get a free key at <a href="https://portal-api.digitransit.fi/" target="_blank" rel="noopener">portal-api.digitransit.fi</a> and paste it here. The key is stored only in this browser.',
     alertsTitle: "Disruptions", alertDefault: "Disruption notice",
+    alertsCount1: "1 disruption notice", alertsCountN: "{n} disruption notices",
     readMore: "Read more",
     alertsFail: "Failed to load disruption notices: ",
     legAlertDefault: "Disruption on route",
@@ -701,6 +745,7 @@ const STRINGS = {
     apiKeyNotNeeded: "Ingen API-nyckel behövs — data hämtas via en proxy.",
     apiKeyHelp: 'Hämta en gratis nyckel på <a href="https://portal-api.digitransit.fi/" target="_blank" rel="noopener">portal-api.digitransit.fi</a> och klistra in den här. Nyckeln sparas endast i denna webbläsare.',
     alertsTitle: "Störningsmeddelanden", alertDefault: "Störningsmeddelande",
+    alertsCount1: "1 störningsmeddelande", alertsCountN: "{n} störningsmeddelanden",
     readMore: "Läs mer",
     alertsFail: "Det gick inte att hämta störningsmeddelanden: ",
     legAlertDefault: "Störning på linjen",
@@ -1413,11 +1458,14 @@ async function loadAlertsInto(box) {
   try {
     const alerts = dedupAlerts(await loadAlerts());
     if (!alerts.length) { box.innerHTML = ""; return; }
+    // tiivis banneri: lista aukeaa pyynnöstä (LSL pitää osaa tiedotteista
+    // SEVERE-tasolla viikkoja, joten auto-avaus veisi koko etusivun)
+    const label = alerts.length === 1 ? t("alertsCount1") : t("alertsCountN", { n: alerts.length });
     box.innerHTML = `
-      <div class="card">
-        <h2>${t("alertsTitle")}</h2>
+      <details class="card alertsum">
+        <summary><span aria-hidden="true">⚠</span> <strong>${label}</strong></summary>
         ${alerts.map(alertHtml).join("")}
-      </div>`;
+      </details>`;
   } catch (err) {
     box.innerHTML = `<div class="error">${t("alertsFail")}${esc(err.message)}</div>`;
   }
@@ -1692,8 +1740,8 @@ function stopDepGroupHtml(stop, extra) {
   const rows = depTableRows(stop.stoptimesWithoutPatterns);
   if (!rows) return "";
   return `<h3 class="stophead"><a href="#/pysakki/${encodeURIComponent(stop.gtfsId)}">${esc(stop.name)}</a>
-      ${extra ? `<span class="muted">${extra}</span>` : ""}</h3>
-    <table><tbody>${rows}</tbody></table>`;
+      ${extra ? `<span class="dist">${extra}</span>` : ""}</h3>
+    <table class="deps"><tbody>${rows}</tbody></table>`;
 }
 
 async function renderNearby() {
@@ -1756,20 +1804,20 @@ async function viewRoutes() {
   setView(`
     <div id="alertsBox"></div>
     <div class="card" id="favCard" hidden>
-      <h2>${t("favsTitle")}</h2>
+      <h2><span aria-hidden="true">⭐</span> ${t("favsTitle")}</h2>
       <div id="favBody"></div>
     </div>
     <div class="card">
-      <h2>${t("nearbyTitle")}</h2>
+      <h2><span aria-hidden="true">📍</span> ${t("nearbyTitle")}</h2>
       <div id="nearbyBody"></div>
     </div>
     <div class="card">
-      <h2>${t("planTitle")}</h2>
-      <p><a class="item" href="#/reitti">🧭 ${t("planLink")}</a></p>
+      <h2><span aria-hidden="true">🧭</span> ${t("planTitle")}</h2>
+      <p><a class="item" href="#/reitti">${t("planLink")}</a></p>
       <div id="lastPlanRow"></div>
     </div>
     <div class="card">
-      <h2>${t("stopSearchTitle")}</h2>
+      <h2><span aria-hidden="true">🚏</span> ${t("stopSearchTitle")}</h2>
       <div class="row">
         <input type="search" id="stopSearch" placeholder="${t("stopSearchPlaceholder")}"
                aria-label="${t("stopSearchAria")}">
@@ -1778,7 +1826,7 @@ async function viewRoutes() {
       <ul class="plain" id="stopResults"></ul>
     </div>
     <div class="card">
-      <h2>${t("routesTitle")}</h2>
+      <h2><span aria-hidden="true">🚌</span> ${t("routesTitle")}</h2>
       <input type="search" id="routeFilter" placeholder="${t("routeFilterPlaceholder")}"
              aria-label="${t("routeFilterAria")}">
       <ul class="plain" id="routeList"></ul>
@@ -2079,7 +2127,7 @@ async function viewStop(stopId) {
       ${accNote}
       ${stopRoutesHtml(stop)}
       <div id="staleNote">${cachedAt ? staleNoteHtml(cachedAt) : ""}</div>
-      <table>
+      <table class="deps">
         <thead><tr><th>${t("thLine")}</th><th>${t("thDest")}</th><th>${t("thDeparts")}</th></tr></thead>
         <tbody id="depRows">${renderRows(stop)}</tbody>
       </table>
