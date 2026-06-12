@@ -332,6 +332,68 @@ async function gql(query, variables) {
   return json.data;
 }
 
+/* ---------- Offline-välimuisti: viimeksi nähty data ---------- */
+
+function cachePut(key, data) {
+  const write = () =>
+    localStorage.setItem("cache:" + key, JSON.stringify({ ts: Date.now(), data }));
+  try { write(); } catch (e) {
+    // localStorage täynnä: tyhjennä välimuisti ja yritä kerran uudelleen
+    try {
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith("cache:")) localStorage.removeItem(k);
+      }
+      write();
+    } catch (e2) { /* ilman välimuistia pärjätään */ }
+  }
+}
+
+function cacheGet(key) {
+  try {
+    const hit = JSON.parse(localStorage.getItem("cache:" + key) || "null");
+    return hit && hit.data ? hit : null;
+  } catch (e) { return null; }
+}
+
+// Onnistunut haku tallennetaan; virheen sattuessa palautetaan viimeksi
+// nähty versio. cachedAt != null kertoo näkymälle, että data on vanhaa.
+async function cachedGql(key, query, variables) {
+  try {
+    const data = await gql(query, variables);
+    cachePut(key, data);
+    return { data, cachedAt: null };
+  } catch (err) {
+    const hit = cacheGet(key);
+    if (hit) return { data: hit.data, cachedAt: hit.ts };
+    throw err;
+  }
+}
+
+function staleNoteHtml(ts) {
+  const d = new Date(ts);
+  const time = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  const sameDay = d.toDateString() === new Date().toDateString();
+  const when = sameDay ? time : d.toLocaleDateString("fi-FI") + " klo " + time;
+  return `<p class="muted">⚠ Ei yhteyttä — näytetään viimeksi päivitetty tieto (${when}).</p>`;
+}
+
+// Käynnistyssiivous: vanhentuneet ja ylimääräiset cache-avaimet pois
+(function cleanCache() {
+  try {
+    const entries = [];
+    for (const k of Object.keys(localStorage)) {
+      if (!k.startsWith("cache:")) continue;
+      try {
+        const v = JSON.parse(localStorage.getItem(k));
+        if (!v?.ts || Date.now() - v.ts > 7 * 24 * 3600 * 1000) localStorage.removeItem(k);
+        else entries.push([k, v.ts]);
+      } catch (e) { localStorage.removeItem(k); }
+    }
+    entries.sort((a, b) => a[1] - b[1]);
+    while (entries.length > 30) localStorage.removeItem(entries.shift()[0]);
+  } catch (e) { /* localStorage estetty: ohitetaan */ }
+})();
+
 async function findLahtiFeed() {
   if (feedId) return feedId;
   const data = await gql(`{ feeds { feedId publisher { name } } }`);
@@ -972,7 +1034,7 @@ async function renderNearby() {
   if (!el || !lastCoords) return;
   try {
     await findLahtiFeed();
-    const data = await gql(NEARBY_QUERY, lastCoords);
+    const { data, cachedAt } = await cachedGql("nearby", NEARBY_QUERY, lastCoords);
     if (!document.getElementById("nearbyBody")) return;
     const groups = (data.stopsByRadius?.edges || [])
       .map(e => e.node)
@@ -981,7 +1043,8 @@ async function renderNearby() {
       .sort((a, b) => a.distance - b.distance)
       .slice(0, 5);
     document.getElementById("nearbyBody").innerHTML = groups.length
-      ? groups.map(n => stopDepGroupHtml(n.stop, n.distance + " m")).join("")
+      ? (cachedAt ? staleNoteHtml(cachedAt) : "")
+        + groups.map(n => stopDepGroupHtml(n.stop, n.distance + " m")).join("")
         + `<p class="muted"><span class="rt">●</span> = reaaliaikainen arvio. Päivittyy 30 s välein.</p>`
       : `<p class="muted">Ei lähteviä busseja 800 metrin säteellä. Oletko Lahden seudulla?</p>`;
   } catch (err) {
@@ -1082,7 +1145,7 @@ async function viewRoute(routeId, patternCode, date) {
   setView(`<p class="muted">Haetaan linjan tietoja…</p>`);
   date = date || todayISO();
 
-  const data = await gql(
+  const { data, cachedAt: routeCachedAt } = await cachedGql("route:" + routeId,
     `query ($id: String!) {
        route(id: $id) {
          shortName longName
@@ -1228,7 +1291,8 @@ async function viewRoute(routeId, patternCode, date) {
   const isToday = date === todayISO();
   const loadTimetable = async () => {
     const dateCompact = date.replace(/-/g, "");
-    const tt = await gql(
+    const { data: tt, cachedAt } = await cachedGql(
+      `tt:${routeId}:${current.code}:${date}`,
       `query ($stopId: String!, $date: String!) {
          stop(id: $stopId) {
            stoptimesForServiceDate(date: $date, omitNonPickups: true) {
@@ -1237,6 +1301,7 @@ async function viewRoute(routeId, patternCode, date) {
            }
          }
        }`, { stopId: current.stops[0].gtfsId, date: dateCompact });
+    const stale = cachedAt || routeCachedAt;
     const sts = (tt.stop?.stoptimesForServiceDate || [])
       .filter(g => g.pattern.code === current.code)
       .flatMap(g => g.stoptimes)
@@ -1268,6 +1333,7 @@ async function viewRoute(routeId, patternCode, date) {
         ${fmtSec(dep)}${st.realtime && !past ? " ●" : ""}</span>`;
     }).join("");
     el.innerHTML = `
+      ${stale ? staleNoteHtml(stale) : ""}
       <p class="muted">Lähdöt pysäkiltä ${esc(current.stops[0].name)}:</p>
       ${nextHtml}
       <div class="timegrid">${grid}</div>
@@ -1289,7 +1355,7 @@ async function viewStop(stopId) {
   setView(`<p class="muted">Haetaan pysäkin lähtöjä…</p>`);
 
   const fetchStop = async () => {
-    const data = await gql(
+    const { data, cachedAt } = await cachedGql("stop:" + stopId,
       `query ($id: String!) {
          stop(id: $id) {
            name code lat lon wheelchairBoarding
@@ -1300,14 +1366,14 @@ async function viewStop(stopId) {
          }
        }`, { id: stopId });
     if (!data.stop) throw new Error("Pysäkkiä ei löytynyt: " + stopId);
-    return data.stop;
+    return { stop: data.stop, cachedAt };
   };
 
   const renderRows = stop =>
     depTableRows(stop.stoptimesWithoutPatterns)
       || `<tr><td colspan="3" class="muted">Ei tulevia lähtöjä.</td></tr>`;
 
-  const stop = await fetchStop();
+  const { stop, cachedAt } = await fetchStop();
   const accNote = stop.wheelchairBoarding === "POSSIBLE"
     ? `<p class="muted">♿ Esteetön pysäkki</p>`
     : stop.wheelchairBoarding === "NOT_POSSIBLE"
@@ -1317,6 +1383,7 @@ async function viewStop(stopId) {
     <div class="card">
       <h2>${favButtonHtml(stopId)}${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
       ${accNote}
+      <div id="staleNote">${cachedAt ? staleNoteHtml(cachedAt) : ""}</div>
       <table>
         <thead><tr><th>Linja</th><th>Määränpää</th><th>Lähtee</th></tr></thead>
         <tbody id="depRows">${renderRows(stop)}</tbody>
@@ -1346,7 +1413,9 @@ async function viewStop(stopId) {
     try {
       const fresh = await fetchStop();
       const tbody = document.getElementById("depRows");
-      if (tbody) tbody.innerHTML = renderRows(fresh);
+      if (tbody) tbody.innerHTML = renderRows(fresh.stop);
+      const note = document.getElementById("staleNote");
+      if (note) note.innerHTML = fresh.cachedAt ? staleNoteHtml(fresh.cachedAt) : "";
     } catch (err) {
       // verkkohikka: jätetään edelliset lähdöt näkyviin ja yritetään taas 30 s päästä
     }
