@@ -729,7 +729,7 @@ const FAV_STOPS_QUERY = `
       gtfsId name code
       stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
         scheduledDeparture realtimeDeparture realtime serviceDay headsign
-        trip { wheelchairAccessible route { shortName } }
+        trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName } }
       }
     }
   }`;
@@ -774,13 +774,29 @@ const NEARBY_QUERY = `
         gtfsId name code
         stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
           scheduledDeparture realtimeDeparture realtime serviceDay headsign
-          trip { wheelchairAccessible route { shortName } }
+          trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName } }
         }
       } } }
     }
   }`;
 
 let lastCoords = null;
+
+// Täyttöaste näytetään vain kun syöte kertoo sen; LSL:n GTFS-RT antaa nyt
+// NO_DATA_AVAILABLE, jolloin ikonia ei näytetä lainkaan (degrade gracefully)
+const OCCUPANCY_LABELS = {
+  EMPTY: ["🟢", "Tyhjä"],
+  MANY_SEATS_AVAILABLE: ["🟢", "Paljon tilaa"],
+  FEW_SEATS_AVAILABLE: ["🟡", "Istumapaikkoja vähän"],
+  STANDING_ROOM_ONLY: ["🟠", "Vain seisomapaikkoja"],
+  CRUSHED_STANDING_ROOM_ONLY: ["🔴", "Erittäin täynnä"],
+  FULL: ["🔴", "Täynnä"],
+};
+
+function occupancyHtml(trip) {
+  const o = OCCUPANCY_LABELS[trip?.occupancy?.occupancyStatus];
+  return o ? ` <span role="img" aria-label="${o[1]}" title="${o[1]}">${o[0]}</span>` : "";
+}
 
 function depTableRows(stoptimes) {
   return (stoptimes || []).map(st => {
@@ -789,7 +805,7 @@ function depTableRows(stoptimes) {
       ? ` <span role="img" aria-label="esteetön kalusto" title="Esteetön kalusto">♿</span>` : "";
     return `<tr>
       <td><span class="badge">${esc(st.trip.route.shortName)}</span></td>
-      <td>${esc(st.headsign || "")}${acc}</td>
+      <td>${esc(st.headsign || "")}${acc}${occupancyHtml(st.trip)}</td>
       <td class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</td>
     </tr>`;
   }).join("");
@@ -1089,7 +1105,7 @@ async function viewStop(stopId) {
            name code lat lon wheelchairBoarding
            stoptimesWithoutPatterns(numberOfDepartures: 15, omitNonPickups: true) {
              scheduledDeparture realtimeDeparture realtime serviceDay headsign
-             trip { wheelchairAccessible route { shortName } }
+             trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName } }
            }
          }
        }`, { id: stopId });
@@ -1276,7 +1292,7 @@ const PLAN_QUERY = `
           start { scheduledTime estimated { time } }
           end { scheduledTime estimated { time } }
           from { name lat lon } to { name lat lon }
-          route { gtfsId shortName } trip { tripHeadsign }
+          route { gtfsId shortName } trip { tripHeadsign occupancy { occupancyStatus } }
           legGeometry { points }
           alerts { alertHeaderText alertSeverityLevel }
         }
@@ -1305,7 +1321,7 @@ function legRow(leg) {
   return `<li>
     <span class="legtime ${rt ? "rt" : ""}">${fmtClock(depIso)}${rt ? " ●" : ""}</span>
     <span class="badge">${esc(leg.route?.shortName || leg.mode)}</span>
-    ${esc(leg.trip?.tripHeadsign ? "→ " + leg.trip.tripHeadsign : "")}
+    ${esc(leg.trip?.tripHeadsign ? "→ " + leg.trip.tripHeadsign : "")}${occupancyHtml(leg.trip)}
     <br><span class="muted">${esc(leg.from.name)} → ${esc(leg.to.name)} (${fmtClock(arrIso)})
     · ${fmtDur(leg.duration)}</span>
     ${alerts}</li>`;

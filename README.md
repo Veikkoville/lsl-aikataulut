@@ -9,13 +9,26 @@ tasalla ilman ylläpitoa.
 
 ## Ominaisuudet
 
+- **Reittihaku A→B** (planConnection): osoite-, paikka- tai pysäkkihaku
+  (Digitransit Geocoding / Pelias), lähtö- tai saapumisaika, reittiehdotukset
+  legeineen ja karttoineen; suodattimet "esteetön reitti" ja "vähemmän kävelyä"
+- **Etusivulla lähimmät lähdöt heti**: paikannuksen salliessa 5 lähimmän
+  pysäkin seuraavat lähdöt reaaliajassa ilman yhtään hakua
+- **Suosikit**: tähtää pysäkki tai linja, niin se nousee etusivun kärkeen
+  (pysäkeille reaaliaikaiset lähdöt)
 - Kaikki LSL:n bussilinjat suodatettavana listana
-- Linjakohtainen aikataulu (lähdöt lähtöpysäkiltä) valitulle päivälle, suunnittain
+- Linjakohtainen aikataulu valitulle päivälle suunnittain — tänään-näkymässä
+  reaaliaikainen countdown ja ●-merkityt reaaliaika-arviot
 - Pysäkkikohtaiset seuraavat lähdöt **reaaliajassa** (GTFS-RT), päivittyy 30 s välein
 - Pysäkkihaku nimellä ja lähimmät pysäkit selaimen paikannuksella
 - Voimassa olevat häiriötiedotteet etusivulla ja linjakohtaisesti linjasivulla
+- Esteettömyys: esteettömän kaluston (♿) ja pysäkin esteettömyyden näyttö,
+  kun syöte sisältää tiedon; Lighthouse-saavutettavuus 100/100
+- Täyttöaste (🟢🟡🟠🔴) lähtöriveillä ja reittiehdotuksissa, *jos* liikennöitsijä
+  julkaisee sen — LSL:n syöte antaa toistaiseksi `NO_DATA_AVAILABLE`, jolloin
+  ikonia ei näytetä lainkaan (degrade gracefully)
 - Reittikartta linjasivulla (reittiviiva + klikattavat pysäkit) ja sijaintikartta
-  pysäkkisivulla (Leaflet + OpenStreetMap)
+  pysäkkisivulla (Leaflet + OpenStreetMap, ladataan vasta tarvittaessa)
 - Linjan bussit liikkuvat kartalla reaaliajassa (Waltti GTFS-RT,
   mqtt.digitransit.fi)
 - Tulostettava / PDF:ksi tallennettava linja-aikataulu
