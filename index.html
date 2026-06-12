@@ -115,6 +115,17 @@
     flex-shrink: 0;
   }
   .muted { color: var(--muted); font-size: 0.85rem; }
+  a.badge { text-decoration: none; }
+  button.star {
+    background: none;
+    color: #b8860b;
+    font-size: 1.3rem;
+    line-height: 1;
+    padding: 0 0.3rem;
+    float: right;
+  }
+  button.star:hover { background: none; }
+  button.star[aria-pressed="false"] { color: var(--border); }
   h3.stophead {
     font-size: 0.95rem;
     margin: 0.7rem 0 0.15rem;
@@ -667,6 +678,86 @@ function bindNearbyButton(btn, results) {
   });
 }
 
+/* ---------- Suosikit (localStorage) ---------- */
+
+function getFavs() {
+  try { return JSON.parse(localStorage.getItem("favorites") || "[]"); }
+  catch (e) { return []; }
+}
+
+function saveFavs(favs) {
+  try { localStorage.setItem("favorites", JSON.stringify(favs)); } catch (e) {}
+}
+
+function isFav(id) { return getFavs().some(f => f.id === id); }
+
+// Palauttaa true jos kohde lisättiin, false jos poistettiin
+function toggleFav(item) {
+  const favs = getFavs();
+  const i = favs.findIndex(f => f.id === item.id);
+  if (i >= 0) favs.splice(i, 1); else favs.push(item);
+  saveFavs(favs);
+  return i < 0;
+}
+
+function favButtonHtml(id) {
+  const fav = isFav(id);
+  return `<button class="star no-print" id="favBtn" aria-pressed="${fav}"
+    aria-label="${fav ? "Poista suosikeista" : "Lisää suosikkeihin"}" title="Suosikki">★</button>`;
+}
+
+function bindFavButton(item) {
+  const btn = document.getElementById("favBtn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const added = toggleFav(item);
+    btn.setAttribute("aria-pressed", String(added));
+    btn.setAttribute("aria-label", added ? "Poista suosikeista" : "Lisää suosikkeihin");
+  });
+}
+
+const FAV_STOPS_QUERY = `
+  query ($ids: [String!]!) {
+    stops(ids: $ids) {
+      gtfsId name code
+      stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
+        scheduledDeparture realtimeDeparture realtime serviceDay headsign
+        trip { route { shortName } }
+      }
+    }
+  }`;
+
+async function renderFavStops() {
+  const stopFavs = getFavs().filter(f => f.type === "stop");
+  if (!document.getElementById("favStops") || !stopFavs.length) return;
+  try {
+    const data = await gql(FAV_STOPS_QUERY, { ids: stopFavs.map(f => f.id) });
+    const el = document.getElementById("favStops");
+    if (!el) return;
+    el.innerHTML = (data.stops || []).filter(Boolean)
+      .map(s => stopDepGroupHtml(s, "") ||
+        `<h3 class="stophead"><a href="#/pysakki/${encodeURIComponent(s.gtfsId)}">${esc(s.name)}</a></h3>
+         <p class="muted">Ei tulevia lähtöjä.</p>`)
+      .join("");
+  } catch (err) { /* verkkohikka: edelliset lähdöt jäävät näkyviin */ }
+}
+
+function renderFavorites() {
+  const card = document.getElementById("favCard");
+  if (!card) return;
+  const favs = getFavs();
+  if (!favs.length) { card.hidden = true; return; }
+  card.hidden = false;
+  const routes = favs.filter(f => f.type === "route");
+  document.getElementById("favBody").innerHTML = `
+    ${routes.length ? `<div class="legchips">${routes.map(r =>
+        `<a class="badge" href="#/linja/${encodeURIComponent(r.id)}"
+            title="${esc(r.name)}">${esc(r.shortName)}</a>`).join("")}</div>` : ""}
+    <div id="favStops"><p class="muted">Haetaan suosikkipysäkkien lähtöjä…</p></div>`;
+  if (!favs.some(f => f.type === "stop")) document.getElementById("favStops").innerHTML = "";
+  renderFavStops();
+}
+
 /* ---------- Etusivun lähimmät lähdöt ---------- */
 
 const NEARBY_QUERY = `
@@ -762,6 +853,10 @@ async function viewRoutes() {
   const routes = await loadRoutes();
   setView(`
     <div id="alertsBox"></div>
+    <div class="card" id="favCard" hidden>
+      <h2>Suosikit</h2>
+      <div id="favBody"></div>
+    </div>
     <div class="card">
       <h2>Lähimmät lähdöt</h2>
       <div id="nearbyBody"></div>
@@ -788,10 +883,11 @@ async function viewRoutes() {
     <p class="muted"><a href="#/asetukset">Asetukset</a></p>`);
 
   loadAlertsInto(document.getElementById("alertsBox"));
+  renderFavorites();
   initNearby(document.getElementById("nearbyBody"));
   bindStopSearch(document.getElementById("stopSearch"), document.getElementById("stopResults"));
   bindNearbyButton(document.getElementById("nearbyBtn"), document.getElementById("stopResults"));
-  refreshTimer = setInterval(() => { renderNearby(); }, 30000);
+  refreshTimer = setInterval(() => { renderNearby(); renderFavStops(); }, 30000);
 
   const list = document.getElementById("routeList");
   const render = filter => {
@@ -829,7 +925,7 @@ async function viewRoute(routeId, patternCode, date) {
   setView(`
     <nav class="crumb"><a href="#/">← Kaikki linjat</a></nav>
     <div class="card">
-      <h2><span class="badge">${esc(route.shortName)}</span> ${esc(route.longName)}</h2>
+      <h2>${favButtonHtml(routeId)}<span class="badge">${esc(route.shortName)}</span> ${esc(route.longName)}</h2>
       <div id="routeAlerts"></div>
       <div class="tabs" role="group" aria-label="Suunta">
         ${patterns.map(p => `
@@ -855,6 +951,7 @@ async function viewRoute(routeId, patternCode, date) {
       </ul>
     </div>`);
 
+  bindFavButton({ type: "route", id: routeId, name: route.longName, shortName: route.shortName });
   document.querySelectorAll("[data-pattern]").forEach(btn =>
     btn.addEventListener("click", () => {
       location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(btn.dataset.pattern)}/${date}`;
@@ -972,7 +1069,7 @@ async function viewStop(stopId) {
   setView(`
     <nav class="crumb"><a href="javascript:history.back()">← Takaisin</a> · <a href="#/">Kaikki linjat</a></nav>
     <div class="card">
-      <h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
+      <h2>${favButtonHtml(stopId)}${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
       <table>
         <thead><tr><th>Linja</th><th>Määränpää</th><th>Lähtee</th></tr></thead>
         <tbody id="depRows">${renderRows(stop)}</tbody>
@@ -981,6 +1078,8 @@ async function viewStop(stopId) {
       Päivittyy 30 s välein.</p>
       <div id="stopMap" class="map map-small" aria-label="Pysäkki kartalla"></div>
     </div>`);
+
+  bindFavButton({ type: "stop", id: stopId, name: stop.name });
 
   if (stop.lat != null) {
     const mySeq = viewSeq;
