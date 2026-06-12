@@ -7,9 +7,6 @@
 <meta name="theme-color" content="#0a4ea3">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/mqtt@5/dist/mqtt.min.js"></script>
 <style>
   :root {
     --blue: #0a4ea3;
@@ -45,12 +42,30 @@
     margin-bottom: 1rem;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
-  input[type="search"], input[type="password"], input[type="date"] {
+  input[type="search"], input[type="password"], input[type="date"],
+  input[type="datetime-local"], input[type="text"], select {
     font: inherit;
     padding: 0.5rem;
     border: 1px solid var(--border);
     border-radius: 6px;
     width: 100%;
+    background: var(--card);
+    color: var(--text);
+  }
+  select, input[type="datetime-local"] { width: auto; }
+  .field { margin: 0.5rem 0; }
+  .field > label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.15rem; }
+  .suggest { position: relative; }
+  .suggest-list {
+    position: absolute;
+    left: 0; right: 0; top: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-height: 15rem;
+    overflow: auto;
+    z-index: 500;
   }
   button {
     font: inherit;
@@ -145,6 +160,22 @@
     font-size: 0.68rem;
     box-shadow: 0 1px 4px rgba(0,0,0,0.4);
   }
+  details.itin {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+    margin: 0.5rem 0;
+    background: var(--card);
+  }
+  details.itin summary { cursor: pointer; }
+  details.itin summary::-webkit-details-marker { display: none; }
+  .itin-head { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; align-items: baseline; }
+  .itin-head .times { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .legchips { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-top: 0.25rem; }
+  .legchips .sep { color: var(--muted); }
+  .legrows { list-style: none; margin: 0.6rem 0 0; padding: 0; }
+  .legrows li { border-top: 1px solid var(--border); padding: 0.45rem 0; }
+  .legrows .legtime { font-variant-numeric: tabular-nums; font-weight: 600; }
   nav.crumb { margin-bottom: 0.75rem; font-size: 0.9rem; }
   nav.crumb a { color: var(--blue); }
   footer { max-width: 760px; margin: 0 auto; padding: 0 1rem 2rem; font-size: 0.78rem; color: var(--muted); }
@@ -178,6 +209,14 @@
 // osoite tähän — silloin käyttäjiltä ei kysytä API-avainta.
 const PROXY_URL = "https://lsl-aikataulut-proxy.veikkoville.workers.dev/";
 const API_URL = PROXY_URL || "https://api.digitransit.fi/routing/v2/waltti/gtfs/v1";
+const GEOCODING_URL = PROXY_URL
+  ? PROXY_URL.replace(/\/$/, "") + "/geocoding"
+  : "https://api.digitransit.fi/geocoding/v1";
+// Lahden seudun rajaus osoitehaulle (focus + boundary)
+const AREA = {
+  focus: { lat: 60.983, lon: 25.656 },
+  rect: { minLat: 60.80, maxLat: 61.30, minLon: 25.20, maxLon: 26.20 },
+};
 const app = document.getElementById("app");
 
 let apiKey = localStorage.getItem("digitransitKey") || "";
@@ -268,6 +307,51 @@ function decodePolyline(str) {
   return coords;
 }
 
+/* ---------- Lazy loading: Leaflet ja MQTT haetaan vasta tarvittaessa ---------- */
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("Kirjaston lataus epäonnistui: " + src));
+    document.head.appendChild(s);
+  });
+}
+
+function loadCss(href) {
+  return new Promise((resolve, reject) => {
+    const l = document.createElement("link");
+    l.rel = "stylesheet";
+    l.href = href;
+    l.onload = resolve;
+    l.onerror = () => reject(new Error("Tyylien lataus epäonnistui: " + href));
+    document.head.appendChild(l);
+  });
+}
+
+let leafletPromise = null;
+function ensureLeaflet() {
+  if (window.L) return Promise.resolve();
+  if (!leafletPromise) {
+    leafletPromise = Promise.all([
+      loadCss("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"),
+      loadScript("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"),
+    ]).catch(err => { leafletPromise = null; throw err; });
+  }
+  return leafletPromise;
+}
+
+let mqttPromise = null;
+function ensureMqtt() {
+  if (window.mqtt) return Promise.resolve();
+  if (!mqttPromise) {
+    mqttPromise = loadScript("https://unpkg.com/mqtt@5/dist/mqtt.min.js")
+      .catch(err => { mqttPromise = null; throw err; });
+  }
+  return mqttPromise;
+}
+
 function makeMap(elId, center, zoom) {
   const map = L.map(elId, { scrollWheelZoom: true });
   if (center) map.setView(center, zoom || 14);
@@ -333,8 +417,10 @@ function decodeVehiclePosition(buf) {
 let mqttClient = null;
 let vehicleSweep = null;
 
-function startVehicles(map, routeId, shortName) {
-  if (typeof mqtt === "undefined") return;
+async function startVehicles(map, routeId, shortName) {
+  const mySeq = viewSeq;
+  try { await ensureMqtt(); } catch (e) { return; }
+  if (mySeq !== viewSeq) return; // näkymä ehti vaihtua latauksen aikana
   const routeNum = routeId.split(":")[1];
   const markers = new Map(); // vehicleId -> { marker, ts }
   mqttClient = mqtt.connect("wss://mqtt.digitransit.fi:443/", { reconnectPeriod: 5000 });
@@ -372,7 +458,10 @@ function stopRefresh() {
   if (mqttClient) { try { mqttClient.end(true); } catch (e) {} mqttClient = null; }
 }
 
+let viewSeq = 0;
+
 function setView(html) {
+  viewSeq++;
   stopRefresh();
   app.innerHTML = html;
 }
@@ -558,6 +647,10 @@ async function viewRoutes() {
   setView(`
     <div id="alertsBox"></div>
     <div class="card">
+      <h2>Reittihaku</h2>
+      <p><a class="item" href="#/reitti">🧭 Hae reitti osoitteesta osoitteeseen</a></p>
+    </div>
+    <div class="card">
       <h2>Pysäkkihaku</h2>
       <div class="row">
         <input type="search" id="stopSearch" placeholder="Hae pysäkkiä nimellä (esim. Matkakeskus)…"
@@ -664,14 +757,14 @@ async function viewRoute(routeId, patternCode, date) {
   (async () => {
     const mapEl = document.getElementById("routeMap");
     if (!mapEl || !current) return;
-    if (typeof L === "undefined") {
-      mapEl.outerHTML = `<p class="muted">Karttaa ei voitu ladata (ei verkkoyhteyttä karttapalveluun).</p>`;
-      return;
-    }
+    const mySeq = viewSeq;
     try {
-      const geo = await gql(
-        `query ($code: String!) { pattern(id: $code) { patternGeometry { points } } }`,
-        { code: current.code });
+      const [geo] = await Promise.all([
+        gql(`query ($code: String!) { pattern(id: $code) { patternGeometry { points } } }`,
+          { code: current.code }),
+        ensureLeaflet(),
+      ]);
+      if (mySeq !== viewSeq || !document.getElementById("routeMap")) return;
       const map = makeMap("routeMap");
       const pts = decodePolyline(geo.pattern?.patternGeometry?.points || "");
       let bounds = null;
@@ -771,10 +864,14 @@ async function viewStop(stopId) {
       <div id="stopMap" class="map map-small" aria-label="Pysäkki kartalla"></div>
     </div>`);
 
-  if (typeof L !== "undefined" && stop.lat != null) {
-    const map = makeMap("stopMap", [stop.lat, stop.lon], 16);
-    L.circleMarker([stop.lat, stop.lon], STOP_MARKER).addTo(map)
-      .bindPopup(esc(stop.name));
+  if (stop.lat != null) {
+    const mySeq = viewSeq;
+    ensureLeaflet().then(() => {
+      if (mySeq !== viewSeq || !document.getElementById("stopMap")) return;
+      const map = makeMap("stopMap", [stop.lat, stop.lon], 16);
+      L.circleMarker([stop.lat, stop.lon], STOP_MARKER).addTo(map)
+        .bindPopup(esc(stop.name));
+    }).catch(() => { document.getElementById("stopMap")?.remove(); });
   } else {
     const el = document.getElementById("stopMap");
     if (el) el.remove();
@@ -791,12 +888,334 @@ async function viewStop(stopId) {
   }, 30000);
 }
 
+/* ---------- Paikkahaku: pysäkit (GraphQL) + osoitteet/POI:t (Pelias) ---------- */
+
+async function geocode(text) {
+  const params = new URLSearchParams({
+    text, size: "6", lang: "fi",
+    "focus.point.lat": String(AREA.focus.lat),
+    "focus.point.lon": String(AREA.focus.lon),
+    "boundary.rect.min_lat": String(AREA.rect.minLat),
+    "boundary.rect.max_lat": String(AREA.rect.maxLat),
+    "boundary.rect.min_lon": String(AREA.rect.minLon),
+    "boundary.rect.max_lon": String(AREA.rect.maxLon),
+  });
+  if (!PROXY_URL) params.set("digitransit-subscription-key", apiKey);
+  const res = await fetch(`${GEOCODING_URL}/search?${params}`);
+  if (!res.ok) throw new Error("Osoitehaku epäonnistui: HTTP " + res.status);
+  const json = await res.json();
+  return (json.features || [])
+    .filter(f => f.geometry?.coordinates)
+    .map(f => ({
+      name: f.properties.label || f.properties.name,
+      lat: f.geometry.coordinates[1],
+      lon: f.geometry.coordinates[0],
+      layer: f.properties.layer || "address",
+    }));
+}
+
+async function searchPlaces(q) {
+  await findLahtiFeed();
+  const [stopsRes, geoRes] = await Promise.allSettled([
+    gql(`query ($name: String) { stops(name: $name) { gtfsId name code lat lon } }`, { name: q }),
+    geocode(q),
+  ]);
+  const stops = stopsRes.status === "fulfilled"
+    ? (stopsRes.value.stops || [])
+        .filter(s => s.gtfsId.startsWith(feedId + ":") && s.lat != null)
+        .slice(0, 4)
+        .map(s => ({ name: s.name + (s.code ? ` (${s.code})` : ""), lat: s.lat, lon: s.lon, layer: "stop" }))
+    : [];
+  const places = geoRes.status === "fulfilled" ? geoRes.value : [];
+  if (!stops.length && !places.length &&
+      stopsRes.status === "rejected" && geoRes.status === "rejected") {
+    throw stopsRes.reason;
+  }
+  return [...stops, ...places].slice(0, 9);
+}
+
+const PLACE_ICONS = { stop: "🚏", address: "🏠", street: "🏠", venue: "📍" };
+
+// Yhdistetty osoite-/pysäkkihaku: kirjoitus hakee ehdotukset, valinta antaa
+// koordinaatit onPick-kutsulla. Tekstin muokkaus mitätöi aiemman valinnan.
+function bindPlaceInput(input, listEl, onPick) {
+  let timer = null, seq = 0;
+  const close = () => { listEl.innerHTML = ""; listEl.hidden = true; };
+  input.addEventListener("input", () => {
+    onPick(null);
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 3) { close(); return; }
+    timer = setTimeout(async () => {
+      const my = ++seq;
+      try {
+        const places = await searchPlaces(q);
+        if (my !== seq) return;
+        listEl.innerHTML = places.length
+          ? places.map((p, i) => `<li><button type="button" class="item" data-i="${i}">
+              <span aria-hidden="true">${PLACE_ICONS[p.layer] || "📍"}</span>
+              <span>${esc(p.name)}</span></button></li>`).join("")
+          : `<li><p class="muted" style="padding:0.4rem">Ei osumia haulla "${esc(q)}".</p></li>`;
+        listEl.hidden = false;
+        listEl.querySelectorAll("button[data-i]").forEach(btn =>
+          btn.addEventListener("click", () => {
+            const p = places[Number(btn.dataset.i)];
+            input.value = p.name;
+            close();
+            onPick(p);
+          }));
+      } catch (err) {
+        if (my !== seq) return;
+        listEl.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`;
+        listEl.hidden = false;
+      }
+    }, 300);
+  });
+  input.addEventListener("blur", () => setTimeout(close, 200));
+}
+
+/* ---------- A→B-reitinhaku (planConnection) ---------- */
+
+// Säilyy istunnon ajan, jotta paluu näkymään ei tyhjennä kenttiä
+const planState = { from: null, to: null, timeMode: "dep", time: "", wheelchair: false };
+
+function fmtClock(iso) {
+  const d = new Date(iso);
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+
+function fmtDur(sec) {
+  const m = Math.round(sec / 60);
+  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+}
+
+function nowLocalInput() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
+// "2026-06-12T18:30" -> "2026-06-12T18:30:00+03:00"
+function isoWithOffset(local) {
+  const off = -new Date(local).getTimezoneOffset();
+  const sign = off >= 0 ? "+" : "-";
+  const pad = n => String(Math.floor(Math.abs(n))).padStart(2, "0");
+  return `${local}:00${sign}${pad(off / 60)}:${pad(off % 60)}`;
+}
+
+const PLAN_QUERY = `
+  query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!,
+         $first: Int, $after: String, $dateTime: PlanDateTimeInput, $wheelchair: Boolean!) {
+    planConnection(origin: $origin, destination: $destination,
+                   first: $first, after: $after, searchWindow: "PT2H", dateTime: $dateTime,
+                   preferences: { accessibility: { wheelchair: { enabled: $wheelchair } } }) {
+      pageInfo { endCursor hasNextPage }
+      edges { node {
+        start end numberOfTransfers walkDistance
+        legs {
+          mode duration distance realtimeState
+          start { scheduledTime estimated { time } }
+          end { scheduledTime estimated { time } }
+          from { name lat lon } to { name lat lon }
+          route { gtfsId shortName } trip { tripHeadsign }
+          legGeometry { points }
+          alerts { alertHeaderText alertSeverityLevel }
+        }
+      } }
+    }
+  }`;
+
+function legChip(leg) {
+  if (leg.mode === "WALK") {
+    return `<span class="muted" title="Kävelyä ${Math.round(leg.distance)} m">🚶 ${fmtDur(leg.duration)}</span>`;
+  }
+  return `<span class="badge">${esc(leg.route?.shortName || leg.mode)}</span>`;
+}
+
+function legRow(leg) {
+  const depIso = leg.start.estimated?.time || leg.start.scheduledTime;
+  const arrIso = leg.end.estimated?.time || leg.end.scheduledTime;
+  const rt = leg.realtimeState && leg.realtimeState !== "SCHEDULED";
+  const alerts = (leg.alerts || []).map(a =>
+    `<p class="muted">⚠ ${esc(a.alertHeaderText || "Häiriö linjalla")}</p>`).join("");
+  if (leg.mode === "WALK") {
+    return `<li>🚶 <span class="legtime">${fmtClock(depIso)}</span>
+      Kävely kohteeseen ${esc(leg.to.name === "Destination" ? "perille" : leg.to.name)}
+      <span class="muted">· ${fmtDur(leg.duration)}, ${Math.round(leg.distance)} m</span></li>`;
+  }
+  return `<li>
+    <span class="legtime ${rt ? "rt" : ""}">${fmtClock(depIso)}${rt ? " ●" : ""}</span>
+    <span class="badge">${esc(leg.route?.shortName || leg.mode)}</span>
+    ${esc(leg.trip?.tripHeadsign ? "→ " + leg.trip.tripHeadsign : "")}
+    <br><span class="muted">${esc(leg.from.name)} → ${esc(leg.to.name)} (${fmtClock(arrIso)})
+    · ${fmtDur(leg.duration)}</span>
+    ${alerts}</li>`;
+}
+
+function itinHtml(node, idx) {
+  const walk = Math.round(node.walkDistance);
+  const transfers = node.numberOfTransfers === 0 ? "ei vaihtoja"
+    : node.numberOfTransfers === 1 ? "1 vaihto" : node.numberOfTransfers + " vaihtoa";
+  const durSec = (new Date(node.end) - new Date(node.start)) / 1000;
+  return `<details class="itin" data-itin="${idx}">
+    <summary>
+      <div class="itin-head">
+        <span class="times">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
+        <span>${fmtDur(durSec)}</span>
+        <span class="muted">${transfers} · kävelyä ${walk} m</span>
+      </div>
+      <div class="legchips">${node.legs.map(legChip).join(`<span class="sep" aria-hidden="true">›</span>`)}</div>
+    </summary>
+    <ul class="legrows">${node.legs.map(legRow).join("")}</ul>
+    <div id="itinMap${idx}" class="map map-small" aria-label="Reitti kartalla"></div>
+  </details>`;
+}
+
+async function drawItineraryMap(elId, node) {
+  await ensureLeaflet();
+  const el = document.getElementById(elId);
+  if (!el || el.dataset.drawn) return;
+  el.dataset.drawn = "1";
+  const map = makeMap(elId);
+  let bounds = null;
+  for (const leg of node.legs) {
+    const pts = decodePolyline(leg.legGeometry?.points || "");
+    if (!pts.length) continue;
+    const line = L.polyline(pts, leg.mode === "WALK"
+      ? { color: "#5a6478", weight: 4, dashArray: "2 8" }
+      : { color: "#0a4ea3", weight: 5, opacity: 0.85 }).addTo(map);
+    bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
+    if (leg.mode !== "WALK") {
+      L.circleMarker(pts[0], STOP_MARKER).addTo(map).bindPopup(esc(leg.from.name));
+    }
+  }
+  const first = node.legs[0], last = node.legs[node.legs.length - 1];
+  L.circleMarker([first.from.lat, first.from.lon], { ...STOP_MARKER, fillColor: "#1a7f4b" })
+    .addTo(map).bindPopup("Lähtöpaikka");
+  L.circleMarker([last.to.lat, last.to.lon], { ...STOP_MARKER, fillColor: "#c0392b" })
+    .addTo(map).bindPopup("Määränpää");
+  if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
+}
+
+async function viewPlan() {
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  setView(`
+    <nav class="crumb"><a href="#/">← Etusivu</a></nav>
+    <div class="card">
+      <h2>Reittihaku</h2>
+      <form id="planForm">
+        <div class="field">
+          <label for="fromInput">Mistä</label>
+          <div class="suggest">
+            <input type="text" id="fromInput" placeholder="Osoite, paikka tai pysäkki…"
+                   autocomplete="off" value="${esc(planState.from?.name || "")}">
+            <ul class="plain suggest-list" id="fromList" hidden></ul>
+          </div>
+          <button type="button" id="fromGeo" class="linkish">📍 Käytä omaa sijaintia</button>
+        </div>
+        <div class="field">
+          <label for="toInput">Minne</label>
+          <div class="suggest">
+            <input type="text" id="toInput" placeholder="Osoite, paikka tai pysäkki…"
+                   autocomplete="off" value="${esc(planState.to?.name || "")}">
+            <ul class="plain suggest-list" id="toList" hidden></ul>
+          </div>
+        </div>
+        <div class="row" style="flex-wrap:wrap">
+          <select id="timeMode" aria-label="Ajan tulkinta">
+            <option value="dep"${planState.timeMode === "dep" ? " selected" : ""}>Lähtöaika</option>
+            <option value="arr"${planState.timeMode === "arr" ? " selected" : ""}>Saapumisaika</option>
+          </select>
+          <input type="datetime-local" id="timeInput" aria-label="Aika"
+                 value="${esc(planState.time || nowLocalInput())}">
+          <button type="submit">Hae reitit</button>
+        </div>
+      </form>
+      <div id="planMsg" role="status"></div>
+    </div>
+    <div id="planResults"></div>`);
+
+  const fromInput = document.getElementById("fromInput");
+  const toInput = document.getElementById("toInput");
+  bindPlaceInput(fromInput, document.getElementById("fromList"), p => { planState.from = p; });
+  bindPlaceInput(toInput, document.getElementById("toList"), p => { planState.to = p; });
+
+  document.getElementById("fromGeo").addEventListener("click", () => {
+    const msg = document.getElementById("planMsg");
+    if (!navigator.geolocation) { msg.innerHTML = `<div class="error">Selaimesi ei tue paikannusta.</div>`; return; }
+    msg.innerHTML = `<p class="muted">Haetaan sijaintia…</p>`;
+    navigator.geolocation.getCurrentPosition(pos => {
+      planState.from = { name: "Oma sijainti", lat: pos.coords.latitude, lon: pos.coords.longitude };
+      fromInput.value = "Oma sijainti";
+      msg.innerHTML = "";
+    }, err => {
+      msg.innerHTML = `<div class="error">Sijaintia ei saatu: ${esc(err.message)}</div>`;
+    }, { timeout: 10000 });
+  });
+
+  const results = document.getElementById("planResults");
+  let nodes = [], cursor = null;
+
+  const renderResults = hasNext => {
+    results.innerHTML = nodes.length
+      ? `<div class="card">
+           <h2>Reittiehdotukset</h2>
+           ${nodes.map((n, i) => itinHtml(n, i)).join("")}
+           ${hasNext ? `<button id="moreBtn" class="no-print">Näytä myöhempiä lähtöjä</button>` : ""}
+         </div>`
+      : `<div class="card"><p class="muted">Reittejä ei löytynyt valitulla ajalla.
+           Kokeile toista aikaa tai tarkista lähtö- ja määräpaikka.</p></div>`;
+    results.querySelectorAll("details.itin").forEach(d =>
+      d.addEventListener("toggle", () => {
+        if (d.open) drawItineraryMap("itinMap" + d.dataset.itin, nodes[Number(d.dataset.itin)]).catch(() => {});
+      }));
+    document.getElementById("moreBtn")?.addEventListener("click", () => search(true));
+  };
+
+  const search = async append => {
+    const msg = document.getElementById("planMsg");
+    if (!planState.from || !planState.to) {
+      msg.innerHTML = `<div class="error">Valitse lähtöpaikka ja määränpää ehdotuslistasta.</div>`;
+      return;
+    }
+    if (!append) { cursor = null; nodes = []; results.innerHTML = `<p class="muted">Haetaan reittejä…</p>`; }
+    msg.innerHTML = "";
+    planState.timeMode = document.getElementById("timeMode").value;
+    planState.time = document.getElementById("timeInput").value;
+    const dateTime = planState.time
+      ? (planState.timeMode === "arr"
+          ? { latestArrival: isoWithOffset(planState.time) }
+          : { earliestDeparture: isoWithOffset(planState.time) })
+      : null;
+    try {
+      const data = await gql(PLAN_QUERY, {
+        origin: { location: { coordinate: { latitude: planState.from.lat, longitude: planState.from.lon } } },
+        destination: { location: { coordinate: { latitude: planState.to.lat, longitude: planState.to.lon } } },
+        first: 5,
+        after: append ? cursor : null,
+        dateTime,
+        wheelchair: planState.wheelchair,
+      });
+      const conn = data.planConnection;
+      cursor = conn.pageInfo.endCursor;
+      nodes = nodes.concat((conn.edges || []).map(e => e.node));
+      renderResults(conn.pageInfo.hasNextPage);
+    } catch (err) {
+      results.innerHTML = `<div class="error">${esc(err.message)}</div>`;
+    }
+  };
+
+  document.getElementById("planForm").addEventListener("submit", e => { e.preventDefault(); search(false); });
+  if (planState.from && planState.to) search(false);
+}
+
 /* ---------- Router ---------- */
 
 async function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   try {
     if (parts[0] === "asetukset") viewSettings();
+    else if (parts[0] === "reitti") await viewPlan();
     else if (parts[0] === "linja" && parts[1]) await viewRoute(parts[1], parts[2], parts[3]);
     else if (parts[0] === "pysakki" && parts[1]) await viewStop(parts[1]);
     else await viewRoutes();
