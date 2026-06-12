@@ -1,7 +1,7 @@
 // Kevyt network-first service worker: sivu toimii asennettuna sovelluksena
 // ja avautuu myös heikolla yhteydellä viimeksi haetusta versiosta.
 // API- ja karttapyynnöt (eri origin) menevät aina suoraan verkkoon.
-const CACHE = "lsl-aikataulut-v1";
+const CACHE = "lsl-aikataulut-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 

@@ -58,12 +58,29 @@ tasalla ilman ylläpitoa.
 - Lahden GTFS-syöte tunnistetaan automaattisesti rajapinnan feed-listasta
 - Ei riippuvuuksia, ei buildia: yksi HTML-tiedosto
 
+## Käyttö toisessa Waltti-kaupungissa
+
+Sovellus ei ole sidottu Lahteen: kaikki kaupunkikohtainen on koottu
+`index.html`-tiedoston alun `CONFIG`-objektiin. Toiselle Waltti-kaupungille
+(esim. Kuopio, Jyväskylä, Joensuu) riittää:
+
+1. Muokkaa `CONFIG`: kaupungin nimi ja suomen genetiivi, liikennöitsijän nimi,
+   `feedMatch`-regex (esim. `/kuopio/i`), seudun `area`-rajaus (focus-piste ja
+   bounding box osoitehaulle) sekä `proxyUrl`.
+2. Muokkaa `manifest.webmanifest`-tiedoston `name`/`short_name` (PWA-nimi ei
+   tule CONFIG:sta).
+3. Välityspalvelin: ota worker käyttöön omalla originillasi (lisää se
+   `worker/worker.js`-tiedoston `ALLOWED_ORIGINS`-listaan) **tai** jätä
+   `proxyUrl` tyhjäksi, jolloin sivu kysyy käyttäjän oman Digitransit-avaimen.
+
+Huomio: häiriötiedotteiden linjapoiminta tiedoteteksteistä
+(`lineTokensFromText`) on suomenkielinen ("linjoja 3, 8K"), joten se toimii
+suomalaisissa Waltti-kaupungeissa sellaisenaan.
+
 ## Jatkokehitysideoita
 
-- API-avaimen välityspalvelin käyttöön (ks. [worker/](worker/)), jotta sivu
-  toimii ilman omaa avainta
-- Saavutettavuusauditointi (tavoite WCAG 2.1 AA)
-- Sama sovellus muille Waltti-kaupungeille pelkällä feed-konfiguraatiolla
+- Oikeat taustapush-ilmoitukset (vaatisi tilauksia säilövän palvelimen,
+  esim. workerin laajennuksen KV:llä ja cron-triggerillä)
 
 ## Data ja lisenssit
 

@@ -294,24 +294,35 @@
 <script>
 "use strict";
 
-// Kun worker/-hakemiston välityspalvelin on otettu käyttöön, laita sen
-// osoite tähän — silloin käyttäjiltä ei kysytä API-avainta.
-const PROXY_URL = "https://lsl-aikataulut-proxy.veikkoville.workers.dev/";
+/* ---------- Kaupunkikonfiguraatio ----------
+   Sama sovellus toimii muille Waltti-kaupungeille vaihtamalla tämän lohkon
+   arvot (ja manifest.webmanifest-nimet) — ks. README "Käyttö toisessa
+   Waltti-kaupungissa". */
+const CONFIG = {
+  city: "Lahti",                          // nominatiivi (EN/SV-tekstit, feed-haku)
+  cityGenitive: "Lahden",                 // suomen genetiivi ("Lahden bussiaikataulut")
+  operator: "Lahden seudun liikenne",
+  operatorShort: "LSL",
+  feedMatch: /lahti/i,                    // GTFS-syötteen tunnistus feedId:stä tai julkaisijasta
+  // Worker-välityspalvelin (worker/); tyhjä merkkijono → käyttäjä syöttää oman API-avaimen
+  proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+  // Seudun rajaus osoitehaulle (focus + boundary)
+  area: {
+    focus: { lat: 60.983, lon: 25.656 },
+    rect: { minLat: 60.80, maxLat: 61.30, minLon: 25.20, maxLon: 26.20 },
+  },
+  mqttUrl: "wss://mqtt.digitransit.fi:443/",
+};
+
+const PROXY_URL = CONFIG.proxyUrl;
 const API_URL = PROXY_URL || "https://api.digitransit.fi/routing/v2/waltti/gtfs/v1";
 const GEOCODING_URL = PROXY_URL
   ? PROXY_URL.replace(/\/$/, "") + "/geocoding"
   : "https://api.digitransit.fi/geocoding/v1";
-// Lahden seudun rajaus osoitehaulle (focus + boundary)
-const AREA = {
-  focus: { lat: 60.983, lon: 25.656 },
-  rect: { minLat: 60.80, maxLat: 61.30, minLon: 25.20, maxLon: 26.20 },
-};
+const AREA = CONFIG.area;
 const app = document.getElementById("app");
 
 /* ---------- Monikielisyys (FI/EN/SV) ---------- */
-
-// Kaupunki- ja liikennöitsijänimet teksteille; T13 siirtää CONFIG-objektiin
-const CITY = { name: "Lahti", genitive: "Lahden", operator: "Lahden seudun liikenne", operatorShort: "LSL" };
 
 const STRINGS = {
   fi: {
@@ -657,8 +668,8 @@ if (!STRINGS[lang]) lang = "fi";
 
 function t(key, params) {
   let s = STRINGS[lang][key] ?? STRINGS.fi[key] ?? key;
-  const all = { city: CITY.name, cityGen: CITY.genitive,
-                operator: CITY.operator, operatorShort: CITY.operatorShort, ...params };
+  const all = { city: CONFIG.city, cityGen: CONFIG.cityGenitive,
+                operator: CONFIG.operator, operatorShort: CONFIG.operatorShort, ...params };
   return s.replace(/\{(\w+)\}/g, (_, k) => all[k] ?? "");
 }
 
@@ -672,7 +683,8 @@ function updateChrome() {
 }
 
 let apiKey = localStorage.getItem("digitransitKey") || "";
-let feedId = localStorage.getItem("lslFeedId") || "";
+// "feedId" on nykyinen avain; "lslFeedId" luetaan migraationa vanhoilta kävijöiltä
+let feedId = localStorage.getItem("feedId") || localStorage.getItem("lslFeedId") || "";
 let routesCache = null;
 let refreshTimer = null;
 
@@ -758,14 +770,14 @@ function staleNoteHtml(ts) {
   } catch (e) { /* localStorage estetty: ohitetaan */ }
 })();
 
-async function findLahtiFeed() {
+async function findFeed() {
   if (feedId) return feedId;
   const data = await gql(`{ feeds { feedId publisher { name } } }`);
   const hit = data.feeds.find(f =>
-    /lahti/i.test(f.feedId) || /lahti/i.test(f.publisher?.name || ""));
+    CONFIG.feedMatch.test(f.feedId) || CONFIG.feedMatch.test(f.publisher?.name || ""));
   if (!hit) throw new Error(t("errFeedNotFound"));
   feedId = hit.feedId;
-  localStorage.setItem("lslFeedId", feedId);
+  localStorage.setItem("feedId", feedId);
   return feedId;
 }
 
@@ -778,7 +790,7 @@ async function loadRoutes() {
       return routesCache;
     }
   } catch (e) { /* rikkinäinen välimuisti ohitetaan */ }
-  const feed = await findLahtiFeed();
+  const feed = await findFeed();
   const data = await gql(
     `query ($feeds: [String]) {
        routes(feeds: $feeds) { gtfsId shortName longName mode }
@@ -1003,7 +1015,7 @@ async function startVehicles(map, routeId, shortName) {
   if (mySeq !== viewSeq) return; // näkymä ehti vaihtua latauksen aikana
   const routeNum = routeId.split(":")[1];
   const markers = new Map(); // vehicleId -> { marker, ts }
-  mqttClient = mqtt.connect("wss://mqtt.digitransit.fi:443/", { reconnectPeriod: 5000 });
+  mqttClient = mqtt.connect(CONFIG.mqttUrl, { reconnectPeriod: 5000 });
   mqttClient.on("connect", () => {
     if (mqttClient) mqttClient.subscribe(`/gtfsrt/vp/${feedId}/+/+/+/${routeNum}/#`);
   });
@@ -1197,7 +1209,7 @@ function loadAlerts(force) {
   if (force) alertsPromise = null;
   if (!alertsPromise) {
     alertsPromise = (async () => {
-      const feed = await findLahtiFeed();
+      const feed = await findFeed();
       const data = await gql(
         `query ($feeds: [String!]) {
            alerts(feeds: $feeds) {
@@ -1521,7 +1533,7 @@ async function renderNearby() {
   const el = document.getElementById("nearbyBody");
   if (!el || !lastCoords) return;
   try {
-    await findLahtiFeed();
+    await findFeed();
     const { data, cachedAt } = await cachedGql("nearby", NEARBY_QUERY, lastCoords);
     if (!document.getElementById("nearbyBody")) return;
     const groups = (data.stopsByRadius?.edges || [])
@@ -1933,7 +1945,7 @@ async function geocode(text) {
 }
 
 async function searchPlaces(q) {
-  await findLahtiFeed();
+  await findFeed();
   const [stopsRes, geoRes] = await Promise.allSettled([
     gql(`query ($name: String) { stops(name: $name) { gtfsId name code lat lon } }`, { name: q }),
     geocode(q),
