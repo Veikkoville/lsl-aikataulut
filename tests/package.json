@@ -1,0 +1,11 @@
+{
+  "name": "lsl-aikataulut-tests",
+  "private": true,
+  "description": "Savutestit: ajetaan headless-Chromessa paikallista palvelinta vasten",
+  "scripts": {
+    "test": "node smoke.test.js"
+  },
+  "dependencies": {
+    "puppeteer": "^23.0.0"
+  }
+}

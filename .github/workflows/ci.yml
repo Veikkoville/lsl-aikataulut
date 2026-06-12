@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Asenna testiriippuvuudet
+        run: npm ci
+        working-directory: tests
+
+      - name: Käynnistä paikallinen palvelin
+        run: python3 -m http.server 8000 &
+
+      - name: Aja savutestit (oikeaa Digitransit-dataa vasten)
+        run: npm test
+        working-directory: tests

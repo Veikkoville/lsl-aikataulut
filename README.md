@@ -78,12 +78,17 @@ tasalla ilman ylläpitoa.
 ## Käyttö toisessa Waltti-kaupungissa
 
 Sovellus ei ole sidottu Lahteen: kaikki kaupunkikohtainen on koottu
-`index.html`-tiedoston alun `CONFIG`-objektiin. Toiselle Waltti-kaupungille
-(esim. Kuopio, Jyväskylä, Joensuu) riittää:
+`index.html`-tiedoston alun `CONFIGS`-esiasetuksiin, ja kaupungin voi vaihtaa
+jopa pelkällä URL-parametrilla. **Kokeile itse:**
+[sama sovellus Kuopion datalla](https://veikkoville.github.io/lsl-aikataulut/?city=kuopio)
+(`?city=kuopio` — suosikit ja välimuistit pysyvät kaupunkikohtaisina).
 
-1. Muokkaa `CONFIG`: kaupungin nimi ja suomen genetiivi, liikennöitsijän nimi,
-   `feedMatch`-regex (esim. `/kuopio/i`), seudun `area`-rajaus (focus-piste ja
-   bounding box osoitehaulle) sekä `proxyUrl`.
+Pysyvä käyttöönotto toiselle Waltti-kaupungille (esim. Jyväskylä, Joensuu):
+
+1. Lisää kaupunki `CONFIGS`-objektiin tai vaihda oletus: kaupungin nimi ja
+   suomen genetiivi, liikennöitsijän nimi, `feedMatch`-regex (esim.
+   `/jyvaskyla/i`), seudun `area`-rajaus (focus-piste ja bounding box
+   osoitehaulle) sekä `proxyUrl`.
 2. Muokkaa `manifest.webmanifest`-tiedoston `name`/`short_name` (PWA-nimi ei
    tule CONFIG:sta).
 3. Välityspalvelin: ota worker käyttöön omalla originillasi (lisää se
