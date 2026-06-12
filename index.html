@@ -462,6 +462,52 @@ function decodeVehiclePosition(buf) {
 let mqttClient = null;
 let vehicleSweep = null;
 
+// Bussin klikkauspopup: linja, määränpää, aikataulupoikkeama ja seuraavat
+// pysäkit GraphQL:n trip-haulla (topicin tripId + seuraava pysäkki)
+const tripInfoCache = new Map();
+
+async function vehiclePopupHtml(tripId, nextStopId) {
+  const cached = tripInfoCache.get(tripId);
+  if (cached && Date.now() - cached.ts < 20000) return cached.html;
+  const data = await gql(
+    `query ($id: String!, $date: String!) {
+       trip(id: $id) {
+         tripHeadsign route { shortName }
+         stoptimesForDate(serviceDate: $date) {
+           scheduledDeparture realtimeDeparture realtime departureDelay serviceDay
+           stop { gtfsId name }
+         }
+       }
+     }`, { id: feedId + ":" + tripId, date: todayISO().replace(/-/g, "") });
+  const trip = data.trip;
+  if (!trip) return "Matkan tietoja ei löytynyt.";
+  const sts = trip.stoptimesForDate || [];
+  let idx = sts.findIndex(st => st.stop.gtfsId === feedId + ":" + nextStopId);
+  if (idx < 0) {
+    const now = Date.now();
+    idx = sts.findIndex(st =>
+      (st.serviceDay + (st.realtime ? st.realtimeDeparture : st.scheduledDeparture)) * 1000 > now);
+  }
+  const cur = idx >= 0 ? sts[idx] : null;
+  let delayText = "";
+  if (cur && cur.realtime) {
+    const d = cur.departureDelay;
+    delayText = d >= 60 ? `Myöhässä ${Math.round(d / 60)} min`
+      : d <= -60 ? `Etuajassa ${Math.round(-d / 60)} min`
+      : "Aikataulussa";
+  }
+  const nexts = idx >= 0 ? sts.slice(idx, idx + 4) : [];
+  const html = `<strong>Linja ${esc(trip.route.shortName)} → ${esc(trip.tripHeadsign || "")}</strong>
+    ${delayText ? `<br>${delayText}` : ""}
+    ${nexts.length ? `<br><span class="muted">Seuraavat pysäkit:</span><br>`
+      + nexts.map(st => {
+          const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
+          return `${fmtSec(dep)} <a href="#/pysakki/${encodeURIComponent(st.stop.gtfsId)}">${esc(st.stop.name)}</a>`;
+        }).join("<br>") : ""}`;
+  tripInfoCache.set(tripId, { ts: Date.now(), html });
+  return html;
+}
+
 async function startVehicles(map, routeId, shortName) {
   const mySeq = viewSeq;
   try { await ensureMqtt(); } catch (e) { return; }
@@ -481,9 +527,19 @@ async function startVehicles(map, routeId, shortName) {
     let m = markers.get(vehId);
     if (!m) {
       const icon = L.divIcon({ className: "bus-marker", html: esc(shortName), iconSize: [26, 26] });
-      m = { marker: L.marker([pos.lat, pos.lon], { icon, zIndexOffset: 1000 }).addTo(map).bindTooltip("") };
+      m = { marker: L.marker([pos.lat, pos.lon], { icon, zIndexOffset: 1000 })
+        .addTo(map).bindTooltip("").bindPopup("Haetaan matkan tietoja…", { maxWidth: 280 }) };
+      m.marker.on("popupopen", async () => {
+        try {
+          m.marker.setPopupContent(await vehiclePopupHtml(m.tripId, m.nextStop));
+        } catch (err) {
+          m.marker.setPopupContent("Matkan tietojen haku epäonnistui.");
+        }
+      });
       markers.set(vehId, m);
     }
+    m.tripId = seg[10] || "";
+    m.nextStop = seg[11] || "";
     m.marker.setLatLng([pos.lat, pos.lon]);
     m.marker.setTooltipContent(`Linja ${esc(shortName)} → ${esc(headsign)}`);
     m.ts = Date.now();
