@@ -280,13 +280,13 @@
 </head>
 <body>
 <header>
-  <h1>Lahden bussiaikataulut</h1>
-  <p>Epävirallinen palvelu · data: Lahden seudun liikenne / Waltti (CC BY 4.0)</p>
+  <h1 id="appTitle">Lahden bussiaikataulut</h1>
+  <p id="appSub">Epävirallinen palvelu · data: Lahden seudun liikenne / Waltti (CC BY 4.0)</p>
 </header>
 
 <main id="app" aria-live="polite"></main>
 
-<footer>
+<footer id="appFooter">
   Tämä on epävirallinen prototyyppi, joka ei ole Lahden seudun liikenteen tuottama.
   Aikataulu- ja reaaliaikadata: LSL / Waltti avoin data (CC BY 4.0) Digitransit-rajapinnan kautta.
 </footer>
@@ -308,6 +308,369 @@ const AREA = {
 };
 const app = document.getElementById("app");
 
+/* ---------- Monikielisyys (FI/EN/SV) ---------- */
+
+// Kaupunki- ja liikennöitsijänimet teksteille; T13 siirtää CONFIG-objektiin
+const CITY = { name: "Lahti", genitive: "Lahden", operator: "Lahden seudun liikenne", operatorShort: "LSL" };
+
+const STRINGS = {
+  fi: {
+    // sovelluskehys
+    appTitle: "{cityGen} bussiaikataulut",
+    appTitleTag: "{cityGen} bussiaikataulut (epävirallinen)",
+    headerSub: "Epävirallinen palvelu · data: {operator} / Waltti (CC BY 4.0)",
+    footerNote: "Tämä on epävirallinen prototyyppi, joka ei ole liikennöitsijän ({operator}) tuottama. Aikataulu- ja reaaliaikadata: {operatorShort} / Waltti avoin data (CC BY 4.0) Digitransit-rajapinnan kautta.",
+    settings: "Asetukset", home: "Etusivu", toHome: "Etusivulle", back: "Takaisin", save: "Tallenna",
+    // virheet ja tila
+    errApiKey: "API-avain puuttuu tai on virheellinen. Tarkista avain asetuksista.",
+    errApi: "Rajapintavirhe: ",
+    errFeedNotFound: "Kaupungin {city} syötettä ei löytynyt Waltti-rajapinnasta.",
+    errLibLoad: "Kirjaston lataus epäonnistui: ",
+    errGeocode: "Osoitehaku epäonnistui: HTTP ",
+    staleNote: "⚠ Ei yhteyttä — näytetään viimeksi päivitetty tieto ({when}).",
+    dateAt: "{date} klo {time}",
+    depNow: "nyt", depMin: "{n} min",
+    osmAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-tekijät',
+    // bussipopup
+    vehLoading: "Haetaan matkan tietoja…",
+    vehLoadFail: "Matkan tietojen haku epäonnistui.",
+    vehNoTrip: "Matkan tietoja ei löytynyt.",
+    vehLine: "Linja {line} → {dest}",
+    vehLate: "Myöhässä {n} min", vehEarly: "Etuajassa {n} min", vehOnTime: "Aikataulussa",
+    vehNextStops: "Seuraavat pysäkit:",
+    // asetukset
+    themeTitle: "Ulkoasu", themeAria: "Teema",
+    themeAuto: "Automaattinen", themeLight: "Vaalea", themeDark: "Tumma",
+    langTitle: "Kieli",
+    notifyTitle: "Ilmoitukset",
+    notifyToggle: "Ilmoita suosikkilinjojen uusista häiriöistä",
+    notifyHint: "Ilmoitukset näytetään, kun sovellus on auki (taustailmoitukset vaatisivat palvelimen). Lisää linjoja suosikeiksi ★-napilla linjasivulla.",
+    notifyDenied: "Ilmoituslupa evättiin selaimen asetuksissa.",
+    notifyOn: "Ilmoitukset käytössä.",
+    apiKeyTitle: "API-avain",
+    apiKeyNotNeeded: "API-avainta ei tarvita — palvelu hakee tiedot välityspalvelimen kautta.",
+    apiKeyHelp: 'Hae ilmainen avain osoitteesta <a href="https://portal-api.digitransit.fi/" target="_blank" rel="noopener">portal-api.digitransit.fi</a> ja liitä se tähän. Avain tallentuu vain tämän selaimen muistiin.',
+    // häiriöt
+    alertsTitle: "Häiriötiedotteet", alertDefault: "Häiriötiedote",
+    readMore: "Lue lisää",
+    alertsFail: "Häiriötiedotteiden haku epäonnistui: ",
+    legAlertDefault: "Häiriö linjalla",
+    // pysäkkihaku ja paikannus
+    noStopsFor: 'Ei pysäkkejä haulla "{q}".',
+    noPlacesFor: 'Ei osumia haulla "{q}".',
+    geoUnsupported: "Selaimesi ei tue paikannusta.",
+    geoUnsupportedHint: "Selaimesi ei tue paikannusta — käytä pysäkkihakua alla.",
+    gettingLocation: "Haetaan sijaintia…",
+    geoFail: "Sijaintia ei saatu: ",
+    searchByNameHint: "Voit etsiä pysäkkejä myös nimellä alta.",
+    noStopsRadius: "Ei pysäkkejä 800 metrin säteellä. Oletko {cityGen} seudulla?",
+    noDepsRadius: "Ei lähteviä busseja 800 metrin säteellä. Oletko {cityGen} seudulla?",
+    showNearby: "Näytä lähimmät lähdöt",
+    geoPrivacy: "Sijaintia käytetään vain lähimpien pysäkkien hakuun Digitransit-rajapinnasta, eikä sitä tallenneta mihinkään.",
+    // suosikit
+    favsTitle: "Suosikit", favTitle: "Suosikki",
+    favAdd: "Lisää suosikkeihin", favRemove: "Poista suosikeista",
+    favLoading: "Haetaan suosikkipysäkkien lähtöjä…",
+    noUpcoming: "Ei tulevia lähtöjä.",
+    // täyttöaste ja esteettömyys
+    occEmpty: "Tyhjä", occMany: "Paljon tilaa", occFew: "Istumapaikkoja vähän",
+    occStanding: "Vain seisomapaikkoja", occCrushed: "Erittäin täynnä", occFull: "Täynnä",
+    accVehicle: "Esteetön kalusto",
+    accStop: "Esteetön pysäkki", accStopNo: "Pysäkki ei ole esteetön",
+    // etusivu
+    loadingRoutes: "Haetaan linjoja…",
+    nearbyTitle: "Lähimmät lähdöt",
+    rtLegend: "= reaaliaikainen arvio. Päivittyy 30 s välein.",
+    rtLegendStop: "= reaaliaikainen arvio, muut aikataulun mukaan. Päivittyy 30 s välein.",
+    planTitle: "Reittihaku",
+    planLink: "Hae reitti osoitteesta osoitteeseen",
+    stopSearchTitle: "Pysäkkihaku",
+    stopSearchPlaceholder: "Hae pysäkkiä nimellä (esim. Matkakeskus)…",
+    stopSearchAria: "Hae pysäkkiä nimellä",
+    nearBtn: "Lähellä", nearBtnTitle: "Näytä lähimmät pysäkit sijaintisi perusteella",
+    routesTitle: "Linjat",
+    routeFilterPlaceholder: "Suodata linjaa tai määränpäätä…", routeFilterAria: "Suodata linjoja",
+    noMatches: "Ei osumia.",
+    // linjasivu
+    loadingRoute: "Haetaan linjan tietoja…",
+    errRouteNotFound: "Linjaa ei löytynyt: ",
+    allRoutes: "Kaikki linjat",
+    directionAria: "Suunta",
+    moreVariants: "Lisää reittivariaatioita", chooseVariant: "– valitse –",
+    nStops: "{n} pysäkkiä",
+    day: "Päivä",
+    printBtn: "Tulosta", printTitle: "Tulosta tai tallenna PDF:nä",
+    loadingDeps: "Haetaan lähtöjä…",
+    mapStopsTitle: "Reitti kartalla ja pysäkit",
+    mapAria: "Reitti kartalla",
+    busesHint: "Oranssit merkit ovat linjan busseja reaaliajassa. Avaa pysäkki nähdäksesi seuraavat lähdöt.",
+    noStopsDirection: "Suunnalle ei löytynyt pysäkkejä.",
+    noDepsDay: "Ei lähtöjä valittuna päivänä.",
+    nextDeps: "Seuraavat lähdöt:",
+    depsFromStop: "Lähdöt pysäkiltä {stop}:",
+    rtTitleAttr: "Reaaliaikainen arvio",
+    mapFail: "Kartan haku epäonnistui: ",
+    // pysäkkisivu
+    loadingStopDeps: "Haetaan pysäkin lähtöjä…",
+    errStopNotFound: "Pysäkkiä ei löytynyt: ",
+    thLine: "Linja", thDest: "Määränpää", thDeparts: "Lähtee",
+    stopMapAria: "Pysäkki kartalla",
+    // reittihaku
+    from: "Mistä", to: "Minne",
+    placePlaceholder: "Osoite, paikka tai pysäkki…",
+    useMyLocation: "Käytä omaa sijaintia", myLocation: "Oma sijainti",
+    timeModeAria: "Ajan tulkinta", timeAria: "Aika",
+    departAt: "Lähtöaika", arriveBy: "Saapumisaika",
+    searchRoutes: "Hae reitit",
+    wheelchairRoute: "Esteetön reitti", lessWalk: "Vähemmän kävelyä",
+    itinerariesTitle: "Reittiehdotukset",
+    showLater: "Näytä myöhempiä lähtöjä",
+    noItineraries: "Reittejä ei löytynyt valitulla ajalla. Kokeile toista aikaa tai tarkista lähtö- ja määräpaikka.",
+    choosePlaces: "Valitse lähtöpaikka ja määränpää ehdotuslistasta.",
+    searchingRoutes: "Haetaan reittejä…",
+    walking: "Kävelyä {n} m",
+    walkTo: "Kävely kohteeseen {place}", walkDest: "perille",
+    transfers0: "ei vaihtoja", transfers1: "1 vaihto", transfersN: "{n} vaihtoa",
+    walkAmount: "kävelyä {n} m",
+    origin: "Lähtöpaikka", destination: "Määränpää",
+  },
+  en: {
+    appTitle: "{city} bus timetables",
+    appTitleTag: "{city} bus timetables (unofficial)",
+    headerSub: "Unofficial service · data: {operator} / Waltti (CC BY 4.0)",
+    footerNote: "This is an unofficial prototype, not produced by the transit authority ({operator}). Timetable and real-time data: {operatorShort} / Waltti open data (CC BY 4.0) via the Digitransit API.",
+    settings: "Settings", home: "Home", toHome: "To the front page", back: "Back", save: "Save",
+    errApiKey: "The API key is missing or invalid. Check the key in settings.",
+    errApi: "API error: ",
+    errFeedNotFound: "The {city} feed was not found in the Waltti API.",
+    errLibLoad: "Failed to load library: ",
+    errGeocode: "Address search failed: HTTP ",
+    staleNote: "⚠ No connection — showing last updated data ({when}).",
+    dateAt: "{date} at {time}",
+    depNow: "now", depMin: "{n} min",
+    osmAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    vehLoading: "Loading trip details…",
+    vehLoadFail: "Failed to load trip details.",
+    vehNoTrip: "Trip details not found.",
+    vehLine: "Route {line} → {dest}",
+    vehLate: "Running {n} min late", vehEarly: "Running {n} min early", vehOnTime: "On schedule",
+    vehNextStops: "Next stops:",
+    themeTitle: "Appearance", themeAria: "Theme",
+    themeAuto: "Automatic", themeLight: "Light", themeDark: "Dark",
+    langTitle: "Language",
+    notifyTitle: "Notifications",
+    notifyToggle: "Notify about new disruptions on favourite routes",
+    notifyHint: "Notifications are shown while the app is open (background push would require a server). Add favourite routes with the ★ button on a route page.",
+    notifyDenied: "Notification permission was denied in browser settings.",
+    notifyOn: "Notifications enabled.",
+    apiKeyTitle: "API key",
+    apiKeyNotNeeded: "No API key is needed — data is fetched through a proxy.",
+    apiKeyHelp: 'Get a free key at <a href="https://portal-api.digitransit.fi/" target="_blank" rel="noopener">portal-api.digitransit.fi</a> and paste it here. The key is stored only in this browser.',
+    alertsTitle: "Disruptions", alertDefault: "Disruption notice",
+    readMore: "Read more",
+    alertsFail: "Failed to load disruption notices: ",
+    legAlertDefault: "Disruption on route",
+    noStopsFor: 'No stops found for "{q}".',
+    noPlacesFor: 'No results for "{q}".',
+    geoUnsupported: "Your browser does not support geolocation.",
+    geoUnsupportedHint: "Your browser does not support geolocation — use the stop search below.",
+    gettingLocation: "Getting location…",
+    geoFail: "Could not get location: ",
+    searchByNameHint: "You can also search stops by name below.",
+    noStopsRadius: "No stops within 800 m. Are you in the {city} region?",
+    noDepsRadius: "No departing buses within 800 m. Are you in the {city} region?",
+    showNearby: "Show nearest departures",
+    geoPrivacy: "Your location is only used to find nearby stops via the Digitransit API and is not stored anywhere.",
+    favsTitle: "Favourites", favTitle: "Favourite",
+    favAdd: "Add to favourites", favRemove: "Remove from favourites",
+    favLoading: "Loading favourite stop departures…",
+    noUpcoming: "No upcoming departures.",
+    occEmpty: "Empty", occMany: "Many seats available", occFew: "Few seats available",
+    occStanding: "Standing room only", occCrushed: "Very crowded", occFull: "Full",
+    accVehicle: "Wheelchair accessible vehicle",
+    accStop: "Wheelchair accessible stop", accStopNo: "Stop is not wheelchair accessible",
+    loadingRoutes: "Loading routes…",
+    nearbyTitle: "Nearest departures",
+    rtLegend: "= real-time estimate. Updates every 30 s.",
+    rtLegendStop: "= real-time estimate, others as scheduled. Updates every 30 s.",
+    planTitle: "Journey planner",
+    planLink: "Plan a journey from address to address",
+    stopSearchTitle: "Stop search",
+    stopSearchPlaceholder: "Search stops by name (e.g. Matkakeskus)…",
+    stopSearchAria: "Search stops by name",
+    nearBtn: "Nearby", nearBtnTitle: "Show nearest stops based on your location",
+    routesTitle: "Routes",
+    routeFilterPlaceholder: "Filter by route or destination…", routeFilterAria: "Filter routes",
+    noMatches: "No matches.",
+    loadingRoute: "Loading route details…",
+    errRouteNotFound: "Route not found: ",
+    allRoutes: "All routes",
+    directionAria: "Direction",
+    moreVariants: "More route variants", chooseVariant: "– select –",
+    nStops: "{n} stops",
+    day: "Date",
+    printBtn: "Print", printTitle: "Print or save as PDF",
+    loadingDeps: "Loading departures…",
+    mapStopsTitle: "Route map and stops",
+    mapAria: "Route on map",
+    busesHint: "Orange markers are this route's buses in real time. Open a stop to see its next departures.",
+    noStopsDirection: "No stops found for this direction.",
+    noDepsDay: "No departures on the selected day.",
+    nextDeps: "Next departures:",
+    depsFromStop: "Departures from {stop}:",
+    rtTitleAttr: "Real-time estimate",
+    mapFail: "Failed to load map: ",
+    loadingStopDeps: "Loading stop departures…",
+    errStopNotFound: "Stop not found: ",
+    thLine: "Route", thDest: "Destination", thDeparts: "Departs",
+    stopMapAria: "Stop on map",
+    from: "From", to: "To",
+    placePlaceholder: "Address, place or stop…",
+    useMyLocation: "Use my location", myLocation: "My location",
+    timeModeAria: "Time interpretation", timeAria: "Time",
+    departAt: "Depart at", arriveBy: "Arrive by",
+    searchRoutes: "Search",
+    wheelchairRoute: "Accessible journey", lessWalk: "Less walking",
+    itinerariesTitle: "Suggested journeys",
+    showLater: "Show later departures",
+    noItineraries: "No journeys found for the selected time. Try another time or check the origin and destination.",
+    choosePlaces: "Select the origin and destination from the suggestion list.",
+    searchingRoutes: "Searching for journeys…",
+    walking: "Walking {n} m",
+    walkTo: "Walk to {place}", walkDest: "destination",
+    transfers0: "no transfers", transfers1: "1 transfer", transfersN: "{n} transfers",
+    walkAmount: "walking {n} m",
+    origin: "Origin", destination: "Destination",
+  },
+  sv: {
+    appTitle: "Busstidtabeller i {city}",
+    appTitleTag: "Busstidtabeller i {city} (inofficiell)",
+    headerSub: "Inofficiell tjänst · data: {operator} / Waltti (CC BY 4.0)",
+    footerNote: "Detta är en inofficiell prototyp som inte har producerats av trafikbolaget ({operator}). Tidtabells- och realtidsdata: {operatorShort} / Waltti öppna data (CC BY 4.0) via Digitransit-gränssnittet.",
+    settings: "Inställningar", home: "Startsida", toHome: "Till startsidan", back: "Tillbaka", save: "Spara",
+    errApiKey: "API-nyckeln saknas eller är ogiltig. Kontrollera nyckeln i inställningarna.",
+    errApi: "Gränssnittsfel: ",
+    errFeedNotFound: "Flödet för {city} hittades inte i Waltti-gränssnittet.",
+    errLibLoad: "Biblioteket kunde inte laddas: ",
+    errGeocode: "Adresssökningen misslyckades: HTTP ",
+    staleNote: "⚠ Ingen anslutning — visar senast uppdaterad information ({when}).",
+    dateAt: "{date} kl. {time}",
+    depNow: "nu", depMin: "{n} min",
+    osmAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-bidragsgivare',
+    vehLoading: "Hämtar resans uppgifter…",
+    vehLoadFail: "Det gick inte att hämta resans uppgifter.",
+    vehNoTrip: "Resans uppgifter hittades inte.",
+    vehLine: "Linje {line} → {dest}",
+    vehLate: "{n} min försenad", vehEarly: "{n} min före tidtabellen", vehOnTime: "Enligt tidtabell",
+    vehNextStops: "Följande hållplatser:",
+    themeTitle: "Utseende", themeAria: "Tema",
+    themeAuto: "Automatiskt", themeLight: "Ljust", themeDark: "Mörkt",
+    langTitle: "Språk",
+    notifyTitle: "Aviseringar",
+    notifyToggle: "Meddela om nya störningar på favoritlinjer",
+    notifyHint: "Aviseringar visas när appen är öppen (push i bakgrunden skulle kräva en server). Lägg till favoritlinjer med ★-knappen på linjesidan.",
+    notifyDenied: "Aviseringstillstånd nekades i webbläsarens inställningar.",
+    notifyOn: "Aviseringar aktiverade.",
+    apiKeyTitle: "API-nyckel",
+    apiKeyNotNeeded: "Ingen API-nyckel behövs — data hämtas via en proxy.",
+    apiKeyHelp: 'Hämta en gratis nyckel på <a href="https://portal-api.digitransit.fi/" target="_blank" rel="noopener">portal-api.digitransit.fi</a> och klistra in den här. Nyckeln sparas endast i denna webbläsare.',
+    alertsTitle: "Störningsmeddelanden", alertDefault: "Störningsmeddelande",
+    readMore: "Läs mer",
+    alertsFail: "Det gick inte att hämta störningsmeddelanden: ",
+    legAlertDefault: "Störning på linjen",
+    noStopsFor: 'Inga hållplatser hittades för "{q}".',
+    noPlacesFor: 'Inga resultat för "{q}".',
+    geoUnsupported: "Din webbläsare stöder inte positionering.",
+    geoUnsupportedHint: "Din webbläsare stöder inte positionering — använd hållplatssökningen nedan.",
+    gettingLocation: "Hämtar position…",
+    geoFail: "Positionen kunde inte hämtas: ",
+    searchByNameHint: "Du kan också söka hållplatser med namn nedan.",
+    noStopsRadius: "Inga hållplatser inom 800 m. Är du i {city}-regionen?",
+    noDepsRadius: "Inga avgående bussar inom 800 m. Är du i {city}-regionen?",
+    showNearby: "Visa närmaste avgångar",
+    geoPrivacy: "Din position används endast för att hitta närliggande hållplatser via Digitransit-gränssnittet och sparas inte någonstans.",
+    favsTitle: "Favoriter", favTitle: "Favorit",
+    favAdd: "Lägg till i favoriter", favRemove: "Ta bort från favoriter",
+    favLoading: "Hämtar avgångar för favorithållplatser…",
+    noUpcoming: "Inga kommande avgångar.",
+    occEmpty: "Tom", occMany: "Gott om plats", occFew: "Få sittplatser kvar",
+    occStanding: "Endast ståplatser", occCrushed: "Mycket fullsatt", occFull: "Fullsatt",
+    accVehicle: "Tillgängligt fordon",
+    accStop: "Tillgänglig hållplats", accStopNo: "Hållplatsen är inte tillgänglig",
+    loadingRoutes: "Hämtar linjer…",
+    nearbyTitle: "Närmaste avgångar",
+    rtLegend: "= realtidsuppskattning. Uppdateras var 30:e sekund.",
+    rtLegendStop: "= realtidsuppskattning, övriga enligt tidtabell. Uppdateras var 30:e sekund.",
+    planTitle: "Reseplanerare",
+    planLink: "Sök resa från adress till adress",
+    stopSearchTitle: "Hållplatssökning",
+    stopSearchPlaceholder: "Sök hållplats med namn (t.ex. Matkakeskus)…",
+    stopSearchAria: "Sök hållplats med namn",
+    nearBtn: "Nära", nearBtnTitle: "Visa närmaste hållplatser enligt din position",
+    routesTitle: "Linjer",
+    routeFilterPlaceholder: "Filtrera linje eller destination…", routeFilterAria: "Filtrera linjer",
+    noMatches: "Inga träffar.",
+    loadingRoute: "Hämtar linjens uppgifter…",
+    errRouteNotFound: "Linjen hittades inte: ",
+    allRoutes: "Alla linjer",
+    directionAria: "Riktning",
+    moreVariants: "Fler ruttvarianter", chooseVariant: "– välj –",
+    nStops: "{n} hållplatser",
+    day: "Datum",
+    printBtn: "Skriv ut", printTitle: "Skriv ut eller spara som PDF",
+    loadingDeps: "Hämtar avgångar…",
+    mapStopsTitle: "Rutt på kartan och hållplatser",
+    mapAria: "Rutt på kartan",
+    busesHint: "Orange markörer är linjens bussar i realtid. Öppna en hållplats för att se följande avgångar.",
+    noStopsDirection: "Inga hållplatser hittades för riktningen.",
+    noDepsDay: "Inga avgångar den valda dagen.",
+    nextDeps: "Följande avgångar:",
+    depsFromStop: "Avgångar från {stop}:",
+    rtTitleAttr: "Realtidsuppskattning",
+    mapFail: "Kartan kunde inte laddas: ",
+    loadingStopDeps: "Hämtar hållplatsens avgångar…",
+    errStopNotFound: "Hållplatsen hittades inte: ",
+    thLine: "Linje", thDest: "Destination", thDeparts: "Avgår",
+    stopMapAria: "Hållplats på kartan",
+    from: "Från", to: "Till",
+    placePlaceholder: "Adress, plats eller hållplats…",
+    useMyLocation: "Använd min position", myLocation: "Min position",
+    timeModeAria: "Tidens tolkning", timeAria: "Tid",
+    departAt: "Avgångstid", arriveBy: "Ankomsttid",
+    searchRoutes: "Sök resor",
+    wheelchairRoute: "Tillgänglig resa", lessWalk: "Mindre promenad",
+    itinerariesTitle: "Reseförslag",
+    showLater: "Visa senare avgångar",
+    noItineraries: "Inga resor hittades för den valda tiden. Prova en annan tid eller kontrollera start- och målplatsen.",
+    choosePlaces: "Välj startplats och destination i förslagslistan.",
+    searchingRoutes: "Söker resor…",
+    walking: "Promenad {n} m",
+    walkTo: "Promenad till {place}", walkDest: "målet",
+    transfers0: "inga byten", transfers1: "1 byte", transfersN: "{n} byten",
+    walkAmount: "promenad {n} m",
+    origin: "Startplats", destination: "Destination",
+  },
+};
+
+let lang = localStorage.getItem("lang") || "fi";
+if (!STRINGS[lang]) lang = "fi";
+
+function t(key, params) {
+  let s = STRINGS[lang][key] ?? STRINGS.fi[key] ?? key;
+  const all = { city: CITY.name, cityGen: CITY.genitive,
+                operator: CITY.operator, operatorShort: CITY.operatorShort, ...params };
+  return s.replace(/\{(\w+)\}/g, (_, k) => all[k] ?? "");
+}
+
+// Staattisen kehyksen (otsikko, header, footer) tekstit valitulla kielellä
+function updateChrome() {
+  document.documentElement.lang = lang;
+  document.title = t("appTitleTag");
+  document.getElementById("appTitle").textContent = t("appTitle");
+  document.getElementById("appSub").textContent = t("headerSub");
+  document.getElementById("appFooter").textContent = t("footerNote");
+}
+
 let apiKey = localStorage.getItem("digitransitKey") || "";
 let feedId = localStorage.getItem("lslFeedId") || "";
 let routesCache = null;
@@ -324,11 +687,11 @@ async function gql(query, variables) {
     body: JSON.stringify({ query, variables }),
   });
   if (res.status === 401 || res.status === 403) {
-    throw new Error("API-avain puuttuu tai on virheellinen. Tarkista avain asetuksista.");
+    throw new Error(t("errApiKey"));
   }
-  if (!res.ok) throw new Error("Rajapintavirhe: HTTP " + res.status);
+  if (!res.ok) throw new Error(t("errApi") + "HTTP " + res.status);
   const json = await res.json();
-  if (json.errors) throw new Error("Rajapintavirhe: " + json.errors.map(e => e.message).join("; "));
+  if (json.errors) throw new Error(t("errApi") + json.errors.map(e => e.message).join("; "));
   return json.data;
 }
 
@@ -373,8 +736,9 @@ function staleNoteHtml(ts) {
   const d = new Date(ts);
   const time = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
   const sameDay = d.toDateString() === new Date().toDateString();
-  const when = sameDay ? time : d.toLocaleDateString("fi-FI") + " klo " + time;
-  return `<p class="muted">⚠ Ei yhteyttä — näytetään viimeksi päivitetty tieto (${when}).</p>`;
+  const when = sameDay ? time
+    : t("dateAt", { date: d.toLocaleDateString(lang === "fi" ? "fi-FI" : lang === "sv" ? "sv-FI" : "en-GB"), time });
+  return `<p class="muted">${t("staleNote", { when })}</p>`;
 }
 
 // Käynnistyssiivous: vanhentuneet ja ylimääräiset cache-avaimet pois
@@ -399,7 +763,7 @@ async function findLahtiFeed() {
   const data = await gql(`{ feeds { feedId publisher { name } } }`);
   const hit = data.feeds.find(f =>
     /lahti/i.test(f.feedId) || /lahti/i.test(f.publisher?.name || ""));
-  if (!hit) throw new Error("Lahden syötettä ei löytynyt Waltti-rajapinnasta.");
+  if (!hit) throw new Error(t("errFeedNotFound"));
   feedId = hit.feedId;
   localStorage.setItem("lslFeedId", feedId);
   return feedId;
@@ -441,7 +805,7 @@ function depInfo(st) {
   const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
   const epoch = (st.serviceDay + dep) * 1000;
   const mins = Math.round((epoch - Date.now()) / 60000);
-  const when = mins <= 0 ? "nyt" : mins < 60 ? mins + " min" : fmtSec(dep);
+  const when = mins <= 0 ? t("depNow") : mins < 60 ? t("depMin", { n: mins }) : fmtSec(dep);
   return { when, rt: !!st.realtime };
 }
 
@@ -484,7 +848,7 @@ function loadScript(src) {
     const s = document.createElement("script");
     s.src = src;
     s.onload = resolve;
-    s.onerror = () => reject(new Error("Kirjaston lataus epäonnistui: " + src));
+    s.onerror = () => reject(new Error(t("errLibLoad") + src));
     document.head.appendChild(s);
   });
 }
@@ -495,7 +859,7 @@ function loadCss(href) {
     l.rel = "stylesheet";
     l.href = href;
     l.onload = resolve;
-    l.onerror = () => reject(new Error("Tyylien lataus epäonnistui: " + href));
+    l.onerror = () => reject(new Error(t("errLibLoad") + href));
     document.head.appendChild(l);
   });
 }
@@ -526,7 +890,7 @@ function makeMap(elId, center, zoom) {
   const map = L.map(elId, { scrollWheelZoom: true });
   if (center) map.setView(center, zoom || 14);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-tekijät',
+    attribution: t("osmAttribution"),
     maxZoom: 19,
   }).addTo(map);
   return map;
@@ -605,7 +969,7 @@ async function vehiclePopupHtml(tripId, nextStopId) {
        }
      }`, { id: feedId + ":" + tripId, date: todayISO().replace(/-/g, "") });
   const trip = data.trip;
-  if (!trip) return "Matkan tietoja ei löytynyt.";
+  if (!trip) return t("vehNoTrip");
   const sts = trip.stoptimesForDate || [];
   let idx = sts.findIndex(st => st.stop.gtfsId === feedId + ":" + nextStopId);
   if (idx < 0) {
@@ -617,14 +981,14 @@ async function vehiclePopupHtml(tripId, nextStopId) {
   let delayText = "";
   if (cur && cur.realtime) {
     const d = cur.departureDelay;
-    delayText = d >= 60 ? `Myöhässä ${Math.round(d / 60)} min`
-      : d <= -60 ? `Etuajassa ${Math.round(-d / 60)} min`
-      : "Aikataulussa";
+    delayText = d >= 60 ? t("vehLate", { n: Math.round(d / 60) })
+      : d <= -60 ? t("vehEarly", { n: Math.round(-d / 60) })
+      : t("vehOnTime");
   }
   const nexts = idx >= 0 ? sts.slice(idx, idx + 4) : [];
-  const html = `<strong>Linja ${esc(trip.route.shortName)} → ${esc(trip.tripHeadsign || "")}</strong>
+  const html = `<strong>${t("vehLine", { line: esc(trip.route.shortName), dest: esc(trip.tripHeadsign || "") })}</strong>
     ${delayText ? `<br>${delayText}` : ""}
-    ${nexts.length ? `<br><span class="muted">Seuraavat pysäkit:</span><br>`
+    ${nexts.length ? `<br><span class="muted">${t("vehNextStops")}</span><br>`
       + nexts.map(st => {
           const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
           return `${fmtSec(dep)} <a href="#/pysakki/${encodeURIComponent(st.stop.gtfsId)}">${esc(st.stop.name)}</a>`;
@@ -653,12 +1017,12 @@ async function startVehicles(map, routeId, shortName) {
     if (!m) {
       const icon = L.divIcon({ className: "bus-marker", html: esc(shortName), iconSize: [26, 26] });
       m = { marker: L.marker([pos.lat, pos.lon], { icon, zIndexOffset: 1000 })
-        .addTo(map).bindTooltip("").bindPopup("Haetaan matkan tietoja…", { maxWidth: 280 }) };
+        .addTo(map).bindTooltip("").bindPopup(t("vehLoading"), { maxWidth: 280 }) };
       m.marker.on("popupopen", async () => {
         try {
           m.marker.setPopupContent(await vehiclePopupHtml(m.tripId, m.nextStop));
         } catch (err) {
-          m.marker.setPopupContent("Matkan tietojen haku epäonnistui.");
+          m.marker.setPopupContent(t("vehLoadFail"));
         }
       });
       markers.set(vehId, m);
@@ -666,7 +1030,7 @@ async function startVehicles(map, routeId, shortName) {
     m.tripId = seg[10] || "";
     m.nextStop = seg[11] || "";
     m.marker.setLatLng([pos.lat, pos.lon]);
-    m.marker.setTooltipContent(`Linja ${esc(shortName)} → ${esc(headsign)}`);
+    m.marker.setTooltipContent(t("vehLine", { line: esc(shortName), dest: esc(headsign) }));
     m.ts = Date.now();
   });
   // siivoa bussit, joista ei ole kuulunut 90 sekuntiin (esim. päätepysäkillä)
@@ -694,21 +1058,21 @@ function setView(html) {
 
 function showError(err) {
   setView(`<div class="error">${esc(err.message || err)}</div>
-    <p><a href="#/asetukset">Asetukset</a> · <a href="#/">Etusivulle</a></p>`);
+    <p><a href="#/asetukset">${t("settings")}</a> · <a href="#/">${t("toHome")}</a></p>`);
 }
 
 /* ---------- Views ---------- */
 
-const THEME_OPTIONS = [["auto", "Automaattinen"], ["light", "Vaalea"], ["dark", "Tumma"]];
+const THEME_OPTIONS = [["auto", "themeAuto"], ["light", "themeLight"], ["dark", "themeDark"]];
 
 function themeSettingHtml() {
   const cur = localStorage.getItem("theme") || "auto";
   return `
     <div class="card">
-      <h2>Ulkoasu</h2>
-      <div class="tabs" role="group" aria-label="Teema">
-        ${THEME_OPTIONS.map(([v, label]) => `
-          <button data-theme-opt="${v}" aria-pressed="${v === cur}">${label}</button>`).join("")}
+      <h2>${t("themeTitle")}</h2>
+      <div class="tabs" role="group" aria-label="${t("themeAria")}">
+        ${THEME_OPTIONS.map(([v, key]) => `
+          <button data-theme-opt="${v}" aria-pressed="${v === cur}">${t(key)}</button>`).join("")}
       </div>
     </div>`;
 }
@@ -728,11 +1092,10 @@ function notifySettingHtml() {
   const on = localStorage.getItem("notifyAlerts") === "1" && Notification.permission === "granted";
   return `
     <div class="card">
-      <h2>Ilmoitukset</h2>
+      <h2>${t("notifyTitle")}</h2>
       <label><input type="checkbox" id="notifyBox"${on ? " checked" : ""}>
-        Ilmoita suosikkilinjojen uusista häiriöistä</label>
-      <p class="muted">Ilmoitukset näytetään, kun sovellus on auki (taustailmoitukset
-        vaatisivat palvelimen). Lisää linjoja suosikeiksi ★-napilla linjasivulla.</p>
+        ${t("notifyToggle")}</label>
+      <p class="muted">${t("notifyHint")}</p>
       <div id="notifyMsg" role="status"></div>
     </div>`;
 }
@@ -750,45 +1113,70 @@ function bindNotifySetting() {
     const perm = await Notification.requestPermission();
     if (perm !== "granted") {
       box.checked = false;
-      msg.innerHTML = `<div class="error">Ilmoituslupa evättiin selaimen asetuksissa.</div>`;
+      msg.innerHTML = `<div class="error">${t("notifyDenied")}</div>`;
       return;
     }
     localStorage.setItem("notifyAlerts", "1");
     await pollFavAlerts(true); // nykyiset häiriöt merkitään nähdyiksi ilmoittamatta
     startAlertPolling();
-    msg.innerHTML = `<p class="muted">Ilmoitukset käytössä.</p>`;
+    msg.innerHTML = `<p class="muted">${t("notifyOn")}</p>`;
   });
+}
+
+const LANG_OPTIONS = [["fi", "Suomi"], ["en", "English"], ["sv", "Svenska"]];
+
+function langSettingHtml() {
+  return `
+    <div class="card">
+      <h2>${t("langTitle")}</h2>
+      <div class="tabs" role="group" aria-label="${t("langTitle")}">
+        ${LANG_OPTIONS.map(([v, label]) => `
+          <button data-lang-opt="${v}" aria-pressed="${v === lang}" lang="${v}">${label}</button>`).join("")}
+      </div>
+    </div>`;
+}
+
+function bindLangSetting() {
+  document.querySelectorAll("[data-lang-opt]").forEach(btn =>
+    btn.addEventListener("click", () => {
+      lang = btn.dataset.langOpt;
+      localStorage.setItem("lang", lang);
+      updateChrome();
+      route(); // piirrä nykyinen näkymä uudella kielellä
+    }));
 }
 
 function viewSettings() {
   if (PROXY_URL) {
     setView(`
-      <nav class="crumb"><a href="#/">← Etusivu</a></nav>
+      <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+      ${langSettingHtml()}
       ${themeSettingHtml()}
       ${notifySettingHtml()}
       <div class="card">
-        <h2>API-avain</h2>
-        <p>API-avainta ei tarvita — palvelu hakee tiedot välityspalvelimen kautta.</p>
+        <h2>${t("apiKeyTitle")}</h2>
+        <p>${t("apiKeyNotNeeded")}</p>
       </div>`);
+    bindLangSetting();
     bindThemeSetting();
     bindNotifySetting();
     return;
   }
   setView(`
-    <nav class="crumb"><a href="#/">← Etusivu</a></nav>
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${langSettingHtml()}
     ${themeSettingHtml()}
     ${notifySettingHtml()}
     <div class="card">
-      <h2>API-avain</h2>
-      <p class="muted">Hae ilmainen avain osoitteesta
-        <a href="https://portal-api.digitransit.fi/" target="_blank" rel="noopener">portal-api.digitransit.fi</a>
-        ja liitä se tähän. Avain tallentuu vain tämän selaimen muistiin.</p>
+      <h2>${t("apiKeyTitle")}</h2>
+      <p class="muted">${t("apiKeyHelp")}</p>
       <form id="keyForm" class="row">
         <input type="password" id="keyInput" value="${esc(apiKey)}"
-               placeholder="digitransit-subscription-key" aria-label="API-avain">
-        <button type="submit">Tallenna</button>
+               placeholder="digitransit-subscription-key" aria-label="${t("apiKeyTitle")}">
+        <button type="submit">${t("save")}</button>
       </form>
     </div>`);
+  bindLangSetting();
   bindThemeSetting();
   bindNotifySetting();
   document.getElementById("keyForm").addEventListener("submit", e => {
@@ -838,9 +1226,9 @@ function dedupAlerts(alerts) {
 
 function alertHtml(a) {
   return `<details class="alert sev-${esc(a.alertSeverityLevel)}">
-    <summary>${esc(a.alertHeaderText || "Häiriötiedote")}</summary>
+    <summary>${esc(a.alertHeaderText || t("alertDefault"))}</summary>
     <p>${esc(a.alertDescriptionText || "")}</p>
-    ${a.alertUrl ? `<p><a href="${esc(a.alertUrl)}" target="_blank" rel="noopener">Lue lisää</a></p>` : ""}
+    ${a.alertUrl ? `<p><a href="${esc(a.alertUrl)}" target="_blank" rel="noopener">${t("readMore")}</a></p>` : ""}
   </details>`;
 }
 
@@ -871,11 +1259,11 @@ async function loadAlertsInto(box) {
     if (!alerts.length) { box.innerHTML = ""; return; }
     box.innerHTML = `
       <div class="card">
-        <h2>Häiriötiedotteet</h2>
+        <h2>${t("alertsTitle")}</h2>
         ${alerts.map(alertHtml).join("")}
       </div>`;
   } catch (err) {
-    box.innerHTML = `<div class="error">Häiriötiedotteiden haku epäonnistui: ${esc(err.message)}</div>`;
+    box.innerHTML = `<div class="error">${t("alertsFail")}${esc(err.message)}</div>`;
   }
 }
 
@@ -906,7 +1294,7 @@ function favRouteAlerts(alerts) {
 }
 
 async function showAlertNotification(a) {
-  const title = a.alertHeaderText || "Häiriötiedote";
+  const title = a.alertHeaderText || t("alertDefault");
   const opts = { body: (a.alertDescriptionText || "").slice(0, 180), tag: alertKey(a), icon: "icon.svg" };
   try {
     const reg = await navigator.serviceWorker?.getRegistration();
@@ -954,7 +1342,7 @@ function bindStopSearch(input, results) {
         results.innerHTML = hits.length
           ? hits.map(s => `<li><a class="item" href="#/pysakki/${encodeURIComponent(s.gtfsId)}">
               <span>${esc(s.name)}</span> <span class="muted">${esc(s.code || "")}</span></a></li>`).join("")
-          : `<li><p class="muted">Ei pysäkkejä haulla "${esc(q)}".</p></li>`;
+          : `<li><p class="muted">${t("noStopsFor", { q: esc(q) })}</p></li>`;
       } catch (err) {
         if (mySeq === seq) results.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`;
       }
@@ -965,10 +1353,10 @@ function bindStopSearch(input, results) {
 function bindNearbyButton(btn, results) {
   btn.addEventListener("click", () => {
     if (!navigator.geolocation) {
-      results.innerHTML = `<li><div class="error">Selaimesi ei tue paikannusta.</div></li>`;
+      results.innerHTML = `<li><div class="error">${t("geoUnsupported")}</div></li>`;
       return;
     }
-    results.innerHTML = `<li><p class="muted">Haetaan sijaintia…</p></li>`;
+    results.innerHTML = `<li><p class="muted">${t("gettingLocation")}</p></li>`;
     navigator.geolocation.getCurrentPosition(async pos => {
       try {
         const data = await gql(
@@ -985,12 +1373,12 @@ function bindNearbyButton(btn, results) {
           ? nodes.map(n => `<li><a class="item" href="#/pysakki/${encodeURIComponent(n.stop.gtfsId)}">
               <span>${esc(n.stop.name)}</span>
               <span class="muted">${n.distance} m</span></a></li>`).join("")
-          : `<li><p class="muted">Ei pysäkkejä 800 metrin säteellä. Oletko Lahden seudulla?</p></li>`;
+          : `<li><p class="muted">${t("noStopsRadius")}</p></li>`;
       } catch (err) {
         results.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`;
       }
     }, geoErr => {
-      results.innerHTML = `<li><div class="error">Sijaintia ei saatu: ${esc(geoErr.message)}</div></li>`;
+      results.innerHTML = `<li><div class="error">${t("geoFail")}${esc(geoErr.message)}</div></li>`;
     }, { timeout: 10000 });
   });
 }
@@ -1020,7 +1408,7 @@ function toggleFav(item) {
 function favButtonHtml(id) {
   const fav = isFav(id);
   return `<button class="star no-print" id="favBtn" aria-pressed="${fav}"
-    aria-label="${fav ? "Poista suosikeista" : "Lisää suosikkeihin"}" title="Suosikki">★</button>`;
+    aria-label="${fav ? t("favRemove") : t("favAdd")}" title="${t("favTitle")}">★</button>`;
 }
 
 function bindFavButton(item) {
@@ -1029,7 +1417,7 @@ function bindFavButton(item) {
   btn.addEventListener("click", () => {
     const added = toggleFav(item);
     btn.setAttribute("aria-pressed", String(added));
-    btn.setAttribute("aria-label", added ? "Poista suosikeista" : "Lisää suosikkeihin");
+    btn.setAttribute("aria-label", added ? t("favRemove") : t("favAdd"));
   });
 }
 
@@ -1054,7 +1442,7 @@ async function renderFavStops() {
     el.innerHTML = (data.stops || []).filter(Boolean)
       .map(s => stopDepGroupHtml(s, "") ||
         `<h3 class="stophead"><a href="#/pysakki/${encodeURIComponent(s.gtfsId)}">${esc(s.name)}</a></h3>
-         <p class="muted">Ei tulevia lähtöjä.</p>`)
+         <p class="muted">${t("noUpcoming")}</p>`)
       .join("");
   } catch (err) { /* verkkohikka: edelliset lähdöt jäävät näkyviin */ }
 }
@@ -1070,7 +1458,7 @@ function renderFavorites() {
     ${routes.length ? `<div class="legchips">${routes.map(r =>
         `<a class="badge" href="#/linja/${encodeURIComponent(r.id)}"
             title="${esc(r.name)}">${esc(r.shortName)}</a>`).join("")}</div>` : ""}
-    <div id="favStops"><p class="muted">Haetaan suosikkipysäkkien lähtöjä…</p></div>`;
+    <div id="favStops"><p class="muted">${t("favLoading")}</p></div>`;
   if (!favs.some(f => f.type === "stop")) document.getElementById("favStops").innerHTML = "";
   renderFavStops();
 }
@@ -1095,24 +1483,24 @@ let lastCoords = null;
 // Täyttöaste näytetään vain kun syöte kertoo sen; LSL:n GTFS-RT antaa nyt
 // NO_DATA_AVAILABLE, jolloin ikonia ei näytetä lainkaan (degrade gracefully)
 const OCCUPANCY_LABELS = {
-  EMPTY: ["🟢", "Tyhjä"],
-  MANY_SEATS_AVAILABLE: ["🟢", "Paljon tilaa"],
-  FEW_SEATS_AVAILABLE: ["🟡", "Istumapaikkoja vähän"],
-  STANDING_ROOM_ONLY: ["🟠", "Vain seisomapaikkoja"],
-  CRUSHED_STANDING_ROOM_ONLY: ["🔴", "Erittäin täynnä"],
-  FULL: ["🔴", "Täynnä"],
+  EMPTY: ["🟢", "occEmpty"],
+  MANY_SEATS_AVAILABLE: ["🟢", "occMany"],
+  FEW_SEATS_AVAILABLE: ["🟡", "occFew"],
+  STANDING_ROOM_ONLY: ["🟠", "occStanding"],
+  CRUSHED_STANDING_ROOM_ONLY: ["🔴", "occCrushed"],
+  FULL: ["🔴", "occFull"],
 };
 
 function occupancyHtml(trip) {
   const o = OCCUPANCY_LABELS[trip?.occupancy?.occupancyStatus];
-  return o ? ` <span role="img" aria-label="${o[1]}" title="${o[1]}">${o[0]}</span>` : "";
+  return o ? ` <span role="img" aria-label="${t(o[1])}" title="${t(o[1])}">${o[0]}</span>` : "";
 }
 
 function depTableRows(stoptimes) {
   return (stoptimes || []).map(st => {
     const d = depInfo(st);
     const acc = st.trip?.wheelchairAccessible === "POSSIBLE"
-      ? ` <span role="img" aria-label="esteetön kalusto" title="Esteetön kalusto">♿</span>` : "";
+      ? ` <span role="img" aria-label="${t("accVehicle")}" title="${t("accVehicle")}">♿</span>` : "";
     return `<tr>
       <td><span class="badge">${esc(st.trip.route.shortName)}</span></td>
       <td>${esc(st.headsign || "")}${acc}${occupancyHtml(st.trip)}</td>
@@ -1145,8 +1533,8 @@ async function renderNearby() {
     document.getElementById("nearbyBody").innerHTML = groups.length
       ? (cachedAt ? staleNoteHtml(cachedAt) : "")
         + groups.map(n => stopDepGroupHtml(n.stop, n.distance + " m")).join("")
-        + `<p class="muted"><span class="rt">●</span> = reaaliaikainen arvio. Päivittyy 30 s välein.</p>`
-      : `<p class="muted">Ei lähteviä busseja 800 metrin säteellä. Oletko Lahden seudulla?</p>`;
+        + `<p class="muted"><span class="rt">●</span> ${t("rtLegend")}</p>`
+      : `<p class="muted">${t("noDepsRadius")}</p>`;
   } catch (err) {
     const box = document.getElementById("nearbyBody");
     if (box && !box.querySelector("table")) {
@@ -1157,66 +1545,65 @@ async function renderNearby() {
 
 function initNearby(body) {
   if (!navigator.geolocation) {
-    body.innerHTML = `<p class="muted">Selaimesi ei tue paikannusta — käytä pysäkkihakua alla.</p>`;
+    body.innerHTML = `<p class="muted">${t("geoUnsupportedHint")}</p>`;
     return;
   }
   const locate = () => {
-    body.innerHTML = `<p class="muted">Haetaan sijaintia…</p>`;
+    body.innerHTML = `<p class="muted">${t("gettingLocation")}</p>`;
     navigator.geolocation.getCurrentPosition(pos => {
       localStorage.setItem("geoAllowed", "1");
       lastCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       renderNearby();
     }, err => {
       localStorage.removeItem("geoAllowed");
-      body.innerHTML = `<div class="error">Sijaintia ei saatu: ${esc(err.message)}</div>
-        <p class="muted">Voit etsiä pysäkkejä myös nimellä alta.</p>`;
+      body.innerHTML = `<div class="error">${t("geoFail")}${esc(err.message)}</div>
+        <p class="muted">${t("searchByNameHint")}</p>`;
     }, { timeout: 10000, maximumAge: 60000 });
   };
   if (localStorage.getItem("geoAllowed")) {
     locate();
   } else {
     body.innerHTML = `
-      <button id="nearbyStart">📍 Näytä lähimmät lähdöt</button>
-      <p class="muted">Sijaintia käytetään vain lähimpien pysäkkien hakuun Digitransit-rajapinnasta,
-      eikä sitä tallenneta mihinkään.</p>`;
+      <button id="nearbyStart">📍 ${t("showNearby")}</button>
+      <p class="muted">${t("geoPrivacy")}</p>`;
     document.getElementById("nearbyStart").addEventListener("click", locate);
   }
 }
 
 async function viewRoutes() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
-  setView(`<p class="muted">Haetaan linjoja…</p>`);
+  setView(`<p class="muted">${t("loadingRoutes")}</p>`);
   const routes = await loadRoutes();
   setView(`
     <div id="alertsBox"></div>
     <div class="card" id="favCard" hidden>
-      <h2>Suosikit</h2>
+      <h2>${t("favsTitle")}</h2>
       <div id="favBody"></div>
     </div>
     <div class="card">
-      <h2>Lähimmät lähdöt</h2>
+      <h2>${t("nearbyTitle")}</h2>
       <div id="nearbyBody"></div>
     </div>
     <div class="card">
-      <h2>Reittihaku</h2>
-      <p><a class="item" href="#/reitti">🧭 Hae reitti osoitteesta osoitteeseen</a></p>
+      <h2>${t("planTitle")}</h2>
+      <p><a class="item" href="#/reitti">🧭 ${t("planLink")}</a></p>
     </div>
     <div class="card">
-      <h2>Pysäkkihaku</h2>
+      <h2>${t("stopSearchTitle")}</h2>
       <div class="row">
-        <input type="search" id="stopSearch" placeholder="Hae pysäkkiä nimellä (esim. Matkakeskus)…"
-               aria-label="Hae pysäkkiä nimellä">
-        <button id="nearbyBtn" title="Näytä lähimmät pysäkit sijaintisi perusteella">📍 Lähellä</button>
+        <input type="search" id="stopSearch" placeholder="${t("stopSearchPlaceholder")}"
+               aria-label="${t("stopSearchAria")}">
+        <button id="nearbyBtn" title="${t("nearBtnTitle")}">📍 ${t("nearBtn")}</button>
       </div>
       <ul class="plain" id="stopResults"></ul>
     </div>
     <div class="card">
-      <h2>Linjat</h2>
-      <input type="search" id="routeFilter" placeholder="Suodata linjaa tai määränpäätä…"
-             aria-label="Suodata linjoja">
+      <h2>${t("routesTitle")}</h2>
+      <input type="search" id="routeFilter" placeholder="${t("routeFilterPlaceholder")}"
+             aria-label="${t("routeFilterAria")}">
       <ul class="plain" id="routeList"></ul>
     </div>
-    <p class="muted"><a href="#/asetukset">Asetukset</a></p>`);
+    <p class="muted"><a href="#/asetukset">${t("settings")}</a></p>`);
 
   loadAlertsInto(document.getElementById("alertsBox"));
   renderFavorites();
@@ -1234,7 +1621,7 @@ async function viewRoutes() {
       .map(r => `<li><a class="item" href="#/linja/${encodeURIComponent(r.gtfsId)}">
           <span class="badge">${esc(r.shortName)}</span>
           <span>${esc(r.longName)}</span></a></li>`)
-      .join("") || `<li><p class="muted">Ei osumia.</p></li>`;
+      .join("") || `<li><p class="muted">${t("noMatches")}</p></li>`;
   };
   render("");
   document.getElementById("routeFilter").addEventListener("input", e => render(e.target.value));
@@ -1242,7 +1629,7 @@ async function viewRoutes() {
 
 async function viewRoute(routeId, patternCode, date) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
-  setView(`<p class="muted">Haetaan linjan tietoja…</p>`);
+  setView(`<p class="muted">${t("loadingRoute")}</p>`);
   date = date || todayISO();
 
   const { data, cachedAt: routeCachedAt } = await cachedGql("route:" + routeId,
@@ -1257,7 +1644,7 @@ async function viewRoute(routeId, patternCode, date) {
        }
      }`, { id: routeId });
   const route = data.route;
-  if (!route) throw new Error("Linjaa ei löytynyt: " + routeId);
+  if (!route) throw new Error(t("errRouteNotFound") + routeId);
 
   const patterns = route.patterns || [];
   const current = patterns.find(p => p.code === patternCode) || patterns[0];
@@ -1285,11 +1672,11 @@ async function viewRoute(routeId, patternCode, date) {
   }
 
   setView(`
-    <nav class="crumb"><a href="#/">← Kaikki linjat</a></nav>
+    <nav class="crumb"><a href="#/">← ${t("allRoutes")}</a></nav>
     <div class="card">
       <h2>${favButtonHtml(routeId)}<span class="badge">${esc(route.shortName)}</span> ${esc(route.longName)}</h2>
       <div id="routeAlerts"></div>
-      <div class="tabs" role="group" aria-label="Suunta">
+      <div class="tabs" role="group" aria-label="${t("directionAria")}">
         ${primaries.map(p => `
           <button data-pattern="${esc(p.code)}" aria-pressed="${p === current}">
             ${esc(patternLabel(p))}
@@ -1297,27 +1684,26 @@ async function viewRoute(routeId, patternCode, date) {
       </div>
       ${variants.length ? `
         <div class="row no-print" style="margin:0.3rem 0">
-          <label class="muted" for="variantSel">Lisää reittivariaatioita</label>
+          <label class="muted" for="variantSel">${t("moreVariants")}</label>
           <select id="variantSel">
-            <option value="">– valitse –</option>
+            <option value="">${t("chooseVariant")}</option>
             ${variants.map(p => `
               <option value="${esc(p.code)}"${p === current ? " selected" : ""}>
-                ${esc(patternLabel(p))} (${(p.stops || []).length} pysäkkiä)
+                ${esc(patternLabel(p))} (${t("nStops", { n: (p.stops || []).length })})
               </option>`).join("")}
           </select>
         </div>` : ""}
       <div class="row no-print">
-        <label for="dateInput" class="muted">Päivä</label>
+        <label for="dateInput" class="muted">${t("day")}</label>
         <input type="date" id="dateInput" value="${esc(date)}">
-        <button id="printBtn" title="Tulosta tai tallenna PDF:nä">🖨 Tulosta</button>
+        <button id="printBtn" title="${t("printTitle")}">🖨 ${t("printBtn")}</button>
       </div>
-      <div id="timetable"><p class="muted">Haetaan lähtöjä…</p></div>
+      <div id="timetable"><p class="muted">${t("loadingDeps")}</p></div>
     </div>
     <div class="card">
-      <h2>Reitti kartalla ja pysäkit</h2>
-      <div id="routeMap" class="map" aria-label="Reitti kartalla"></div>
-      <p class="muted">Oranssit merkit ovat linjan busseja reaaliajassa.
-      Avaa pysäkki nähdäksesi seuraavat lähdöt.</p>
+      <h2>${t("mapStopsTitle")}</h2>
+      <div id="routeMap" class="map" aria-label="${t("mapAria")}"></div>
+      <p class="muted">${t("busesHint")}</p>
       <ul class="plain">
         ${(current?.stops || []).map(s => `
           <li><a class="item" href="#/pysakki/${encodeURIComponent(s.gtfsId)}">${esc(s.name)}</a></li>`).join("")}
@@ -1378,14 +1764,14 @@ async function viewRoute(routeId, patternCode, date) {
       if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
       startVehicles(map, routeId, route.shortName);
     } catch (err) {
-      mapEl.outerHTML = `<div class="error">Kartan haku epäonnistui: ${esc(err.message)}</div>`;
+      mapEl.outerHTML = `<div class="error">${t("mapFail")}${esc(err.message)}</div>`;
     }
   })();
 
   // Departure times from the pattern's first stop = classic line timetable
   const box = document.getElementById("timetable");
   if (!current || !current.stops.length) {
-    box.innerHTML = `<p class="muted">Suunnalle ei löytynyt pysäkkejä.</p>`;
+    box.innerHTML = `<p class="muted">${t("noStopsDirection")}</p>`;
     return;
   }
   const isToday = date === todayISO();
@@ -1409,7 +1795,7 @@ async function viewRoute(routeId, patternCode, date) {
     const el = document.getElementById("timetable");
     if (!el) return;
     if (!sts.length) {
-      el.innerHTML = `<p class="muted">Ei lähtöjä valittuna päivänä.</p>`;
+      el.innerHTML = `<p class="muted">${t("noDepsDay")}</p>`;
       return;
     }
     const now = Date.now();
@@ -1419,7 +1805,7 @@ async function viewRoute(routeId, patternCode, date) {
     if (isToday) {
       const upcoming = sts.filter(st => depEpoch(st) >= now - 30000).slice(0, 3);
       if (upcoming.length) {
-        nextHtml = `<p>Seuraavat lähdöt: ${upcoming.map(st => {
+        nextHtml = `<p>${t("nextDeps")} ${upcoming.map(st => {
           const d = depInfo(st);
           return `<strong class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</strong>`;
         }).join(" · ")}</p>`;
@@ -1429,16 +1815,15 @@ async function viewRoute(routeId, patternCode, date) {
       const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
       const past = isToday && depEpoch(st) < now;
       const cls = (past ? "past" : "") + (st.realtime && !past ? " rt" : "");
-      return `<span class="${cls.trim()}"${st.realtime && !past ? ` title="Reaaliaikainen arvio"` : ""}>
+      return `<span class="${cls.trim()}"${st.realtime && !past ? ` title="${t("rtTitleAttr")}"` : ""}>
         ${fmtSec(dep)}${st.realtime && !past ? " ●" : ""}</span>`;
     }).join("");
     el.innerHTML = `
       ${stale ? staleNoteHtml(stale) : ""}
-      <p class="muted">Lähdöt pysäkiltä ${esc(current.stops[0].name)}:</p>
+      <p class="muted">${t("depsFromStop", { stop: esc(current.stops[0].name) })}</p>
       ${nextHtml}
       <div class="timegrid">${grid}</div>
-      ${isToday ? `<p class="muted"><span class="rt">●</span> = reaaliaikainen arvio.
-        Päivittyy 30 s välein.</p>` : ""}`;
+      ${isToday ? `<p class="muted"><span class="rt">●</span> ${t("rtLegend")}</p>` : ""}`;
   };
   try {
     await loadTimetable();
@@ -1452,7 +1837,7 @@ async function viewRoute(routeId, patternCode, date) {
 
 async function viewStop(stopId) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
-  setView(`<p class="muted">Haetaan pysäkin lähtöjä…</p>`);
+  setView(`<p class="muted">${t("loadingStopDeps")}</p>`);
 
   const fetchStop = async () => {
     const { data, cachedAt } = await cachedGql("stop:" + stopId,
@@ -1465,32 +1850,31 @@ async function viewStop(stopId) {
            }
          }
        }`, { id: stopId });
-    if (!data.stop) throw new Error("Pysäkkiä ei löytynyt: " + stopId);
+    if (!data.stop) throw new Error(t("errStopNotFound") + stopId);
     return { stop: data.stop, cachedAt };
   };
 
   const renderRows = stop =>
     depTableRows(stop.stoptimesWithoutPatterns)
-      || `<tr><td colspan="3" class="muted">Ei tulevia lähtöjä.</td></tr>`;
+      || `<tr><td colspan="3" class="muted">${t("noUpcoming")}</td></tr>`;
 
   const { stop, cachedAt } = await fetchStop();
   const accNote = stop.wheelchairBoarding === "POSSIBLE"
-    ? `<p class="muted">♿ Esteetön pysäkki</p>`
+    ? `<p class="muted">♿ ${t("accStop")}</p>`
     : stop.wheelchairBoarding === "NOT_POSSIBLE"
-      ? `<p class="muted">⚠ Pysäkki ei ole esteetön</p>` : "";
+      ? `<p class="muted">⚠ ${t("accStopNo")}</p>` : "";
   setView(`
-    <nav class="crumb"><button class="linkish" id="backBtn">← Takaisin</button> · <a href="#/">Etusivu</a></nav>
+    <nav class="crumb"><button class="linkish" id="backBtn">← ${t("back")}</button> · <a href="#/">${t("home")}</a></nav>
     <div class="card">
       <h2>${favButtonHtml(stopId)}${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
       ${accNote}
       <div id="staleNote">${cachedAt ? staleNoteHtml(cachedAt) : ""}</div>
       <table>
-        <thead><tr><th>Linja</th><th>Määränpää</th><th>Lähtee</th></tr></thead>
+        <thead><tr><th>${t("thLine")}</th><th>${t("thDest")}</th><th>${t("thDeparts")}</th></tr></thead>
         <tbody id="depRows">${renderRows(stop)}</tbody>
       </table>
-      <p class="muted"><span class="rt">●</span> = reaaliaikainen arvio, muut aikataulun mukaan.
-      Päivittyy 30 s välein.</p>
-      <div id="stopMap" class="map map-small" aria-label="Pysäkki kartalla"></div>
+      <p class="muted"><span class="rt">●</span> ${t("rtLegendStop")}</p>
+      <div id="stopMap" class="map map-small" aria-label="${t("stopMapAria")}"></div>
     </div>`);
 
   bindFavButton({ type: "stop", id: stopId, name: stop.name });
@@ -1526,7 +1910,7 @@ async function viewStop(stopId) {
 
 async function geocode(text) {
   const params = new URLSearchParams({
-    text, size: "6", lang: "fi",
+    text, size: "6", lang,
     "focus.point.lat": String(AREA.focus.lat),
     "focus.point.lon": String(AREA.focus.lon),
     "boundary.rect.min_lat": String(AREA.rect.minLat),
@@ -1536,7 +1920,7 @@ async function geocode(text) {
   });
   if (!PROXY_URL) params.set("digitransit-subscription-key", apiKey);
   const res = await fetch(`${GEOCODING_URL}/search?${params}`);
-  if (!res.ok) throw new Error("Osoitehaku epäonnistui: HTTP " + res.status);
+  if (!res.ok) throw new Error(t("errGeocode") + res.status);
   const json = await res.json();
   return (json.features || [])
     .filter(f => f.geometry?.coordinates)
@@ -1589,7 +1973,7 @@ function bindPlaceInput(input, listEl, onPick) {
           ? places.map((p, i) => `<li><button type="button" class="item" data-i="${i}">
               <span aria-hidden="true">${PLACE_ICONS[p.layer] || "📍"}</span>
               <span>${esc(p.name)}</span></button></li>`).join("")
-          : `<li><p class="muted" style="padding:0.4rem">Ei osumia haulla "${esc(q)}".</p></li>`;
+          : `<li><p class="muted" style="padding:0.4rem">${t("noPlacesFor", { q: esc(q) })}</p></li>`;
         listEl.hidden = false;
         listEl.querySelectorAll("button[data-i]").forEach(btn =>
           btn.addEventListener("click", () => {
@@ -1661,7 +2045,7 @@ const PLAN_QUERY = `
 
 function legChip(leg) {
   if (leg.mode === "WALK") {
-    return `<span class="muted" title="Kävelyä ${Math.round(leg.distance)} m">🚶 ${fmtDur(leg.duration)}</span>`;
+    return `<span class="muted" title="${t("walking", { n: Math.round(leg.distance) })}">🚶 ${fmtDur(leg.duration)}</span>`;
   }
   return `<span class="badge">${esc(leg.route?.shortName || leg.mode)}</span>`;
 }
@@ -1671,10 +2055,10 @@ function legRow(leg) {
   const arrIso = leg.end.estimated?.time || leg.end.scheduledTime;
   const rt = leg.realtimeState && leg.realtimeState !== "SCHEDULED";
   const alerts = (leg.alerts || []).map(a =>
-    `<p class="muted">⚠ ${esc(a.alertHeaderText || "Häiriö linjalla")}</p>`).join("");
+    `<p class="muted">⚠ ${esc(a.alertHeaderText || t("legAlertDefault"))}</p>`).join("");
   if (leg.mode === "WALK") {
     return `<li>🚶 <span class="legtime">${fmtClock(depIso)}</span>
-      Kävely kohteeseen ${esc(leg.to.name === "Destination" ? "perille" : leg.to.name)}
+      ${t("walkTo", { place: esc(leg.to.name === "Destination" ? t("walkDest") : leg.to.name) })}
       <span class="muted">· ${fmtDur(leg.duration)}, ${Math.round(leg.distance)} m</span></li>`;
   }
   return `<li>
@@ -1688,20 +2072,20 @@ function legRow(leg) {
 
 function itinHtml(node, idx) {
   const walk = Math.round(node.walkDistance);
-  const transfers = node.numberOfTransfers === 0 ? "ei vaihtoja"
-    : node.numberOfTransfers === 1 ? "1 vaihto" : node.numberOfTransfers + " vaihtoa";
+  const transfers = node.numberOfTransfers === 0 ? t("transfers0")
+    : node.numberOfTransfers === 1 ? t("transfers1") : t("transfersN", { n: node.numberOfTransfers });
   const durSec = (new Date(node.end) - new Date(node.start)) / 1000;
   return `<details class="itin" data-itin="${idx}">
     <summary>
       <span class="itin-head">
         <span class="times">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
         <span>${fmtDur(durSec)}</span>
-        <span class="muted">${transfers} · kävelyä ${walk} m</span>
+        <span class="muted">${transfers} · ${t("walkAmount", { n: walk })}</span>
       </span>
       <span class="legchips">${node.legs.map(legChip).join(`<span class="sep" aria-hidden="true">›</span>`)}</span>
     </summary>
     <ul class="legrows">${node.legs.map(legRow).join("")}</ul>
-    <div id="itinMap${idx}" class="map map-small" aria-label="Reitti kartalla"></div>
+    <div id="itinMap${idx}" class="map map-small" aria-label="${t("mapAria")}"></div>
   </details>`;
 }
 
@@ -1725,50 +2109,50 @@ async function drawItineraryMap(elId, node) {
   }
   const first = node.legs[0], last = node.legs[node.legs.length - 1];
   L.circleMarker([first.from.lat, first.from.lon], { ...STOP_MARKER, fillColor: "#1a7f4b" })
-    .addTo(map).bindPopup("Lähtöpaikka");
+    .addTo(map).bindPopup(t("origin"));
   L.circleMarker([last.to.lat, last.to.lon], { ...STOP_MARKER, fillColor: "#c0392b" })
-    .addTo(map).bindPopup("Määränpää");
+    .addTo(map).bindPopup(t("destination"));
   if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
 }
 
 async function viewPlan() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`
-    <nav class="crumb"><a href="#/">← Etusivu</a></nav>
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
     <div class="card">
-      <h2>Reittihaku</h2>
+      <h2>${t("planTitle")}</h2>
       <form id="planForm">
         <div class="field">
-          <label for="fromInput">Mistä</label>
+          <label for="fromInput">${t("from")}</label>
           <div class="suggest">
-            <input type="text" id="fromInput" placeholder="Osoite, paikka tai pysäkki…"
+            <input type="text" id="fromInput" placeholder="${t("placePlaceholder")}"
                    autocomplete="off" value="${esc(planState.from?.name || "")}">
             <ul class="plain suggest-list" id="fromList" hidden></ul>
           </div>
-          <button type="button" id="fromGeo" class="linkish">📍 Käytä omaa sijaintia</button>
+          <button type="button" id="fromGeo" class="linkish">📍 ${t("useMyLocation")}</button>
         </div>
         <div class="field">
-          <label for="toInput">Minne</label>
+          <label for="toInput">${t("to")}</label>
           <div class="suggest">
-            <input type="text" id="toInput" placeholder="Osoite, paikka tai pysäkki…"
+            <input type="text" id="toInput" placeholder="${t("placePlaceholder")}"
                    autocomplete="off" value="${esc(planState.to?.name || "")}">
             <ul class="plain suggest-list" id="toList" hidden></ul>
           </div>
         </div>
         <div class="row" style="flex-wrap:wrap">
-          <select id="timeMode" aria-label="Ajan tulkinta">
-            <option value="dep"${planState.timeMode === "dep" ? " selected" : ""}>Lähtöaika</option>
-            <option value="arr"${planState.timeMode === "arr" ? " selected" : ""}>Saapumisaika</option>
+          <select id="timeMode" aria-label="${t("timeModeAria")}">
+            <option value="dep"${planState.timeMode === "dep" ? " selected" : ""}>${t("departAt")}</option>
+            <option value="arr"${planState.timeMode === "arr" ? " selected" : ""}>${t("arriveBy")}</option>
           </select>
-          <input type="datetime-local" id="timeInput" aria-label="Aika"
+          <input type="datetime-local" id="timeInput" aria-label="${t("timeAria")}"
                  value="${esc(planState.time || nowLocalInput())}">
-          <button type="submit">Hae reitit</button>
+          <button type="submit">${t("searchRoutes")}</button>
         </div>
         <div class="row" style="flex-wrap:wrap; margin-top:0.4rem">
           <label><input type="checkbox" id="wheelchairBox"${planState.wheelchair ? " checked" : ""}>
-            ♿ Esteetön reitti</label>
+            ♿ ${t("wheelchairRoute")}</label>
           <label><input type="checkbox" id="lessWalkBox"${planState.lessWalk ? " checked" : ""}>
-            Vähemmän kävelyä</label>
+            ${t("lessWalk")}</label>
         </div>
       </form>
       <div id="planMsg" role="status"></div>
@@ -1782,14 +2166,14 @@ async function viewPlan() {
 
   document.getElementById("fromGeo").addEventListener("click", () => {
     const msg = document.getElementById("planMsg");
-    if (!navigator.geolocation) { msg.innerHTML = `<div class="error">Selaimesi ei tue paikannusta.</div>`; return; }
-    msg.innerHTML = `<p class="muted">Haetaan sijaintia…</p>`;
+    if (!navigator.geolocation) { msg.innerHTML = `<div class="error">${t("geoUnsupported")}</div>`; return; }
+    msg.innerHTML = `<p class="muted">${t("gettingLocation")}</p>`;
     navigator.geolocation.getCurrentPosition(pos => {
-      planState.from = { name: "Oma sijainti", lat: pos.coords.latitude, lon: pos.coords.longitude };
-      fromInput.value = "Oma sijainti";
+      planState.from = { name: t("myLocation"), lat: pos.coords.latitude, lon: pos.coords.longitude };
+      fromInput.value = t("myLocation");
       msg.innerHTML = "";
     }, err => {
-      msg.innerHTML = `<div class="error">Sijaintia ei saatu: ${esc(err.message)}</div>`;
+      msg.innerHTML = `<div class="error">${t("geoFail")}${esc(err.message)}</div>`;
     }, { timeout: 10000 });
   });
 
@@ -1799,12 +2183,11 @@ async function viewPlan() {
   const renderResults = hasNext => {
     results.innerHTML = nodes.length
       ? `<div class="card">
-           <h2>Reittiehdotukset</h2>
+           <h2>${t("itinerariesTitle")}</h2>
            ${nodes.map((n, i) => itinHtml(n, i)).join("")}
-           ${hasNext ? `<button id="moreBtn" class="no-print">Näytä myöhempiä lähtöjä</button>` : ""}
+           ${hasNext ? `<button id="moreBtn" class="no-print">${t("showLater")}</button>` : ""}
          </div>`
-      : `<div class="card"><p class="muted">Reittejä ei löytynyt valitulla ajalla.
-           Kokeile toista aikaa tai tarkista lähtö- ja määräpaikka.</p></div>`;
+      : `<div class="card"><p class="muted">${t("noItineraries")}</p></div>`;
     results.querySelectorAll("details.itin").forEach(d =>
       d.addEventListener("toggle", () => {
         if (d.open) drawItineraryMap("itinMap" + d.dataset.itin, nodes[Number(d.dataset.itin)]).catch(() => {});
@@ -1815,10 +2198,10 @@ async function viewPlan() {
   const search = async append => {
     const msg = document.getElementById("planMsg");
     if (!planState.from || !planState.to) {
-      msg.innerHTML = `<div class="error">Valitse lähtöpaikka ja määränpää ehdotuslistasta.</div>`;
+      msg.innerHTML = `<div class="error">${t("choosePlaces")}</div>`;
       return;
     }
-    if (!append) { cursor = null; nodes = []; results.innerHTML = `<p class="muted">Haetaan reittejä…</p>`; }
+    if (!append) { cursor = null; nodes = []; results.innerHTML = `<p class="muted">${t("searchingRoutes")}</p>`; }
     msg.innerHTML = "";
     planState.timeMode = document.getElementById("timeMode").value;
     planState.time = document.getElementById("timeInput").value;
@@ -1869,6 +2252,7 @@ async function route() {
 }
 
 window.addEventListener("hashchange", route);
+updateChrome();
 route();
 
 // Häiriöpollaus käynnistyy heti, jos ilmoitukset on otettu käyttöön;
