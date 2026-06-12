@@ -275,6 +275,9 @@
   .itin-head .times { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 1.02rem; }
   .legchips { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-top: 0.25rem; }
   .legchips .sep { color: var(--muted); }
+  .legchips button.badge { border: none; cursor: pointer; padding: 0.15rem 0.5rem; }
+  .legchips button.badge[aria-pressed="true"] { outline: 3px solid var(--blue); outline-offset: 2px; }
+  #stopRoutes.filtered button.badge[aria-pressed="false"] { opacity: 0.4; }
   /* Suhteellinen osuuspalkki: legien leveys = kesto */
   .legbar { display: flex; gap: 2px; margin-top: 0.4rem; height: 1.5rem; border-radius: 7px; overflow: hidden; }
   .legbar .seg {
@@ -535,6 +538,10 @@ const STRINGS = {
     platform: "laituri {p}",
     directWalk: "Kävellen", directBike: "Pyörällä",
     departsIn: "lähtee {n} min kuluttua", departsNow: "lähtee nyt",
+    swap: "Vaihda suunta", now: "Nyt",
+    share: "Jaa", linkCopied: "Linkki kopioitu!",
+    recent: "Viimeksi haetut",
+    filterByRoute: "Näytä vain linjan {line} lähdöt",
   },
   en: {
     appTitle: "{city} bus timetables",
@@ -648,6 +655,10 @@ const STRINGS = {
     platform: "platform {p}",
     directWalk: "Walking", directBike: "By bike",
     departsIn: "departs in {n} min", departsNow: "departs now",
+    swap: "Swap direction", now: "Now",
+    share: "Share", linkCopied: "Link copied!",
+    recent: "Recent searches",
+    filterByRoute: "Show only route {line} departures",
   },
   sv: {
     appTitle: "Busstidtabeller i {city}",
@@ -761,6 +772,10 @@ const STRINGS = {
     platform: "plattform {p}",
     directWalk: "Till fots", directBike: "Med cykel",
     departsIn: "avgår om {n} min", departsNow: "avgår nu",
+    swap: "Byt riktning", now: "Nu",
+    share: "Dela", linkCopied: "Länken kopierad!",
+    recent: "Senaste sökningar",
+    filterByRoute: "Visa endast linje {line}",
   },
 };
 
@@ -1110,25 +1125,37 @@ async function vehiclePopupHtml(tripId, nextStopId) {
   return html;
 }
 
-async function startVehicles(map, routeId, shortName) {
+// Näyttää listan linjoista live-busseina kartalla. Kerrallaan aktiivisena on
+// yksi tilaus: uusi kutsu (esim. toisen reittiehdotuksen avaus) siirtää bussit
+// uudelle kartalle.
+async function startVehicles(map, routeList) {
   const mySeq = viewSeq;
-  try { await ensureMqtt(); } catch (e) { return; }
+  try {
+    await ensureMqtt();
+    await findFeed(); // MQTT-topic ja trip-haut tarvitsevat feedId:n
+  } catch (e) { return; }
   if (mySeq !== viewSeq) return; // näkymä ehti vaihtua latauksen aikana
-  const routeNum = routeId.split(":")[1];
+  stopVehicles();
+  const byNum = new Map(routeList.map(r => [r.gtfsId.split(":")[1], r]));
   const markers = new Map(); // vehicleId -> { marker, ts }
   mqttClient = mqtt.connect(CONFIG.mqttUrl, { reconnectPeriod: 5000 });
   mqttClient.on("connect", () => {
-    if (mqttClient) mqttClient.subscribe(`/gtfsrt/vp/${feedId}/+/+/+/${routeNum}/#`);
+    if (!mqttClient) return;
+    for (const num of byNum.keys()) {
+      mqttClient.subscribe(`/gtfsrt/vp/${feedId}/+/+/+/${num}/#`);
+    }
   });
   mqttClient.on("message", (topic, payload) => {
     const seg = topic.split("/");
+    const route = byNum.get(seg[7]);
+    if (!route) return;
     const vehId = seg[13] || topic;
     const headsign = seg[9] || "";
     const pos = decodeVehiclePosition(payload);
     if (!pos || pos.lat == null || pos.lon == null) return;
     let m = markers.get(vehId);
     if (!m) {
-      const icon = L.divIcon({ className: "bus-marker", html: esc(shortName), iconSize: [26, 26] });
+      const icon = L.divIcon({ className: "bus-marker", html: esc(route.shortName), iconSize: [26, 26] });
       m = { marker: L.marker([pos.lat, pos.lon], { icon, zIndexOffset: 1000 })
         .addTo(map).bindTooltip("").bindPopup(t("vehLoading"), { maxWidth: 280 }) };
       m.marker.on("popupopen", async () => {
@@ -1143,7 +1170,7 @@ async function startVehicles(map, routeId, shortName) {
     m.tripId = seg[10] || "";
     m.nextStop = seg[11] || "";
     m.marker.setLatLng([pos.lat, pos.lon]);
-    m.marker.setTooltipContent(t("vehLine", { line: esc(shortName), dest: esc(headsign) }));
+    m.marker.setTooltipContent(t("vehLine", { line: esc(route.shortName), dest: esc(headsign) }));
     m.ts = Date.now();
   });
   // siivoa bussit, joista ei ole kuulunut 90 sekuntiin (esim. päätepysäkillä)
@@ -1155,10 +1182,14 @@ async function startVehicles(map, routeId, shortName) {
   }, 15000);
 }
 
-function stopRefresh() {
-  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+function stopVehicles() {
   if (vehicleSweep) { clearInterval(vehicleSweep); vehicleSweep = null; }
   if (mqttClient) { try { mqttClient.end(true); } catch (e) {} mqttClient = null; }
+}
+
+function stopRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  stopVehicles();
 }
 
 let viewSeq = 0;
@@ -1540,7 +1571,7 @@ const FAV_STOPS_QUERY = `
       gtfsId name code
       stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
         scheduledDeparture realtimeDeparture realtime serviceDay headsign
-        trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName color textColor } }
+        trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } }
       }
     }
   }`;
@@ -1586,7 +1617,7 @@ const NEARBY_QUERY = `
         gtfsId name code
         stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
           scheduledDeparture realtimeDeparture realtime serviceDay headsign
-          trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName color textColor } }
+          trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } }
         }
       } } }
     }
@@ -1899,7 +1930,7 @@ async function viewRoute(routeId, patternCode, date) {
       }
       if (!bounds && located.length) bounds = L.latLngBounds(located.map(s => [s.lat, s.lon]));
       if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
-      startVehicles(map, routeId, route.shortName);
+      startVehicles(map, [{ gtfsId: routeId, shortName: route.shortName }]);
     } catch (err) {
       mapEl.outerHTML = `<div class="error">${t("mapFail")}${esc(err.message)}</div>`;
     }
@@ -1981,9 +2012,10 @@ async function viewStop(stopId) {
       `query ($id: String!) {
          stop(id: $id) {
            name code lat lon wheelchairBoarding
-           stoptimesWithoutPatterns(numberOfDepartures: 15, omitNonPickups: true) {
+           routes { gtfsId shortName color textColor }
+           stoptimesWithoutPatterns(numberOfDepartures: 30, omitNonPickups: true) {
              scheduledDeparture realtimeDeparture realtime serviceDay headsign
-             trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName color textColor } }
+             trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } }
            }
          }
        }`, { id: stopId });
@@ -1991,11 +2023,30 @@ async function viewStop(stopId) {
     return { stop: data.stop, cachedAt };
   };
 
-  const renderRows = stop =>
-    depTableRows(stop.stoptimesWithoutPatterns)
+  let routeFilter = null;
+  let lastStopData = null;
+
+  const renderRows = stop => {
+    const sts = (stop.stoptimesWithoutPatterns || []).filter(st =>
+      !routeFilter || st.trip?.route?.gtfsId === routeFilter);
+    return depTableRows(routeFilter ? sts : sts.slice(0, 15))
       || `<tr><td colspan="3" class="muted">${t("noUpcoming")}</td></tr>`;
+  };
+
+  // Pysäkkiä liikennöivät linjat suodatinnappeina (brändiväreissä)
+  const stopRoutesHtml = stop => {
+    const routes = (stop.routes || []).slice()
+      .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
+    if (routes.length < 2) return "";
+    return `<div class="legchips no-print" id="stopRoutes">${routes.map(r => {
+      const style = r.color ? ` style="background:#${esc(r.color)};color:${badgeText(r.color, r.textColor)}"` : "";
+      return `<button class="badge" data-route="${esc(r.gtfsId)}" aria-pressed="false"${style}
+        title="${t("filterByRoute", { line: esc(r.shortName) })}">${esc(r.shortName)}</button>`;
+    }).join("")}</div>`;
+  };
 
   const { stop, cachedAt } = await fetchStop();
+  lastStopData = stop;
   const accNote = stop.wheelchairBoarding === "POSSIBLE"
     ? `<p class="muted">♿ ${t("accStop")}</p>`
     : stop.wheelchairBoarding === "NOT_POSSIBLE"
@@ -2005,6 +2056,7 @@ async function viewStop(stopId) {
     <div class="card">
       <h2>${favButtonHtml(stopId)}${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
       ${accNote}
+      ${stopRoutesHtml(stop)}
       <div id="staleNote">${cachedAt ? staleNoteHtml(cachedAt) : ""}</div>
       <table>
         <thead><tr><th>${t("thLine")}</th><th>${t("thDest")}</th><th>${t("thDeparts")}</th></tr></thead>
@@ -2016,6 +2068,16 @@ async function viewStop(stopId) {
 
   bindFavButton({ type: "stop", id: stopId, name: stop.name });
   document.getElementById("backBtn").addEventListener("click", () => history.back());
+
+  document.querySelectorAll("#stopRoutes button[data-route]").forEach(btn =>
+    btn.addEventListener("click", () => {
+      routeFilter = routeFilter === btn.dataset.route ? null : btn.dataset.route;
+      document.getElementById("stopRoutes").classList.toggle("filtered", !!routeFilter);
+      document.querySelectorAll("#stopRoutes button[data-route]").forEach(b =>
+        b.setAttribute("aria-pressed", String(b.dataset.route === routeFilter)));
+      const tbody = document.getElementById("depRows");
+      if (tbody && lastStopData) tbody.innerHTML = renderRows(lastStopData);
+    }));
 
   if (stop.lat != null) {
     const mySeq = viewSeq;
@@ -2033,6 +2095,7 @@ async function viewStop(stopId) {
   refreshTimer = setInterval(async () => {
     try {
       const fresh = await fetchStop();
+      lastStopData = fresh.stop;
       const tbody = document.getElementById("depRows");
       if (tbody) tbody.innerHTML = renderRows(fresh.stop);
       const note = document.getElementById("staleNote");
@@ -2091,11 +2154,41 @@ async function searchPlaces(q) {
 
 const PLACE_ICONS = { stop: "🚏", address: "🏠", street: "🏠", venue: "📍" };
 
+/* Viimeksi haetut paikat nopeuttavat toistuvia hakuja */
+function getRecents() {
+  try { return JSON.parse(localStorage.getItem("recentPlaces") || "[]"); }
+  catch (e) { return []; }
+}
+
+function addRecent(p) {
+  if (!p || !p.name || p.name === t("myLocation")) return;
+  const r = getRecents().filter(x => x.name !== p.name);
+  r.unshift({ name: p.name, lat: p.lat, lon: p.lon, layer: p.layer || "address" });
+  try { localStorage.setItem("recentPlaces", JSON.stringify(r.slice(0, 6))); } catch (e) {}
+}
+
 // Yhdistetty osoite-/pysäkkihaku: kirjoitus hakee ehdotukset, valinta antaa
 // koordinaatit onPick-kutsulla. Tekstin muokkaus mitätöi aiemman valinnan.
 function bindPlaceInput(input, listEl, onPick) {
   let timer = null, seq = 0;
   const close = () => { listEl.innerHTML = ""; listEl.hidden = true; };
+  const pick = p => {
+    input.value = p.name;
+    close();
+    addRecent(p);
+    onPick(p);
+  };
+  input.addEventListener("focus", () => {
+    if (input.value.trim().length >= 3) return;
+    const recents = getRecents();
+    if (!recents.length) return;
+    listEl.innerHTML = `<li><p class="muted" style="padding:0.3rem 0.45rem;margin:0">${t("recent")}</p></li>`
+      + recents.map((p, i) => `<li><button type="button" class="item" data-r="${i}">
+          <span aria-hidden="true">🕓</span><span>${esc(p.name)}</span></button></li>`).join("");
+    listEl.hidden = false;
+    listEl.querySelectorAll("button[data-r]").forEach(btn =>
+      btn.addEventListener("click", () => pick(recents[Number(btn.dataset.r)])));
+  });
   input.addEventListener("input", () => {
     onPick(null);
     clearTimeout(timer);
@@ -2113,12 +2206,7 @@ function bindPlaceInput(input, listEl, onPick) {
           : `<li><p class="muted" style="padding:0.4rem">${t("noPlacesFor", { q: esc(q) })}</p></li>`;
         listEl.hidden = false;
         listEl.querySelectorAll("button[data-i]").forEach(btn =>
-          btn.addEventListener("click", () => {
-            const p = places[Number(btn.dataset.i)];
-            input.value = p.name;
-            close();
-            onPick(p);
-          }));
+          btn.addEventListener("click", () => pick(places[Number(btn.dataset.i)])));
       } catch (err) {
         if (my !== seq) return;
         listEl.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`;
@@ -2148,6 +2236,39 @@ function nowLocalInput() {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0, 16);
+}
+
+/* Jaettava reittilinkki: hakuehdot talteen URL:iin (replaceState ei laukaise
+   hashchangea, joten näkymä ei piirry turhaan uudelleen) */
+function planHash() {
+  const enc = p => encodeURIComponent(`${p.lat.toFixed(5)},${p.lon.toFixed(5)},${p.name}`);
+  const opts = new URLSearchParams();
+  if (planState.time) opts.set("t", planState.time);
+  if (planState.timeMode === "arr") opts.set("m", "arr");
+  if (planState.wheelchair) opts.set("wc", "1");
+  if (planState.lessWalk) opts.set("lw", "1");
+  const o = opts.toString();
+  return `#/reitti/${enc(planState.from)}/${enc(planState.to)}${o ? "/" + encodeURIComponent(o) : ""}`;
+}
+
+function parsePlanParams(parts) {
+  const dec = s => {
+    const i1 = s.indexOf(","), i2 = s.indexOf(",", i1 + 1);
+    if (i1 < 0 || i2 < 0) return null;
+    const lat = parseFloat(s.slice(0, i1)), lon = parseFloat(s.slice(i1 + 1, i2));
+    const name = s.slice(i2 + 1);
+    return Number.isFinite(lat) && Number.isFinite(lon) && name ? { name, lat, lon } : null;
+  };
+  const from = dec(parts[1] || ""), to = dec(parts[2] || "");
+  if (!from || !to) return false;
+  planState.from = from;
+  planState.to = to;
+  const opts = new URLSearchParams(parts[3] || "");
+  if (opts.get("t")) planState.time = opts.get("t");
+  planState.timeMode = opts.get("m") === "arr" ? "arr" : "dep";
+  planState.wheelchair = opts.get("wc") === "1";
+  planState.lessWalk = opts.get("lw") === "1";
+  return true;
 }
 
 // "2026-06-12T18:30" -> "2026-06-12T18:30:00+03:00"
@@ -2362,10 +2483,16 @@ async function drawItineraryMap(elId, node) {
   L.circleMarker([last.to.lat, last.to.lon], { ...STOP_MARKER, fillColor: "#c0392b" })
     .addTo(map).bindPopup(t("destination"));
   if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
+  // reitin linjojen bussit liikkuvat kartalla reaaliajassa
+  const transitRoutes = [...new Map(node.legs
+    .filter(l => l.route?.gtfsId)
+    .map(l => [l.route.gtfsId, { gtfsId: l.route.gtfsId, shortName: l.route.shortName }])).values()];
+  if (transitRoutes.length) startVehicles(map, transitRoutes);
 }
 
-async function viewPlan() {
+async function viewPlan(parts) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  const fromUrl = parts && parts[1] ? parsePlanParams(parts) : false;
   setView(`
     <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
     <div class="card">
@@ -2379,6 +2506,8 @@ async function viewPlan() {
             <ul class="plain suggest-list" id="fromList" hidden></ul>
           </div>
           <button type="button" id="fromGeo" class="linkish">📍 ${t("useMyLocation")}</button>
+          <button type="button" id="swapBtn" class="linkish" title="${t("swap")}"
+                  aria-label="${t("swap")}">⇅ ${t("swap")}</button>
         </div>
         <div class="field">
           <label for="toInput">${t("to")}</label>
@@ -2395,6 +2524,7 @@ async function viewPlan() {
           </select>
           <input type="datetime-local" id="timeInput" aria-label="${t("timeAria")}"
                  value="${esc(planState.time || nowLocalInput())}">
+          <button type="button" id="nowBtn" class="linkish">${t("now")}</button>
           <button type="submit">${t("searchRoutes")}</button>
         </div>
         <div class="row" style="flex-wrap:wrap; margin-top:0.4rem">
@@ -2412,6 +2542,18 @@ async function viewPlan() {
   const toInput = document.getElementById("toInput");
   bindPlaceInput(fromInput, document.getElementById("fromList"), p => { planState.from = p; });
   bindPlaceInput(toInput, document.getElementById("toList"), p => { planState.to = p; });
+
+  document.getElementById("swapBtn").addEventListener("click", () => {
+    [planState.from, planState.to] = [planState.to, planState.from];
+    fromInput.value = planState.from?.name || "";
+    toInput.value = planState.to?.name || "";
+    if (planState.from && planState.to) search(false);
+  });
+  document.getElementById("nowBtn").addEventListener("click", () => {
+    document.getElementById("timeInput").value = nowLocalInput();
+    document.getElementById("timeMode").value = "dep";
+    if (planState.from && planState.to) search(false);
+  });
 
   document.getElementById("fromGeo").addEventListener("click", () => {
     const msg = document.getElementById("planMsg");
@@ -2436,7 +2578,8 @@ async function viewPlan() {
       .join("");
     results.innerHTML = nodes.length || directRow
       ? `<div class="card">
-           <h2>${t("itinerariesTitle")}</h2>
+           <h2>${t("itinerariesTitle")}
+             <button id="shareBtn" class="linkish no-print" style="float:right">🔗 ${t("share")}</button></h2>
            ${directRow}
            ${nodes.map((n, i) => itinHtml(n, i)).join("")}
            ${hasNext ? `<button id="moreBtn" class="no-print">${t("showLater")}</button>` : ""}
@@ -2451,6 +2594,15 @@ async function viewPlan() {
         if (d.open) drawItineraryMap("directMap" + d.dataset.direct, directNodes[d.dataset.direct]).catch(() => {});
       }));
     document.getElementById("moreBtn")?.addEventListener("click", () => search(true));
+    document.getElementById("shareBtn")?.addEventListener("click", async e => {
+      const url = location.origin + location.pathname + planHash();
+      try {
+        if (navigator.share) { await navigator.share({ url }); return; }
+        await navigator.clipboard.writeText(url);
+        e.target.textContent = "✓ " + t("linkCopied");
+        setTimeout(() => { e.target.textContent = "🔗 " + t("share"); }, 2500);
+      } catch (err) { /* käyttäjä perui jaon */ }
+    });
   };
 
   // Kävely- ja pyörävaihtoehdot haetaan pääkyselyn rinnalla; lista täydentyy
@@ -2495,6 +2647,9 @@ async function viewPlan() {
           ? { latestArrival: isoWithOffset(planState.time) }
           : { earliestDeparture: isoWithOffset(planState.time) })
       : null;
+    history.replaceState(null, "", planHash());
+    addRecent(planState.from);
+    addRecent(planState.to);
     try {
       const data = await gql(PLAN_QUERY, {
         origin: { location: { coordinate: { latitude: planState.from.lat, longitude: planState.from.lon } } },
@@ -2516,6 +2671,7 @@ async function viewPlan() {
   };
 
   document.getElementById("planForm").addEventListener("submit", e => { e.preventDefault(); search(false); });
+  // URL:sta tultaessa (jaettu linkki) tai paluunavigoinnissa haku käynnistyy heti
   if (planState.from && planState.to) search(false);
 }
 
@@ -2525,7 +2681,7 @@ async function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   try {
     if (parts[0] === "asetukset") viewSettings();
-    else if (parts[0] === "reitti") await viewPlan();
+    else if (parts[0] === "reitti") await viewPlan(parts);
     else if (parts[0] === "linja" && parts[1]) await viewRoute(parts[1], parts[2], parts[3]);
     else if (parts[0] === "pysakki" && parts[1]) await viewStop(parts[1]);
     else await viewRoutes();
