@@ -7,18 +7,76 @@
 <meta name="theme-color" content="#0a4ea3">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<script>
+// Teema ratkaistaan ennen ensimmäistä maalausta välähdyksen välttämiseksi
+(function () {
+  function apply() {
+    var pref = localStorage.getItem("theme") || "auto";
+    var dark = pref === "dark" ||
+      (pref === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = dark ? "#102a4d" : "#0a4ea3";
+  }
+  apply();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", apply);
+  window.applyTheme = apply;
+})();
+</script>
 <style>
   :root {
     --blue: #0a4ea3;
-    --blue-dark: #083d80;
+    --btn-bg: #0a4ea3;
+    --btn-hover: #083d80;
+    --header-bg: #0a4ea3;
     --bg: #f4f6f9;
     --card: #ffffff;
     --text: #1a2233;
     --muted: #5a6478;
     --green: #1a7f4b;
     --border: #d8dee9;
+    --hover: #eef3fb;
+    --chip: #e7edf6;
+    --rt-bg: #e2f3e9;
+    --rt-text: #135c37;
+    --error-bg: #fdecec;
+    --error-border: #f3b6b6;
+    --error-text: #8a1f1f;
+    --shadow: rgba(0, 0, 0, 0.15);
+    --star: #b8860b;
+    --sev-severe: #c0392b;
+    --sev-warning: #d68910;
+  }
+  html[data-theme="dark"] {
+    --blue: #7db3f0;
+    --btn-bg: #155bb5;
+    --btn-hover: #1e6ad0;
+    --header-bg: #102a4d;
+    --bg: #0f1522;
+    --card: #19202f;
+    --text: #e6ebf5;
+    --muted: #9aa6bd;
+    --green: #5ecf96;
+    --border: #323c52;
+    --hover: #222c42;
+    --chip: #243049;
+    --rt-bg: #14301f;
+    --rt-text: #7fd6a4;
+    --error-bg: #3a1414;
+    --error-border: #7a2e2e;
+    --error-text: #f0a0a0;
+    --shadow: rgba(0, 0, 0, 0.6);
+    --star: #e0b13e;
+    --sev-severe: #e06050;
+    --sev-warning: #e8a33d;
+  }
+  html[data-theme="dark"] .leaflet-popup-content-wrapper,
+  html[data-theme="dark"] .leaflet-popup-tip {
+    background: var(--card);
+    color: var(--text);
   }
   * { box-sizing: border-box; }
+  a { color: var(--blue); }
   a:focus-visible, button:focus-visible, input:focus-visible,
   select:focus-visible, summary:focus-visible {
     outline: 3px solid var(--blue);
@@ -32,7 +90,7 @@
     line-height: 1.5;
   }
   header {
-    background: var(--blue);
+    background: var(--header-bg);
     color: #fff;
     padding: 0.75rem 1rem;
   }
@@ -67,7 +125,7 @@
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 0 0 6px 6px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px var(--shadow);
     max-height: 15rem;
     overflow: auto;
     z-index: 500;
@@ -77,11 +135,11 @@
     padding: 0.5rem 0.9rem;
     border: none;
     border-radius: 6px;
-    background: var(--blue);
+    background: var(--btn-bg);
     color: #fff;
     cursor: pointer;
   }
-  button:hover { background: var(--blue-dark); }
+  button:hover { background: var(--btn-hover); }
   button.linkish {
     background: none;
     color: var(--blue);
@@ -106,12 +164,12 @@
     cursor: pointer;
     font: inherit;
   }
-  a.item:hover, button.item:hover { background: #eef3fb; }
+  a.item:hover, button.item:hover { background: var(--hover); }
   .badge {
     display: inline-block;
     min-width: 2.4em;
     text-align: center;
-    background: var(--blue);
+    background: var(--btn-bg);
     color: #fff;
     border-radius: 5px;
     padding: 0.05rem 0.4rem;
@@ -123,7 +181,7 @@
   a.badge { text-decoration: none; }
   button.star {
     background: none;
-    color: #b8860b;
+    color: var(--star);
     font-size: 1.3rem;
     line-height: 1;
     padding: 0 0.3rem;
@@ -141,36 +199,36 @@
   h3.stophead a { color: var(--text); }
   .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
   .tabs button {
-    background: #e7edf6;
+    background: var(--chip);
     color: var(--text);
     font-size: 0.85rem;
   }
-  .tabs button[aria-pressed="true"] { background: var(--blue); color: #fff; }
+  .tabs button[aria-pressed="true"] { background: var(--btn-bg); color: #fff; }
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); }
   th { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
   .rt { color: var(--green); font-weight: 600; }
   .timegrid { display: flex; flex-wrap: wrap; gap: 0.35rem; }
   .timegrid span {
-    background: #eef3fb;
+    background: var(--chip);
     border-radius: 5px;
     padding: 0.15rem 0.45rem;
     font-variant-numeric: tabular-nums;
   }
   .timegrid span.past { opacity: 0.45; }
-  .timegrid span.rt { background: #e2f3e9; color: #135c37; font-weight: 600; }
-  .error { background: #fdecec; border: 1px solid #f3b6b6; color: #8a1f1f; padding: 0.6rem; border-radius: 6px; }
+  .timegrid span.rt { background: var(--rt-bg); color: var(--rt-text); font-weight: 600; }
+  .error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); padding: 0.6rem; border-radius: 6px; }
   details.alert {
     border-left: 4px solid var(--blue);
-    background: #fff;
+    background: var(--card);
     border-radius: 4px;
     padding: 0.45rem 0.6rem;
     margin: 0.4rem 0;
   }
   details.alert summary { cursor: pointer; font-weight: 600; }
   details.alert p { margin: 0.4rem 0 0.2rem; white-space: pre-line; font-size: 0.9rem; }
-  details.alert.sev-SEVERE { border-left-color: #c0392b; }
-  details.alert.sev-WARNING { border-left-color: #d68910; }
+  details.alert.sev-SEVERE { border-left-color: var(--sev-severe); }
+  details.alert.sev-WARNING { border-left-color: var(--sev-warning); }
   .map { height: clamp(340px, 55vh, 540px); border-radius: 6px; margin: 0.5rem 0; z-index: 0; }
   .map-small { height: clamp(220px, 35vh, 340px); }
   .leaflet-popup-content a { color: var(--blue); }
@@ -206,6 +264,11 @@
   nav.crumb a { color: var(--blue); }
   footer { max-width: 760px; margin: 0 auto; padding: 0 1rem 2rem; font-size: 0.78rem; color: var(--muted); }
   @media print {
+    html, html[data-theme="dark"] {
+      --bg: #fff; --card: #fff; --text: #000; --muted: #444;
+      --border: #ccc; --chip: #fff; --hover: #fff;
+      --rt-bg: #fff; --rt-text: #000;
+    }
     body { background: #fff; }
     header { background: none; color: #000; padding: 0 0 0.5rem; }
     header p, nav.crumb, .tabs, .map, .map-small, .no-print, #routeAlerts, button { display: none !important; }
@@ -574,17 +637,45 @@ function showError(err) {
 
 /* ---------- Views ---------- */
 
+const THEME_OPTIONS = [["auto", "Automaattinen"], ["light", "Vaalea"], ["dark", "Tumma"]];
+
+function themeSettingHtml() {
+  const cur = localStorage.getItem("theme") || "auto";
+  return `
+    <div class="card">
+      <h2>Ulkoasu</h2>
+      <div class="tabs" role="group" aria-label="Teema">
+        ${THEME_OPTIONS.map(([v, label]) => `
+          <button data-theme-opt="${v}" aria-pressed="${v === cur}">${label}</button>`).join("")}
+      </div>
+    </div>`;
+}
+
+function bindThemeSetting() {
+  document.querySelectorAll("[data-theme-opt]").forEach(btn =>
+    btn.addEventListener("click", () => {
+      localStorage.setItem("theme", btn.dataset.themeOpt);
+      window.applyTheme();
+      document.querySelectorAll("[data-theme-opt]").forEach(b =>
+        b.setAttribute("aria-pressed", String(b === btn)));
+    }));
+}
+
 function viewSettings() {
   if (PROXY_URL) {
     setView(`
+      <nav class="crumb"><a href="#/">← Etusivu</a></nav>
+      ${themeSettingHtml()}
       <div class="card">
-        <h2>Asetukset</h2>
+        <h2>API-avain</h2>
         <p>API-avainta ei tarvita — palvelu hakee tiedot välityspalvelimen kautta.</p>
-        <p><a href="#/">Etusivulle</a></p>
       </div>`);
+    bindThemeSetting();
     return;
   }
   setView(`
+    <nav class="crumb"><a href="#/">← Etusivu</a></nav>
+    ${themeSettingHtml()}
     <div class="card">
       <h2>API-avain</h2>
       <p class="muted">Hae ilmainen avain osoitteesta
@@ -596,6 +687,7 @@ function viewSettings() {
         <button type="submit">Tallenna</button>
       </form>
     </div>`);
+  bindThemeSetting();
   document.getElementById("keyForm").addEventListener("submit", e => {
     e.preventDefault();
     apiKey = document.getElementById("keyInput").value.trim();
