@@ -152,6 +152,8 @@
     padding: 0.15rem 0.45rem;
     font-variant-numeric: tabular-nums;
   }
+  .timegrid span.past { opacity: 0.45; }
+  .timegrid span.rt { background: #e2f3e9; color: var(--green); font-weight: 600; }
   .error { background: #fdecec; border: 1px solid #f3b6b6; color: #8a1f1f; padding: 0.6rem; border-radius: 6px; }
   details.alert {
     border-left: 4px solid var(--blue);
@@ -1010,28 +1012,62 @@ async function viewRoute(routeId, patternCode, date) {
     box.innerHTML = `<p class="muted">Suunnalle ei löytynyt pysäkkejä.</p>`;
     return;
   }
-  try {
+  const isToday = date === todayISO();
+  const loadTimetable = async () => {
     const dateCompact = date.replace(/-/g, "");
     const tt = await gql(
       `query ($stopId: String!, $date: String!) {
          stop(id: $stopId) {
            stoptimesForServiceDate(date: $date, omitNonPickups: true) {
              pattern { code }
-             stoptimes { scheduledDeparture }
+             stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay }
            }
          }
        }`, { stopId: current.stops[0].gtfsId, date: dateCompact });
-    const times = (tt.stop?.stoptimesForServiceDate || [])
+    const sts = (tt.stop?.stoptimesForServiceDate || [])
       .filter(g => g.pattern.code === current.code)
       .flatMap(g => g.stoptimes)
-      .map(st => st.scheduledDeparture)
-      .sort((a, b) => a - b);
-    box.innerHTML = times.length
-      ? `<p class="muted">Lähdöt pysäkiltä ${esc(current.stops[0].name)}:</p>
-         <div class="timegrid">${times.map(t => `<span>${fmtSec(t)}</span>`).join("")}</div>`
-      : `<p class="muted">Ei lähtöjä valittuna päivänä.</p>`;
+      .sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
+    const el = document.getElementById("timetable");
+    if (!el) return;
+    if (!sts.length) {
+      el.innerHTML = `<p class="muted">Ei lähtöjä valittuna päivänä.</p>`;
+      return;
+    }
+    const now = Date.now();
+    const depEpoch = st =>
+      (st.serviceDay + (st.realtime ? st.realtimeDeparture : st.scheduledDeparture)) * 1000;
+    let nextHtml = "";
+    if (isToday) {
+      const upcoming = sts.filter(st => depEpoch(st) >= now - 30000).slice(0, 3);
+      if (upcoming.length) {
+        nextHtml = `<p>Seuraavat lähdöt: ${upcoming.map(st => {
+          const d = depInfo(st);
+          return `<strong class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</strong>`;
+        }).join(" · ")}</p>`;
+      }
+    }
+    const grid = sts.map(st => {
+      const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
+      const past = isToday && depEpoch(st) < now;
+      const cls = (past ? "past" : "") + (st.realtime && !past ? " rt" : "");
+      return `<span class="${cls.trim()}"${st.realtime && !past ? ` title="Reaaliaikainen arvio"` : ""}>
+        ${fmtSec(dep)}${st.realtime && !past ? " ●" : ""}</span>`;
+    }).join("");
+    el.innerHTML = `
+      <p class="muted">Lähdöt pysäkiltä ${esc(current.stops[0].name)}:</p>
+      ${nextHtml}
+      <div class="timegrid">${grid}</div>
+      ${isToday ? `<p class="muted"><span class="rt">●</span> = reaaliaikainen arvio.
+        Päivittyy 30 s välein.</p>` : ""}`;
+  };
+  try {
+    await loadTimetable();
   } catch (err) {
     box.innerHTML = `<div class="error">${esc(err.message)}</div>`;
+  }
+  if (isToday) {
+    refreshTimer = setInterval(() => loadTimetable().catch(() => {}), 30000);
   }
 }
 
