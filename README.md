@@ -10,8 +10,19 @@ tasalla ilman ylläpitoa.
 ## Ominaisuudet
 
 - **Reittihaku A→B** (planConnection): osoite-, paikka- tai pysäkkihaku
-  (Digitransit Geocoding / Pelias), lähtö- tai saapumisaika, reittiehdotukset
-  legeineen ja karttoineen; suodattimet "esteetön reitti" ja "vähemmän kävelyä"
+  (Digitransit Geocoding / Pelias), lähtö- tai saapumisaika, suodattimet
+  "esteetön reitti" ja "vähemmän kävelyä", aikaisempien ja myöhempien
+  lähtöjen selaus
+- **Reittiohjeet aikajanana**: kävely → pysäkki (koodi + laituri) → linja
+  brändiväreissä → avattavat välipysäkit → vaihtoajat → perille; yhteenvedossa
+  suhteellinen osuuspalkki ja lähtölaskenta seuraavaan bussiin
+- **Kävellen/Pyörällä-vaihtoehdot** reittiehdotusten rinnalla karttoineen
+- **Jaettavat reittilinkit**: hakuehdot tallentuvat URL-osoitteeseen, Jaa-nappi
+  (Web Share / leikepöytä); suunnanvaihto- ja Nyt-pikanapit, viimeksi haetut
+  paikat ehdotuksina, nuolinäppäinnavigointi
+- **Live-bussit kartoilla**: linjasivun lisäksi avatun reittiehdotuksen
+  kartalla (reitin linjat) ja pysäkkisivun kartalla (pysäkin kaikki linjat);
+  bussin klikkaus näyttää määränpään, myöhästymän ja seuraavat pysäkit
 - **Etusivulla lähimmät lähdöt heti**: paikannuksen salliessa 5 lähimmän
   pysäkin seuraavat lähdöt reaaliajassa ilman yhtään hakua
 - **Suosikit**: tähtää pysäkki tai linja, niin se nousee etusivun kärkeen
@@ -19,8 +30,14 @@ tasalla ilman ylläpitoa.
 - Kaikki LSL:n bussilinjat suodatettavana listana
 - Linjakohtainen aikataulu valitulle päivälle suunnittain — tänään-näkymässä
   reaaliaikainen countdown ja ●-merkityt reaaliaika-arviot
-- Pysäkkikohtaiset seuraavat lähdöt **reaaliajassa** (GTFS-RT), päivittyy 30 s välein
+- Pysäkkikohtaiset seuraavat lähdöt **reaaliajassa** (GTFS-RT), päivittyy 30 s
+  välein; pysäkkiä liikennöivät linjat suodatinnappeina
 - Pysäkkihaku nimellä ja lähimmät pysäkit selaimen paikannuksella
+- Linjojen viralliset värit (GTFS `route.color`) badgeissa ja karttaviivoissa —
+  tekstiväri valitaan automaattisesti niin, että WCAG-kontrasti 4.5:1 täyttyy
+- Tumma tila (automaattinen/vaalea/tumma), monikielisyys FI/EN/SV ja
+  offline-välimuisti ("viimeksi päivitetty HH:MM")
+- Häiriöilmoitukset suosikkilinjoista sovelluksen ollessa auki
 - Voimassa olevat häiriötiedotteet etusivulla ja linjakohtaisesti linjasivulla
 - Esteettömyys: esteettömän kaluston (♿) ja pysäkin esteettömyyden näyttö,
   kun syöte sisältää tiedon; Lighthouse-saavutettavuus 100/100

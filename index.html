@@ -543,6 +543,7 @@ const STRINGS = {
     recent: "Viimeksi haetut",
     filterByRoute: "Näytä vain linjan {line} lähdöt",
     showEarlier: "Näytä aikaisempia lähtöjä",
+    transferWait: "vaihtoaika {n} min",
     lastSearch: "Viimeisin haku",
     stopBusesHint: "Oranssit merkit ovat pysäkkiä liikennöivien linjojen busseja reaaliajassa.",
   },
@@ -663,6 +664,7 @@ const STRINGS = {
     recent: "Recent searches",
     filterByRoute: "Show only route {line} departures",
     showEarlier: "Show earlier departures",
+    transferWait: "{n} min transfer time",
     lastSearch: "Latest search",
     stopBusesHint: "Orange markers are buses of the routes serving this stop, in real time.",
   },
@@ -783,6 +785,7 @@ const STRINGS = {
     recent: "Senaste sökningar",
     filterByRoute: "Visa endast linje {line}",
     showEarlier: "Visa tidigare avgångar",
+    transferWait: "bytestid {n} min",
     lastSearch: "Senaste sökning",
     stopBusesHint: "Orange markörer är bussar på linjerna som trafikerar hållplatsen, i realtid.",
   },
@@ -2451,9 +2454,16 @@ function timelineHtml(node) {
         ? esc(planState.to?.name || t("destination")) : esc(leg.to.name);
       rows.push(pointRow(legTime(leg.end), destName, "", "end"));
     } else {
+      // vaihtoaika näkyviin, kun seuraava osuus on joukkoliikennettä
+      let wait = "";
+      if (next && next.mode !== "WALK" && next.mode !== "BICYCLE") {
+        const mins = Math.round((new Date(legTime(next.start)) - new Date(legTime(leg.end))) / 60000);
+        if (mins >= 1) wait = t("transferWait", { n: mins });
+      }
       const sub = [
         leg.to.stop?.code ? esc(leg.to.stop.code) : "",
         next?.from.stop?.platformCode ? t("platform", { p: esc(next.from.stop.platformCode) }) : "",
+        wait,
       ].filter(Boolean).join(" · ");
       rows.push(pointRow(legTime(leg.end), esc(leg.to.name), sub));
     }
