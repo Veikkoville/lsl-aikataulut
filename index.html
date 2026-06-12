@@ -29,6 +29,7 @@
     --btn-bg: #0a4ea3;
     --btn-hover: #083d80;
     --header-bg: #0a4ea3;
+    --header-bg2: #0d63cf;
     --bg: #f4f6f9;
     --card: #ffffff;
     --text: #1a2233;
@@ -52,6 +53,7 @@
     --btn-bg: #155bb5;
     --btn-hover: #1e6ad0;
     --header-bg: #102a4d;
+    --header-bg2: #16407a;
     --bg: #0f1522;
     --card: #19202f;
     --text: #e6ebf5;
@@ -90,19 +92,20 @@
     line-height: 1.5;
   }
   header {
-    background: var(--header-bg);
+    background: linear-gradient(120deg, var(--header-bg), var(--header-bg2));
     color: #fff;
-    padding: 0.75rem 1rem;
+    padding: 0.85rem 1rem;
   }
-  header h1 { margin: 0; font-size: 1.15rem; }
-  header p { margin: 0.1rem 0 0; font-size: 0.8rem; opacity: 0.85; }
+  header h1 { margin: 0; font-size: 1.2rem; letter-spacing: 0.01em; }
+  header p { margin: 0.1rem 0 0; font-size: 0.8rem; opacity: 0.88; }
   main { max-width: 760px; margin: 0 auto; padding: 1rem; }
   .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1rem;
+    border-radius: 12px;
+    padding: 1rem 1.05rem;
     margin-bottom: 1rem;
+    box-shadow: 0 1px 3px var(--shadow);
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
   input[type="search"], input[type="password"], input[type="date"],
@@ -134,12 +137,14 @@
     font: inherit;
     padding: 0.5rem 0.9rem;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     background: var(--btn-bg);
     color: #fff;
     cursor: pointer;
+    transition: background 0.15s;
   }
   button:hover { background: var(--btn-hover); }
+  button:active { transform: translateY(1px); }
   button.linkish {
     background: none;
     color: var(--blue);
@@ -164,6 +169,7 @@
     cursor: pointer;
     font: inherit;
   }
+  a.item, button.item { transition: background 0.12s; border-radius: 6px; }
   a.item:hover, button.item:hover { background: var(--hover); }
   .badge {
     display: inline-block;
@@ -246,20 +252,100 @@
   }
   details.itin {
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.5rem 0.7rem;
-    margin: 0.5rem 0;
+    border-radius: 12px;
+    padding: 0.6rem 0.8rem;
+    margin: 0.55rem 0;
     background: var(--card);
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  details.itin summary { cursor: pointer; }
+  details.itin:hover { border-color: var(--blue); }
+  details.itin[open] { border-color: var(--blue); box-shadow: 0 2px 10px var(--shadow); }
+  details.itin summary { cursor: pointer; list-style: none; position: relative; padding-right: 1.4rem; }
   details.itin summary::-webkit-details-marker { display: none; }
+  details.itin summary::after {
+    content: "▾";
+    position: absolute;
+    right: 0.1rem;
+    top: 0.1rem;
+    color: var(--muted);
+    transition: transform 0.15s;
+  }
+  details.itin[open] summary::after { transform: rotate(180deg); }
   .itin-head { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; align-items: baseline; }
-  .itin-head .times { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .itin-head .times { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 1.02rem; }
   .legchips { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-top: 0.25rem; }
   .legchips .sep { color: var(--muted); }
-  .legrows { list-style: none; margin: 0.6rem 0 0; padding: 0; }
-  .legrows li { border-top: 1px solid var(--border); padding: 0.45rem 0; }
-  .legrows .legtime { font-variant-numeric: tabular-nums; font-weight: 600; }
+  /* Suhteellinen osuuspalkki: legien leveys = kesto */
+  .legbar { display: flex; gap: 2px; margin-top: 0.4rem; height: 1.5rem; border-radius: 7px; overflow: hidden; }
+  .legbar .seg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #fff;
+    min-width: 0.9rem;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .legbar .seg.walk {
+    background: repeating-linear-gradient(45deg, var(--chip) 0 5px, var(--border) 5px 10px);
+    color: var(--text);
+  }
+  /* Pystyaikajana reittiohjeille */
+  .tl { margin: 0.7rem 0 0.2rem; }
+  .tl-row {
+    display: grid;
+    grid-template-columns: 3.3rem 1.1rem 1fr;
+    column-gap: 0.6rem;
+  }
+  .tl-time {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding-top: 0.05rem;
+  }
+  .tl-mid { position: relative; }
+  .tl-row.pt .tl-mid::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 0.3rem;
+    width: 0.66rem;
+    height: 0.66rem;
+    border-radius: 50%;
+    background: var(--card);
+    border: 3px solid var(--blue);
+    transform: translateX(-50%);
+    z-index: 1;
+    box-sizing: border-box;
+  }
+  .tl-row.pt.start .tl-mid::after { border-color: var(--green); }
+  .tl-row.pt.end .tl-mid::after { border-color: var(--sev-severe); }
+  .tl-row.leg .tl-mid::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -0.5rem;
+    bottom: -0.5rem;
+    width: 5px;
+    transform: translateX(-50%);
+    background: var(--rail, var(--blue));
+    border-radius: 3px;
+  }
+  .tl-row.leg.dashed .tl-mid::before {
+    width: 0;
+    border-left: 4px dotted var(--rail, var(--muted));
+    background: none;
+    border-radius: 0;
+  }
+  .tl-body { padding: 0.05rem 0 0.7rem; min-width: 0; }
+  .tl-row.leg .tl-body { padding: 0.35rem 0 0.9rem; font-size: 0.92rem; }
+  details.tl-stops { margin-top: 0.15rem; }
+  details.tl-stops summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+  details.tl-stops ul { list-style: none; margin: 0.25rem 0 0; padding: 0 0 0 0.2rem; }
+  details.tl-stops li { font-size: 0.85rem; color: var(--muted); padding: 0.1rem 0; }
   nav.crumb { margin-bottom: 0.75rem; font-size: 0.9rem; }
   nav.crumb a { color: var(--blue); }
   footer { max-width: 760px; margin: 0 auto; padding: 0 1rem 2rem; font-size: 0.78rem; color: var(--muted); }
@@ -444,6 +530,11 @@ const STRINGS = {
     transfers0: "ei vaihtoja", transfers1: "1 vaihto", transfersN: "{n} vaihtoa",
     walkAmount: "kävelyä {n} m",
     origin: "Lähtöpaikka", destination: "Määränpää",
+    walkVerb: "Kävele", bikeVerb: "Pyöräile",
+    intermediateN: "{n} välipysäkkiä", intermediate1: "1 välipysäkki", intermediate0: "ei välipysäkkejä",
+    platform: "laituri {p}",
+    directWalk: "Kävellen", directBike: "Pyörällä",
+    departsIn: "lähtee {n} min kuluttua", departsNow: "lähtee nyt",
   },
   en: {
     appTitle: "{city} bus timetables",
@@ -552,6 +643,11 @@ const STRINGS = {
     transfers0: "no transfers", transfers1: "1 transfer", transfersN: "{n} transfers",
     walkAmount: "walking {n} m",
     origin: "Origin", destination: "Destination",
+    walkVerb: "Walk", bikeVerb: "Cycle",
+    intermediateN: "{n} intermediate stops", intermediate1: "1 intermediate stop", intermediate0: "no intermediate stops",
+    platform: "platform {p}",
+    directWalk: "Walking", directBike: "By bike",
+    departsIn: "departs in {n} min", departsNow: "departs now",
   },
   sv: {
     appTitle: "Busstidtabeller i {city}",
@@ -660,6 +756,11 @@ const STRINGS = {
     transfers0: "inga byten", transfers1: "1 byte", transfersN: "{n} byten",
     walkAmount: "promenad {n} m",
     origin: "Startplats", destination: "Destination",
+    walkVerb: "Gå", bikeVerb: "Cykla",
+    intermediateN: "{n} mellanhållplatser", intermediate1: "1 mellanhållplats", intermediate0: "inga mellanhållplatser",
+    platform: "plattform {p}",
+    directWalk: "Till fots", directBike: "Med cykel",
+    departsIn: "avgår om {n} min", departsNow: "avgår nu",
   },
 };
 
@@ -784,7 +885,7 @@ async function findFeed() {
 async function loadRoutes() {
   if (routesCache) return routesCache;
   try {
-    const cached = JSON.parse(localStorage.getItem("routesCache") || "null");
+    const cached = JSON.parse(localStorage.getItem("routesCache2") || "null");
     if (cached && Date.now() - cached.ts < 24 * 3600 * 1000 && cached.routes?.length) {
       routesCache = cached.routes;
       return routesCache;
@@ -793,13 +894,13 @@ async function loadRoutes() {
   const feed = await findFeed();
   const data = await gql(
     `query ($feeds: [String]) {
-       routes(feeds: $feeds) { gtfsId shortName longName mode }
+       routes(feeds: $feeds) { gtfsId shortName longName mode color textColor }
      }`, { feeds: [feed] });
   routesCache = data.routes
     .filter(r => r.mode === "BUS")
     .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
   try {
-    localStorage.setItem("routesCache", JSON.stringify({ ts: Date.now(), routes: routesCache }));
+    localStorage.setItem("routesCache2", JSON.stringify({ ts: Date.now(), routes: routesCache }));
   } catch (e) { /* täysi localStorage ei ole este */ }
   return routesCache;
 }
@@ -1439,7 +1540,7 @@ const FAV_STOPS_QUERY = `
       gtfsId name code
       stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
         scheduledDeparture realtimeDeparture realtime serviceDay headsign
-        trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName } }
+        trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName color textColor } }
       }
     }
   }`;
@@ -1469,6 +1570,7 @@ function renderFavorites() {
   document.getElementById("favBody").innerHTML = `
     ${routes.length ? `<div class="legchips">${routes.map(r =>
         `<a class="badge" href="#/linja/${encodeURIComponent(r.id)}"
+            ${r.color ? `style="background:#${esc(r.color)};color:${badgeText(r.color, r.textColor)}"` : ""}
             title="${esc(r.name)}">${esc(r.shortName)}</a>`).join("")}</div>` : ""}
     <div id="favStops"><p class="muted">${t("favLoading")}</p></div>`;
   if (!favs.some(f => f.type === "stop")) document.getElementById("favStops").innerHTML = "";
@@ -1484,7 +1586,7 @@ const NEARBY_QUERY = `
         gtfsId name code
         stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
           scheduledDeparture realtimeDeparture realtime serviceDay headsign
-          trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName } }
+          trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName color textColor } }
         }
       } } }
     }
@@ -1508,13 +1610,35 @@ function occupancyHtml(trip) {
   return o ? ` <span role="img" aria-label="${t(o[1])}" title="${t(o[1])}">${o[0]}</span>` : "";
 }
 
+// WCAG-kontrasti: syötteen tekstiväriä käytetään vain jos se täyttää 4.5:1,
+// muuten valitaan musta tai valkoinen luminanssin mukaan
+function relLum(hex) {
+  const v = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+}
+
+function badgeText(bgHex, prefHex) {
+  const L = relLum(bgHex);
+  const ratio = fg => (Math.max(L, fg) + 0.05) / (Math.min(L, fg) + 0.05);
+  if (prefHex && ratio(relLum(prefHex)) >= 4.5) return "#" + prefHex;
+  return ratio(1) >= ratio(0) ? "#ffffff" : "#10141c";
+}
+
+// Linjan virallinen brändiväri badgessa, kun syöte sen kertoo
+function badgeHtml(route, fallback) {
+  const style = route?.color
+    ? ` style="background:#${route.color};color:${badgeText(route.color, route.textColor)}"` : "";
+  return `<span class="badge"${style}>${esc(route?.shortName || fallback || "")}</span>`;
+}
+
 function depTableRows(stoptimes) {
   return (stoptimes || []).map(st => {
     const d = depInfo(st);
     const acc = st.trip?.wheelchairAccessible === "POSSIBLE"
       ? ` <span role="img" aria-label="${t("accVehicle")}" title="${t("accVehicle")}">♿</span>` : "";
     return `<tr>
-      <td><span class="badge">${esc(st.trip.route.shortName)}</span></td>
+      <td>${badgeHtml(st.trip.route)}</td>
       <td>${esc(st.headsign || "")}${acc}${occupancyHtml(st.trip)}</td>
       <td class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</td>
     </tr>`;
@@ -1631,7 +1755,7 @@ async function viewRoutes() {
       .filter(r => !f || (r.shortName || "").toLowerCase().includes(f)
                       || (r.longName || "").toLowerCase().includes(f))
       .map(r => `<li><a class="item" href="#/linja/${encodeURIComponent(r.gtfsId)}">
-          <span class="badge">${esc(r.shortName)}</span>
+          ${badgeHtml(r)}
           <span>${esc(r.longName)}</span></a></li>`)
       .join("") || `<li><p class="muted">${t("noMatches")}</p></li>`;
   };
@@ -1647,7 +1771,7 @@ async function viewRoute(routeId, patternCode, date) {
   const { data, cachedAt: routeCachedAt } = await cachedGql("route:" + routeId,
     `query ($id: String!) {
        route(id: $id) {
-         shortName longName
+         shortName longName color textColor
          patterns {
            code name directionId
            trips { gtfsId }
@@ -1686,7 +1810,7 @@ async function viewRoute(routeId, patternCode, date) {
   setView(`
     <nav class="crumb"><a href="#/">← ${t("allRoutes")}</a></nav>
     <div class="card">
-      <h2>${favButtonHtml(routeId)}<span class="badge">${esc(route.shortName)}</span> ${esc(route.longName)}</h2>
+      <h2>${favButtonHtml(routeId)}${badgeHtml(route)} ${esc(route.longName)}</h2>
       <div id="routeAlerts"></div>
       <div class="tabs" role="group" aria-label="${t("directionAria")}">
         ${primaries.map(p => `
@@ -1722,7 +1846,8 @@ async function viewRoute(routeId, patternCode, date) {
       </ul>
     </div>`);
 
-  bindFavButton({ type: "route", id: routeId, name: route.longName, shortName: route.shortName });
+  bindFavButton({ type: "route", id: routeId, name: route.longName, shortName: route.shortName,
+                  color: route.color, textColor: route.textColor });
   document.querySelectorAll("[data-pattern]").forEach(btn =>
     btn.addEventListener("click", () => {
       location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(btn.dataset.pattern)}/${date}`;
@@ -1858,7 +1983,7 @@ async function viewStop(stopId) {
            name code lat lon wheelchairBoarding
            stoptimesWithoutPatterns(numberOfDepartures: 15, omitNonPickups: true) {
              scheduledDeparture realtimeDeparture realtime serviceDay headsign
-             trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName } }
+             trip { wheelchairAccessible occupancy { occupancyStatus } route { shortName color textColor } }
            }
          }
        }`, { id: stopId });
@@ -2046,8 +2171,11 @@ const PLAN_QUERY = `
           mode duration distance realtimeState
           start { scheduledTime estimated { time } }
           end { scheduledTime estimated { time } }
-          from { name lat lon } to { name lat lon }
-          route { gtfsId shortName } trip { tripHeadsign occupancy { occupancyStatus } }
+          from { name lat lon stop { code platformCode } }
+          to { name lat lon stop { code } }
+          route { gtfsId shortName color textColor }
+          trip { tripHeadsign occupancy { occupancyStatus } }
+          intermediateStops { name }
           legGeometry { points }
           alerts { alertHeaderText alertSeverityLevel }
         }
@@ -2055,49 +2183,155 @@ const PLAN_QUERY = `
     }
   }`;
 
-function legChip(leg) {
-  if (leg.mode === "WALK") {
-    return `<span class="muted" title="${t("walking", { n: Math.round(leg.distance) })}">🚶 ${fmtDur(leg.duration)}</span>`;
-  }
-  return `<span class="badge">${esc(leg.route?.shortName || leg.mode)}</span>`;
+// Suorat kävely- ja pyöräilyreitit vaihtoehdoiksi joukkoliikenteen rinnalle
+const DIRECT_QUERY = `
+  query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!,
+         $direct: [PlanDirectMode!]) {
+    planConnection(origin: $origin, destination: $destination, first: 1,
+                   modes: { directOnly: true, direct: $direct }) {
+      edges { node {
+        start end
+        legs { mode duration distance legGeometry { points } from { name lat lon } to { name lat lon } }
+      } }
+    }
+  }`;
+
+const MODE_ICONS = { WALK: "🚶", BICYCLE: "🚴" };
+
+function fmtKm(m) {
+  const km = (m / 1000).toFixed(1);
+  return (lang === "en" ? km : km.replace(".", ",")) + " km";
 }
 
-function legRow(leg) {
-  const depIso = leg.start.estimated?.time || leg.start.scheduledTime;
-  const arrIso = leg.end.estimated?.time || leg.end.scheduledTime;
-  const rt = leg.realtimeState && leg.realtimeState !== "SCHEDULED";
-  const alerts = (leg.alerts || []).map(a =>
-    `<p class="muted">⚠ ${esc(a.alertHeaderText || t("legAlertDefault"))}</p>`).join("");
-  if (leg.mode === "WALK") {
-    return `<li>🚶 <span class="legtime">${fmtClock(depIso)}</span>
-      ${t("walkTo", { place: esc(leg.to.name === "Destination" ? t("walkDest") : leg.to.name) })}
-      <span class="muted">· ${fmtDur(leg.duration)}, ${Math.round(leg.distance)} m</span></li>`;
-  }
-  return `<li>
-    <span class="legtime ${rt ? "rt" : ""}">${fmtClock(depIso)}${rt ? " ●" : ""}</span>
-    <span class="badge">${esc(leg.route?.shortName || leg.mode)}</span>
-    ${esc(leg.trip?.tripHeadsign ? "→ " + leg.trip.tripHeadsign : "")}${occupancyHtml(leg.trip)}
-    <br><span class="muted">${esc(leg.from.name)} → ${esc(leg.to.name)} (${fmtClock(arrIso)})
-    · ${fmtDur(leg.duration)}</span>
-    ${alerts}</li>`;
+function legTime(lt) { return lt.estimated?.time || lt.scheduledTime; }
+
+// Yhteenvedon osuuspalkki: segmentin leveys = legin kesto, väri = linjan väri
+function legBarHtml(node) {
+  const total = node.legs.reduce((s, l) => s + l.duration, 0) || 1;
+  return `<span class="legbar" aria-hidden="true">${node.legs.map(leg => {
+    const grow = Math.max(leg.duration / total, 0.04);
+    if (leg.mode === "WALK" || leg.mode === "BICYCLE") {
+      return `<span class="seg walk" style="flex-grow:${grow.toFixed(3)}">${MODE_ICONS[leg.mode] || ""}</span>`;
+    }
+    const bg = leg.route?.color ? "#" + leg.route.color : "var(--btn-bg)";
+    const fg = leg.route?.color ? badgeText(leg.route.color, leg.route.textColor) : "#fff";
+    return `<span class="seg" style="flex-grow:${grow.toFixed(3)};background:${bg};color:${fg}">
+      ${esc(leg.route?.shortName || "")}</span>`;
+  }).join("")}</span>`;
 }
 
-function itinHtml(node, idx) {
+// Pystyaikajana: lähtöpaikka → kävely → pysäkki (laituri) → linja välipysäkkeineen → … → perille
+function timelineHtml(node) {
+  const rows = [];
+  const pointRow = (timeIso, name, sub, cls) => `
+    <div class="tl-row pt ${cls || ""}">
+      <span class="tl-time">${timeIso ? fmtClock(timeIso) : ""}</span>
+      <span class="tl-mid" aria-hidden="true"></span>
+      <div class="tl-body"><strong>${name}</strong>${sub ? ` <span class="muted">${sub}</span>` : ""}</div>
+    </div>`;
+
+  const legs = node.legs;
+  const originName = legs[0].from.name === "Origin"
+    ? esc(planState.from?.name || t("origin")) : esc(legs[0].from.name);
+  rows.push(pointRow(legTime(legs[0].start), originName, "", "start"));
+
+  legs.forEach((leg, i) => {
+    if (leg.mode === "WALK" || leg.mode === "BICYCLE") {
+      rows.push(`
+        <div class="tl-row leg dashed">
+          <span class="tl-time"></span>
+          <span class="tl-mid" aria-hidden="true"></span>
+          <div class="tl-body">${MODE_ICONS[leg.mode]} ${t(leg.mode === "WALK" ? "walkVerb" : "bikeVerb")}
+            ${Math.round(leg.distance)} m
+            <span class="muted">(${fmtDur(leg.duration)})</span></div>
+        </div>`);
+    } else {
+      const rt = leg.realtimeState && leg.realtimeState !== "SCHEDULED";
+      const rail = leg.route?.color ? "#" + leg.route.color : "var(--blue)";
+      const mids = leg.intermediateStops || [];
+      const midLabel = mids.length === 0 ? t("intermediate0")
+        : mids.length === 1 ? t("intermediate1") : t("intermediateN", { n: mids.length });
+      const alerts = (leg.alerts || []).map(a =>
+        `<p class="muted">⚠ ${esc(a.alertHeaderText || t("legAlertDefault"))}</p>`).join("");
+      rows.push(`
+        <div class="tl-row leg" style="--rail:${rail}">
+          <span class="tl-time"></span>
+          <span class="tl-mid" aria-hidden="true"></span>
+          <div class="tl-body">
+            ${badgeHtml(leg.route, leg.mode)}
+            ${esc(leg.trip?.tripHeadsign ? "→ " + leg.trip.tripHeadsign : "")}${occupancyHtml(leg.trip)}
+            ${rt ? `<span class="rt"> ●</span>` : ""}
+            <details class="tl-stops">
+              <summary>${midLabel} · ${fmtDur(leg.duration)}</summary>
+              ${mids.length ? `<ul>${mids.map(s => `<li>${esc(s.name)}</li>`).join("")}</ul>` : ""}
+            </details>
+            ${alerts}
+          </div>
+        </div>`);
+    }
+    // legin päätepiste: vaihtopysäkki tai määränpää
+    const isLast = i === legs.length - 1;
+    const next = legs[i + 1];
+    if (isLast) {
+      const destName = leg.to.name === "Destination"
+        ? esc(planState.to?.name || t("destination")) : esc(leg.to.name);
+      rows.push(pointRow(legTime(leg.end), destName, "", "end"));
+    } else {
+      const sub = [
+        leg.to.stop?.code ? esc(leg.to.stop.code) : "",
+        next?.from.stop?.platformCode ? t("platform", { p: esc(next.from.stop.platformCode) }) : "",
+      ].filter(Boolean).join(" · ");
+      rows.push(pointRow(legTime(leg.end), esc(leg.to.name), sub));
+    }
+  });
+  return `<div class="tl">${rows.join("")}</div>`;
+}
+
+function itinSummaryHtml(node) {
   const walk = Math.round(node.walkDistance);
   const transfers = node.numberOfTransfers === 0 ? t("transfers0")
     : node.numberOfTransfers === 1 ? t("transfers1") : t("transfersN", { n: node.numberOfTransfers });
   const durSec = (new Date(node.end) - new Date(node.start)) / 1000;
+  // ensimmäisen bussin lähtölaskenta tuo tärkeimmän tiedon heti otsikkoriviin
+  const firstTransit = node.legs.find(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
+  let departs = "";
+  if (firstTransit) {
+    const mins = Math.round((new Date(legTime(firstTransit.start)) - Date.now()) / 60000);
+    if (mins >= 0 && mins <= 90) {
+      departs = `<span class="rt">${mins === 0 ? t("departsNow") : t("departsIn", { n: mins })}</span>`;
+    }
+  }
+  return `
+    <span class="itin-head">
+      <span class="times">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
+      <span>${fmtDur(durSec)}</span>
+      <span class="muted">${transfers} · ${t("walkAmount", { n: walk })}</span>
+      ${departs}
+    </span>
+    ${legBarHtml(node)}`;
+}
+
+function itinHtml(node, idx) {
   return `<details class="itin" data-itin="${idx}">
+    <summary>${itinSummaryHtml(node)}</summary>
+    ${timelineHtml(node)}
+    <div id="itinMap${idx}" class="map map-small" aria-label="${t("mapAria")}"></div>
+  </details>`;
+}
+
+// Kompakti kävellen/pyörällä-vaihtoehto reittilistan kärkeen
+function directHtml(node, key) {
+  const leg = node.legs[0];
+  const label = key === "walk" ? t("directWalk") : t("directBike");
+  return `<details class="itin direct" data-direct="${key}">
     <summary>
       <span class="itin-head">
-        <span class="times">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
-        <span>${fmtDur(durSec)}</span>
-        <span class="muted">${transfers} · ${t("walkAmount", { n: walk })}</span>
+        <span>${MODE_ICONS[leg.mode]} <strong>${label}</strong></span>
+        <span>${fmtDur(node.legs.reduce((s, l) => s + l.duration, 0))}</span>
+        <span class="muted">${fmtKm(node.legs.reduce((s, l) => s + l.distance, 0))}</span>
       </span>
-      <span class="legchips">${node.legs.map(legChip).join(`<span class="sep" aria-hidden="true">›</span>`)}</span>
     </summary>
-    <ul class="legrows">${node.legs.map(legRow).join("")}</ul>
-    <div id="itinMap${idx}" class="map map-small" aria-label="${t("mapAria")}"></div>
+    <div id="directMap${key}" class="map map-small" aria-label="${t("mapAria")}"></div>
   </details>`;
 }
 
@@ -2111,11 +2345,14 @@ async function drawItineraryMap(elId, node) {
   for (const leg of node.legs) {
     const pts = decodePolyline(leg.legGeometry?.points || "");
     if (!pts.length) continue;
-    const line = L.polyline(pts, leg.mode === "WALK"
+    const style = leg.mode === "WALK"
       ? { color: "#5a6478", weight: 4, dashArray: "2 8" }
-      : { color: "#0a4ea3", weight: 5, opacity: 0.85 }).addTo(map);
+      : leg.mode === "BICYCLE"
+        ? { color: "#1a7f4b", weight: 5, dashArray: "8 6", opacity: 0.9 }
+        : { color: leg.route?.color ? "#" + leg.route.color : "#0a4ea3", weight: 5, opacity: 0.85 };
+    const line = L.polyline(pts, style).addTo(map);
     bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
-    if (leg.mode !== "WALK") {
+    if (leg.mode !== "WALK" && leg.mode !== "BICYCLE") {
       L.circleMarker(pts[0], STOP_MARKER).addTo(map).bindPopup(esc(leg.from.name));
     }
   }
@@ -2190,21 +2427,49 @@ async function viewPlan() {
   });
 
   const results = document.getElementById("planResults");
-  let nodes = [], cursor = null;
+  let nodes = [], cursor = null, directNodes = {}, lastHasNext = false, mainDone = false;
 
   const renderResults = hasNext => {
-    results.innerHTML = nodes.length
+    const directRow = ["walk", "bike"]
+      .filter(k => directNodes[k])
+      .map(k => directHtml(directNodes[k], k))
+      .join("");
+    results.innerHTML = nodes.length || directRow
       ? `<div class="card">
            <h2>${t("itinerariesTitle")}</h2>
+           ${directRow}
            ${nodes.map((n, i) => itinHtml(n, i)).join("")}
            ${hasNext ? `<button id="moreBtn" class="no-print">${t("showLater")}</button>` : ""}
          </div>`
       : `<div class="card"><p class="muted">${t("noItineraries")}</p></div>`;
-    results.querySelectorAll("details.itin").forEach(d =>
+    results.querySelectorAll("details.itin[data-itin]").forEach(d =>
       d.addEventListener("toggle", () => {
         if (d.open) drawItineraryMap("itinMap" + d.dataset.itin, nodes[Number(d.dataset.itin)]).catch(() => {});
       }));
+    results.querySelectorAll("details.itin[data-direct]").forEach(d =>
+      d.addEventListener("toggle", () => {
+        if (d.open) drawItineraryMap("directMap" + d.dataset.direct, directNodes[d.dataset.direct]).catch(() => {});
+      }));
     document.getElementById("moreBtn")?.addEventListener("click", () => search(true));
+  };
+
+  // Kävely- ja pyörävaihtoehdot haetaan pääkyselyn rinnalla; lista täydentyy
+  // vasta kun varsinaiset reittiehdotukset on jo piirretty
+  const fetchDirects = async () => {
+    const origin = { location: { coordinate: { latitude: planState.from.lat, longitude: planState.from.lon } } };
+    const destination = { location: { coordinate: { latitude: planState.to.lat, longitude: planState.to.lon } } };
+    const [walk, bike] = await Promise.allSettled([
+      gql(DIRECT_QUERY, { origin, destination, direct: ["WALK"] }),
+      gql(DIRECT_QUERY, { origin, destination, direct: ["BICYCLE"] }),
+    ]);
+    directNodes = {};
+    if (walk.status === "fulfilled") directNodes.walk = walk.value.planConnection?.edges?.[0]?.node || null;
+    if (bike.status === "fulfilled") directNodes.bike = bike.value.planConnection?.edges?.[0]?.node || null;
+    // järjettömän pitkä kävely (yli 2 h) ei ole mielekäs vaihtoehto
+    if (directNodes.walk && directNodes.walk.legs.reduce((s, l) => s + l.duration, 0) > 7200) {
+      directNodes.walk = null;
+    }
+    if (mainDone && document.getElementById("planResults") === results) renderResults(lastHasNext);
   };
 
   const search = async append => {
@@ -2213,7 +2478,11 @@ async function viewPlan() {
       msg.innerHTML = `<div class="error">${t("choosePlaces")}</div>`;
       return;
     }
-    if (!append) { cursor = null; nodes = []; results.innerHTML = `<p class="muted">${t("searchingRoutes")}</p>`; }
+    if (!append) {
+      cursor = null; nodes = []; directNodes = {}; mainDone = false;
+      results.innerHTML = `<p class="muted">${t("searchingRoutes")}</p>`;
+      fetchDirects().catch(() => {});
+    }
     msg.innerHTML = "";
     planState.timeMode = document.getElementById("timeMode").value;
     planState.time = document.getElementById("timeInput").value;
@@ -2238,7 +2507,9 @@ async function viewPlan() {
       const conn = data.planConnection;
       cursor = conn.pageInfo.endCursor;
       nodes = nodes.concat((conn.edges || []).map(e => e.node));
-      renderResults(conn.pageInfo.hasNextPage);
+      lastHasNext = conn.pageInfo.hasNextPage;
+      mainDone = true;
+      renderResults(lastHasNext);
     } catch (err) {
       results.innerHTML = `<div class="error">${esc(err.message)}</div>`;
     }
