@@ -994,7 +994,11 @@ async function viewRoute(routeId, patternCode, date) {
     `query ($id: String!) {
        route(id: $id) {
          shortName longName
-         patterns { code name stops { gtfsId name lat lon } }
+         patterns {
+           code name directionId
+           trips { gtfsId }
+           stops { gtfsId name lat lon }
+         }
        }
      }`, { id: routeId });
   const route = data.route;
@@ -1003,17 +1007,50 @@ async function viewRoute(routeId, patternCode, date) {
   const patterns = route.patterns || [];
   const current = patterns.find(p => p.code === patternCode) || patterns[0];
 
+  // Selkokielinen suunta: "lähtöpysäkki → päätepysäkki" pattern-koodien sijaan
+  const patternLabel = p => {
+    const stops = p.stops || [];
+    return stops.length
+      ? `${stops[0].name} → ${stops[stops.length - 1].name}`
+      : (p.name || "");
+  };
+  // Suunnittain yleisin variantti (eniten vuoroja) välilehdeksi, harvinaiset
+  // variaatiot pudotusvalikon taakse
+  const byDir = new Map();
+  for (const p of patterns) {
+    const k = p.directionId ?? 0;
+    if (!byDir.has(k)) byDir.set(k, []);
+    byDir.get(k).push(p);
+  }
+  const primaries = [], variants = [];
+  for (const list of byDir.values()) {
+    list.sort((a, b) => (b.trips?.length || 0) - (a.trips?.length || 0));
+    primaries.push(list[0]);
+    variants.push(...list.slice(1));
+  }
+
   setView(`
     <nav class="crumb"><a href="#/">← Kaikki linjat</a></nav>
     <div class="card">
       <h2>${favButtonHtml(routeId)}<span class="badge">${esc(route.shortName)}</span> ${esc(route.longName)}</h2>
       <div id="routeAlerts"></div>
       <div class="tabs" role="group" aria-label="Suunta">
-        ${patterns.map(p => `
+        ${primaries.map(p => `
           <button data-pattern="${esc(p.code)}" aria-pressed="${p === current}">
-            ${esc(p.name)}
+            ${esc(patternLabel(p))}
           </button>`).join("")}
       </div>
+      ${variants.length ? `
+        <div class="row no-print" style="margin:0.3rem 0">
+          <label class="muted" for="variantSel">Lisää reittivariaatioita</label>
+          <select id="variantSel">
+            <option value="">– valitse –</option>
+            ${variants.map(p => `
+              <option value="${esc(p.code)}"${p === current ? " selected" : ""}>
+                ${esc(patternLabel(p))} (${(p.stops || []).length} pysäkkiä)
+              </option>`).join("")}
+          </select>
+        </div>` : ""}
       <div class="row no-print">
         <label for="dateInput" class="muted">Päivä</label>
         <input type="date" id="dateInput" value="${esc(date)}">
@@ -1037,6 +1074,11 @@ async function viewRoute(routeId, patternCode, date) {
     btn.addEventListener("click", () => {
       location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(btn.dataset.pattern)}/${date}`;
     }));
+  document.getElementById("variantSel")?.addEventListener("change", e => {
+    if (e.target.value) {
+      location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(e.target.value)}/${date}`;
+    }
+  });
   document.getElementById("dateInput").addEventListener("change", e => {
     location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(current.code)}/${e.target.value}`;
   });
