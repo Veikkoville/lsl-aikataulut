@@ -723,21 +723,61 @@ function bindThemeSetting() {
     }));
 }
 
+function notifySettingHtml() {
+  if (typeof Notification === "undefined") return "";
+  const on = localStorage.getItem("notifyAlerts") === "1" && Notification.permission === "granted";
+  return `
+    <div class="card">
+      <h2>Ilmoitukset</h2>
+      <label><input type="checkbox" id="notifyBox"${on ? " checked" : ""}>
+        Ilmoita suosikkilinjojen uusista häiriöistä</label>
+      <p class="muted">Ilmoitukset näytetään, kun sovellus on auki (taustailmoitukset
+        vaatisivat palvelimen). Lisää linjoja suosikeiksi ★-napilla linjasivulla.</p>
+      <div id="notifyMsg" role="status"></div>
+    </div>`;
+}
+
+function bindNotifySetting() {
+  const box = document.getElementById("notifyBox");
+  if (!box) return;
+  box.addEventListener("change", async () => {
+    const msg = document.getElementById("notifyMsg");
+    if (!box.checked) {
+      localStorage.setItem("notifyAlerts", "0");
+      msg.innerHTML = "";
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") {
+      box.checked = false;
+      msg.innerHTML = `<div class="error">Ilmoituslupa evättiin selaimen asetuksissa.</div>`;
+      return;
+    }
+    localStorage.setItem("notifyAlerts", "1");
+    await pollFavAlerts(true); // nykyiset häiriöt merkitään nähdyiksi ilmoittamatta
+    startAlertPolling();
+    msg.innerHTML = `<p class="muted">Ilmoitukset käytössä.</p>`;
+  });
+}
+
 function viewSettings() {
   if (PROXY_URL) {
     setView(`
       <nav class="crumb"><a href="#/">← Etusivu</a></nav>
       ${themeSettingHtml()}
+      ${notifySettingHtml()}
       <div class="card">
         <h2>API-avain</h2>
         <p>API-avainta ei tarvita — palvelu hakee tiedot välityspalvelimen kautta.</p>
       </div>`);
     bindThemeSetting();
+    bindNotifySetting();
     return;
   }
   setView(`
     <nav class="crumb"><a href="#/">← Etusivu</a></nav>
     ${themeSettingHtml()}
+    ${notifySettingHtml()}
     <div class="card">
       <h2>API-avain</h2>
       <p class="muted">Hae ilmainen avain osoitteesta
@@ -750,6 +790,7 @@ function viewSettings() {
       </form>
     </div>`);
   bindThemeSetting();
+  bindNotifySetting();
   document.getElementById("keyForm").addEventListener("submit", e => {
     e.preventDefault();
     apiKey = document.getElementById("keyInput").value.trim();
@@ -762,8 +803,10 @@ const SEVERITY_ORDER = { SEVERE: 0, WARNING: 1, INFO: 2, UNKNOWN_SEVERITY: 3 };
 
 let alertsPromise = null;
 
-// Voimassa olevat tiedotteet, haetaan kerran per istunto
-function loadAlerts() {
+// Voimassa olevat tiedotteet, haetaan kerran per istunto.
+// force=true ohittaa istuntokohtaisen välimuistin (häiriöpollaus).
+function loadAlerts(force) {
+  if (force) alertsPromise = null;
   if (!alertsPromise) {
     alertsPromise = (async () => {
       const feed = await findLahtiFeed();
@@ -834,6 +877,63 @@ async function loadAlertsInto(box) {
   } catch (err) {
     box.innerHTML = `<div class="error">Häiriötiedotteiden haku epäonnistui: ${esc(err.message)}</div>`;
   }
+}
+
+/* ---------- Häiriöilmoitukset suosikkilinjoille (sovelluksen ollessa auki) ---------- */
+
+const alertKey = a =>
+  (a.alertHeaderText || "") + "|" + (a.alertDescriptionText || "") + "|" + (a.effectiveStartDate || "");
+
+function getSeenAlerts() {
+  try { return JSON.parse(localStorage.getItem("seenAlerts") || "{}"); }
+  catch (e) { return {}; }
+}
+
+function markAlertsSeen(alerts) {
+  const seen = getSeenAlerts();
+  const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
+  for (const k of Object.keys(seen)) if (seen[k] < cutoff) delete seen[k];
+  for (const a of alerts) seen[alertKey(a)] = Date.now();
+  try { localStorage.setItem("seenAlerts", JSON.stringify(seen)); } catch (e) {}
+}
+
+function favRouteAlerts(alerts) {
+  const favRoutes = getFavs().filter(f => f.type === "route");
+  if (!favRoutes.length) return [];
+  const noStops = new Set();
+  return dedupAlerts(alerts).filter(a =>
+    favRoutes.some(f => alertMatchesRoute(a, f.id, f.shortName, noStops)));
+}
+
+async function showAlertNotification(a) {
+  const title = a.alertHeaderText || "Häiriötiedote";
+  const opts = { body: (a.alertDescriptionText || "").slice(0, 180), tag: alertKey(a), icon: "icon.svg" };
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    if (reg && reg.showNotification) { reg.showNotification(title, opts); return; }
+  } catch (e) { /* kokeillaan suoraa konstruktoria */ }
+  try { new Notification(title, opts); } catch (e) {}
+}
+
+// seedOnly: merkitse nykyiset nähdyiksi ilmoittamatta (käyttöönotto)
+async function pollFavAlerts(seedOnly, force = true) {
+  if (localStorage.getItem("notifyAlerts") !== "1") return;
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try {
+    const matched = favRouteAlerts(await loadAlerts(force));
+    if (seedOnly) { markAlertsSeen(matched); return; }
+    const seen = getSeenAlerts();
+    const fresh = matched.filter(a => !(alertKey(a) in seen));
+    markAlertsSeen(matched);
+    for (const a of fresh.slice(0, 3)) showAlertNotification(a);
+  } catch (e) { /* seuraava kierros yrittää uudelleen */ }
+}
+
+// Globaali ajastin — EI kytkeydy refreshTimeriin, jonka näkymänvaihto tyhjentää
+let alertPollTimer = null;
+function startAlertPolling() {
+  if (alertPollTimer) return;
+  alertPollTimer = setInterval(() => pollFavAlerts(false), 5 * 60 * 1000);
 }
 
 function bindStopSearch(input, results) {
@@ -1770,6 +1870,14 @@ async function route() {
 
 window.addEventListener("hashchange", route);
 route();
+
+// Häiriöpollaus käynnistyy heti, jos ilmoitukset on otettu käyttöön;
+// ensimmäinen kierros ilmoittaa poissaolon aikana tulleet uudet häiriöt
+if (localStorage.getItem("notifyAlerts") === "1" &&
+    typeof Notification !== "undefined" && Notification.permission === "granted") {
+  pollFavAlerts(false, false);
+  startAlertPolling();
+}
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
