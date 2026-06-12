@@ -19,6 +19,11 @@
     --border: #d8dee9;
   }
   * { box-sizing: border-box; }
+  a:focus-visible, button:focus-visible, input:focus-visible,
+  select:focus-visible, summary:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
+  }
   body {
     margin: 0;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -153,7 +158,7 @@
     font-variant-numeric: tabular-nums;
   }
   .timegrid span.past { opacity: 0.45; }
-  .timegrid span.rt { background: #e2f3e9; color: var(--green); font-weight: 600; }
+  .timegrid span.rt { background: #e2f3e9; color: #135c37; font-weight: 600; }
   .error { background: #fdecec; border: 1px solid #f3b6b6; color: #8a1f1f; padding: 0.6rem; border-radius: 6px; }
   details.alert {
     border-left: 4px solid var(--blue);
@@ -170,7 +175,7 @@
   .map-small { height: clamp(220px, 35vh, 340px); }
   .leaflet-popup-content a { color: var(--blue); }
   .bus-marker {
-    background: #d35400;
+    background: #b34700;
     color: #fff;
     border: 2px solid #fff;
     border-radius: 50%;
@@ -724,7 +729,7 @@ const FAV_STOPS_QUERY = `
       gtfsId name code
       stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
         scheduledDeparture realtimeDeparture realtime serviceDay headsign
-        trip { route { shortName } }
+        trip { wheelchairAccessible route { shortName } }
       }
     }
   }`;
@@ -769,7 +774,7 @@ const NEARBY_QUERY = `
         gtfsId name code
         stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
           scheduledDeparture realtimeDeparture realtime serviceDay headsign
-          trip { route { shortName } }
+          trip { wheelchairAccessible route { shortName } }
         }
       } } }
     }
@@ -780,9 +785,11 @@ let lastCoords = null;
 function depTableRows(stoptimes) {
   return (stoptimes || []).map(st => {
     const d = depInfo(st);
+    const acc = st.trip?.wheelchairAccessible === "POSSIBLE"
+      ? ` <span role="img" aria-label="esteetön kalusto" title="Esteetön kalusto">♿</span>` : "";
     return `<tr>
       <td><span class="badge">${esc(st.trip.route.shortName)}</span></td>
-      <td>${esc(st.headsign || "")}</td>
+      <td>${esc(st.headsign || "")}${acc}</td>
       <td class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</td>
     </tr>`;
   }).join("");
@@ -1079,10 +1086,10 @@ async function viewStop(stopId) {
     const data = await gql(
       `query ($id: String!) {
          stop(id: $id) {
-           name code lat lon
+           name code lat lon wheelchairBoarding
            stoptimesWithoutPatterns(numberOfDepartures: 15, omitNonPickups: true) {
              scheduledDeparture realtimeDeparture realtime serviceDay headsign
-             trip { route { shortName } }
+             trip { wheelchairAccessible route { shortName } }
            }
          }
        }`, { id: stopId });
@@ -1090,22 +1097,20 @@ async function viewStop(stopId) {
     return data.stop;
   };
 
-  const renderRows = stop => {
-    return (stop.stoptimesWithoutPatterns || []).map(st => {
-      const d = depInfo(st);
-      return `<tr>
-        <td><span class="badge">${esc(st.trip.route.shortName)}</span></td>
-        <td>${esc(st.headsign || "")}</td>
-        <td class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</td>
-      </tr>`;
-    }).join("") || `<tr><td colspan="3" class="muted">Ei tulevia lähtöjä.</td></tr>`;
-  };
+  const renderRows = stop =>
+    depTableRows(stop.stoptimesWithoutPatterns)
+      || `<tr><td colspan="3" class="muted">Ei tulevia lähtöjä.</td></tr>`;
 
   const stop = await fetchStop();
+  const accNote = stop.wheelchairBoarding === "POSSIBLE"
+    ? `<p class="muted">♿ Esteetön pysäkki</p>`
+    : stop.wheelchairBoarding === "NOT_POSSIBLE"
+      ? `<p class="muted">⚠ Pysäkki ei ole esteetön</p>` : "";
   setView(`
-    <nav class="crumb"><a href="javascript:history.back()">← Takaisin</a> · <a href="#/">Kaikki linjat</a></nav>
+    <nav class="crumb"><button class="linkish" id="backBtn">← Takaisin</button> · <a href="#/">Etusivu</a></nav>
     <div class="card">
       <h2>${favButtonHtml(stopId)}${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
+      ${accNote}
       <table>
         <thead><tr><th>Linja</th><th>Määränpää</th><th>Lähtee</th></tr></thead>
         <tbody id="depRows">${renderRows(stop)}</tbody>
@@ -1116,6 +1121,7 @@ async function viewStop(stopId) {
     </div>`);
 
   bindFavButton({ type: "stop", id: stopId, name: stop.name });
+  document.getElementById("backBtn").addEventListener("click", () => history.back());
 
   if (stop.lat != null) {
     const mySeq = viewSeq;
@@ -1230,7 +1236,7 @@ function bindPlaceInput(input, listEl, onPick) {
 /* ---------- A→B-reitinhaku (planConnection) ---------- */
 
 // Säilyy istunnon ajan, jotta paluu näkymään ei tyhjennä kenttiä
-const planState = { from: null, to: null, timeMode: "dep", time: "", wheelchair: false };
+const planState = { from: null, to: null, timeMode: "dep", time: "", wheelchair: false, lessWalk: false };
 
 function fmtClock(iso) {
   const d = new Date(iso);
@@ -1258,10 +1264,10 @@ function isoWithOffset(local) {
 
 const PLAN_QUERY = `
   query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!,
-         $first: Int, $after: String, $dateTime: PlanDateTimeInput, $wheelchair: Boolean!) {
+         $first: Int, $after: String, $dateTime: PlanDateTimeInput, $preferences: PlanPreferencesInput) {
     planConnection(origin: $origin, destination: $destination,
                    first: $first, after: $after, searchWindow: "PT2H", dateTime: $dateTime,
-                   preferences: { accessibility: { wheelchair: { enabled: $wheelchair } } }) {
+                   preferences: $preferences) {
       pageInfo { endCursor hasNextPage }
       edges { node {
         start end numberOfTransfers walkDistance
@@ -1312,12 +1318,12 @@ function itinHtml(node, idx) {
   const durSec = (new Date(node.end) - new Date(node.start)) / 1000;
   return `<details class="itin" data-itin="${idx}">
     <summary>
-      <div class="itin-head">
+      <span class="itin-head">
         <span class="times">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
         <span>${fmtDur(durSec)}</span>
         <span class="muted">${transfers} · kävelyä ${walk} m</span>
-      </div>
-      <div class="legchips">${node.legs.map(legChip).join(`<span class="sep" aria-hidden="true">›</span>`)}</div>
+      </span>
+      <span class="legchips">${node.legs.map(legChip).join(`<span class="sep" aria-hidden="true">›</span>`)}</span>
     </summary>
     <ul class="legrows">${node.legs.map(legRow).join("")}</ul>
     <div id="itinMap${idx}" class="map map-small" aria-label="Reitti kartalla"></div>
@@ -1383,6 +1389,12 @@ async function viewPlan() {
                  value="${esc(planState.time || nowLocalInput())}">
           <button type="submit">Hae reitit</button>
         </div>
+        <div class="row" style="flex-wrap:wrap; margin-top:0.4rem">
+          <label><input type="checkbox" id="wheelchairBox"${planState.wheelchair ? " checked" : ""}>
+            ♿ Esteetön reitti</label>
+          <label><input type="checkbox" id="lessWalkBox"${planState.lessWalk ? " checked" : ""}>
+            Vähemmän kävelyä</label>
+        </div>
       </form>
       <div id="planMsg" role="status"></div>
     </div>
@@ -1435,6 +1447,10 @@ async function viewPlan() {
     msg.innerHTML = "";
     planState.timeMode = document.getElementById("timeMode").value;
     planState.time = document.getElementById("timeInput").value;
+    planState.wheelchair = document.getElementById("wheelchairBox").checked;
+    planState.lessWalk = document.getElementById("lessWalkBox").checked;
+    const preferences = { accessibility: { wheelchair: { enabled: planState.wheelchair } } };
+    if (planState.lessWalk) preferences.street = { walk: { reluctance: 3.5 } };
     const dateTime = planState.time
       ? (planState.timeMode === "arr"
           ? { latestArrival: isoWithOffset(planState.time) }
@@ -1447,7 +1463,7 @@ async function viewPlan() {
         first: 5,
         after: append ? cursor : null,
         dateTime,
-        wheelchair: planState.wheelchair,
+        preferences,
       });
       const conn = data.planConnection;
       cursor = conn.pageInfo.endCursor;
