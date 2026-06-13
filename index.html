@@ -1279,6 +1279,12 @@ function stopRefresh() {
 
 let viewSeq = 0;
 
+// Lykkää ei-kriittisen työn ensimaalauksen jälkeen (TBT pienemmäksi).
+// Safari ei tue requestIdleCallbackia → setTimeout-fallback.
+const onIdle = window.requestIdleCallback
+  ? cb => window.requestIdleCallback(cb)
+  : cb => setTimeout(cb, 1);
+
 function setView(html) {
   viewSeq++;
   stopRefresh();
@@ -1825,12 +1831,12 @@ function initNearby(body) {
   }
 }
 
-async function viewRoutes() {
+function viewRoutes() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
-  setView(`<p class="muted">${t("loadingRoutes")}</p>`);
-  const routes = await loadRoutes();
   setView(`
-    <div id="alertsBox"></div>
+    <div id="alertsBox"><details class="card alertsum" aria-hidden="true">
+      <summary><span aria-hidden="true">⚠</span> <strong class="muted">…</strong></summary>
+    </details></div>
     <div class="card" id="favCard" hidden>
       <h2><span aria-hidden="true">⭐</span> ${t("favsTitle")}</h2>
       <div id="favBody"></div>
@@ -1857,11 +1863,11 @@ async function viewRoutes() {
       <h2><span aria-hidden="true">🚌</span> ${t("routesTitle")}</h2>
       <input type="search" id="routeFilter" placeholder="${t("routeFilterPlaceholder")}"
              aria-label="${t("routeFilterAria")}">
-      <ul class="plain" id="routeList"></ul>
+      <ul class="plain" id="routeList" style="min-height:70vh"><li><p class="muted">${t("loadingRoutes")}</p></li></ul>
     </div>
     <p class="muted"><a href="#/asetukset">${t("settings")}</a></p>`);
 
-  loadAlertsInto(document.getElementById("alertsBox"));
+  const mySeq = viewSeq;
   try {
     const lp = JSON.parse(localStorage.getItem(ns("lastPlan")) || "null");
     if (lp?.hash) {
@@ -1870,26 +1876,40 @@ async function viewRoutes() {
            <span class="muted">${t("lastSearch")}</span></a></p>`;
     }
   } catch (e) { /* rikkinäinen merkintä ohitetaan */ }
-  renderFavorites();
   initNearby(document.getElementById("nearbyBody"));
   bindStopSearch(document.getElementById("stopSearch"), document.getElementById("stopResults"));
   bindNearbyButton(document.getElementById("nearbyBtn"), document.getElementById("stopResults"));
+
+  loadAlertsInto(document.getElementById("alertsBox"));
+  renderFavorites();
   refreshNow = () => { renderNearby(); renderFavStops(); };
   refreshTimer = setInterval(refreshNow, 30000);
 
-  const list = document.getElementById("routeList");
-  const render = filter => {
-    const f = filter.toLowerCase();
-    list.innerHTML = routes
-      .filter(r => !f || (r.shortName || "").toLowerCase().includes(f)
-                      || (r.longName || "").toLowerCase().includes(f))
-      .map(r => `<li><a class="item" href="#/linja/${encodeURIComponent(r.gtfsId)}">
-          ${badgeHtml(r)}
-          <span>${esc(r.longName)}</span></a></li>`)
-      .join("") || `<li><p class="muted">${t("noMatches")}</p></li>`;
-  };
-  render("");
-  document.getElementById("routeFilter").addEventListener("input", e => render(e.target.value));
+  // Reittilista on sivun pääsisältö → ladataan heti rungon piirron rinnalla.
+  // Placeholderin min-height pitää footerin taitteen alapuolella, ettei
+  // listan täyttyminen aiheuta layout shiftiä (CLS).
+  loadRoutes().then(routes => {
+    if (mySeq !== viewSeq) return; // näkymä ehti vaihtua latauksen aikana
+    const list = document.getElementById("routeList");
+    if (!list) return;
+    list.style.minHeight = "";
+    const render = filter => {
+      const f = filter.toLowerCase();
+      list.innerHTML = routes
+        .filter(r => !f || (r.shortName || "").toLowerCase().includes(f)
+                        || (r.longName || "").toLowerCase().includes(f))
+        .map(r => `<li><a class="item" href="#/linja/${encodeURIComponent(r.gtfsId)}">
+            ${badgeHtml(r)}
+            <span>${esc(r.longName)}</span></a></li>`)
+        .join("") || `<li><p class="muted">${t("noMatches")}</p></li>`;
+    };
+    render("");
+    document.getElementById("routeFilter").addEventListener("input", e => render(e.target.value));
+  }).catch(err => {
+    if (mySeq !== viewSeq) return;
+    const list = document.getElementById("routeList");
+    if (list) { list.style.minHeight = ""; list.innerHTML = `<li><p class="error">${esc(err.message || String(err))}</p></li>`; }
+  });
 }
 
 async function viewRoute(routeId, patternCode, date) {
@@ -2904,8 +2924,8 @@ route();
 // ensimmäinen kierros ilmoittaa poissaolon aikana tulleet uudet häiriöt
 if (localStorage.getItem("notifyAlerts") === "1" &&
     typeof Notification !== "undefined" && Notification.permission === "granted") {
-  pollFavAlerts(false, false);
-  startAlertPolling();
+  // Lykätään ensimaalauksen jälkeen, ettei kilpaile etusivun LCP:stä
+  onIdle(() => { pollFavAlerts(false, false); startAlertPolling(); });
 }
 
 // Taustalta palatessa lähtöajat päivittyvät heti, ei vasta 30 s ajastimella
