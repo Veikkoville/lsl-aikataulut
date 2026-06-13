@@ -103,6 +103,8 @@
     max-width: 760px;
     margin: 0 auto;
   }
+  a.brand { color: inherit; text-decoration: none; }
+  a.brand:hover h1 { text-decoration: underline; }
   .logo {
     width: 2.6rem;
     height: 2.6rem;
@@ -280,6 +282,9 @@
   .booklet-toc h3 { font-size: 1rem; margin: 0 0 0.3rem; }
   .booklet-toc ul { margin: 0; padding-left: 1.2rem; columns: 2; column-gap: 1.5rem; }
   .booklet-toc li { break-inside: avoid; }
+  h4.daytype { font-size: 0.92rem; font-weight: 600; margin: 0.5rem 0 0.15rem; }
+  .dtopt { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+  .dtopt input { width: 1.3rem; height: 1.3rem; }
   .error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); padding: 0.6rem; border-radius: 6px; }
   details.alert {
     border-left: 4px solid var(--blue);
@@ -416,6 +421,8 @@
       --rt-bg: #fff; --rt-text: #000;
     }
     body { background: #fff; }
+    /* tulosteessa sisältö saa käyttää koko arkin leveyden (myös vaaka) */
+    main { max-width: none; min-height: 0; padding: 0; }
     header { background: none; color: #000; padding: 0 0 0.5rem; }
     header p, .logo, nav.crumb, .tabs, .map, .map-small, .no-print, #routeAlerts, button { display: none !important; }
     .card { border: none; padding: 0.25rem 0; margin: 0; break-inside: avoid; }
@@ -431,9 +438,11 @@
     table.stoptable th { padding: 0.08rem 0.22rem; border-color: #999; }
     table.stoptable thead th, table.stoptable th[scope="row"] { position: static; background: none; }
     table.stoptable tbody tr:nth-child(even) td { background: none; }
-    /* Yhden linjan täysmatriisi on leveä (kaikki vuorot) → pieni fontti */
-    table.stoptable:not(.booklet) { font-size: 0.55rem; }
-    table.stoptable:not(.booklet) thead th:first-child { width: 16%; }
+    /* Yhden linjan täysmatriisi on leveä (kaikki vuorot) → tiivis fontti,
+       tulostuu vaaka-arkille jotta sarakkeet mahtuvat leikkautumatta */
+    table.stoptable:not(.booklet) { font-size: 0.5rem; }
+    table.stoptable:not(.booklet) th, table.stoptable:not(.booklet) td { padding: 0.05rem 0.12rem; }
+    table.stoptable:not(.booklet) thead th:first-child { width: 12%; }
     /* Vihko: harvat sarakkeet → iso luettava fontti, jokainen linja omalle sivulle */
     .booklet-line { break-before: page; }
     .booklet-line:first-of-type { break-before: avoid; }
@@ -445,13 +454,13 @@
 </head>
 <body>
 <header>
-  <div class="brand">
+  <a class="brand" id="brandLink" href="#/" aria-label="Etusivulle">
     <img class="logo" src="icon.svg" alt="" width="42" height="42">
     <div>
       <h1 id="appTitle">Lahden bussiaikataulut</h1>
       <p id="appSub">Epävirallinen palvelu · data: Lahden seudun liikenne / Waltti (CC BY 4.0)</p>
     </div>
-  </div>
+  </a>
 </header>
 
 <main id="app" aria-live="polite"></main>
@@ -634,6 +643,10 @@ const STRINGS = {
     directionsLabel: "Suunnat",
     dirsBoth: "Molemmat suunnat", dirsOne1: "Vain suunta 1", dirsOne2: "Vain suunta 2",
     bookletToc: "Sisältö",
+    dayTypesLabel: "Päivät", dayWeekday: "Ma–Pe", daySat: "La", daySun: "Su",
+    dayTypeNote: "Ma–Pe perustuu edustavaan arkipäivään; juhlapyhät ja koulujen loma-ajat voivat poiketa.",
+    printKeyStopsPort: "Isot pysäkit (pysty)", printAllStopsLand: "Kaikki pysäkit (vaaka)",
+    preparingPrint: "Valmistellaan tulostetta…", toHomeAria: "Etusivulle",
     mapStopsTitle: "Reitti kartalla ja pysäkit",
     mapAria: "Reitti kartalla",
     busesHint: "Oranssit merkit ovat linjan busseja reaaliajassa. Avaa pysäkki nähdäksesi seuraavat lähdöt.",
@@ -784,6 +797,10 @@ const STRINGS = {
     directionsLabel: "Directions",
     dirsBoth: "Both directions", dirsOne1: "Direction 1 only", dirsOne2: "Direction 2 only",
     bookletToc: "Contents",
+    dayTypesLabel: "Days", dayWeekday: "Mon–Fri", daySat: "Sat", daySun: "Sun",
+    dayTypeNote: "Mon–Fri is based on a representative weekday; public holidays and school holidays may differ.",
+    printKeyStopsPort: "Major stops (portrait)", printAllStopsLand: "All stops (landscape)",
+    preparingPrint: "Preparing printout…", toHomeAria: "To home page",
     mapStopsTitle: "Route map and stops",
     mapAria: "Route on map",
     busesHint: "Orange markers are this route's buses in real time. Open a stop to see its next departures.",
@@ -932,6 +949,10 @@ const STRINGS = {
     directionsLabel: "Riktningar",
     dirsBoth: "Båda riktningarna", dirsOne1: "Endast riktning 1", dirsOne2: "Endast riktning 2",
     bookletToc: "Innehåll",
+    dayTypesLabel: "Dagar", dayWeekday: "Mån–Fre", daySat: "Lör", daySun: "Sön",
+    dayTypeNote: "Mån–Fre baseras på en representativ vardag; helgdagar och skollov kan avvika.",
+    printKeyStopsPort: "Stora hållplatser (stående)", printAllStopsLand: "Alla hållplatser (liggande)",
+    preparingPrint: "Förbereder utskrift…", toHomeAria: "Till startsidan",
     mapStopsTitle: "Rutt på kartan och hållplatser",
     mapAria: "Rutt på kartan",
     busesHint: "Orange markörer är linjens bussar i realtid. Öppna en hållplats för att se följande avgångar.",
@@ -994,6 +1015,7 @@ function updateChrome() {
   document.title = t("appTitleTag");
   document.getElementById("appTitle").textContent = t("appTitle");
   document.getElementById("appSub").textContent = t("headerSub");
+  document.getElementById("brandLink").setAttribute("aria-label", t("toHomeAria"));
   document.getElementById("appFooter").innerHTML =
     `${t("footerNote")} · <a href="#/saavutettavuus">${t("a11yStatement")}</a>`;
 }
@@ -1142,6 +1164,26 @@ function todayISO() {
   return d.getFullYear() + "-" +
     String(d.getMonth() + 1).padStart(2, "0") + "-" +
     String(d.getDate()).padStart(2, "0");
+}
+
+// Edustavat päivät viikonpäivätyypeittäin annetun viitepäivän viikolta:
+// arki (keskiviikko), lauantai, sunnuntai. Käytetään tulostuksessa (ma–pe/la/su).
+function dayTypeDates(refISO) {
+  const base = refISO ? new Date(refISO + "T12:00:00") : new Date();
+  const dow = (base.getDay() + 6) % 7; // 0 = ma … 6 = su
+  const monday = new Date(base);
+  monday.setDate(base.getDate() - dow);
+  const isoPlus = n => {
+    const x = new Date(monday);
+    x.setDate(monday.getDate() + n);
+    return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" +
+      String(x.getDate()).padStart(2, "0");
+  };
+  return [
+    { key: "weekday", label: t("dayWeekday"), date: isoPlus(2) },
+    { key: "sat", label: t("daySat"), date: isoPlus(5) },
+    { key: "sun", label: t("daySun"), date: isoPlus(6) },
+  ];
 }
 
 function esc(s) {
@@ -2137,7 +2179,6 @@ async function viewRoute(routeId, patternCode, date) {
       <div class="row no-print">
         <label for="dateInput" class="muted">${t("day")}</label>
         <input type="date" id="dateInput" value="${esc(date)}">
-        <button id="printBtn" title="${t("printTitle")}">🖨 ${t("printBtn")}</button>
       </div>
       <div id="timetable" style="min-height:15rem"><p class="muted">${t("loadingDeps")}</p></div>
     </div>
@@ -2151,10 +2192,15 @@ async function viewRoute(routeId, patternCode, date) {
       </ul>
     </div>
     <div class="card">
-      <h2>${t("fullTimetableTitle")}</h2>
-      <p class="print-only"><strong>${esc(route.shortName || "")} ${esc(patternLabel(current))}</strong> · ${esc(date)}</p>
-      <p class="muted">${t("fullTimetableHint")}</p>
-      <div id="stopMatrix"><p class="muted">${t("loadingMatrix")}</p></div>
+      <h2 class="no-print">${t("fullTimetableTitle")}</h2>
+      <p class="muted no-print">${t("fullTimetableHint")}</p>
+      <div class="row no-print" style="flex-wrap:wrap;gap:0.4rem">
+        <button id="printKeyBtn">🖨 ${t("printKeyStopsPort")}</button>
+        <button id="printAllBtn">🖨 ${t("printAllStopsLand")}</button>
+        <span id="linePrintStatus" class="muted" role="status"></span>
+      </div>
+      <div id="stopMatrix" class="no-print"><p class="muted">${t("loadingMatrix")}</p></div>
+      <div id="linePrintOut" class="print-only"></div>
     </div>`);
 
   bindFavButton({ type: "route", id: routeId, name: route.longName, shortName: route.shortName,
@@ -2171,7 +2217,6 @@ async function viewRoute(routeId, patternCode, date) {
   document.getElementById("dateInput").addEventListener("change", e => {
     location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(current.code)}/${e.target.value}`;
   });
-  document.getElementById("printBtn").addEventListener("click", () => window.print());
 
   // Map is drawn concurrently with the timetable fetch below
   (async () => {
@@ -2290,18 +2335,52 @@ async function viewRoute(routeId, patternCode, date) {
          }`, { code: current.code, date: date.replace(/-/g, "") });
       if (mySeq !== viewSeq) return;
       const el = document.getElementById("stopMatrix");
-      // Ruudulla koko pysäkkimatriisi (vieritettävä); tulostuksessa vain isot
-      // pysäkit (timepoint), koska kaikki vuorot eivät mahdu sivun leveyteen
+      // Ruudulla koko pysäkkimatriisi (vieritettävä, valittu päivä)
       const trips = md.pattern?.tripsForDate || [];
-      if (el) el.innerHTML =
-        `<div class="no-print">${stopMatrixHtml(current.stops, trips)}</div>
-         <div class="print-only">${bookletTableHtml(trips)}</div>`;
+      if (el) el.innerHTML = stopMatrixHtml(current.stops, trips);
+      // Oletustuloste (raaka Ctrl+P): isot pysäkit valitulta päivältä
+      const po = document.getElementById("linePrintOut");
+      if (po) po.innerHTML =
+        `<div class="card"><h2>${esc(route.shortName || "")} ${esc(patternLabel(current))}</h2>
+           <p>${esc(date)}</p>${bookletTableHtml(trips)}</div>`;
     } catch (err) {
       if (mySeq !== viewSeq) return;
       const el = document.getElementById("stopMatrix");
       if (el) el.innerHTML = `<div class="error">${esc(err.message)}</div>`;
     }
   })();
+
+  // Tulostus viikonpäivätyypeittäin (ma–pe/la/su). mode "key" = isot pysäkit
+  // pystyarkille, "all" = kaikki pysäkit vaaka-arkille (mahtuu leveytensä takia).
+  const printLine = async (mode) => {
+    const st = document.getElementById("linePrintStatus");
+    const po = document.getElementById("linePrintOut");
+    if (!po) return;
+    if (st) st.textContent = t("preparingPrint");
+    const dts = dayTypeDates(date);
+    const sets = await Promise.all(dts.map(dt =>
+      cachedGql(`matrix:${current.code}:${dt.date}`,
+        `query ($code: String!, $date: String!) {
+           pattern(id: $code) {
+             tripsForDate(serviceDate: $date) {
+               stoptimes { timepoint scheduledDeparture stop { gtfsId name } }
+             }
+           }
+         }`, { code: current.code, date: dt.date.replace(/-/g, "") })
+        .then(r => ({ dt, trips: r.data.pattern?.tripsForDate || [] }))
+        .catch(() => ({ dt, trips: [] }))));
+    const tables = sets.map(({ dt, trips }) =>
+      `<h3 class="daytype">${esc(dt.label)} (${esc(dt.date)})</h3>` +
+      (mode === "all" ? stopMatrixHtml(current.stops, trips) : bookletTableHtml(trips))).join("");
+    po.innerHTML = `<div class="card">
+        <h2>${esc(route.shortName || "")} ${esc(patternLabel(current))}</h2>
+        <p class="muted">${t("dayTypeNote")}</p>${tables}</div>`;
+    setPageOrientation(mode === "all" ? "landscape" : "portrait");
+    if (st) st.textContent = "";
+    window.print();
+  };
+  document.getElementById("printKeyBtn")?.addEventListener("click", () => printLine("key"));
+  document.getElementById("printAllBtn")?.addEventListener("click", () => printLine("all"));
 }
 
 async function viewStop(stopId) {
@@ -3084,6 +3163,16 @@ function viewAccessibilityStatement() {
 
 /* ---------- Router ---------- */
 
+// Asettaa tulostussivun suunnan (@page). Vaaka tarvitaan koko pysäkkimatriisille
+// (kaikki vuorot eivät mahdu pystyarkin leveyteen). Nollataan pystyyn printin jälkeen.
+function setPageOrientation(orient) {
+  let s = document.getElementById("pageOrient");
+  if (!s) { s = document.createElement("style"); s.id = "pageOrient"; document.head.appendChild(s); }
+  s.textContent = orient === "landscape"
+    ? "@page { size: A4 landscape; margin: 8mm; }"
+    : "@page { size: A4 portrait; margin: 12mm; }";
+}
+
 // Rinnakkaisajo rajatulla samanaikaisuudella (proxyn ~10 req/s suoja)
 async function mapLimit(items, limit, fn) {
   const out = new Array(items.length);
@@ -3139,6 +3228,14 @@ async function viewPrint() {
           <option value="0">${t("dirsOne1")}</option>
           <option value="1">${t("dirsOne2")}</option>
         </select>
+      </div>
+      <div class="field">
+        <span class="muted" id="dtLbl">${t("dayTypesLabel")}</span>
+        <div class="row" role="group" aria-labelledby="dtLbl" style="flex-wrap:wrap;gap:0.4rem 1rem">
+          <label class="dtopt"><input type="checkbox" class="dtCb" value="weekday" checked> ${t("dayWeekday")}</label>
+          <label class="dtopt"><input type="checkbox" class="dtCb" value="sat" checked> ${t("daySat")}</label>
+          <label class="dtopt"><input type="checkbox" class="dtCb" value="sun" checked> ${t("daySun")}</label>
+        </div>
       </div>
       <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
         <input type="search" id="lineFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
@@ -3204,7 +3301,9 @@ async function viewPrint() {
     if (!selected.length) { status.textContent = t("noLinesSelected"); return; }
     const date = document.getElementById("bookletDate").value || today;
     const dirChoice = document.getElementById("dirSel").value;
-    const dateCompact = date.replace(/-/g, "");
+    let dayKeys = [...document.querySelectorAll(".dtCb:checked")].map(c => c.value);
+    if (!dayKeys.length) dayKeys = ["weekday"];
+    const dts = dayTypeDates(date).filter(d => dayKeys.includes(d.key));
     let done = 0;
     const setStatus = () => { status.textContent = t("buildingBooklet", { done, total: selected.length }); };
     setStatus();
@@ -3232,18 +3331,21 @@ async function viewPrint() {
           primaries = primaries.filter(p => String(p.directionId ?? 0) === dirChoice);
         if (!primaries.length) return null;
         const dirs = await Promise.all(primaries.map(async p => {
-          const { data: md } = await cachedGql(`btt:${p.code}:${date}`,
-            `query ($code: String!, $date: String!) {
-               pattern(id: $code) {
-                 tripsForDate(serviceDate: $date) {
-                   stoptimes { timepoint scheduledDeparture stop { gtfsId name } }
-                 }
-               }
-             }`, { code: p.code, date: dateCompact });
           const stops = p.stops || [];
           const label = stops.length
             ? `${stops[0].name} → ${stops[stops.length - 1].name}` : (p.name || "");
-          return `<h3>${esc(label)}</h3>${bookletTableHtml(md.pattern?.tripsForDate || [])}`;
+          const dayTables = await Promise.all(dts.map(async dt => {
+            const { data: md } = await cachedGql(`btt:${p.code}:${dt.date}`,
+              `query ($code: String!, $date: String!) {
+                 pattern(id: $code) {
+                   tripsForDate(serviceDate: $date) {
+                     stoptimes { timepoint scheduledDeparture stop { gtfsId name } }
+                   }
+                 }
+               }`, { code: p.code, date: dt.date.replace(/-/g, "") });
+            return `<h4 class="daytype">${esc(dt.label)}</h4>${bookletTableHtml(md.pattern?.tripsForDate || [])}`;
+          }));
+          return `<h3>${esc(label)}</h3>${dayTables.join("")}`;
         }));
         return {
           label: `${route.shortName || ""} ${route.longName}`.trim(),
@@ -3266,13 +3368,17 @@ async function viewPrint() {
     out.innerHTML = `
       <div class="card booklet-head">
         <h2>${esc(CONFIG.operator)} — ${t("printPageTitle")}</h2>
-        <p>${t("bookletDateLabel")} ${esc(date)}. ${t("bookletKeyStopsNote")}</p>
+        <p>${dts.map(d => `${esc(d.label)} (${esc(d.date)})`).join(" · ")}. ${t("bookletKeyStopsNote")}</p>
+        ${dayKeys.includes("weekday") ? `<p class="muted">${t("dayTypeNote")}</p>` : ""}
         <p class="no-print"><button type="button" id="bookletPrint">🖨 ${t("bookletPrintBtn")}</button></p>
         ${toc ? `<nav class="booklet-toc"><h3>${t("bookletToc")}</h3><ul>${toc}</ul></nav>` : ""}
       </div>
       ${ok.map(s => s.html).join("")}`;
     status.textContent = "";
-    document.getElementById("bookletPrint")?.addEventListener("click", () => window.print());
+    document.getElementById("bookletPrint")?.addEventListener("click", () => {
+      setPageOrientation("portrait");
+      window.print();
+    });
     out.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
@@ -3314,6 +3420,10 @@ document.addEventListener("visibilitychange", () => {
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
+
+// Tulostuksen jälkeen sivun suunta takaisin pystyyn (vaaka on vain
+// koko pysäkkimatriisin tulostusta varten)
+window.addEventListener("afterprint", () => setPageOrientation("portrait"));
 </script>
 </body>
 </html>

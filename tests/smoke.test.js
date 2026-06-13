@@ -131,9 +131,13 @@ const info = msg => console.log("INFO " + msg);
     if (await expect("#bookletOut .booklet-line table.booklet thead th",
                      "tulostusvihko: aikataulu kootaan isoille pysäkeille")) {
       const cols = await page.evaluate(() =>
-        document.querySelectorAll("#bookletOut .booklet-line table.booklet thead th").length);
-      cols > 0 && cols <= 12 ? ok(`tulostusvihko: ${cols} isoa pysäkkiä sarakkeina`)
+        document.querySelector("#bookletOut .booklet-line table.booklet").querySelectorAll("thead th").length);
+      cols > 0 && cols <= 12 ? ok(`tulostusvihko: ${cols} isoa pysäkkiä sarakkeina (per taulukko)`)
                              : fail(`tulostusvihko: odoton sarakemäärä (${cols})`);
+      const days = await page.evaluate(() =>
+        document.querySelectorAll("#bookletOut .booklet-line h4.daytype").length);
+      days >= 1 ? ok(`tulostusvihko: viikonpäivätyypit (${days} taulukkoa/linja)`)
+                : fail("tulostusvihko: päivätyyppejä ei löytynyt");
     }
   }
 
