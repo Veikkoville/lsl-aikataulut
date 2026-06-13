@@ -2317,6 +2317,10 @@ async function viewRoute(routeId, patternCode, date) {
     refreshTimer = setInterval(refreshNow, 30000);
   }
 
+  // Tulostuspainike voi "omistaa" #linePrintOutin: estää matriisihaun
+  // myöhästyvää oletustäyttöä ylikirjoittamasta käyttäjän valitsemaa tulostetta
+  let printOwned = false;
+
   // Koko aikataulu pysäkeittäin (matriisi) – ladataan omana kyselynään,
   // jotta se on valmiina myös tulostukseen
   (async () => {
@@ -2338,9 +2342,10 @@ async function viewRoute(routeId, patternCode, date) {
       // Ruudulla koko pysäkkimatriisi (vieritettävä, valittu päivä)
       const trips = md.pattern?.tripsForDate || [];
       if (el) el.innerHTML = stopMatrixHtml(current.stops, trips);
-      // Oletustuloste (raaka Ctrl+P): isot pysäkit valitulta päivältä
+      // Oletustuloste (raaka Ctrl+P): isot pysäkit valitulta päivältä.
+      // Ei ylikirjoiteta, jos käyttäjä on jo valinnut tulosteen napista.
       const po = document.getElementById("linePrintOut");
-      if (po) po.innerHTML =
+      if (po && !printOwned) po.innerHTML =
         `<div class="card"><h2>${esc(route.shortName || "")} ${esc(patternLabel(current))}</h2>
            <p>${esc(date)}</p>${bookletTableHtml(trips)}</div>`;
     } catch (err) {
@@ -2356,6 +2361,7 @@ async function viewRoute(routeId, patternCode, date) {
     const st = document.getElementById("linePrintStatus");
     const po = document.getElementById("linePrintOut");
     if (!po) return;
+    printOwned = true; // estä matriisihaun oletustäytön ylikirjoitus
     if (st) st.textContent = t("preparingPrint");
     const dts = dayTypeDates(date);
     const sets = await Promise.all(dts.map(dt =>
