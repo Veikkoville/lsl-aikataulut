@@ -2250,7 +2250,7 @@ async function viewRoute(routeId, patternCode, date) {
         ${lineDayTabs(date).map(d => `
           <button class="daytab" data-date="${d.date}" aria-pressed="${d.active}">${esc(d.label)}</button>`).join("")}
       </div>
-      <div id="timetable" style="min-height:15rem"><p class="muted">${t("loadingDeps")}</p></div>
+      <div id="timetable" class="no-print" style="min-height:15rem"><p class="muted">${t("loadingDeps")}</p></div>
     </div>
     <div class="card no-print">
       <h2>${t("mapStopsTitle")}</h2>
@@ -2447,7 +2447,7 @@ async function viewRoute(routeId, patternCode, date) {
         .then(r => ({ dt, trips: r.data.pattern?.tripsForDate || [] }))
         .catch(() => ({ dt, trips: [] }))));
     const tables = sets.map(({ dt, trips }) =>
-      `<h3 class="daytype">${esc(dt.label)} (${esc(dt.date)})</h3>` +
+      `<h3 class="daytype">${esc(dt.label)}</h3>` +
       (mode === "all" ? stopMatrixHtml(current.stops, trips) : bookletTableHtml(trips))).join("");
     po.innerHTML = `<div class="card">
         <h2>${esc(route.shortName || "")} ${esc(patternLabel(current))}</h2>
@@ -3445,7 +3445,7 @@ async function viewPrint() {
     out.innerHTML = `
       <div class="card booklet-head">
         <h2>${esc(CONFIG.operator)} — ${t("printPageTitle")}</h2>
-        <p>${dts.map(d => `${esc(d.label)} (${esc(d.date)})`).join(" · ")}. ${t("bookletKeyStopsNote")}</p>
+        <p>${dts.map(d => esc(d.label)).join(" · ")}. ${t("bookletKeyStopsNote")}</p>
         ${dayKeys.includes("weekday") ? `<p class="muted">${t("dayTypeNote")}</p>` : ""}
         <p class="no-print"><button type="button" id="bookletPrint">🖨 ${t("bookletPrintBtn")}</button></p>
         ${toc ? `<nav class="booklet-toc"><h3>${t("bookletToc")}</h3><ul>${toc}</ul></nav>` : ""}
