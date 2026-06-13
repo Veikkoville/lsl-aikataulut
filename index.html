@@ -1997,6 +1997,7 @@ function viewRoutes() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`
     <p class="muted" style="margin:0 0 0.6rem">${t("homeIntro")}</p>
+    <p style="margin:0 0 0.6rem"><a class="item" href="#/tulosta"><span aria-hidden="true">🖨</span> <span>${t("printPageLink")}</span></a></p>
     <div id="alertsBox"><details class="card alertsum" aria-hidden="true">
       <summary><span aria-hidden="true">⚠</span> <strong class="muted">…</strong></summary>
     </details></div>
@@ -2028,7 +2029,6 @@ function viewRoutes() {
              aria-label="${t("routeFilterAria")}">
       <ul class="plain" id="routeList" style="min-height:70vh"><li><p class="muted">${t("loadingRoutes")}</p></li></ul>
     </div>
-    <p><a class="item" href="#/tulosta"><span aria-hidden="true">🖨</span> <span>${t("printPageLink")}</span></a></p>
     <p class="muted"><a href="#/asetukset">${t("settings")}</a></p>`);
 
   const mySeq = viewSeq;
