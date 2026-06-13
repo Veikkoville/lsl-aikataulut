@@ -112,7 +112,9 @@
   }
   header h1 { margin: 0; font-size: 1.2rem; letter-spacing: 0.01em; }
   header p { margin: 0.1rem 0 0; font-size: 0.78rem; opacity: 0.88; }
-  main { max-width: 760px; margin: 0 auto; padding: 1rem; }
+  /* min-height pitää footerin aina taitteen alapuolella, joten näkymän
+     sisällön asynkroninen latautuminen ei työnnä sitä näkyvistä (CLS) */
+  main { max-width: 760px; margin: 0 auto; padding: 1rem; min-height: 100vh; }
   .card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -1886,8 +1888,8 @@ function viewRoutes() {
   refreshTimer = setInterval(refreshNow, 30000);
 
   // Reittilista on sivun pääsisältö → ladataan heti rungon piirron rinnalla.
-  // Placeholderin min-height pitää footerin taitteen alapuolella, ettei
-  // listan täyttyminen aiheuta layout shiftiä (CLS).
+  // Placeholderin min-height pitää listan alapuolisen asetuslinkin taitteen
+  // alapuolella, ettei listan täyttyminen aiheuta layout shiftiä (CLS).
   loadRoutes().then(routes => {
     if (mySeq !== viewSeq) return; // näkymä ehti vaihtua latauksen aikana
     const list = document.getElementById("routeList");
