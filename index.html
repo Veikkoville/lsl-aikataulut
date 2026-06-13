@@ -131,6 +131,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     width: 100%;
+    min-height: 44px;
     background: var(--card);
     color: var(--text);
   }
@@ -152,6 +153,7 @@
   button {
     font: inherit;
     padding: 0.5rem 0.9rem;
+    min-height: 44px;            /* riittävä kosketuskohde (myös ikäihmisille) */
     border: none;
     border-radius: 8px;
     background: var(--btn-bg);
@@ -165,6 +167,7 @@
     background: none;
     color: var(--blue);
     padding: 0.2rem 0.4rem;
+    min-height: auto;
     text-decoration: underline;
   }
   .row { display: flex; gap: 0.5rem; align-items: center; }
@@ -178,6 +181,7 @@
     width: 100%;
     text-align: left;
     padding: 0.55rem 0.25rem;
+    min-height: 44px;
     background: none;
     border: none;
     color: var(--text);
@@ -199,7 +203,7 @@
     font-size: 0.95rem;
     flex-shrink: 0;
   }
-  .muted { color: var(--muted); font-size: 0.85rem; }
+  .muted { color: var(--muted); font-size: 0.9rem; }
   a.badge { text-decoration: none; }
   button.star {
     background: none;
@@ -253,11 +257,21 @@
   .timegrid span {
     background: var(--chip);
     border-radius: 5px;
-    padding: 0.15rem 0.45rem;
+    padding: 0.28rem 0.6rem;
+    font-size: 1.05rem;
     font-variant-numeric: tabular-nums;
   }
   .timegrid span.past { background: none; color: var(--muted); border: 1px solid var(--border); }
   .timegrid span.rt { background: var(--rt-bg); color: var(--rt-text); font-weight: 600; }
+  /* Koko aikataulu pysäkeittäin -matriisi: pysäkit riveinä, vuorot sarakkeina.
+     Ruudulla vieritettävä laatikko, tulostuksessa koko taulukko näkyviin. */
+  .matrix-wrap { overflow: auto; max-height: 65vh; margin: 0.5rem 0; border: 1px solid var(--border); border-radius: 6px; }
+  table.stoptable { border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  table.stoptable th, table.stoptable td { border: 1px solid var(--border); padding: 0.25rem 0.5rem; text-align: center; white-space: nowrap; }
+  table.stoptable thead th { position: sticky; top: 0; background: var(--chip); z-index: 2; }
+  table.stoptable th[scope="row"] { position: sticky; left: 0; background: var(--card); text-align: left; font-weight: 500; z-index: 1; }
+  table.stoptable thead th:first-child { left: 0; z-index: 3; }
+  table.stoptable tbody tr:nth-child(even) td { background: var(--hover); }
   .error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); padding: 0.6rem; border-radius: 6px; }
   details.alert {
     border-left: 4px solid var(--blue);
@@ -399,7 +413,15 @@
     .card { border: none; padding: 0.25rem 0; margin: 0; break-inside: avoid; }
     .badge { border: 1px solid #000; background: none; color: #000; }
     .timegrid span { background: none; border: 1px solid #ccc; }
+    .print-only { display: block !important; }
+    /* Koko aikataulu kokonaan näkyviin, tiivis fontti mahduttaa sarakkeet */
+    .matrix-wrap { overflow: visible; max-height: none; border: none; }
+    table.stoptable { font-size: 0.6rem; break-inside: auto; }
+    table.stoptable th, table.stoptable td { padding: 0.08rem 0.22rem; border-color: #999; }
+    table.stoptable thead th, table.stoptable th[scope="row"] { position: static; background: none; }
+    table.stoptable tbody tr:nth-child(even) td { background: none; }
   }
+  .print-only { display: none; }
 </style>
 </head>
 <body>
@@ -543,6 +565,7 @@ const STRINGS = {
     accVehicle: "Esteetön kalusto",
     accStop: "Esteetön pysäkki", accStopNo: "Pysäkki ei ole esteetön",
     // etusivu
+    homeIntro: "Hae linja-aikatauluja, lähimpiä lähtöjä ja reittejä Lahden seudun joukkoliikenteessä.",
     loadingRoutes: "Haetaan linjoja…",
     nearbyTitle: "Lähimmät lähdöt",
     rtLegend: "= reaaliaikainen arvio. Päivittyy 30 s välein.",
@@ -566,6 +589,10 @@ const STRINGS = {
     day: "Päivä",
     printBtn: "Tulosta", printTitle: "Tulosta tai tallenna PDF:nä",
     loadingDeps: "Haetaan lähtöjä…",
+    fullTimetableTitle: "Koko aikataulu pysäkeittäin",
+    fullTimetableHint: "Lue saraketta ylhäältä alas: yksi sarake on yhden vuoron kellonajat jokaisella pysäkillä.",
+    stopColHead: "Pysäkki",
+    loadingMatrix: "Haetaan koko aikataulua…",
     mapStopsTitle: "Reitti kartalla ja pysäkit",
     mapAria: "Reitti kartalla",
     busesHint: "Oranssit merkit ovat linjan busseja reaaliajassa. Avaa pysäkki nähdäksesi seuraavat lähdöt.",
@@ -661,6 +688,7 @@ const STRINGS = {
     noDepsRadius: "No departing buses within 800 m. Are you in the {city} region?",
     showNearby: "Show nearest departures",
     geoPrivacy: "Your location is only used to find nearby stops via the Digitransit API and is not stored anywhere.",
+    homeIntro: "Find route timetables, nearby departures and journeys for the Lahti region public transport.",
     favsTitle: "Favourites", favTitle: "Favourite",
     favAdd: "Add to favourites", favRemove: "Remove from favourites",
     favLoading: "Loading favourite stop departures…",
@@ -691,6 +719,10 @@ const STRINGS = {
     day: "Date",
     printBtn: "Print", printTitle: "Print or save as PDF",
     loadingDeps: "Loading departures…",
+    fullTimetableTitle: "Full timetable by stop",
+    fullTimetableHint: "Read a column top to bottom: each column is one trip's times at every stop.",
+    stopColHead: "Stop",
+    loadingMatrix: "Loading full timetable…",
     mapStopsTitle: "Route map and stops",
     mapAria: "Route on map",
     busesHint: "Orange markers are this route's buses in real time. Open a stop to see its next departures.",
@@ -784,6 +816,7 @@ const STRINGS = {
     noDepsRadius: "Inga avgående bussar inom 800 m. Är du i {city}-regionen?",
     showNearby: "Visa närmaste avgångar",
     geoPrivacy: "Din position används endast för att hitta närliggande hållplatser via Digitransit-gränssnittet och sparas inte någonstans.",
+    homeIntro: "Sök linjetidtabeller, närliggande avgångar och resor i Lahtisregionens kollektivtrafik.",
     favsTitle: "Favoriter", favTitle: "Favorit",
     favAdd: "Lägg till i favoriter", favRemove: "Ta bort från favoriter",
     favLoading: "Hämtar avgångar för favorithållplatser…",
@@ -814,6 +847,10 @@ const STRINGS = {
     day: "Datum",
     printBtn: "Skriv ut", printTitle: "Skriv ut eller spara som PDF",
     loadingDeps: "Hämtar avgångar…",
+    fullTimetableTitle: "Hela tidtabellen per hållplats",
+    fullTimetableHint: "Läs en kolumn uppifrån och ned: varje kolumn är en turs tider vid varje hållplats.",
+    stopColHead: "Hållplats",
+    loadingMatrix: "Hämtar hela tidtabellen…",
     mapStopsTitle: "Rutt på kartan och hållplatser",
     mapAria: "Rutt på kartan",
     busesHint: "Orange markörer är linjens bussar i realtid. Öppna en hållplats för att se följande avgångar.",
@@ -1836,6 +1873,7 @@ function initNearby(body) {
 function viewRoutes() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`
+    <p class="muted" style="margin:0 0 0.6rem">${t("homeIntro")}</p>
     <div id="alertsBox"><details class="card alertsum" aria-hidden="true">
       <summary><span aria-hidden="true">⚠</span> <strong class="muted">…</strong></summary>
     </details></div>
@@ -1914,11 +1952,37 @@ function viewRoutes() {
   });
 }
 
+// Rakentaa pysäkeittäisen aikataulumatriisin: pysäkit riveinä, vuorot
+// sarakkeina. Yksi sarake = yhden vuoron kellonajat reitin jokaisella
+// pysäkillä (klassinen painettu bussiaikataulu).
+function stopMatrixHtml(stops, trips) {
+  const valid = (trips || []).filter(tr => (tr.stoptimes || []).length);
+  valid.sort((a, b) => a.stoptimes[0].scheduledDeparture - b.stoptimes[0].scheduledDeparture);
+  if (!valid.length || !(stops || []).length) return `<p class="muted">${t("noDepsDay")}</p>`;
+  const tripTimes = valid.map(tr => {
+    const m = {};
+    for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture;
+    return m;
+  });
+  const headCols = valid.map((_, i) => `<th scope="col">${i + 1}</th>`).join("");
+  const rows = stops.map(s => {
+    const cells = tripTimes.map(m =>
+      `<td>${m[s.gtfsId] == null ? "·" : fmtSec(m[s.gtfsId])}</td>`).join("");
+    return `<tr><th scope="row">${esc(s.name)}</th>${cells}</tr>`;
+  }).join("");
+  return `<div class="matrix-wrap"><table class="stoptable">
+      <thead><tr><th scope="col">${t("stopColHead")}</th>${headCols}</tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+}
+
 async function viewRoute(routeId, patternCode, date) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">${t("loadingRoute")}</p>`);
   date = date || todayISO();
 
+  // Häiriöt haetaan rinnakkain reittikyselyn kanssa, jotta ne voidaan
+  // renderöidä jo ensipaintissa (ei async-hyppyä, CLS)
+  const alertsPromise = loadAlerts().catch(() => []);
   const { data, cachedAt: routeCachedAt } = await cachedGql("route:" + routeId,
     `query ($id: String!) {
        route(id: $id) {
@@ -1958,11 +2022,19 @@ async function viewRoute(routeId, patternCode, date) {
     variants.push(...list.slice(1));
   }
 
+  let routeAlertsHtml = "";
+  try {
+    const stopIds = new Set(patterns.flatMap(p => p.stops.map(s => s.gtfsId)));
+    const matched = dedupAlerts((await alertsPromise)
+      .filter(a => alertMatchesRoute(a, routeId, route.shortName, stopIds)));
+    if (matched.length) routeAlertsHtml = matched.map(alertHtml).join("");
+  } catch (err) { /* tiedotteiden puuttuminen ei kaada linjasivua */ }
+
   setView(`
     <nav class="crumb"><a href="#/">← ${t("allRoutes")}</a></nav>
     <div class="card">
       <h2>${favButtonHtml(routeId)}${badgeHtml(route)} ${esc(route.longName)}</h2>
-      <div id="routeAlerts"></div>
+      <div id="routeAlerts">${routeAlertsHtml}</div>
       <div class="tabs" role="group" aria-label="${t("directionAria")}">
         ${primaries.map(p => `
           <button data-pattern="${esc(p.code)}" aria-pressed="${p === current}">
@@ -1985,9 +2057,9 @@ async function viewRoute(routeId, patternCode, date) {
         <input type="date" id="dateInput" value="${esc(date)}">
         <button id="printBtn" title="${t("printTitle")}">🖨 ${t("printBtn")}</button>
       </div>
-      <div id="timetable"><p class="muted">${t("loadingDeps")}</p></div>
+      <div id="timetable" style="min-height:15rem"><p class="muted">${t("loadingDeps")}</p></div>
     </div>
-    <div class="card">
+    <div class="card no-print">
       <h2>${t("mapStopsTitle")}</h2>
       <div id="routeMap" class="map" aria-label="${t("mapAria")}"></div>
       <p class="muted">${t("busesHint")}</p>
@@ -1995,6 +2067,12 @@ async function viewRoute(routeId, patternCode, date) {
         ${(current?.stops || []).map(s => `
           <li><a class="item" href="#/pysakki/${encodeURIComponent(s.gtfsId)}">${esc(s.name)}</a></li>`).join("")}
       </ul>
+    </div>
+    <div class="card">
+      <h2>${t("fullTimetableTitle")}</h2>
+      <p class="print-only"><strong>${esc(route.shortName || "")} ${esc(patternLabel(current))}</strong> · ${esc(date)}</p>
+      <p class="muted">${t("fullTimetableHint")}</p>
+      <div id="stopMatrix"><p class="muted">${t("loadingMatrix")}</p></div>
     </div>`);
 
   bindFavButton({ type: "route", id: routeId, name: route.longName, shortName: route.shortName,
@@ -2012,17 +2090,6 @@ async function viewRoute(routeId, patternCode, date) {
     location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(current.code)}/${e.target.value}`;
   });
   document.getElementById("printBtn").addEventListener("click", () => window.print());
-
-  // Linjaa koskevat poikkeustiedotteet (ei estä muun sivun latausta)
-  (async () => {
-    try {
-      const stopIds = new Set(patterns.flatMap(p => p.stops.map(s => s.gtfsId)));
-      const matched = dedupAlerts((await loadAlerts())
-        .filter(a => alertMatchesRoute(a, routeId, route.shortName, stopIds)));
-      const el = document.getElementById("routeAlerts");
-      if (el && matched.length) el.innerHTML = matched.map(alertHtml).join("");
-    } catch (err) { /* tiedotteiden puuttuminen ei kaada linjasivua */ }
-  })();
 
   // Map is drawn concurrently with the timetable fetch below
   (async () => {
@@ -2122,6 +2189,32 @@ async function viewRoute(routeId, patternCode, date) {
     refreshNow = () => loadTimetable().catch(() => {});
     refreshTimer = setInterval(refreshNow, 30000);
   }
+
+  // Koko aikataulu pysäkeittäin (matriisi) – ladataan omana kyselynään,
+  // jotta se on valmiina myös tulostukseen
+  (async () => {
+    const mEl = document.getElementById("stopMatrix");
+    if (!mEl) return;
+    const mySeq = viewSeq;
+    try {
+      const { data: md } = await cachedGql(
+        `matrix:${current.code}:${date}`,
+        `query ($code: String!, $date: String!) {
+           pattern(id: $code) {
+             tripsForDate(serviceDate: $date) {
+               stoptimes { scheduledDeparture stop { gtfsId } }
+             }
+           }
+         }`, { code: current.code, date: date.replace(/-/g, "") });
+      if (mySeq !== viewSeq) return;
+      const el = document.getElementById("stopMatrix");
+      if (el) el.innerHTML = stopMatrixHtml(current.stops, md.pattern?.tripsForDate || []);
+    } catch (err) {
+      if (mySeq !== viewSeq) return;
+      const el = document.getElementById("stopMatrix");
+      if (el) el.innerHTML = `<div class="error">${esc(err.message)}</div>`;
+    }
+  })();
 }
 
 async function viewStop(stopId) {
