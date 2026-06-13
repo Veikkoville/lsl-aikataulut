@@ -1194,6 +1194,33 @@ function dayTypeDates(refISO) {
   ];
 }
 
+// Päivän tyyppi (ma–pe / la / su) ISO-päivästä
+function dayTypeOf(iso) {
+  const dow = (new Date(iso + "T12:00:00").getDay() + 6) % 7;
+  return dow <= 4 ? "weekday" : dow === 5 ? "sat" : "sun";
+}
+
+// Linjasivun päivätyyppivälilehdet (Ma–Pe / La / Su): kullekin tyypille
+// lähin päivä (tänään jos osuu tyyppiin → reaaliaika näkyy, muuten seuraava
+// kyseinen viikonpäivä). active = nykyisen näytetyn päivän tyyppi.
+function lineDayTabs(currentISO) {
+  const now = new Date();
+  const todayDow = (now.getDay() + 6) % 7;
+  const isoAdd = n => {
+    const x = new Date(now);
+    x.setDate(now.getDate() + n);
+    return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" +
+      String(x.getDate()).padStart(2, "0");
+  };
+  const upcoming = target => isoAdd((target - todayDow + 7) % 7);
+  const cur = dayTypeOf(currentISO);
+  return [
+    { key: "weekday", label: t("dayWeekday"), date: todayDow <= 4 ? todayISO() : isoAdd((7 - todayDow)) },
+    { key: "sat", label: t("daySat"), date: upcoming(5) },
+    { key: "sun", label: t("daySun"), date: upcoming(6) },
+  ].map(d => ({ ...d, active: d.key === cur }));
+}
+
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -2184,9 +2211,9 @@ async function viewRoute(routeId, patternCode, date) {
               </option>`).join("")}
           </select>
         </div>` : ""}
-      <div class="row no-print">
-        <label for="dateInput" class="muted">${t("day")}</label>
-        <input type="date" id="dateInput" value="${esc(date)}">
+      <div class="tabs no-print" role="group" aria-label="${t("dayTypesLabel")}">
+        ${lineDayTabs(date).map(d => `
+          <button class="daytab" data-date="${d.date}" aria-pressed="${d.active}">${esc(d.label)}</button>`).join("")}
       </div>
       <div id="timetable" style="min-height:15rem"><p class="muted">${t("loadingDeps")}</p></div>
     </div>
@@ -2222,9 +2249,10 @@ async function viewRoute(routeId, patternCode, date) {
       location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(e.target.value)}/${date}`;
     }
   });
-  document.getElementById("dateInput").addEventListener("change", e => {
-    location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(current.code)}/${e.target.value}`;
-  });
+  document.querySelectorAll(".daytab").forEach(btn =>
+    btn.addEventListener("click", () => {
+      location.hash = `#/linja/${encodeURIComponent(routeId)}/${encodeURIComponent(current.code)}/${btn.dataset.date}`;
+    }));
 
   // Map is drawn concurrently with the timetable fetch below
   (async () => {
