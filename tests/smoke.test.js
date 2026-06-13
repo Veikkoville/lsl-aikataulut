@@ -123,6 +123,20 @@ const info = msg => console.log("INFO " + msg);
     await page.click('[data-lang-opt="fi"]');
   }
 
+  // --- Tulostusvihko (monta linjaa) ---
+  await page.goto(BASE + "/#/tulosta", { waitUntil: "networkidle2" });
+  if (await expect(".lineCb", "tulostusvihko: linjavalinta latautuu")) {
+    await page.evaluate(() => { document.querySelector(".lineCb").checked = true; });
+    await page.click("#buildBtn");
+    if (await expect("#bookletOut .booklet-line table.booklet thead th",
+                     "tulostusvihko: aikataulu kootaan isoille pysäkeille")) {
+      const cols = await page.evaluate(() =>
+        document.querySelectorAll("#bookletOut .booklet-line table.booklet thead th").length);
+      cols > 0 && cols <= 12 ? ok(`tulostusvihko: ${cols} isoa pysäkkiä sarakkeina`)
+                             : fail(`tulostusvihko: odoton sarakemäärä (${cols})`);
+    }
+  }
+
   // --- Saavutettavuusseloste ---
   await page.goto(BASE + "/#/saavutettavuus", { waitUntil: "networkidle2" });
   await expect(".card h2", "saavutettavuusseloste avautuu");

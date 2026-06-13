@@ -272,6 +272,10 @@
   table.stoptable th[scope="row"] { position: sticky; left: 0; background: var(--card); text-align: left; font-weight: 500; z-index: 1; }
   table.stoptable thead th:first-child { left: 0; z-index: 3; }
   table.stoptable tbody tr:nth-child(even) td { background: var(--hover); }
+  /* Tulostusvihko: harvempi pysäkkijoukko, hieman isompi luettava fontti */
+  table.booklet { font-size: 0.95rem; }
+  table.booklet th, table.booklet td { padding: 0.3rem 0.6rem; }
+  .booklet-line h3 { font-size: 1rem; margin: 0.6rem 0 0.2rem; }
   .error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); padding: 0.6rem; border-radius: 6px; }
   details.alert {
     border-left: 4px solid var(--blue);
@@ -420,6 +424,11 @@
     table.stoptable th, table.stoptable td { padding: 0.08rem 0.22rem; border-color: #999; }
     table.stoptable thead th, table.stoptable th[scope="row"] { position: static; background: none; }
     table.stoptable tbody tr:nth-child(even) td { background: none; }
+    /* Vihko: jokainen linja omalle sivulleen, iso luettava fontti */
+    .booklet-line { break-before: page; }
+    .booklet-line:first-of-type { break-before: avoid; }
+    table.booklet { font-size: 1rem; width: 100%; }
+    table.booklet th, table.booklet td { padding: 0.2rem 0.5rem; border-color: #999; }
   }
   .print-only { display: none; }
 </style>
@@ -593,6 +602,21 @@ const STRINGS = {
     fullTimetableHint: "Lue saraketta ylhäältä alas: yksi sarake on yhden vuoron kellonajat jokaisella pysäkillä.",
     stopColHead: "Pysäkki",
     loadingMatrix: "Haetaan koko aikataulua…",
+    // tulostusvihko (monta linjaa)
+    printPageTitle: "Tulosta aikatauluja",
+    printPageLink: "Tulosta aikatauluja (vihko)",
+    printPageIntro: "Valitse linjat, niin saat niiden aikataulut isoilla pysäkeillä yhtenä tulosteena (kuten aikatauluvihko). Sopii myös tulostettavaksi internetiä käyttämättömille.",
+    selectAllLines: "Valitse kaikki", clearLines: "Tyhjennä valinnat",
+    selectedCount: "Valittu {n} linjaa",
+    generateBooklet: "Kokoa ja tulosta",
+    noLinesSelected: "Valitse vähintään yksi linja.",
+    buildingBooklet: "Kootaan aikatauluja… {done}/{total}",
+    bookletPrintBtn: "Tulosta tai tallenna PDF",
+    bookletDateLabel: "Aikataulut päivälle",
+    bookletKeyStopsNote: "Kellonajat näytetään vain reitin isoilla pysäkillä.",
+    bookletDir: "Suunta",
+    bookletNoData: "Ei lähtöjä valittuna päivänä.",
+    backToSelection: "← Muokkaa valintaa",
     mapStopsTitle: "Reitti kartalla ja pysäkit",
     mapAria: "Reitti kartalla",
     busesHint: "Oranssit merkit ovat linjan busseja reaaliajassa. Avaa pysäkki nähdäksesi seuraavat lähdöt.",
@@ -723,6 +747,21 @@ const STRINGS = {
     fullTimetableHint: "Read a column top to bottom: each column is one trip's times at every stop.",
     stopColHead: "Stop",
     loadingMatrix: "Loading full timetable…",
+    // print booklet (multiple routes)
+    printPageTitle: "Print timetables",
+    printPageLink: "Print timetables (booklet)",
+    printPageIntro: "Select routes to get their timetables at major stops as a single printout (like a timetable booklet). Also suitable for printing for people who don't use the internet.",
+    selectAllLines: "Select all", clearLines: "Clear selection",
+    selectedCount: "{n} routes selected",
+    generateBooklet: "Build and print",
+    noLinesSelected: "Select at least one route.",
+    buildingBooklet: "Building timetables… {done}/{total}",
+    bookletPrintBtn: "Print or save as PDF",
+    bookletDateLabel: "Timetables for",
+    bookletKeyStopsNote: "Times are shown only at the route's major stops.",
+    bookletDir: "Direction",
+    bookletNoData: "No departures on the selected day.",
+    backToSelection: "← Edit selection",
     mapStopsTitle: "Route map and stops",
     mapAria: "Route on map",
     busesHint: "Orange markers are this route's buses in real time. Open a stop to see its next departures.",
@@ -851,6 +890,21 @@ const STRINGS = {
     fullTimetableHint: "Läs en kolumn uppifrån och ned: varje kolumn är en turs tider vid varje hållplats.",
     stopColHead: "Hållplats",
     loadingMatrix: "Hämtar hela tidtabellen…",
+    // utskriftshäfte (flera linjer)
+    printPageTitle: "Skriv ut tidtabeller",
+    printPageLink: "Skriv ut tidtabeller (häfte)",
+    printPageIntro: "Välj linjer för att få deras tidtabeller vid de stora hållplatserna som en enda utskrift (som ett tidtabellshäfte). Lämpar sig även för utskrift åt personer som inte använder internet.",
+    selectAllLines: "Välj alla", clearLines: "Rensa val",
+    selectedCount: "{n} linjer valda",
+    generateBooklet: "Sammanställ och skriv ut",
+    noLinesSelected: "Välj minst en linje.",
+    buildingBooklet: "Sammanställer tidtabeller… {done}/{total}",
+    bookletPrintBtn: "Skriv ut eller spara som PDF",
+    bookletDateLabel: "Tidtabeller för",
+    bookletKeyStopsNote: "Tiderna visas endast vid linjens stora hållplatser.",
+    bookletDir: "Riktning",
+    bookletNoData: "Inga avgångar den valda dagen.",
+    backToSelection: "← Ändra val",
     mapStopsTitle: "Rutt på kartan och hållplatser",
     mapAria: "Rutt på kartan",
     busesHint: "Orange markörer är linjens bussar i realtid. Öppna en hållplats för att se följande avgångar.",
@@ -1905,6 +1959,7 @@ function viewRoutes() {
              aria-label="${t("routeFilterAria")}">
       <ul class="plain" id="routeList" style="min-height:70vh"><li><p class="muted">${t("loadingRoutes")}</p></li></ul>
     </div>
+    <p><a class="item" href="#/tulosta"><span aria-hidden="true">🖨</span> <span>${t("printPageLink")}</span></a></p>
     <p class="muted"><a href="#/asetukset">${t("settings")}</a></p>`);
 
   const mySeq = viewSeq;
@@ -2997,11 +3052,158 @@ function viewAccessibilityStatement() {
 
 /* ---------- Router ---------- */
 
+// Rinnakkaisajo rajatulla samanaikaisuudella (proxyn ~10 req/s suoja)
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) { const idx = i++; out[idx] = await fn(items[idx], idx); }
+  }));
+  return out;
+}
+
+// Vihkotaulukko yhdelle suunnalle: sarakkeina isot pysäkit (timepoint +
+// aina lähtö & pääte), riveinä päivän lähdöt. Rivi = yksi vuoro avainpysäkkien
+// läpi (esim. Pilkekatu 13:05 · Matkakeskus 13:13 · …).
+function bookletTableHtml(trips) {
+  const valid = (trips || []).filter(tr => (tr.stoptimes || []).length);
+  if (!valid.length) return `<p class="muted">${t("bookletNoData")}</p>`;
+  const seq = valid[0].stoptimes;
+  const last = seq.length - 1;
+  const keyStops = seq
+    .map((st, i) => (st.timepoint || i === 0 || i === last) ? st.stop : null)
+    .filter(Boolean);
+  const rows = valid.map(tr => {
+    const m = {};
+    for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture;
+    return m;
+  }).sort((a, b) => (a[keyStops[0].gtfsId] ?? 1e9) - (b[keyStops[0].gtfsId] ?? 1e9));
+  const head = keyStops.map(s => `<th scope="col">${esc(s.name)}</th>`).join("");
+  const body = rows.map(m =>
+    `<tr>${keyStops.map(s => `<td>${m[s.gtfsId] == null ? "·" : fmtSec(m[s.gtfsId])}</td>`).join("")}</tr>`).join("");
+  return `<div class="matrix-wrap"><table class="stoptable booklet">
+      <thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+// Monen linjan tulostusvihko: valitse linjat → aikataulut isoilla pysäkillä
+async function viewPrint() {
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  setView(`<p class="muted">${t("loadingRoutes")}</p>`);
+  const routes = await loadRoutes();
+  const today = todayISO();
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("allRoutes")}</a></nav>
+    <div class="card no-print" id="printForm">
+      <h2><span aria-hidden="true">🖨</span> ${t("printPageTitle")}</h2>
+      <p class="muted">${t("printPageIntro")}</p>
+      <div class="field">
+        <label for="bookletDate">${t("bookletDateLabel")}</label>
+        <input type="date" id="bookletDate" value="${esc(today)}">
+      </div>
+      <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
+        <input type="search" id="lineFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
+        <button type="button" id="selAll" class="linkish">${t("selectAllLines")}</button>
+        <button type="button" id="selNone" class="linkish">${t("clearLines")}</button>
+      </div>
+      <ul class="plain" id="lineChecks">
+        ${routes.map(r => `<li><label class="item" style="cursor:pointer;align-items:center">
+            <input type="checkbox" class="lineCb" value="${esc(r.gtfsId)}"
+                   style="width:1.4rem;height:1.4rem;flex:none">
+            ${badgeHtml(r)} <span>${esc(r.longName)}</span></label></li>`).join("")}
+      </ul>
+      <p><button type="button" id="buildBtn">${t("generateBooklet")}</button>
+         <span id="buildStatus" class="muted" role="status"></span></p>
+    </div>
+    <div id="bookletOut"></div>`);
+
+  const cbs = () => [...document.querySelectorAll(".lineCb")];
+  document.getElementById("lineFilter").addEventListener("input", e => {
+    const f = e.target.value.toLowerCase();
+    document.querySelectorAll("#lineChecks li").forEach(li => {
+      li.hidden = f && !li.textContent.toLowerCase().includes(f);
+    });
+  });
+  document.getElementById("selAll").addEventListener("click", () =>
+    cbs().forEach(c => { if (!c.closest("li").hidden) c.checked = true; }));
+  document.getElementById("selNone").addEventListener("click", () =>
+    cbs().forEach(c => { c.checked = false; }));
+
+  document.getElementById("buildBtn").addEventListener("click", async () => {
+    const mySeq = viewSeq;
+    const status = document.getElementById("buildStatus");
+    const selected = cbs().filter(c => c.checked).map(c => c.value);
+    if (!selected.length) { status.textContent = t("noLinesSelected"); return; }
+    const date = document.getElementById("bookletDate").value || today;
+    const dateCompact = date.replace(/-/g, "");
+    let done = 0;
+    const setStatus = () => { status.textContent = t("buildingBooklet", { done, total: selected.length }); };
+    setStatus();
+
+    const sections = await mapLimit(selected, 4, async (routeId) => {
+      try {
+        const { data } = await cachedGql("proute:" + routeId,
+          `query ($id: String!) {
+             route(id: $id) {
+               shortName longName color textColor
+               patterns { code name directionId trips { gtfsId } stops { gtfsId name } }
+             }
+           }`, { id: routeId });
+        const route = data.route;
+        if (!route) return "";
+        const byDir = new Map();
+        for (const p of route.patterns || []) {
+          const k = p.directionId ?? 0;
+          if (!byDir.has(k)) byDir.set(k, []);
+          byDir.get(k).push(p);
+        }
+        const primaries = [...byDir.values()]
+          .map(list => list.sort((a, b) => (b.trips?.length || 0) - (a.trips?.length || 0))[0]);
+        const dirs = await Promise.all(primaries.map(async p => {
+          const { data: md } = await cachedGql(`btt:${p.code}:${date}`,
+            `query ($code: String!, $date: String!) {
+               pattern(id: $code) {
+                 tripsForDate(serviceDate: $date) {
+                   stoptimes { timepoint scheduledDeparture stop { gtfsId name } }
+                 }
+               }
+             }`, { code: p.code, date: dateCompact });
+          const stops = p.stops || [];
+          const label = stops.length
+            ? `${stops[0].name} → ${stops[stops.length - 1].name}` : (p.name || "");
+          return `<h3>${esc(label)}</h3>${bookletTableHtml(md.pattern?.tripsForDate || [])}`;
+        }));
+        return `<section class="card booklet-line">
+            <h2>${badgeHtml(route)} ${esc(route.longName)}</h2>
+            ${dirs.join("")}
+          </section>`;
+      } catch (e) {
+        return "";
+      } finally {
+        done++;
+        if (mySeq === viewSeq) setStatus();
+      }
+    });
+    if (mySeq !== viewSeq) return;
+    const out = document.getElementById("bookletOut");
+    out.innerHTML = `
+      <div class="card booklet-head">
+        <h2>${esc(CONFIG.operator)} — ${t("printPageTitle")}</h2>
+        <p>${t("bookletDateLabel")} ${esc(date)}. ${t("bookletKeyStopsNote")}</p>
+        <p class="no-print"><button type="button" id="bookletPrint">🖨 ${t("bookletPrintBtn")}</button></p>
+      </div>
+      ${sections.filter(Boolean).join("")}`;
+    status.textContent = "";
+    document.getElementById("bookletPrint")?.addEventListener("click", () => window.print());
+    out.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
 async function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   try {
     if (parts[0] === "asetukset") viewSettings();
     else if (parts[0] === "saavutettavuus") viewAccessibilityStatement();
+    else if (parts[0] === "tulosta") await viewPrint();
     else if (parts[0] === "reitti") await viewPlan(parts);
     else if (parts[0] === "linja" && parts[1]) await viewRoute(parts[1], parts[2], parts[3]);
     else if (parts[0] === "pysakki" && parts[1]) await viewStop(parts[1]);
