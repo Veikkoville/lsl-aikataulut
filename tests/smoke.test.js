@@ -64,9 +64,9 @@ const info = msg => console.log("INFO " + msg);
   if (await expect("details.itin[data-itin]", "reittihaku: reittiehdotuksia löytyy")) {
     await page.click(`details.itin[data-itin="0"] summary`);
     await expect("details.itin[open] .tl-row.pt", "reittihaku: aikajana piirtyy");
-    await sleep(3000);
-    const mapDrawn = await page.evaluate(() =>
-      !!document.querySelector("details.itin[open] .leaflet-overlay-pane path"));
+    const mapDrawn = await page.waitForFunction(
+      () => !!document.querySelector("details.itin[open] .leaflet-overlay-pane path"),
+      { timeout: 12000 }).then(() => true).catch(() => false);
     mapDrawn ? ok("reittihaku: reitti piirtyy kartalle")
              : fail("reittihaku: karttaviiva puuttuu");
   }
@@ -89,9 +89,9 @@ const info = msg => console.log("INFO " + msg);
     document.querySelector(".tabs button")?.textContent || "");
   tabText.includes("→") ? ok("linjasivu: selkokielinen suuntavälilehti")
                         : fail("linjasivu: suuntavälilehdestä puuttuu →");
-  await sleep(4000);
-  const routeMap = await page.evaluate(() =>
-    !!document.querySelector("#routeMap .leaflet-overlay-pane path"));
+  const routeMap = await page.waitForFunction(
+    () => !!document.querySelector("#routeMap .leaflet-overlay-pane path"),
+    { timeout: 12000 }).then(() => true).catch(() => false);
   routeMap ? ok("linjasivu: reittiviiva kartalla") : fail("linjasivu: reittiviiva puuttuu");
 
   // --- Pysäkkisivu + linjasuodatin ---
