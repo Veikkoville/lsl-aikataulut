@@ -276,6 +276,10 @@
   table.booklet { font-size: 0.95rem; }
   table.booklet th, table.booklet td { padding: 0.3rem 0.6rem; }
   .booklet-line h3 { font-size: 1rem; margin: 0.6rem 0 0.2rem; }
+  .booklet-toc { margin-top: 0.6rem; }
+  .booklet-toc h3 { font-size: 1rem; margin: 0 0 0.3rem; }
+  .booklet-toc ul { margin: 0; padding-left: 1.2rem; columns: 2; column-gap: 1.5rem; }
+  .booklet-toc li { break-inside: avoid; }
   .error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); padding: 0.6rem; border-radius: 6px; }
   details.alert {
     border-left: 4px solid var(--blue);
@@ -466,6 +470,8 @@ const CONFIGS = {
     operator: "Lahden seudun liikenne",
     operatorShort: "LSL",
     feedMatch: /lahti/i,                  // GTFS-syötteen tunnistus feedId:stä tai julkaisijasta
+    // Ydinkeskustan solmupysäkit: "Keskustan linjat" -pikavalinta tulostusvihkossa
+    centerStopNames: ["Kauppatori", "Matkakeskus"],
     // Worker-välityspalvelin (worker/); tyhjä merkkijono → käyttäjä syöttää oman API-avaimen
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     // Seudun rajaus osoitehaulle (focus + boundary)
@@ -617,6 +623,11 @@ const STRINGS = {
     bookletDir: "Suunta",
     bookletNoData: "Ei lähtöjä valittuna päivänä.",
     backToSelection: "← Muokkaa valintaa",
+    centerLines: "Keskustan linjat",
+    loadingCenter: "Haetaan keskustan linjoja…",
+    directionsLabel: "Suunnat",
+    dirsBoth: "Molemmat suunnat", dirsOne1: "Vain suunta 1", dirsOne2: "Vain suunta 2",
+    bookletToc: "Sisältö",
     mapStopsTitle: "Reitti kartalla ja pysäkit",
     mapAria: "Reitti kartalla",
     busesHint: "Oranssit merkit ovat linjan busseja reaaliajassa. Avaa pysäkki nähdäksesi seuraavat lähdöt.",
@@ -762,6 +773,11 @@ const STRINGS = {
     bookletDir: "Direction",
     bookletNoData: "No departures on the selected day.",
     backToSelection: "← Edit selection",
+    centerLines: "City centre routes",
+    loadingCenter: "Loading city centre routes…",
+    directionsLabel: "Directions",
+    dirsBoth: "Both directions", dirsOne1: "Direction 1 only", dirsOne2: "Direction 2 only",
+    bookletToc: "Contents",
     mapStopsTitle: "Route map and stops",
     mapAria: "Route on map",
     busesHint: "Orange markers are this route's buses in real time. Open a stop to see its next departures.",
@@ -905,6 +921,11 @@ const STRINGS = {
     bookletDir: "Riktning",
     bookletNoData: "Inga avgångar den valda dagen.",
     backToSelection: "← Ändra val",
+    centerLines: "Centrumlinjer",
+    loadingCenter: "Hämtar centrumlinjer…",
+    directionsLabel: "Riktningar",
+    dirsBoth: "Båda riktningarna", dirsOne1: "Endast riktning 1", dirsOne2: "Endast riktning 2",
+    bookletToc: "Innehåll",
     mapStopsTitle: "Rutt på kartan och hållplatser",
     mapAria: "Rutt på kartan",
     busesHint: "Orange markörer är linjens bussar i realtid. Öppna en hållplats för att se följande avgångar.",
@@ -3100,9 +3121,18 @@ async function viewPrint() {
         <label for="bookletDate">${t("bookletDateLabel")}</label>
         <input type="date" id="bookletDate" value="${esc(today)}">
       </div>
+      <div class="field">
+        <label for="dirSel">${t("directionsLabel")}</label>
+        <select id="dirSel">
+          <option value="both">${t("dirsBoth")}</option>
+          <option value="0">${t("dirsOne1")}</option>
+          <option value="1">${t("dirsOne2")}</option>
+        </select>
+      </div>
       <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
         <input type="search" id="lineFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
         <button type="button" id="selAll" class="linkish">${t("selectAllLines")}</button>
+        ${CONFIG.centerStopNames ? `<button type="button" id="selCenter" class="linkish">${t("centerLines")}</button>` : ""}
         <button type="button" id="selNone" class="linkish">${t("clearLines")}</button>
       </div>
       <ul class="plain" id="lineChecks">
@@ -3128,12 +3158,41 @@ async function viewPrint() {
   document.getElementById("selNone").addEventListener("click", () =>
     cbs().forEach(c => { c.checked = false; }));
 
+  // "Keskustan linjat": valitse linjat jotka kulkevat ydinkeskustan
+  // solmupysäkkien (CONFIG.centerStopNames) kautta. Haetaan pysäkkien
+  // linjat ja rajataan oman feedin BUS-linjoihin.
+  const centerBtn = document.getElementById("selCenter");
+  if (centerBtn) centerBtn.addEventListener("click", async () => {
+    const status = document.getElementById("buildStatus");
+    status.textContent = t("loadingCenter");
+    centerBtn.disabled = true;
+    try {
+      const feedId = (routes[0]?.gtfsId || "").split(":")[0];
+      const inFeed = id => !feedId || (id || "").startsWith(feedId + ":");
+      const sets = await Promise.all((CONFIG.centerStopNames || []).map(n =>
+        gql(`query ($n: String) { stops(name: $n) { gtfsId routes { gtfsId mode } } }`, { n })
+          .then(d => d.stops || []).catch(() => [])));
+      const ids = new Set();
+      for (const stops of sets)
+        for (const st of stops) {
+          if (!inFeed(st.gtfsId)) continue;
+          for (const r of st.routes || [])
+            if (r.mode === "BUS" && inFeed(r.gtfsId)) ids.add(r.gtfsId);
+        }
+      cbs().forEach(c => { c.checked = ids.has(c.value); });
+      status.textContent = t("selectedCount", { n: ids.size });
+    } catch (e) {
+      status.textContent = "";
+    } finally { centerBtn.disabled = false; }
+  });
+
   document.getElementById("buildBtn").addEventListener("click", async () => {
     const mySeq = viewSeq;
     const status = document.getElementById("buildStatus");
     const selected = cbs().filter(c => c.checked).map(c => c.value);
     if (!selected.length) { status.textContent = t("noLinesSelected"); return; }
     const date = document.getElementById("bookletDate").value || today;
+    const dirChoice = document.getElementById("dirSel").value;
     const dateCompact = date.replace(/-/g, "");
     let done = 0;
     const setStatus = () => { status.textContent = t("buildingBooklet", { done, total: selected.length }); };
@@ -3149,15 +3208,18 @@ async function viewPrint() {
              }
            }`, { id: routeId });
         const route = data.route;
-        if (!route) return "";
+        if (!route) return null;
         const byDir = new Map();
         for (const p of route.patterns || []) {
           const k = p.directionId ?? 0;
           if (!byDir.has(k)) byDir.set(k, []);
           byDir.get(k).push(p);
         }
-        const primaries = [...byDir.values()]
+        let primaries = [...byDir.values()]
           .map(list => list.sort((a, b) => (b.trips?.length || 0) - (a.trips?.length || 0))[0]);
+        if (dirChoice !== "both")
+          primaries = primaries.filter(p => String(p.directionId ?? 0) === dirChoice);
+        if (!primaries.length) return null;
         const dirs = await Promise.all(primaries.map(async p => {
           const { data: md } = await cachedGql(`btt:${p.code}:${date}`,
             `query ($code: String!, $date: String!) {
@@ -3172,26 +3234,32 @@ async function viewPrint() {
             ? `${stops[0].name} → ${stops[stops.length - 1].name}` : (p.name || "");
           return `<h3>${esc(label)}</h3>${bookletTableHtml(md.pattern?.tripsForDate || [])}`;
         }));
-        return `<section class="card booklet-line">
+        return {
+          label: `${route.shortName || ""} ${route.longName}`.trim(),
+          html: `<section class="card booklet-line">
             <h2>${badgeHtml(route)} ${esc(route.longName)}</h2>
             ${dirs.join("")}
-          </section>`;
+          </section>`,
+        };
       } catch (e) {
-        return "";
+        return null;
       } finally {
         done++;
         if (mySeq === viewSeq) setStatus();
       }
     });
     if (mySeq !== viewSeq) return;
+    const ok = sections.filter(Boolean);
+    const toc = ok.map(s => `<li>${esc(s.label)}</li>`).join("");
     const out = document.getElementById("bookletOut");
     out.innerHTML = `
       <div class="card booklet-head">
         <h2>${esc(CONFIG.operator)} — ${t("printPageTitle")}</h2>
         <p>${t("bookletDateLabel")} ${esc(date)}. ${t("bookletKeyStopsNote")}</p>
         <p class="no-print"><button type="button" id="bookletPrint">🖨 ${t("bookletPrintBtn")}</button></p>
+        ${toc ? `<nav class="booklet-toc"><h3>${t("bookletToc")}</h3><ul>${toc}</ul></nav>` : ""}
       </div>
-      ${sections.filter(Boolean).join("")}`;
+      ${ok.map(s => s.html).join("")}`;
     status.textContent = "";
     document.getElementById("bookletPrint")?.addEventListener("click", () => window.print());
     out.scrollIntoView({ behavior: "smooth", block: "start" });
