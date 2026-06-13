@@ -422,17 +422,23 @@
     .badge { border: 1px solid #000; background: none; color: #000; }
     .timegrid span { background: none; border: 1px solid #ccc; }
     .print-only { display: block !important; }
-    /* Koko aikataulu kokonaan näkyviin, tiivis fontti mahduttaa sarakkeet */
+    /* Taulukot mahtuvat aina sivun leveyteen: kiinteä asettelu + rivittyvät
+       otsikot, ettei mikään sarake leikkaudu paperin reunan yli */
     .matrix-wrap { overflow: visible; max-height: none; border: none; }
-    table.stoptable { font-size: 0.6rem; break-inside: auto; }
-    table.stoptable th, table.stoptable td { padding: 0.08rem 0.22rem; border-color: #999; }
+    table.stoptable { width: 100%; table-layout: fixed; break-inside: auto; }
+    table.stoptable th { white-space: normal; overflow-wrap: anywhere; vertical-align: bottom; }
+    table.stoptable td { padding: 0.08rem 0.22rem; border-color: #999; overflow: hidden; }
+    table.stoptable th { padding: 0.08rem 0.22rem; border-color: #999; }
     table.stoptable thead th, table.stoptable th[scope="row"] { position: static; background: none; }
     table.stoptable tbody tr:nth-child(even) td { background: none; }
-    /* Vihko: jokainen linja omalle sivulleen, iso luettava fontti */
+    /* Yhden linjan täysmatriisi on leveä (kaikki vuorot) → pieni fontti */
+    table.stoptable:not(.booklet) { font-size: 0.55rem; }
+    table.stoptable:not(.booklet) thead th:first-child { width: 16%; }
+    /* Vihko: harvat sarakkeet → iso luettava fontti, jokainen linja omalle sivulle */
     .booklet-line { break-before: page; }
     .booklet-line:first-of-type { break-before: avoid; }
-    table.booklet { font-size: 1rem; width: 100%; }
-    table.booklet th, table.booklet td { padding: 0.2rem 0.5rem; border-color: #999; }
+    table.booklet { font-size: 0.95rem; }
+    table.booklet th, table.booklet td { padding: 0.2rem 0.4rem; }
   }
   .print-only { display: none; }
 </style>
@@ -2278,13 +2284,18 @@ async function viewRoute(routeId, patternCode, date) {
         `query ($code: String!, $date: String!) {
            pattern(id: $code) {
              tripsForDate(serviceDate: $date) {
-               stoptimes { scheduledDeparture stop { gtfsId } }
+               stoptimes { timepoint scheduledDeparture stop { gtfsId name } }
              }
            }
          }`, { code: current.code, date: date.replace(/-/g, "") });
       if (mySeq !== viewSeq) return;
       const el = document.getElementById("stopMatrix");
-      if (el) el.innerHTML = stopMatrixHtml(current.stops, md.pattern?.tripsForDate || []);
+      // Ruudulla koko pysäkkimatriisi (vieritettävä); tulostuksessa vain isot
+      // pysäkit (timepoint), koska kaikki vuorot eivät mahdu sivun leveyteen
+      const trips = md.pattern?.tripsForDate || [];
+      if (el) el.innerHTML =
+        `<div class="no-print">${stopMatrixHtml(current.stops, trips)}</div>
+         <div class="print-only">${bookletTableHtml(trips)}</div>`;
     } catch (err) {
       if (mySeq !== viewSeq) return;
       const el = document.getElementById("stopMatrix");
