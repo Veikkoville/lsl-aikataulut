@@ -1174,23 +1174,62 @@ function todayISO() {
     String(d.getDate()).padStart(2, "0");
 }
 
-// Edustavat päivät viikonpäivätyypeittäin annetun viitepäivän viikolta:
-// arki (keskiviikko), lauantai, sunnuntai. Käytetään tulostuksessa (ma–pe/la/su).
+function isoOf(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getDate()).padStart(2, "0");
+}
+
+// Suomen arkipyhät vuodelle (kiinteät + pääsiäispohjaiset + juhannus +
+// pyhäinpäivä). Näinä päivinä joukkoliikenne ajaa usein poikkeusaikataulua,
+// joten ne ohitetaan kun valitaan tulosteen "normaali" edustava päivä.
+const _holCache = {};
+function fiHolidays(year) {
+  if (_holCache[year]) return _holCache[year];
+  const set = new Set();
+  const add = (m, d) => set.add(`${year}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+  [[1, 1], [1, 6], [5, 1], [12, 6], [12, 24], [12, 25], [12, 26], [12, 31]].forEach(([m, d]) => add(m, d));
+  // Pääsiäinen (gregoriaaninen computus)
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100, d = Math.floor(b / 4), e = b % 4,
+    f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30,
+    i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, mm = Math.floor((a + 11 * h + 22 * l) / 451),
+    month = Math.floor((h + l - 7 * mm + 114) / 31), day = ((h + l - 7 * mm + 114) % 31) + 1;
+  const easter = new Date(year, month - 1, day);
+  const addD = n => { const x = new Date(easter); x.setDate(easter.getDate() + n); set.add(isoOf(x)); };
+  [-2, 0, 1, 39, 49].forEach(addD); // pitkäperjantai, pääsiäissunnuntai, 2. pp, helatorstai, helluntai
+  // Juhannus: lauantai 20.–26.6. + aatto (pe)
+  for (let dd = 20; dd <= 26; dd++) { const dt = new Date(year, 5, dd); if (dt.getDay() === 6) { set.add(isoOf(dt)); const fr = new Date(dt); fr.setDate(dd - 1); set.add(isoOf(fr)); break; } }
+  // Pyhäinpäivä: lauantai 31.10.–6.11.
+  for (let dd = 31; dd <= 37; dd++) { const dt = new Date(year, 9, dd); if (dt.getDay() === 6) { set.add(isoOf(dt)); break; } }
+  _holCache[year] = set;
+  return set;
+}
+function isFiHoliday(iso) {
+  return fiHolidays(+iso.slice(0, 4)).has(iso);
+}
+
+// Normaali edustava päivä annetusta päivästä eteenpäin: tyyppi (ma–pe/la/su)
+// täsmää eikä päivä ole arkipyhä → tuloste näyttää normaalin kausivuoron,
+// ei esim. juhannuslauantain "ei lähtöjä".
+function normalDateForType(fromISO, key) {
+  const d = new Date((fromISO || todayISO()) + "T12:00:00");
+  for (let i = 0; i < 90; i++) {
+    const dow = (d.getDay() + 6) % 7;
+    const iso = isoOf(d);
+    const match = key === "weekday" ? dow <= 4 : key === "sat" ? dow === 5 : dow === 6;
+    if (match && !isFiHoliday(iso)) return iso;
+    d.setDate(d.getDate() + 1);
+  }
+  return fromISO || todayISO();
+}
+
+// Edustavat päivät tulosteeseen (ma–pe/la/su): normaali kausivuoro
+// viitepäivästä eteenpäin, arkipyhät ohittaen.
 function dayTypeDates(refISO) {
-  const base = refISO ? new Date(refISO + "T12:00:00") : new Date();
-  const dow = (base.getDay() + 6) % 7; // 0 = ma … 6 = su
-  const monday = new Date(base);
-  monday.setDate(base.getDate() - dow);
-  const isoPlus = n => {
-    const x = new Date(monday);
-    x.setDate(monday.getDate() + n);
-    return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" +
-      String(x.getDate()).padStart(2, "0");
-  };
+  const base = refISO || todayISO();
   return [
-    { key: "weekday", label: t("dayWeekday"), date: isoPlus(2) },
-    { key: "sat", label: t("daySat"), date: isoPlus(5) },
-    { key: "sun", label: t("daySun"), date: isoPlus(6) },
+    { key: "weekday", label: t("dayWeekday"), date: normalDateForType(base, "weekday") },
+    { key: "sat", label: t("daySat"), date: normalDateForType(base, "sat") },
+    { key: "sun", label: t("daySun"), date: normalDateForType(base, "sun") },
   ];
 }
 
@@ -1204,21 +1243,17 @@ function dayTypeOf(iso) {
 // lähin päivä (tänään jos osuu tyyppiin → reaaliaika näkyy, muuten seuraava
 // kyseinen viikonpäivä). active = nykyisen näytetyn päivän tyyppi.
 function lineDayTabs(currentISO) {
-  const now = new Date();
-  const todayDow = (now.getDay() + 6) % 7;
-  const isoAdd = n => {
-    const x = new Date(now);
-    x.setDate(now.getDate() + n);
-    return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" +
-      String(x.getDate()).padStart(2, "0");
-  };
-  const upcoming = target => isoAdd((target - todayDow + 7) % 7);
+  const today = todayISO();
+  const todayType = dayTypeOf(today);
   const cur = dayTypeOf(currentISO);
-  return [
-    { key: "weekday", label: t("dayWeekday"), date: todayDow <= 4 ? todayISO() : isoAdd((7 - todayDow)) },
-    { key: "sat", label: t("daySat"), date: upcoming(5) },
-    { key: "sun", label: t("daySun"), date: upcoming(6) },
-  ].map(d => ({ ...d, active: d.key === cur }));
+  // Tämän päivän tyyppi käyttää tätä päivää (reaaliaika näkyy); muut tyypit
+  // seuraavan normaalin (arkipyhät ohittavan) kyseisen päivän.
+  return ["weekday", "sat", "sun"].map(key => ({
+    key,
+    label: t(key === "weekday" ? "dayWeekday" : key === "sat" ? "daySat" : "daySun"),
+    date: key === todayType ? today : normalDateForType(today, key),
+    active: key === cur,
+  }));
 }
 
 function esc(s) {
