@@ -1,3 +1,18 @@
 name = "lsl-aikataulut-proxy"
 main = "worker.js"
 compatibility_date = "2026-06-01"
+
+# Web Push: VAPID-julkinen avain ja yhteyshenkilö (ei-salaisia).
+# Yksityinen avain on salaisuus: npx wrangler secret put VAPID_PRIVATE_JWK
+[vars]
+VAPID_PUBLIC = "BL0Ah2TowfE75fO8V6b8hncoh4Au-br_ycKHLGD1C6ohfXZV3Jpr863PHFWWd3qpU4wASUdJsuBLwhufuZMKx74"
+VAPID_SUBJECT = "mailto:vvsaarinen@gmail.com"
+
+# Tilausten ja nähtyjen häiriöiden tallennus (luotu: wrangler kv namespace create PUSH_KV)
+[[kv_namespaces]]
+binding = "PUSH_KV"
+id = "d05f6c569d4a49339114fedf5764f4cc"
+
+# Häiriötarkistus 5 min välein
+[triggers]
+crons = ["*/5 * * * *"]

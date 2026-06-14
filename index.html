@@ -541,6 +541,9 @@ const NS = CONFIG === CONFIGS.lahti ? "" : cityKey + ":";
 const ns = key => NS + key;
 
 const PROXY_URL = CONFIG.proxyUrl;
+// Web Push -palvelimen (saman workerin) VAPID-julkinen avain. Tyhjä → taustapush
+// pois käytöstä, ilmoitukset toimivat vain etualalla (sovellus auki).
+const VAPID_PUBLIC_KEY = "BL0Ah2TowfE75fO8V6b8hncoh4Au-br_ycKHLGD1C6ohfXZV3Jpr863PHFWWd3qpU4wASUdJsuBLwhufuZMKx74";
 const API_URL = PROXY_URL || "https://api.digitransit.fi/routing/v2/waltti/gtfs/v1";
 const GEOCODING_URL = PROXY_URL
   ? PROXY_URL.replace(/\/$/, "") + "/geocoding"
@@ -581,7 +584,7 @@ const STRINGS = {
     langTitle: "Kieli",
     notifyTitle: "Ilmoitukset",
     notifyToggle: "Ilmoita suosikkilinjojen uusista häiriöistä",
-    notifyHint: "Ilmoitukset näytetään, kun sovellus on auki (taustailmoitukset vaatisivat palvelimen). Lisää linjoja suosikeiksi ★-napilla linjasivulla.",
+    notifyHint: "Saat ilmoituksen suosikkilinjojesi uusista häiriöistä myös silloin kun sovellus on suljettuna. Lisää linjoja suosikeiksi ★-napilla linjasivulla.",
     notifyDenied: "Ilmoituslupa evättiin selaimen asetuksissa.",
     notifyOn: "Ilmoitukset käytössä.",
     apiKeyTitle: "API-avain",
@@ -745,7 +748,7 @@ const STRINGS = {
     langTitle: "Language",
     notifyTitle: "Notifications",
     notifyToggle: "Notify about new disruptions on favourite routes",
-    notifyHint: "Notifications are shown while the app is open (background push would require a server). Add favourite routes with the ★ button on a route page.",
+    notifyHint: "You'll get a notification about new disruptions on your favourite routes even when the app is closed. Add favourite routes with the ★ button on a route page.",
     notifyDenied: "Notification permission was denied in browser settings.",
     notifyOn: "Notifications enabled.",
     apiKeyTitle: "API key",
@@ -901,7 +904,7 @@ const STRINGS = {
     langTitle: "Språk",
     notifyTitle: "Aviseringar",
     notifyToggle: "Meddela om nya störningar på favoritlinjer",
-    notifyHint: "Aviseringar visas när appen är öppen (push i bakgrunden skulle kräva en server). Lägg till favoritlinjer med ★-knappen på linjesidan.",
+    notifyHint: "Du får en avisering om nya störningar på dina favoritlinjer även när appen är stängd. Lägg till favoritlinjer med ★-knappen på linjesidan.",
     notifyDenied: "Aviseringstillstånd nekades i webbläsarens inställningar.",
     notifyOn: "Aviseringar aktiverade.",
     apiKeyTitle: "API-nyckel",
@@ -1610,6 +1613,7 @@ function bindNotifySetting() {
     const msg = document.getElementById("notifyMsg");
     if (!box.checked) {
       localStorage.setItem("notifyAlerts", "0");
+      await unsubscribePush();
       msg.innerHTML = "";
       return;
     }
@@ -1620,8 +1624,13 @@ function bindNotifySetting() {
       return;
     }
     localStorage.setItem("notifyAlerts", "1");
-    await pollFavAlerts(true); // nykyiset häiriöt merkitään nähdyiksi ilmoittamatta
-    startAlertPolling();
+    // Ensisijaisesti taustapush (toimii suljettunakin); jos selain ei tue,
+    // varajärjestelmänä etualapollaus sovelluksen ollessa auki.
+    const pushed = await syncPushSubscription();
+    if (!pushed) {
+      await pollFavAlerts(true); // nykyiset häiriöt merkitään nähdyiksi ilmoittamatta
+      startAlertPolling();
+    }
     msg.innerHTML = `<p class="muted">${t("notifyOn")}</p>`;
   });
 }
@@ -1813,6 +1822,8 @@ async function showAlertNotification(a) {
 async function pollFavAlerts(seedOnly, force = true) {
   if (localStorage.getItem("notifyAlerts") !== "1") return;
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  // Taustapush hoitaa ilmoitukset palvelimelta → ei etualailmoituksia (ei tuplia)
+  if (pushActive) return;
   try {
     const matched = favRouteAlerts(await loadAlerts(force));
     if (seedOnly) { markAlertsSeen(matched); return; }
@@ -1828,6 +1839,85 @@ let alertPollTimer = null;
 function startAlertPolling() {
   if (alertPollTimer) return;
   alertPollTimer = setInterval(() => pollFavAlerts(false), 5 * 60 * 1000);
+}
+
+/* ---------- Taustapush (Web Push): ilmoitukset myös sovellus kiinni ---------- */
+
+// Tosi kun taustapush-tilaus on voimassa → etualapollaus pysyy pois päältä
+let pushActive = false;
+
+function pushSupported() {
+  return !!(PROXY_URL && VAPID_PUBLIC_KEY &&
+    "serviceWorker" in navigator && "PushManager" in window &&
+    typeof Notification !== "undefined");
+}
+
+function urlBase64ToUint8Array(base64) {
+  const pad = "=".repeat((4 - base64.length % 4) % 4);
+  const b64 = (base64 + pad).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(b64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+// Tilaa push (jos ei vielä tilattu) ja synkronoi seuratut suosikkilinjat
+// palvelimelle. Palauttaa true jos taustapush on käytössä.
+async function syncPushSubscription() {
+  if (!pushSupported() || Notification.permission !== "granted") return false;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+    await findFeed().catch(() => {});
+    const favRoutes = getFavs().filter(f => f.type === "route");
+    const res = await fetch(PROXY_URL.replace(/\/$/, "") + "/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subscription: sub.toJSON(),
+        routes: favRoutes.map(f => (f.shortName || "").toUpperCase()).filter(Boolean),
+        gtfsRoutes: favRoutes.map(f => f.id),
+        feed: feedId,
+        city: CONFIG.city,
+        lang,
+      }),
+    });
+    pushActive = res.ok;
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function unsubscribePush() {
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    const endpoint = sub.endpoint;
+    pushActive = false;
+    await sub.unsubscribe().catch(() => {});
+    if (PROXY_URL) await fetch(PROXY_URL.replace(/\/$/, "") + "/push/unsubscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint }),
+    }).catch(() => {});
+  } catch (e) { /* ohita */ }
+}
+
+// Suosikkien muuttuessa: pidä palvelimen seurattu linjalista ajan tasalla
+function resyncPushIfEnabled() {
+  if (localStorage.getItem("notifyAlerts") === "1" && pushSupported() &&
+      typeof Notification !== "undefined" && Notification.permission === "granted") {
+    syncPushSubscription();
+  }
 }
 
 function bindStopSearch(input, results) {
@@ -1908,6 +1998,8 @@ function toggleFav(item) {
   const i = favs.findIndex(f => f.id === item.id);
   if (i >= 0) favs.splice(i, 1); else favs.push(item);
   saveFavs(favs);
+  // Linjasuosikin muuttuessa: päivitä palvelimen seurattu linjalista taustapushia varten
+  if (item.type === "route") resyncPushIfEnabled();
   return i < 0;
 }
 
@@ -3591,12 +3683,15 @@ window.addEventListener("hashchange", route);
 updateChrome();
 route();
 
-// Häiriöpollaus käynnistyy heti, jos ilmoitukset on otettu käyttöön;
-// ensimmäinen kierros ilmoittaa poissaolon aikana tulleet uudet häiriöt
+// Ilmoitukset käytössä: ensisijaisesti varmistetaan taustapush-tilaus (ja
+// päivitetään seuratut linjat); jos selain ei tue pushia, käytetään etualapollausta.
 if (localStorage.getItem("notifyAlerts") === "1" &&
     typeof Notification !== "undefined" && Notification.permission === "granted") {
   // Lykätään ensimaalauksen jälkeen, ettei kilpaile etusivun LCP:stä
-  onIdle(() => { pollFavAlerts(false, false); startAlertPolling(); });
+  onIdle(() => {
+    if (pushSupported()) syncPushSubscription();
+    else { pollFavAlerts(false, false); startAlertPolling(); }
+  });
 }
 
 // Taustalta palatessa lähtöajat päivittyvät heti, ei vasta 30 s ajastimella
