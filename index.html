@@ -284,6 +284,15 @@
   .booklet-toc ul { margin: 0; padding-left: 1.2rem; columns: 2; column-gap: 1.5rem; }
   .booklet-toc li { break-inside: avoid; }
   h4.daytype { font-size: 0.92rem; font-weight: 600; margin: 0.5rem 0 0.15rem; }
+  /* Pysäkkijuliste: linjat tuntikaavioina, vierekkäin kun tilaa */
+  .poster-sub { font-weight: 600; margin: 0.1rem 0 0.5rem; }
+  .poster-lines { display: flex; flex-wrap: wrap; gap: 0.8rem 1.6rem; align-items: flex-start; }
+  .poster-line { break-inside: avoid; min-width: 11rem; }
+  .poster-line h4 { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.2rem; font-size: 0.95rem; }
+  table.hourgrid { border-collapse: collapse; width: auto; }
+  table.hourgrid th[scope="row"] { text-align: right; padding: 0.1rem 0.5rem 0.1rem 0; color: var(--muted);
+    font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: top; }
+  table.hourgrid td { padding: 0.1rem 0; font-variant-numeric: tabular-nums; letter-spacing: 0.05em; }
   .dtopt { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
   .dtopt input { width: 1.3rem; height: 1.3rem; }
   /* Kokoa-painike pysyy näkyvissä pitkää linjalistaa selatessa */
@@ -456,6 +465,11 @@
     .booklet-line:first-of-type { break-before: avoid; }
     table.booklet { font-size: 0.95rem; }
     table.booklet th, table.booklet td { padding: 0.2rem 0.4rem; }
+    /* Pysäkkijuliste: kukin päivätyyppi omalle arkille, linjat virtaavat sarakkeisiin */
+    .poster-day { break-before: page; }
+    .poster-day:first-of-type { break-before: avoid; }
+    .poster-line { break-inside: avoid; }
+    table.hourgrid, table.hourgrid th, table.hourgrid td { border: none; }
   }
   .print-only { display: none; }
 </style>
@@ -626,6 +640,8 @@ const STRINGS = {
     nStops: "{n} pysäkkiä",
     day: "Päivä",
     printBtn: "Tulosta", printTitle: "Tulosta tai tallenna PDF:nä",
+    printStopPoster: "Tulosta pysäkkijuliste",
+    posterAllLinesNote: "Kaikki pysäkiltä lähtevät linjat. Lue: vasemmalla tunti, oikealla minuutit.",
     loadingDeps: "Haetaan lähtöjä…",
     fullTimetableTitle: "Koko aikataulu pysäkeittäin",
     fullTimetableHint: "Lue saraketta ylhäältä alas: yksi sarake on yhden vuoron kellonajat jokaisella pysäkillä.",
@@ -782,6 +798,8 @@ const STRINGS = {
     nStops: "{n} stops",
     day: "Date",
     printBtn: "Print", printTitle: "Print or save as PDF",
+    printStopPoster: "Print stop poster",
+    posterAllLinesNote: "All lines departing from this stop. Read: hour on the left, minutes on the right.",
     loadingDeps: "Loading departures…",
     fullTimetableTitle: "Full timetable by stop",
     fullTimetableHint: "Read a column top to bottom: each column is one trip's times at every stop.",
@@ -936,6 +954,8 @@ const STRINGS = {
     nStops: "{n} hållplatser",
     day: "Datum",
     printBtn: "Skriv ut", printTitle: "Skriv ut eller spara som PDF",
+    printStopPoster: "Skriv ut hållplatsaffisch",
+    posterAllLinesNote: "Alla linjer som avgår från hållplatsen. Läs: timme till vänster, minuter till höger.",
     loadingDeps: "Hämtar avgångar…",
     fullTimetableTitle: "Hela tidtabellen per hållplats",
     fullTimetableHint: "Läs en kolumn uppifrån och ned: varje kolumn är en turs tider vid varje hållplats.",
@@ -2185,6 +2205,40 @@ function stopMatrixHtml(stops, trips) {
       <tbody>${rows}</tbody></table></div>`;
 }
 
+// Pysäkkijuliste: yhdeltä pysäkiltä lähtevät linjat tuntikaaviona
+// (vasen sarake tunti, oikea minuutit) — kuten katoksen seinällä oleva
+// painettu aikataulu. groups = stoptimesForServiceDate-tulos.
+function stopPosterHtml(groups) {
+  const byLine = new Map();
+  for (const g of groups || []) {
+    const r = g.pattern?.route || {};
+    for (const st of g.stoptimes || []) {
+      const headsign = st.headsign || g.pattern?.headsign || r.longName || "";
+      const key = (r.shortName || "") + " " + headsign;
+      if (!byLine.has(key)) byLine.set(key, { route: r, headsign, times: [] });
+      byLine.get(key).times.push(st.scheduledDeparture);
+    }
+  }
+  const lines = [...byLine.values()].sort((a, b) =>
+    (a.route.shortName || "").localeCompare(b.route.shortName || "", "fi", { numeric: true }));
+  if (!lines.length) return `<p class="muted">${t("bookletNoData")}</p>`;
+  return `<div class="poster-lines">${lines.map(L => {
+    const times = [...new Set(L.times)].sort((a, b) => a - b);
+    const byHour = new Map();
+    for (const sec of times) {
+      const h = Math.floor(sec / 3600);
+      if (!byHour.has(h)) byHour.set(h, []);
+      byHour.get(h).push(String(Math.floor((sec % 3600) / 60)).padStart(2, "0"));
+    }
+    const rows = [...byHour.entries()].map(([h, mins]) =>
+      `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th><td>${mins.join(" ")}</td></tr>`).join("");
+    return `<div class="poster-line">
+        <h4>${badgeHtml(L.route)} <span>${esc(L.headsign)}</span></h4>
+        <table class="hourgrid"><tbody>${rows}</tbody></table>
+      </div>`;
+  }).join("")}</div>`;
+}
+
 async function viewRoute(routeId, patternCode, date) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">${t("loadingRoute")}</p>`);
@@ -2536,12 +2590,52 @@ async function viewStop(stopId) {
         <tbody id="depRows">${renderRows(stop)}</tbody>
       </table>
       <p class="muted"><span class="rt">●</span> ${t("rtLegendStop")}</p>
+      <p class="no-print" style="margin:0.6rem 0 0">
+        <button type="button" id="stopPosterBtn">🖨 ${t("printStopPoster")}</button>
+        <span id="stopPrintStatus" class="muted" role="status"></span>
+      </p>
       <div id="stopMap" class="map map-small" aria-label="${t("stopMapAria")}"></div>
       <p class="muted" id="stopMapHint" hidden>${t("stopBusesHint")}</p>
-    </div>`);
+    </div>
+    <div id="stopPrintOut"></div>`);
 
   bindFavButton({ type: "stop", id: stopId, name: stop.name });
   document.getElementById("backBtn").addEventListener("click", () => history.back());
+
+  // Pysäkkijuliste: kaikki pysäkiltä lähtevät linjat tuntikaaviona,
+  // erikseen Ma–Pe/La/Su (edustavat ei-pyhäpäivät), tulostettava A4-pystyyn.
+  document.getElementById("stopPosterBtn")?.addEventListener("click", async () => {
+    const stEl = document.getElementById("stopPrintStatus");
+    const po = document.getElementById("stopPrintOut");
+    if (!po) return;
+    if (stEl) stEl.textContent = t("preparingPrint");
+    const today = todayISO();
+    const dts = dayTypeDates(today);
+    const sets = await Promise.all(dts.map(dt =>
+      cachedGql(`poster:${stopId}:${dt.date}`,
+        `query ($id: String!, $date: String!) {
+           stop(id: $id) {
+             stoptimesForServiceDate(date: $date, omitNonPickups: true) {
+               pattern { headsign route { shortName longName color textColor } }
+               stoptimes { scheduledDeparture headsign }
+             }
+           }
+         }`, { id: stopId, date: dt.date.replace(/-/g, "") })
+        .then(r => ({ dt, groups: r.data.stop?.stoptimesForServiceDate || [] }))
+        .catch(() => ({ dt, groups: [] }))));
+    const sections = sets.map(({ dt, groups }) =>
+      `<section class="card poster-day">
+         <h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
+         <p class="poster-sub">${esc(dt.label)} · ${esc(fmtDateLong(dt.date))}</p>
+         <p class="muted">${t("posterAllLinesNote")}</p>
+         ${stopPosterHtml(groups)}
+       </section>`).join("");
+    po.innerHTML = `<div class="print-only">${sections}
+        <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
+    setPageOrientation("portrait");
+    if (stEl) stEl.textContent = "";
+    window.print();
+  });
 
   document.querySelectorAll("#stopRoutes button[data-route]").forEach(btn =>
     btn.addEventListener("click", () => {

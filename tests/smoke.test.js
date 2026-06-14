@@ -109,6 +109,19 @@ const info = msg => console.log("INFO " + msg);
     } else {
       info("pysäkkisivu: vain yksi linja, suodatinta ei näytetä");
     }
+    // Pysäkkijuliste: kokoa tuntikaavio kaikista pysäkin linjoista
+    if (await page.$("#stopPosterBtn")) {
+      await page.evaluate(() => { window.print = () => {}; });
+      await page.click("#stopPosterBtn");
+      const posterOk = await page.waitForFunction(
+        () => !!document.querySelector("#stopPrintOut .poster-day .poster-line .hourgrid tr"),
+        { timeout: 20000 }).then(() => true).catch(() => false);
+      const days = await page.evaluate(() =>
+        document.querySelectorAll("#stopPrintOut .poster-day").length);
+      posterOk && days === 3
+        ? ok(`pysäkkijuliste: tuntikaavio kootaan (${days} päivätyyppiä)`)
+        : fail(`pysäkkijuliste: tuntikaaviota ei muodostunut (päivätyyppejä ${days})`);
+    }
   }
 
   // --- Asetukset + kielenvaihto ---
