@@ -174,6 +174,19 @@ const info = msg => console.log("INFO " + msg);
       qrOk && hasDl ? ok("QR-koodi: canvas + PNG-latauslinkki")
                     : fail("QR-koodi: koodia tai latauslinkkiä ei muodostunut");
     }
+    // Lue ääneen: nappi näkyy (puhesynteesi tuettu)
+    (await page.$("#speakBtn"))
+      ? ok("pysäkkisivu: lue ääneen -nappi näkyy")
+      : info("pysäkkisivu: puhesynteesi ei tuettu → ei lue ääneen -nappia");
+    // Jaa / upota: iframe-koodi monitorin URL:iin
+    if (await page.$("#stopEmbedBtn")) {
+      await page.click("#stopEmbedBtn");
+      const embedOk = await page.waitForFunction(
+        () => { const ta = document.querySelector("#stopEmbed textarea"); return ta && ta.value.includes("<iframe") && ta.value.includes("/#/monitori/"); },
+        { timeout: 8000 }).then(() => true).catch(() => false);
+      embedOk ? ok("pysäkkisivu: upotuskoodi (iframe monitoriin)")
+              : fail("pysäkkisivu: upotuskoodia ei muodostunut");
+    }
     // Pysäkkimonitori / kioski: koko ruudun live-lähtötaulu
     const monitorHref = stopHref.replace("#/pysakki/", "#/monitori/");
     await page.goto(BASE + "/" + monitorHref, { waitUntil: "networkidle2" });

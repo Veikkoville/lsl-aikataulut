@@ -343,6 +343,11 @@
     font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: top; }
   table.hourgrid td { padding: 0.1rem 0; font-variant-numeric: tabular-nums; letter-spacing: 0.05em; }
   /* QR-koodit (näyttö + juliste) */
+  .embedbox { margin: 0.5rem 0; display: flex; flex-direction: column; gap: 0.5rem; }
+  .embed-field { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
+  .embed-field input, .embed-field textarea { font: inherit; font-size: 0.85rem; padding: 0.4rem;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text);
+    width: 100%; box-sizing: border-box; resize: vertical; }
   .qrbox { margin: 0.6rem 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; }
   canvas.qrimg { width: 200px; height: 200px; image-rendering: pixelated;
     border: 1px solid var(--border); border-radius: 8px; background: #fff; }
@@ -902,6 +907,15 @@ const STRINGS = {
     qrLoading: "Luodaan QR-koodia…",
     qrFail: "QR-koodin luonti epäonnistui.",
     qrPosterHint: "Skannaa: live-lähdöt",
+    speakAloud: "Lue ääneen",
+    speakIntro: "Pysäkki {stop}.",
+    speakLine: "Linja {line} {dest}, {when}.",
+    speakNow: "lähtee nyt", speakInMin: "{n} minuutin kuluttua", speakAt: "kello {time}",
+    embedButton: "Jaa / upota",
+    embedIntro: "Jaa pysäkin live-taulun linkki tai upota se sivullesi (esim. kirjasto, kauppa, taloyhtiö).",
+    embedLink: "Linkki:", embedCode: "Upotuskoodi:",
+    embedCopyLink: "Kopioi linkki", embedCopyCode: "Kopioi koodi",
+    copied: "Kopioitu!", copyManual: "Kopiointi estetty – valitse ja kopioi käsin.",
   },
   en: {
     appTitle: "{city} bus timetables",
@@ -1126,6 +1140,15 @@ const STRINGS = {
     qrLoading: "Creating QR code…",
     qrFail: "Could not create QR code.",
     qrPosterHint: "Scan: live departures",
+    speakAloud: "Read aloud",
+    speakIntro: "Stop {stop}.",
+    speakLine: "Route {line} {dest}, {when}.",
+    speakNow: "departing now", speakInMin: "in {n} minutes", speakAt: "at {time}",
+    embedButton: "Share / embed",
+    embedIntro: "Share the stop's live board link or embed it on your site (e.g. library, shop, housing company).",
+    embedLink: "Link:", embedCode: "Embed code:",
+    embedCopyLink: "Copy link", embedCopyCode: "Copy code",
+    copied: "Copied!", copyManual: "Copy blocked – select and copy manually.",
   },
   sv: {
     appTitle: "Busstidtabeller i {city}",
@@ -1350,6 +1373,15 @@ const STRINGS = {
     qrLoading: "Skapar QR-kod…",
     qrFail: "Det gick inte att skapa QR-koden.",
     qrPosterHint: "Skanna: avgångar i realtid",
+    speakAloud: "Läs upp",
+    speakIntro: "Hållplats {stop}.",
+    speakLine: "Linje {line} {dest}, {when}.",
+    speakNow: "avgår nu", speakInMin: "om {n} minuter", speakAt: "klockan {time}",
+    embedButton: "Dela / bädda in",
+    embedIntro: "Dela hållplatsens realtidstavla eller bädda in den på din webbplats (t.ex. bibliotek, butik, husbolag).",
+    embedLink: "Länk:", embedCode: "Inbäddningskod:",
+    embedCopyLink: "Kopiera länk", embedCopyCode: "Kopiera kod",
+    copied: "Kopierat!", copyManual: "Kopiering blockerad – markera och kopiera manuellt.",
   },
 };
 
@@ -2003,6 +2035,7 @@ const onIdle = window.requestIdleCallback
 function setView(html) {
   viewSeq++;
   stopRefresh();
+  if (window.speechSynthesis) window.speechSynthesis.cancel(); // lopeta ääneenluku
   app.innerHTML = html;
 }
 
@@ -3255,6 +3288,51 @@ async function viewRoute(routeId, patternCode, date) {
   });
 }
 
+// Lukee pysäkin seuraavat lähdöt ääneen (puhesynteesi); toinen klikkaus lopettaa
+function speakDepartures(stop) {
+  const synth = window.speechSynthesis;
+  if (!synth || !stop) return;
+  if (synth.speaking) { synth.cancel(); return; }
+  const sts = (stop.stoptimesWithoutPatterns || []).slice(0, 5);
+  if (!sts.length) return;
+  const now = Date.now();
+  const parts = sts.map(st => {
+    const r = st.trip?.route || {};
+    const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
+    const mins = Math.round(((st.serviceDay + dep) * 1000 - now) / 60000);
+    const when = mins <= 0 ? t("speakNow")
+      : mins < 60 ? t("speakInMin", { n: mins }) : t("speakAt", { time: fmtSec(dep) });
+    return t("speakLine", { line: r.shortName || "", dest: st.headsign || "", when });
+  });
+  const u = new SpeechSynthesisUtterance(t("speakIntro", { stop: stop.name }) + " " + parts.join(" "));
+  u.lang = lang === "fi" ? "fi-FI" : lang === "sv" ? "sv-SE" : "en-GB";
+  synth.cancel();
+  synth.speak(u);
+}
+
+// Pysäkin live-taulun (monitorin) jako-/upotuspaneeli yrityksille
+function showEmbedInto(box, stopId) {
+  const url = appUrl("#/monitori/" + encodeURIComponent(stopId));
+  const iframe = `<iframe src="${url}" width="400" height="600" style="border:0" title="${esc(t("monitorLink"))}"></iframe>`;
+  box.innerHTML = `
+    <p class="muted">${t("embedIntro")}</p>
+    <label class="embed-field">${t("embedLink")}
+      <input type="text" readonly value="${esc(url)}" aria-label="${t("embedLink")}"></label>
+    <label class="embed-field">${t("embedCode")}
+      <textarea readonly rows="3" aria-label="${t("embedCode")}">${esc(iframe)}</textarea></label>
+    <p class="row" style="gap:0.4rem;flex-wrap:wrap">
+      <button type="button" class="copybtn" data-copy="${esc(url)}">${t("embedCopyLink")}</button>
+      <button type="button" class="copybtn" data-copy="${esc(iframe)}">${t("embedCopyCode")}</button>
+      <span id="embedMsg" class="muted" role="status"></span>
+    </p>`;
+  box.querySelectorAll("button[data-copy]").forEach(b =>
+    b.addEventListener("click", async () => {
+      const m = document.getElementById("embedMsg");
+      try { await navigator.clipboard.writeText(b.dataset.copy); if (m) m.textContent = t("copied"); }
+      catch (e) { if (m) m.textContent = t("copyManual"); }
+    }));
+}
+
 async function viewStop(stopId) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">${t("loadingStopDeps")}</p>`);
@@ -3318,9 +3396,12 @@ async function viewStop(stopId) {
       <p class="no-print" style="margin:0.6rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center">
         <button type="button" id="stopPosterBtn">🖨 ${t("printStopPoster")}</button>
         <a class="btnlink" href="#/monitori/${encodeURIComponent(stopId)}"><span aria-hidden="true">🖥</span> ${t("monitorLink")}</a>
+        ${("speechSynthesis" in window) ? `<button type="button" id="speakBtn"><span aria-hidden="true">🔊</span> ${t("speakAloud")}</button>` : ""}
         <button type="button" id="stopQrBtn"><span aria-hidden="true">🔳</span> ${t("qrButton")}</button>
+        <button type="button" id="stopEmbedBtn"><span aria-hidden="true">🔗</span> ${t("embedButton")}</button>
         <span id="stopPrintStatus" class="muted" role="status"></span>
       </p>
+      <div id="stopEmbed" class="embedbox no-print" hidden></div>
       <div id="stopQr" class="qrbox no-print" hidden></div>
       <div id="stopMap" class="map map-small" aria-label="${t("stopMapAria")}"></div>
       <p class="muted" id="stopMapHint" hidden>${t("stopBusesHint")}</p>
@@ -3338,6 +3419,18 @@ async function viewStop(stopId) {
     box.hidden = false;
     showQrInto(box, appUrl("#/pysakki/" + encodeURIComponent(stopId)),
       t("qrCaptionStop"), "qr-pysakki-" + (stop.code || stopId).replace(/\W+/g, ""));
+  });
+
+  // Lue lähdöt ääneen (puhesynteesi)
+  document.getElementById("speakBtn")?.addEventListener("click", () => speakDepartures(lastStopData || stop));
+
+  // Jaa / upota pysäkin live-taulu (iframe yrityksille)
+  document.getElementById("stopEmbedBtn")?.addEventListener("click", () => {
+    const box = document.getElementById("stopEmbed");
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; box.innerHTML = ""; return; }
+    box.hidden = false;
+    showEmbedInto(box, stopId);
   });
 
   // Pysäkkijuliste: kaikki pysäkiltä lähtevät linjat tuntikaaviona,
