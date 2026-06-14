@@ -187,14 +187,6 @@ const info = msg => console.log("INFO " + msg);
       embedOk ? ok("pysäkkisivu: upotuskoodi (iframe monitoriin)")
               : fail("pysäkkisivu: upotuskoodia ei muodostunut");
     }
-    // Lähtömuistutus pysäkkisivulla: jaettu lead-valinta + per-rivi 🔔
-    if (await page.$("#remindLead")) {
-      const bells = await page.evaluate(() => document.querySelectorAll(".deps .remrow").length);
-      bells > 0 ? ok(`pysäkkisivu: lähtömuistutus per rivi (${bells} kelloa)`)
-                : info("pysäkkisivu: ei tulevia lähtöjä → ei muistutuskelloja nyt");
-    } else {
-      info("pysäkkisivu: push ei tuettu → ei muistutuskontrollia");
-    }
     // Pysäkkimonitori / kioski: koko ruudun live-lähtötaulu
     const monitorHref = stopHref.replace("#/pysakki/", "#/monitori/");
     await page.goto(BASE + "/" + monitorHref, { waitUntil: "networkidle2" });
