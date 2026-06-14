@@ -129,6 +129,12 @@ const info = msg => console.log("INFO " + msg);
     () => !!document.querySelector("#routeMap .leaflet-overlay-pane path"),
     { timeout: 12000 }).then(() => true).catch(() => false);
   routeMap ? ok("linjasivu: reittiviiva kartalla") : fail("linjasivu: reittiviiva puuttuu");
+  // Lähtömuistutus: kontrolli näkyy kun tänään on tulevia lähtöjä
+  const remindUi = await page.waitForFunction(
+    () => !!document.querySelector("#remindBox #remindBtn"),
+    { timeout: 8000 }).then(() => true).catch(() => false);
+  remindUi ? ok("linjasivu: lähtömuistutus-kontrolli näkyy")
+           : info("linjasivu: ei tulevia lähtöjä nyt → muistutuskontrollia ei näytetä");
 
   // --- Pysäkkisivu + linjasuodatin ---
   const stopHref = await page.evaluate(() =>

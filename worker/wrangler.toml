@@ -13,6 +13,6 @@ VAPID_SUBJECT = "mailto:vvsaarinen@gmail.com"
 binding = "PUSH_KV"
 id = "d05f6c569d4a49339114fedf5764f4cc"
 
-# Häiriötarkistus 5 min välein
+# Häiriötarkistus 5 min välein; lähtömuistutukset minuutin välein
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/5 * * * *", "* * * * *"]

@@ -63,6 +63,52 @@ async function handleUnsubscribe(request, env, origin) {
   return jsonResponse({ ok: true }, 200, origin);
 }
 
+// Lähtömuistutus: tallenna kertaluonteinen push joka lähetetään fireAt-hetkellä.
+// KV:n expirationTtl siivoaa merkinnän automaattisesti, vaikka cron jäisi väliin.
+async function handleReminder(request, env, origin) {
+  if (!env.PUSH_KV) return jsonResponse({ error: "push_unconfigured" }, 503, origin);
+  const body = await request.json().catch(() => null);
+  const sub = body && body.subscription;
+  const fireAt = Number(body && body.fireAt);
+  if (!sub || !sub.endpoint || !sub.keys || !Number.isFinite(fireAt))
+    return jsonResponse({ error: "bad_request" }, 400, origin);
+  const id = crypto.randomUUID();
+  const rec = {
+    endpoint: sub.endpoint, keys: sub.keys, fireAt,
+    title: String((body.title || "Lähtömuistutus")).slice(0, 80),
+    body: String((body.body || "")).slice(0, 180),
+    tag: body.tag || ("rem-" + id),
+    url: body.url || "./",
+  };
+  const ttl = Math.max(60, Math.floor(fireAt + 7200 - Date.now() / 1000));
+  await env.PUSH_KV.put("rem:" + id, JSON.stringify(rec), { expirationTtl: ttl });
+  return jsonResponse({ ok: true, id }, 200, origin);
+}
+
+// Ajetaan minuutin cronista: lähetä erääntyneet muistutukset, poista lähetetyt.
+export async function runReminderCheck(env, nowMs) {
+  if (!env.PUSH_KV || !env.VAPID_PRIVATE_JWK) return;
+  const now = (nowMs ?? Date.now()) / 1000;
+  let cursor;
+  do {
+    const list = await env.PUSH_KV.list({ prefix: "rem:", cursor });
+    for (const k of list.keys) {
+      const v = await env.PUSH_KV.get(k.name);
+      if (!v) continue;
+      let r;
+      try { r = JSON.parse(v); } catch (e) { await env.PUSH_KV.delete(k.name); continue; }
+      if (now >= r.fireAt) {
+        if (now <= r.fireAt + 1800) { // ei lähetetä yli 30 min myöhässä
+          const payload = JSON.stringify({ title: r.title, body: r.body, tag: r.tag, url: r.url || "./" });
+          try { await sendPush(r, payload, env); } catch (e) { /* ohita */ }
+        }
+        await env.PUSH_KV.delete(k.name);
+      }
+    }
+    cursor = list.list_complete ? null : list.cursor;
+  } while (cursor);
+}
+
 /* ---------- Häiriöiden haku ja täsmäytys (cron) ---------- */
 
 const ALERTS_QUERY = `query ($feeds: [String!]) {
@@ -187,6 +233,8 @@ export default {
       return handleSubscribe(request, env, origin);
     if (url.pathname === "/push/unsubscribe" && request.method === "POST")
       return handleUnsubscribe(request, env, origin);
+    if (url.pathname === "/push/reminder" && request.method === "POST")
+      return handleReminder(request, env, origin);
     if (url.pathname === "/push/vapidPublicKey" && request.method === "GET")
       return jsonResponse({ key: env.VAPID_PUBLIC || "" }, 200, origin);
 
@@ -220,8 +268,10 @@ export default {
     return new Response(upstream.body, { status: upstream.status, headers });
   },
 
-  // Cron-liipaisin (wrangler.toml: [triggers] crons): tarkista häiriöt
+  // Cron-liipaisimet (wrangler.toml [triggers] crons): minuutin cron lähettää
+  // erääntyneet lähtömuistutukset, 5 min cron tarkistaa häiriöt.
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runPushCheck(env));
+    if (event.cron === "* * * * *") ctx.waitUntil(runReminderCheck(env));
+    else ctx.waitUntil(runPushCheck(env));
   },
 };

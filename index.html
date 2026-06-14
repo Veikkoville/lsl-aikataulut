@@ -303,6 +303,8 @@
   table.deps td:first-child { width: 3em; }
   tbody tr:last-child td { border-bottom: none; }
   .rt { color: var(--green); font-weight: 600; }
+  .remind { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.5rem; }
+  .remind select { font: inherit; padding: 0.2rem; }
   .timegrid { display: flex; flex-wrap: wrap; gap: 0.35rem; }
   .timegrid span {
     background: var(--chip);
@@ -844,6 +846,13 @@ const STRINGS = {
     noStopsDirection: "Suunnalle ei löytynyt pysäkkejä.",
     noDepsDay: "Ei lähtöjä valittuna päivänä.",
     nextDeps: "Seuraavat lähdöt:",
+    remindBefore: "Muistuta",
+    remindSet: "Aseta lähtömuistutus",
+    remindTitle: "Lähtömuistutus – linja {line}",
+    remindBody: "Linja {line} ({dest}) lähtee pian, klo {time}.",
+    remindWorking: "Asetetaan muistutusta…",
+    remindDone: "Muistutus asetettu: ilmoitus {min} min ennen klo {time} lähtöä.",
+    remindTooSoon: "Lähtö on liian lähellä muistutusta varten.",
     depsFromStop: "Lähdöt pysäkiltä {stop}:",
     rtTitleAttr: "Reaaliaikainen arvio",
     mapFail: "Kartan haku epäonnistui: ",
@@ -1063,6 +1072,13 @@ const STRINGS = {
     noStopsDirection: "No stops found for this direction.",
     noDepsDay: "No departures on the selected day.",
     nextDeps: "Next departures:",
+    remindBefore: "Remind",
+    remindSet: "Set departure reminder",
+    remindTitle: "Departure reminder – route {line}",
+    remindBody: "Route {line} ({dest}) departs soon, at {time}.",
+    remindWorking: "Setting reminder…",
+    remindDone: "Reminder set: notification {min} min before the {time} departure.",
+    remindTooSoon: "The departure is too soon for a reminder.",
     depsFromStop: "Departures from {stop}:",
     rtTitleAttr: "Real-time estimate",
     mapFail: "Failed to load map: ",
@@ -1280,6 +1296,13 @@ const STRINGS = {
     noStopsDirection: "Inga hållplatser hittades för riktningen.",
     noDepsDay: "Inga avgångar den valda dagen.",
     nextDeps: "Följande avgångar:",
+    remindBefore: "Påminn",
+    remindSet: "Ställ in avgångspåminnelse",
+    remindTitle: "Avgångspåminnelse – linje {line}",
+    remindBody: "Linje {line} ({dest}) avgår snart, kl. {time}.",
+    remindWorking: "Ställer in påminnelse…",
+    remindDone: "Påminnelse inställd: avisering {min} min före avgången kl. {time}.",
+    remindTooSoon: "Avgången är för nära för en påminnelse.",
     depsFromStop: "Avgångar från {stop}:",
     rtTitleAttr: "Realtidsuppskattning",
     mapFail: "Kartan kunde inte laddas: ",
@@ -2370,6 +2393,61 @@ function resyncPushIfEnabled() {
   }
 }
 
+// Varmistaa push-luvan + tilauksen lähtömuistutusta varten (ei rekisteröi
+// häiriötilausta, vain palauttaa tilauksen viestin lähetystä varten)
+async function getPushSubscription() {
+  if (!pushSupported()) return null;
+  if (Notification.permission !== "granted") {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") return null;
+  }
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+  });
+  return sub;
+}
+
+function fmtClockLocal(epochMs) {
+  return new Date(epochMs).toLocaleTimeString(
+    lang === "fi" ? "fi-FI" : lang === "sv" ? "sv-FI" : "en-GB",
+    { hour: "2-digit", minute: "2-digit" });
+}
+
+// Lähtömuistutus: ajastaa palvelimelle push-viestin lead-minuuttia ennen lähtöä
+async function setDepartureReminder(epochMs, line, dest) {
+  const msg = document.getElementById("remindMsg");
+  if (!epochMs || !PROXY_URL) return;
+  const lead = Number(document.getElementById("remindLead")?.value || 10);
+  const fireAt = Math.floor(epochMs / 1000) - lead * 60;
+  if (fireAt <= Date.now() / 1000 + 20) {
+    if (msg) msg.innerHTML = `<span class="error">${t("remindTooSoon")}</span>`;
+    return;
+  }
+  if (msg) msg.textContent = t("remindWorking");
+  const sub = await getPushSubscription();
+  if (!sub) { if (msg) msg.innerHTML = `<div class="error">${t("notifyDenied")}</div>`; return; }
+  const time = fmtClockLocal(epochMs);
+  try {
+    const res = await fetch(PROXY_URL.replace(/\/$/, "") + "/push/reminder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subscription: sub.toJSON(),
+        fireAt,
+        title: t("remindTitle", { line }),
+        body: t("remindBody", { line, dest, time }),
+        tag: `rem-${line}-${fireAt}`,
+      }),
+    });
+    if (msg) msg.textContent = res.ok ? t("remindDone", { time, min: lead }) : t("connFail");
+  } catch (e) {
+    if (msg) msg.textContent = t("connFail");
+  }
+}
+
 function bindStopSearch(input, results) {
   let timer = null, seq = 0;
   input.addEventListener("input", () => {
@@ -3020,6 +3098,7 @@ async function viewRoute(routeId, patternCode, date) {
     return;
   }
   const isToday = date === todayISO();
+  let nextDep = null; // seuraavan lähdön epoch (ms) lähtömuistutusta varten
   const loadTimetable = async () => {
     const dateCompact = date.replace(/-/g, "");
     const { data: tt, cachedAt } = await cachedGql(
@@ -3047,13 +3126,25 @@ async function viewRoute(routeId, patternCode, date) {
     const depEpoch = st =>
       (st.serviceDay + (st.realtime ? st.realtimeDeparture : st.scheduledDeparture)) * 1000;
     let nextHtml = "";
+    let remindHtml = "";
     if (isToday) {
       const upcoming = sts.filter(st => depEpoch(st) >= now - 30000).slice(0, 3);
       if (upcoming.length) {
+        nextDep = depEpoch(upcoming[0]);
         nextHtml = `<p>${t("nextDeps")} ${upcoming.map(st => {
           const d = depInfo(st);
           return `<strong class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</strong>`;
         }).join(" · ")}</p>`;
+        if (pushSupported()) {
+          remindHtml = `<div class="remind no-print" id="remindBox">
+            <label>🔔 ${t("remindBefore")}
+              <select id="remindLead" aria-label="${t("remindBefore")}">
+                <option value="5">5</option><option value="10" selected>10</option><option value="15">15</option>
+              </select> min</label>
+            <button type="button" id="remindBtn">${t("remindSet")}</button>
+            <span id="remindMsg" class="muted" role="status"></span>
+          </div>`;
+        }
       }
     }
     const grid = sts.map(st => {
@@ -3067,8 +3158,12 @@ async function viewRoute(routeId, patternCode, date) {
       ${stale ? staleNoteHtml(stale) : ""}
       <p class="muted">${t("depsFromStop", { stop: esc(current.stops[0].name) })}</p>
       ${nextHtml}
+      ${remindHtml}
       <div class="timegrid">${grid}</div>
       ${isToday ? `<p class="muted"><span class="rt">●</span> ${t("rtLegend")}</p>` : ""}`;
+    const rb = document.getElementById("remindBtn");
+    if (rb) rb.addEventListener("click", () =>
+      setDepartureReminder(nextDep, route.shortName || "", patternLabel(current)));
   };
   try {
     await loadTimetable();

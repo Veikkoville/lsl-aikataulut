@@ -1,7 +1,7 @@
 // Yksikkötestaa cron-push-putken (runPushCheck) mock-KV:llä ja stub-fetchillä:
 // oikea salaus + VAPID, mutta push-endpoint ja Digitransit ovat tynkiä.
 // Aja: node push-logic.test.js
-import { runPushCheck, alertAffects, lineTokensFromText } from "./worker.js";
+import { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText } from "./worker.js";
 
 let fail = 0;
 const check = (cond, msg) => { console.log((cond ? "OK   " : "FAIL ") + msg); if (!cond) fail++; };
@@ -99,6 +99,15 @@ check(pushSends.length === 1, "ei uusintailmoitusta jo nähdystä häiriöstä")
 currentAlerts.push({ alertHeaderText: "Linja 4 uusi häiriö", alertDescriptionText: "Ei seurattu", effectiveStartDate: 0, effectiveEndDate: 0 });
 await runPushCheck(env);
 check(pushSends.length === 1, "ei-seurattu linja 4 ei laukaise pushia");
+
+// --- Lähtömuistutukset (runReminderCheck) ---
+const before = pushSends.length;
+await env.PUSH_KV.put("rem:past", JSON.stringify({ ...subscription, fireAt: 1000, title: "Lähtömuistutus", body: "Linja 3 lähtee pian", tag: "r1", url: "./" }));
+await env.PUSH_KV.put("rem:future", JSON.stringify({ ...subscription, fireAt: 99999999999, title: "Myöhempi", body: "x", tag: "r2" }));
+await runReminderCheck(env, 2000 * 1000); // nyt = 2000 s → past (1000) erääntynyt, future ei
+check(pushSends.length === before + 1, "muistutus: erääntynyt lähetetään (tasan 1)");
+check(!env.PUSH_KV._m.get("rem:past"), "muistutus: lähetetty poistetaan KV:stä");
+check(!!env.PUSH_KV._m.get("rem:future"), "muistutus: tuleva jää odottamaan");
 
 console.log(fail ? `\n${fail} TARKISTUS EPÄONNISTUI` : "\nKAIKKI TARKISTUKSET OK");
 process.exit(fail ? 1 : 0);
