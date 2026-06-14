@@ -22,6 +22,15 @@
   apply();
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", apply);
   window.applyTheme = apply;
+
+  // Tekstikoko (esteettömyys): normal/large/larger → html[data-text], ennen maalausta
+  function applyText() {
+    var size = localStorage.getItem("textSize") || "normal";
+    if (size === "large" || size === "larger") document.documentElement.dataset.text = size;
+    else delete document.documentElement.dataset.text;
+  }
+  applyText();
+  window.applyTextSize = applyText;
 })();
 </script>
 <style>
@@ -92,6 +101,12 @@
     color: var(--text);
     line-height: 1.5;
   }
+  /* Esteettömyys: tekstikoko skaalaa koko käyttöliittymän (rem-pohjainen) */
+  html[data-text="large"] { font-size: 118.75%; }
+  html[data-text="larger"] { font-size: 137.5%; }
+  html[data-text="large"] body, html[data-text="larger"] body { line-height: 1.6; }
+  html[data-text="large"] button, html[data-text="large"] a.btnlink,
+  html[data-text="larger"] button, html[data-text="larger"] a.btnlink { min-height: 52px; }
   header {
     background: linear-gradient(120deg, var(--header-bg), var(--header-bg2));
     color: #fff;
@@ -490,6 +505,9 @@
   nav.crumb a { color: var(--blue); }
   footer { max-width: 760px; margin: 0 auto; padding: 0 1rem 2rem; font-size: 0.78rem; color: var(--muted); }
   @media print {
+    /* Tulosteet aina normaalikokoisina, vaikka näytöllä olisi suuri teksti
+       (rem-pohjaiset juliste-/vihkofontit mitoitettu A4:lle) */
+    html, html[data-text="large"], html[data-text="larger"] { font-size: 100%; }
     html, html[data-theme="dark"] {
       --bg: #fff; --card: #fff; --text: #000; --muted: #444;
       --border: #ccc; --chip: #fff; --hover: #fff;
@@ -701,6 +719,10 @@ const STRINGS = {
     // asetukset
     themeTitle: "Ulkoasu", themeAria: "Teema",
     themeAuto: "Automaattinen", themeLight: "Vaalea", themeDark: "Tumma",
+    textSizeTitle: "Tekstikoko",
+    textSizeHint: "Suurenna tekstiä ja painikkeita koko palvelussa.",
+    textSizeAria: "Tekstikoko",
+    sizeNormal: "Normaali", sizeLarge: "Suuri", sizeLarger: "Suurin",
     langTitle: "Kieli",
     notifyTitle: "Ilmoitukset",
     notifyToggle: "Ilmoita suosikkilinjojen uusista häiriöistä",
@@ -914,6 +936,10 @@ const STRINGS = {
     faresSourceLink: "Official price list (lsl.fi)",
     themeTitle: "Appearance", themeAria: "Theme",
     themeAuto: "Automatic", themeLight: "Light", themeDark: "Dark",
+    textSizeTitle: "Text size",
+    textSizeHint: "Make text and buttons larger across the whole service.",
+    textSizeAria: "Text size",
+    sizeNormal: "Normal", sizeLarge: "Large", sizeLarger: "Largest",
     langTitle: "Language",
     notifyTitle: "Notifications",
     notifyToggle: "Notify about new disruptions on favourite routes",
@@ -1119,6 +1145,10 @@ const STRINGS = {
     faresSourceLink: "Officiell prislista (lsl.fi)",
     themeTitle: "Utseende", themeAria: "Tema",
     themeAuto: "Automatiskt", themeLight: "Ljust", themeDark: "Mörkt",
+    textSizeTitle: "Textstorlek",
+    textSizeHint: "Förstora text och knappar i hela tjänsten.",
+    textSizeAria: "Textstorlek",
+    sizeNormal: "Normal", sizeLarge: "Stor", sizeLarger: "Störst",
     langTitle: "Språk",
     notifyTitle: "Aviseringar",
     notifyToggle: "Meddela om nya störningar på favoritlinjer",
@@ -1953,6 +1983,31 @@ function bindThemeSetting() {
     }));
 }
 
+const TEXT_SIZE_OPTIONS = [["normal", "sizeNormal"], ["large", "sizeLarge"], ["larger", "sizeLarger"]];
+
+function textSizeSettingHtml() {
+  const cur = localStorage.getItem("textSize") || "normal";
+  return `
+    <div class="card">
+      <h2>${t("textSizeTitle")}</h2>
+      <p class="muted">${t("textSizeHint")}</p>
+      <div class="tabs" role="group" aria-label="${t("textSizeAria")}">
+        ${TEXT_SIZE_OPTIONS.map(([v, key]) => `
+          <button data-text-opt="${v}" aria-pressed="${v === cur}">${t(key)}</button>`).join("")}
+      </div>
+    </div>`;
+}
+
+function bindTextSizeSetting() {
+  document.querySelectorAll("[data-text-opt]").forEach(btn =>
+    btn.addEventListener("click", () => {
+      localStorage.setItem("textSize", btn.dataset.textOpt);
+      window.applyTextSize();
+      document.querySelectorAll("[data-text-opt]").forEach(b =>
+        b.setAttribute("aria-pressed", String(b === btn)));
+    }));
+}
+
 function notifySettingHtml() {
   if (typeof Notification === "undefined") return "";
   const on = localStorage.getItem("notifyAlerts") === "1" && Notification.permission === "granted";
@@ -2024,6 +2079,7 @@ function viewSettings() {
       <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
       ${langSettingHtml()}
       ${themeSettingHtml()}
+      ${textSizeSettingHtml()}
       ${notifySettingHtml()}
       <div class="card">
         <h2>${t("apiKeyTitle")}</h2>
@@ -2031,6 +2087,7 @@ function viewSettings() {
       </div>`);
     bindLangSetting();
     bindThemeSetting();
+    bindTextSizeSetting();
     bindNotifySetting();
     return;
   }
@@ -2038,6 +2095,7 @@ function viewSettings() {
     <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
     ${langSettingHtml()}
     ${themeSettingHtml()}
+    ${textSizeSettingHtml()}
     ${notifySettingHtml()}
     <div class="card">
       <h2>${t("apiKeyTitle")}</h2>
@@ -2050,6 +2108,7 @@ function viewSettings() {
     </div>`);
   bindLangSetting();
   bindThemeSetting();
+  bindTextSizeSetting();
   bindNotifySetting();
   document.getElementById("keyForm").addEventListener("submit", e => {
     e.preventDefault();

@@ -196,6 +196,21 @@ const info = msg => console.log("INFO " + msg);
                      : fail("asetukset: lang-attribuutti ei vaihtunut (" + langNow + ")");
     await page.click('[data-lang-opt="fi"]');
   }
+  // Tekstikoko (esteettömyys): suurenna ja tarkista että root-fontti kasvaa
+  if (await page.$('[data-text-opt="large"]')) {
+    const before = await page.evaluate(() =>
+      parseFloat(getComputedStyle(document.documentElement).fontSize));
+    await page.click('[data-text-opt="large"]');
+    await sleep(200);
+    const res = await page.evaluate(() => ({
+      attr: document.documentElement.dataset.text,
+      size: parseFloat(getComputedStyle(document.documentElement).fontSize),
+    }));
+    res.attr === "large" && res.size > before
+      ? ok(`asetukset: suuri teksti kasvattaa fonttia (${before}→${res.size}px)`)
+      : fail("asetukset: tekstikoko ei kasvanut");
+    await page.click('[data-text-opt="normal"]'); // palauta ettei vaikuta muihin
+  }
 
   // --- Tulostusvihko (monta linjaa) ---
   await page.goto(BASE + "/#/tulosta", { waitUntil: "networkidle2" });
