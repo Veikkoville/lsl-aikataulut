@@ -6,6 +6,24 @@ on:
   pull_request:
 
 jobs:
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Web Push -salaus (RFC 8291 -vektorit)
+        run: node webpush.test.js
+        working-directory: worker
+
+      - name: Cron-push-putki (mock-KV)
+        run: node push-logic.test.js
+        working-directory: worker
+
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 15
