@@ -356,6 +356,11 @@
   details.alert.sev-WARNING { border-left-color: var(--sev-warning); }
   .map { height: clamp(340px, 55vh, 540px); border-radius: 6px; margin: 0.5rem 0; z-index: 0; }
   .map-small { height: clamp(220px, 35vh, 340px); }
+  .bigmap { height: clamp(400px, 78vh, 900px); }
+  .bus-live-wrap { background: none; border: none; }
+  .bus-live { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center;
+    border: 2px solid #fff; border-radius: 50%; font-weight: 700; font-size: 0.66rem;
+    box-sizing: border-box; box-shadow: 0 1px 4px rgba(0,0,0,0.45); }
   .leaflet-popup-content a { color: var(--blue); }
   .bus-marker {
     background: #b34700;
@@ -618,6 +623,13 @@ const STRINGS = {
     vehLine: "Linja {line} → {dest}",
     vehLate: "Myöhässä {n} min", vehEarly: "Etuajassa {n} min", vehOnTime: "Aikataulussa",
     vehNextStops: "Seuraavat pysäkit:",
+    // live-kartta
+    liveMapLink: "Bussit kartalla (live)",
+    liveMapTitle: "Bussit kartalla nyt",
+    liveMapAria: "Kartta liikkuvista busseista reaaliajassa",
+    liveMapHint: "Merkit ovat busseja reaaliajassa. Klikkaa bussia: linja, määränpää ja seuraavat pysäkit.",
+    liveConnecting: "Yhdistetään reaaliaikadataan…",
+    liveCount: "{n} bussia kartalla", liveNone: "Ei busseja juuri nyt.",
     // asetukset
     themeTitle: "Ulkoasu", themeAria: "Teema",
     themeAuto: "Automaattinen", themeLight: "Vaalea", themeDark: "Tumma",
@@ -798,6 +810,12 @@ const STRINGS = {
     vehLine: "Route {line} → {dest}",
     vehLate: "Running {n} min late", vehEarly: "Running {n} min early", vehOnTime: "On schedule",
     vehNextStops: "Next stops:",
+    liveMapLink: "Buses on the map (live)",
+    liveMapTitle: "Buses on the map now",
+    liveMapAria: "Map of moving buses in real time",
+    liveMapHint: "Markers are buses in real time. Tap a bus: route, destination and next stops.",
+    liveConnecting: "Connecting to real-time data…",
+    liveCount: "{n} buses on the map", liveNone: "No buses right now.",
     themeTitle: "Appearance", themeAria: "Theme",
     themeAuto: "Automatic", themeLight: "Light", themeDark: "Dark",
     langTitle: "Language",
@@ -969,6 +987,12 @@ const STRINGS = {
     vehLine: "Linje {line} → {dest}",
     vehLate: "{n} min försenad", vehEarly: "{n} min före tidtabellen", vehOnTime: "Enligt tidtabell",
     vehNextStops: "Följande hållplatser:",
+    liveMapLink: "Bussar på kartan (live)",
+    liveMapTitle: "Bussar på kartan nu",
+    liveMapAria: "Karta över bussar i rörelse i realtid",
+    liveMapHint: "Markörerna är bussar i realtid. Tryck på en buss: linje, destination och följande hållplatser.",
+    liveConnecting: "Ansluter till realtidsdata…",
+    liveCount: "{n} bussar på kartan", liveNone: "Inga bussar just nu.",
     themeTitle: "Utseende", themeAria: "Tema",
     themeAuto: "Automatiskt", themeLight: "Ljust", themeDark: "Mörkt",
     langTitle: "Språk",
@@ -1695,6 +1719,59 @@ async function startVehicles(map, routeList) {
 function stopVehicles() {
   if (vehicleSweep) { clearInterval(vehicleSweep); vehicleSweep = null; }
   if (mqttClient) { try { mqttClient.end(true); } catch (e) {} mqttClient = null; }
+}
+
+// Koko verkon bussit kartalla: tilaa feedin KAIKKI ajoneuvot (/gtfsrt/vp/<feed>/#).
+// byNum: linjanumero -> route (väritystä ja nimeä varten). onCount: bussimäärän takaisinkutsu.
+async function startLiveMap(map, byNum, onCount) {
+  const mySeq = viewSeq;
+  try { await ensureMqtt(); await findFeed(); }
+  catch (e) { if (onCount) onCount(0); return; }
+  if (mySeq !== viewSeq) return;
+  stopVehicles();
+  const markers = new Map(); // vehicleId -> { marker, ts, tripId, nextStop }
+  mqttClient = mqtt.connect(CONFIG.mqttUrl, { reconnectPeriod: 5000 });
+  mqttClient.on("connect", () => {
+    if (mqttClient) mqttClient.subscribe(`/gtfsrt/vp/${feedId}/#`);
+  });
+  mqttClient.on("message", (topic, payload) => {
+    const seg = topic.split("/");
+    const pos = decodeVehiclePosition(payload);
+    if (!pos || pos.lat == null || pos.lon == null) return;
+    const routeNum = seg[7] || "";
+    const route = byNum.get(routeNum);
+    const label = route?.shortName || routeNum || "?";
+    const vehId = seg[13] || topic;
+    const headsign = seg[9] || "";
+    let m = markers.get(vehId);
+    if (!m) {
+      const bg = route?.color ? "#" + route.color : "#b34700";
+      const fg = route?.color ? badgeText(route.color, route.textColor) : "#fff";
+      const icon = L.divIcon({ className: "bus-live-wrap",
+        html: `<span class="bus-live" style="background:${bg};color:${fg}">${esc(label)}</span>`, iconSize: [28, 28] });
+      m = { marker: L.marker([pos.lat, pos.lon], { icon, zIndexOffset: 1000 })
+        .addTo(map).bindTooltip("").bindPopup(t("vehLoading"), { maxWidth: 280 }) };
+      m.marker.on("popupopen", async () => {
+        try { m.marker.setPopupContent(await vehiclePopupHtml(m.tripId, m.nextStop)); }
+        catch (err) { m.marker.setPopupContent(t("vehLoadFail")); }
+      });
+      markers.set(vehId, m);
+      if (onCount) onCount(markers.size);
+    }
+    m.tripId = seg[10] || "";
+    m.nextStop = seg[11] || "";
+    m.marker.setLatLng([pos.lat, pos.lon]);
+    m.marker.setTooltipContent(t("vehLine", { line: esc(label), dest: esc(headsign) }));
+    m.ts = Date.now();
+  });
+  vehicleSweep = setInterval(() => {
+    const cutoff = Date.now() - 90000;
+    let changed = false;
+    for (const [id, m] of markers) {
+      if ((m.ts || 0) < cutoff) { map.removeLayer(m.marker); markers.delete(id); changed = true; }
+    }
+    if (changed && onCount) onCount(markers.size);
+  }, 15000);
 }
 
 // Näkymän oma päivitysfunktio, jota kutsutaan heti kun sovellus palaa
@@ -2426,6 +2503,7 @@ function viewRoutes() {
   setView(`
     <p class="muted" style="margin:0 0 0.6rem">${t("homeIntro")}</p>
     <p style="margin:0 0 0.6rem"><a class="item" href="#/tulosta"><span aria-hidden="true">🖨</span> <span>${t("printPageLink")}</span></a></p>
+    <p style="margin:0 0 0.6rem"><a class="item" href="#/kartta"><span aria-hidden="true">🗺</span> <span>${t("liveMapLink")}</span></a></p>
     <div id="alertsBox"><details class="card alertsum" aria-hidden="true">
       <summary><span aria-hidden="true">⚠</span> <strong class="muted">…</strong></summary>
     </details></div>
@@ -3132,6 +3210,36 @@ async function viewMonitor(stopId) {
     } catch (err) { /* verkkohikka: säilytetään edelliset, yritetään 30 s päästä */ }
   };
   refreshTimer = setInterval(refreshNow, 30000);
+}
+
+/* ---------- Live-kartta: koko verkon bussit reaaliajassa ---------- */
+
+async function viewLiveMap() {
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <div class="card">
+      <h2><span aria-hidden="true">🗺</span> ${t("liveMapTitle")}</h2>
+      <p class="muted" id="liveCount" role="status">${t("liveConnecting")}</p>
+      <div id="liveMap" class="map bigmap" aria-label="${t("liveMapAria")}"></div>
+      <p class="muted"><span class="rt">●</span> ${t("liveMapHint")}</p>
+    </div>`);
+  const mySeq = viewSeq;
+  try {
+    await ensureLeaflet();
+    if (mySeq !== viewSeq || !document.getElementById("liveMap")) return;
+    const map = makeMap("liveMap", [AREA.focus.lat, AREA.focus.lon], 12);
+    const routes = await loadRoutes().catch(() => []);
+    if (mySeq !== viewSeq) return;
+    const byNum = new Map(routes.map(r => [r.gtfsId.split(":")[1], r]));
+    startLiveMap(map, byNum, n => {
+      const el = document.getElementById("liveCount");
+      if (el) el.textContent = n ? t("liveCount", { n }) : t("liveNone");
+    });
+  } catch (e) {
+    const el = document.getElementById("liveMap");
+    if (el) el.outerHTML = `<div class="error">${esc(e.message)}</div>`;
+  }
 }
 
 /* ---------- Paikkahaku: pysäkit (GraphQL) + osoitteet/POI:t (Pelias) ---------- */
@@ -4034,6 +4142,7 @@ async function route() {
     else if (parts[0] === "reitti") await viewPlan(parts);
     else if (parts[0] === "linja" && parts[1]) await viewRoute(parts[1], parts[2], parts[3]);
     else if (parts[0] === "monitori" && parts[1]) await viewMonitor(parts[1]);
+    else if (parts[0] === "kartta") await viewLiveMap();
     else if (parts[0] === "pysakki" && parts[1]) await viewStop(parts[1]);
     else await viewRoutes();
   } catch (err) {

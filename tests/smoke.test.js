@@ -163,6 +163,19 @@ const info = msg => console.log("INFO " + msg);
            : fail("monitori: kioskitila jäi päälle");
   }
 
+  // --- Live-kartta: koko verkon bussit reaaliajassa ---
+  await page.goto(BASE + "/#/kartta", { waitUntil: "networkidle2" });
+  await expect("#liveMap.leaflet-container", "live-kartta: kartta latautuu");
+  const busesShown = await page.waitForFunction(
+    () => document.querySelectorAll("#liveMap .bus-live").length > 0,
+    { timeout: 20000 }).then(() => true).catch(() => false);
+  if (busesShown) {
+    const n = await page.evaluate(() => document.querySelectorAll("#liveMap .bus-live").length);
+    ok(`live-kartta: busseja kartalla (${n})`);
+  } else {
+    info("live-kartta: ei busseja juuri nyt (ei reaaliaikadataa testihetkellä)");
+  }
+
   // --- Asetukset + kielenvaihto ---
   await page.goto(BASE + "/#/asetukset", { waitUntil: "networkidle2" });
   await expect("[data-theme-opt]", "asetukset: teemavalitsin");
