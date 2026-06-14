@@ -305,6 +305,10 @@
   .rt { color: var(--green); font-weight: 600; }
   .remind { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.5rem; }
   .remind select { font: inherit; padding: 0.2rem; }
+  td.remcell { text-align: center; width: 1%; white-space: nowrap; }
+  button.remrow { background: none; border: none; padding: 0.2rem 0.45rem; min-height: auto;
+    font-size: 1.15rem; line-height: 1; cursor: pointer; border-radius: 6px; }
+  button.remrow:hover { background: var(--hover); }
   .timegrid { display: flex; flex-wrap: wrap; gap: 0.35rem; }
   .timegrid span {
     background: var(--chip);
@@ -858,6 +862,8 @@ const STRINGS = {
     remindWorking: "Asetetaan muistutusta…",
     remindDone: "Muistutus asetettu: ilmoitus {min} min ennen klo {time} lähtöä.",
     remindTooSoon: "Lähtö on liian lähellä muistutusta varten.",
+    remindRow: "Aseta muistutus tästä lähdöstä",
+    remindRowHint: "Napauta kelloa 🔔 lähtörivillä.",
     depsFromStop: "Lähdöt pysäkiltä {stop}:",
     rtTitleAttr: "Reaaliaikainen arvio",
     mapFail: "Kartan haku epäonnistui: ",
@@ -1093,6 +1099,8 @@ const STRINGS = {
     remindWorking: "Setting reminder…",
     remindDone: "Reminder set: notification {min} min before the {time} departure.",
     remindTooSoon: "The departure is too soon for a reminder.",
+    remindRow: "Set a reminder for this departure",
+    remindRowHint: "Tap the bell 🔔 on a departure row.",
     depsFromStop: "Departures from {stop}:",
     rtTitleAttr: "Real-time estimate",
     mapFail: "Failed to load map: ",
@@ -1326,6 +1334,8 @@ const STRINGS = {
     remindWorking: "Ställer in påminnelse…",
     remindDone: "Påminnelse inställd: avisering {min} min före avgången kl. {time}.",
     remindTooSoon: "Avgången är för nära för en påminnelse.",
+    remindRow: "Ställ in en påminnelse för denna avgång",
+    remindRowHint: "Tryck på klockan 🔔 på en avgångsrad.",
     depsFromStop: "Avgångar från {stop}:",
     rtTitleAttr: "Realtidsuppskattning",
     mapFail: "Kartan kunde inte laddas: ",
@@ -2749,15 +2759,28 @@ function badgeHtml(route, fallback) {
   return `<span class="badge"${style}>${esc(route?.shortName || fallback || "")}</span>`;
 }
 
-function depTableRows(stoptimes) {
+function depTableRows(stoptimes, withRemind) {
+  const remind = withRemind && pushSupported();
+  const now = Date.now();
   return (stoptimes || []).map(st => {
     const d = depInfo(st);
     const acc = st.trip?.wheelchairAccessible === "POSSIBLE"
       ? ` <span role="img" aria-label="${t("accVehicle")}" title="${t("accVehicle")}">♿</span>` : "";
+    let remCell = "";
+    if (remind) {
+      const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
+      const epoch = (st.serviceDay + dep) * 1000;
+      remCell = epoch > now + 60000
+        ? `<td class="remcell"><button type="button" class="remrow" title="${t("remindRow")}" aria-label="${t("remindRow")}"
+             data-rem-epoch="${epoch}" data-rem-line="${esc(st.trip?.route?.shortName || "")}"
+             data-rem-dest="${esc(st.headsign || "")}">🔔</button></td>`
+        : `<td class="remcell"></td>`;
+    }
     return `<tr>
       <td>${badgeHtml(st.trip.route)}</td>
       <td>${esc(st.headsign || "")}${acc}${occupancyHtml(st.trip)}</td>
       <td class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</td>
+      ${remCell}
     </tr>`;
   }).join("");
 }
@@ -3356,11 +3379,12 @@ async function viewStop(stopId) {
   let routeFilter = null;
   let lastStopData = null;
 
+  const remindCol = pushSupported();
   const renderRows = stop => {
     const sts = (stop.stoptimesWithoutPatterns || []).filter(st =>
       !routeFilter || st.trip?.route?.gtfsId === routeFilter);
-    return depTableRows(routeFilter ? sts : sts.slice(0, 15))
-      || `<tr><td colspan="3" class="muted">${t("noUpcoming")}</td></tr>`;
+    return depTableRows(routeFilter ? sts : sts.slice(0, 15), remindCol)
+      || `<tr><td colspan="${remindCol ? 4 : 3}" class="muted">${t("noUpcoming")}</td></tr>`;
   };
 
   // Pysäkkiä liikennöivät linjat suodatinnappeina (brändiväreissä)
@@ -3388,8 +3412,15 @@ async function viewStop(stopId) {
       ${accNote}
       ${stopRoutesHtml(stop)}
       <div id="staleNote">${cachedAt ? staleNoteHtml(cachedAt) : ""}</div>
+      ${remindCol ? `<p class="remind no-print" style="margin:0 0 0.4rem">
+        <label>🔔 ${t("remindBefore")}
+          <select id="remindLead" aria-label="${t("remindBefore")}">
+            <option value="5">5</option><option value="10" selected>10</option><option value="15">15</option>
+          </select> min</label>
+        <span class="muted">${t("remindRowHint")}</span>
+        <span id="remindMsg" class="muted" role="status"></span></p>` : ""}
       <table class="deps">
-        <thead><tr><th>${t("thLine")}</th><th>${t("thDest")}</th><th>${t("thDeparts")}</th></tr></thead>
+        <thead><tr><th>${t("thLine")}</th><th>${t("thDest")}</th><th>${t("thDeparts")}</th>${remindCol ? `<th aria-label="${t("remindRow")}">🔔</th>` : ""}</tr></thead>
         <tbody id="depRows">${renderRows(stop)}</tbody>
       </table>
       <p class="muted"><span class="rt">●</span> ${t("rtLegendStop")}</p>
@@ -3423,6 +3454,15 @@ async function viewStop(stopId) {
 
   // Lue lähdöt ääneen (puhesynteesi)
   document.getElementById("speakBtn")?.addEventListener("click", () => speakDepartures(lastStopData || stop));
+
+  // Lähtömuistutus per rivi (🔔): delegoitu, koska tbody piirtyy uudelleen 30 s välein
+  if (remindCol) {
+    document.querySelector(".deps")?.addEventListener("click", e => {
+      const btn = e.target.closest(".remrow");
+      if (!btn) return;
+      setDepartureReminder(Number(btn.dataset.remEpoch), btn.dataset.remLine || "", btn.dataset.remDest || "");
+    });
+  }
 
   // Jaa / upota pysäkin live-taulu (iframe yrityksille)
   document.getElementById("stopEmbedBtn")?.addEventListener("click", () => {
