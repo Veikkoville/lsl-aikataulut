@@ -138,6 +138,16 @@ const info = msg => console.log("INFO " + msg);
         ? ok(`pysäkkijuliste: tuntikaavio kootaan (${days} päivätyyppiä)`)
         : fail(`pysäkkijuliste: tuntikaaviota ei muodostunut (päivätyyppejä ${days})`);
     }
+    // QR-koodi: laiska kirjastolataus + canvas + lataus-linkki
+    if (await page.$("#stopQrBtn")) {
+      await page.click("#stopQrBtn");
+      const qrOk = await page.waitForFunction(
+        () => { const c = document.querySelector("#stopQr canvas.qrimg"); return c && c.width > 0; },
+        { timeout: 15000 }).then(() => true).catch(() => false);
+      const hasDl = await page.$("#stopQr a[download]");
+      qrOk && hasDl ? ok("QR-koodi: canvas + PNG-latauslinkki")
+                    : fail("QR-koodi: koodia tai latauslinkkiä ei muodostunut");
+    }
     // Pysäkkimonitori / kioski: koko ruudun live-lähtötaulu
     const monitorHref = stopHref.replace("#/pysakki/", "#/monitori/");
     await page.goto(BASE + "/" + monitorHref, { waitUntil: "networkidle2" });

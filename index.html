@@ -325,6 +325,14 @@
   table.hourgrid th[scope="row"] { text-align: right; padding: 0.1rem 0.5rem 0.1rem 0; color: var(--muted);
     font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: top; }
   table.hourgrid td { padding: 0.1rem 0; font-variant-numeric: tabular-nums; letter-spacing: 0.05em; }
+  /* QR-koodit (näyttö + juliste) */
+  .qrbox { margin: 0.6rem 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; }
+  canvas.qrimg { width: 200px; height: 200px; image-rendering: pixelated;
+    border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+  .poster-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+  .poster-qrwrap { text-align: center; flex: none; }
+  img.poster-qr { width: 120px; height: 120px; image-rendering: pixelated; display: block; }
+  .poster-qrcap { font-size: 0.7rem; color: var(--muted); }
   .dtopt { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
   .dtopt input { width: 1.3rem; height: 1.3rem; }
   /* Kokoa-painike pysyy näkyvissä pitkää linjalistaa selatessa */
@@ -761,6 +769,13 @@ const STRINGS = {
     monitorLink: "Näytä monitorina (koko ruutu)",
     monitorExit: "Sulje monitori",
     monitorLive: "Päivittyy reaaliajassa",
+    qrButton: "QR-koodi",
+    qrCaptionStop: "Skannaa nähdäksesi tämän pysäkin live-lähdöt",
+    qrCaptionLine: "Skannaa nähdäksesi tämän linjan aikataulun",
+    qrDownload: "Lataa QR (PNG)",
+    qrLoading: "Luodaan QR-koodia…",
+    qrFail: "QR-koodin luonti epäonnistui.",
+    qrPosterHint: "Skannaa: live-lähdöt",
   },
   en: {
     appTitle: "{city} bus timetables",
@@ -925,6 +940,13 @@ const STRINGS = {
     monitorLink: "Show as monitor (full screen)",
     monitorExit: "Close monitor",
     monitorLive: "Updates in real time",
+    qrButton: "QR code",
+    qrCaptionStop: "Scan to see this stop's live departures",
+    qrCaptionLine: "Scan to see this route's timetable",
+    qrDownload: "Download QR (PNG)",
+    qrLoading: "Creating QR code…",
+    qrFail: "Could not create QR code.",
+    qrPosterHint: "Scan: live departures",
   },
   sv: {
     appTitle: "Busstidtabeller i {city}",
@@ -1089,6 +1111,13 @@ const STRINGS = {
     monitorLink: "Visa som monitor (helskärm)",
     monitorExit: "Stäng monitor",
     monitorLive: "Uppdateras i realtid",
+    qrButton: "QR-kod",
+    qrCaptionStop: "Skanna för att se hållplatsens avgångar i realtid",
+    qrCaptionLine: "Skanna för att se linjens tidtabell",
+    qrDownload: "Ladda ner QR (PNG)",
+    qrLoading: "Skapar QR-kod…",
+    qrFail: "Det gick inte att skapa QR-koden.",
+    qrPosterHint: "Skanna: avgångar i realtid",
   },
 };
 
@@ -1354,6 +1383,80 @@ function lineDayTabs(currentISO) {
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* ---------- QR-koodit (vendoroitu qrcode.js, MIT — ladataan laiskasti) ---------- */
+
+// Tämän näkymän jaettava absoluuttinen URL (säilyttää origin/polun/?city-parametrin)
+function appUrl(hash) {
+  return location.href.split("#")[0] + hash;
+}
+
+let qrLibPromise = null;
+function loadQrLib() {
+  if (window.qrcode) return Promise.resolve();
+  if (!qrLibPromise) {
+    qrLibPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "qrcode.js"; s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => { qrLibPromise = null; reject(new Error("qr")); };
+      document.head.appendChild(s);
+    });
+  }
+  return qrLibPromise;
+}
+
+// Piirtää QR:n canvasille (terävä, valittu pikselikoko). Hiljainen reuna 4 moduulia.
+async function qrCanvas(text, px) {
+  await loadQrLib();
+  const qr = window.qrcode(0, "M");
+  qr.addData(text);
+  qr.make();
+  const n = qr.getModuleCount();
+  const margin = 4;
+  const total = n + margin * 2;
+  const scale = Math.max(2, Math.floor(px / total));
+  const size = total * scale;
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = size;
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = "#000";
+  for (let r = 0; r < n; r++)
+    for (let c = 0; c < n; c++)
+      if (qr.isDark(r, c)) ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
+  return cv;
+}
+
+// QR PNG-data-URL:na (tulosteisiin upotettavaksi <img src>)
+async function qrDataUrl(text, px) {
+  return (await qrCanvas(text, px)).toDataURL("image/png");
+}
+
+// Liittää QR:n säiliöön + lataa PNG -linkin. caption = ohjeteksti, fileBase = tiedostonimi.
+async function showQrInto(box, url, caption, fileBase) {
+  box.innerHTML = `<p class="muted">${t("qrLoading")}</p>`;
+  try {
+    const cv = await qrCanvas(url, 320);
+    box.innerHTML = "";
+    cv.className = "qrimg";
+    cv.setAttribute("role", "img");
+    cv.setAttribute("aria-label", caption);
+    box.appendChild(cv);
+    const dl = document.createElement("a");
+    dl.href = cv.toDataURL("image/png");
+    dl.download = fileBase + ".png";
+    dl.className = "btnlink";
+    dl.style.marginTop = "0.5rem";
+    dl.innerHTML = "⬇ " + esc(t("qrDownload"));
+    const cap = document.createElement("p");
+    cap.className = "muted";
+    cap.textContent = caption;
+    box.append(cap, dl);
+  } catch (e) {
+    box.innerHTML = `<div class="error">${esc(t("qrFail"))}</div>`;
+  }
 }
 
 // Google encoded polyline, precision 1e-5 (OTP:n patternGeometry-muoto)
@@ -2556,8 +2659,10 @@ async function viewRoute(routeId, patternCode, date) {
       <div class="row no-print" style="flex-wrap:wrap;gap:0.4rem">
         <button id="printKeyBtn">🖨 ${t("printKeyStopsPort")}</button>
         <button id="printAllBtn">🖨 ${t("printAllStopsLand")}</button>
+        <button id="lineQrBtn"><span aria-hidden="true">🔳</span> ${t("qrButton")}</button>
         <span id="linePrintStatus" class="muted" role="status"></span>
       </div>
+      <div id="lineQr" class="qrbox no-print" hidden></div>
       <div id="stopMatrix" class="no-print"><p class="muted">${t("loadingMatrix")}</p></div>
       <div id="linePrintOut" class="print-only"></div>
     </div>`);
@@ -2747,6 +2852,14 @@ async function viewRoute(routeId, patternCode, date) {
   };
   document.getElementById("printKeyBtn")?.addEventListener("click", () => printLine("key"));
   document.getElementById("printAllBtn")?.addEventListener("click", () => printLine("all"));
+  document.getElementById("lineQrBtn")?.addEventListener("click", () => {
+    const box = document.getElementById("lineQr");
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; box.innerHTML = ""; return; }
+    box.hidden = false;
+    showQrInto(box, appUrl("#/linja/" + encodeURIComponent(routeId)),
+      t("qrCaptionLine"), "qr-linja-" + (route.shortName || "").replace(/\W+/g, ""));
+  });
 }
 
 async function viewStop(stopId) {
@@ -2812,8 +2925,10 @@ async function viewStop(stopId) {
       <p class="no-print" style="margin:0.6rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center">
         <button type="button" id="stopPosterBtn">🖨 ${t("printStopPoster")}</button>
         <a class="btnlink" href="#/monitori/${encodeURIComponent(stopId)}"><span aria-hidden="true">🖥</span> ${t("monitorLink")}</a>
+        <button type="button" id="stopQrBtn"><span aria-hidden="true">🔳</span> ${t("qrButton")}</button>
         <span id="stopPrintStatus" class="muted" role="status"></span>
       </p>
+      <div id="stopQr" class="qrbox no-print" hidden></div>
       <div id="stopMap" class="map map-small" aria-label="${t("stopMapAria")}"></div>
       <p class="muted" id="stopMapHint" hidden>${t("stopBusesHint")}</p>
     </div>
@@ -2821,6 +2936,16 @@ async function viewStop(stopId) {
 
   bindFavButton({ type: "stop", id: stopId, name: stop.name });
   document.getElementById("backBtn").addEventListener("click", () => history.back());
+
+  // QR-koodi pysäkin live-sivulle (LSL voi teipata katokseen)
+  document.getElementById("stopQrBtn")?.addEventListener("click", () => {
+    const box = document.getElementById("stopQr");
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; box.innerHTML = ""; return; }
+    box.hidden = false;
+    showQrInto(box, appUrl("#/pysakki/" + encodeURIComponent(stopId)),
+      t("qrCaptionStop"), "qr-pysakki-" + (stop.code || stopId).replace(/\W+/g, ""));
+  });
 
   // Pysäkkijuliste: kaikki pysäkiltä lähtevät linjat tuntikaaviona,
   // erikseen Ma–Pe/La/Su (edustavat ei-pyhäpäivät), tulostettava A4-pystyyn.
@@ -2843,11 +2968,23 @@ async function viewStop(stopId) {
          }`, { id: stopId, date: dt.date.replace(/-/g, "") })
         .then(r => ({ dt, groups: r.data.stop?.stoptimesForServiceDate || [] }))
         .catch(() => ({ dt, groups: [] }))));
+    // QR pysäkin live-sivulle upotetaan julisteeseen (skannattava katoksessa)
+    let qrImg = "";
+    try {
+      const u = await qrDataUrl(appUrl("#/pysakki/" + encodeURIComponent(stopId)), 240);
+      qrImg = `<div class="poster-qrwrap"><img class="poster-qr" src="${u}" alt="">
+        <span class="poster-qrcap">${t("qrPosterHint")}</span></div>`;
+    } catch (e) { /* QR ei pakollinen tulosteelle */ }
     const sections = sets.map(({ dt, groups }) =>
       `<section class="card poster-day">
-         <h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
-         <p class="poster-sub">${esc(dt.label)} · ${esc(fmtDateLong(dt.date))}</p>
-         <p class="muted">${t("posterAllLinesNote")}</p>
+         <div class="poster-head">
+           <div>
+             <h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
+             <p class="poster-sub">${esc(dt.label)} · ${esc(fmtDateLong(dt.date))}</p>
+             <p class="muted">${t("posterAllLinesNote")}</p>
+           </div>
+           ${qrImg}
+         </div>
          ${stopPosterHtml(groups)}
        </section>`).join("");
     po.innerHTML = `<div class="print-only">${sections}
