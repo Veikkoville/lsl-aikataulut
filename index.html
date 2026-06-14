@@ -361,6 +361,19 @@
   .bus-live { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center;
     border: 2px solid #fff; border-radius: 50%; font-weight: 700; font-size: 0.66rem;
     box-sizing: border-box; box-shadow: 0 1px 4px rgba(0,0,0,0.45); }
+  /* Liput ja hinnat */
+  .notice { background: var(--rt-bg); border-left: 4px solid var(--green); border-radius: 6px;
+    padding: 0.6rem 0.8rem; margin: 0.4rem 0 0.9rem; }
+  .notice p { margin: 0.3rem 0 0; }
+  .fare-wrap { overflow-x: auto; margin: 0.3rem 0 0.5rem; }
+  table.fare { width: 100%; border-collapse: collapse; }
+  table.fare th, table.fare td { padding: 0.4rem 0.55rem; border-bottom: 1px solid var(--border); text-align: left; }
+  table.fare thead th { font-size: 0.8rem; color: var(--muted); font-weight: 600; vertical-align: bottom; }
+  table.fare tbody th { font-weight: 600; }
+  table.fare td { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  ul.bullets { margin: 0.3rem 0; padding-left: 1.2rem; }
+  ul.bullets li { margin: 0.2rem 0; }
+  .fares-source { margin-top: 0.9rem; font-size: 0.85em; }
   .leaflet-popup-content a { color: var(--blue); }
   .bus-marker {
     background: #b34700;
@@ -562,6 +575,32 @@ const CONFIGS = {
       rect: { minLat: 60.80, maxLat: 61.30, minLon: 25.20, maxLon: 26.20 },
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
+    // Lippu- ja hintatiedot (lsl.fi, tarkistettu 14.6.2026). 1.6.2026 vyöhykkeet
+    // poistuivat → koko alue tasataksaa. Numerot kootaan virallisesta hinnastosta;
+    // sivu näyttää aina tarkistuspäivän + linkin viralliseen hinnastoon.
+    fares: {
+      checked: "14.6.2026",
+      url: "https://www.lsl.fi/liput-ja-hinnat/hinnasto/",
+      // reduced = nuoriso (17–24 v) / opiskelija / seniori (65+ v)
+      single: {
+        cardApp: { adult: "2,95", child: "1,50", reduced: "2,10" },
+        contactless: "3,10",
+        salespoint: { adult: "3,80", child: "1,90", reduced: "3,80" },
+      },
+      season: [
+        { d: "30", adult: "62", child: "31", reduced: "44" },
+        { d: "90", adult: "180", child: "85", reduced: "125" },
+        { d: "180", adult: "330", child: "165", reduced: "230" },
+        { d: "270", adult: "465", child: "230", reduced: "315" },
+        { d: "365", adult: "590", child: "255", reduced: "420" },
+      ],
+      day: [
+        { d: "1", adult: "10", child: "5" },
+        { d: "3", adult: "20", child: "10" },
+        { d: "7", adult: "30", child: "15" },
+      ],
+      capDay: "10", capWeek: "30", cardFee: "5",
+    },
   },
   kuopio: {
     city: "Kuopio",
@@ -630,6 +669,35 @@ const STRINGS = {
     liveMapHint: "Merkit ovat busseja reaaliajassa. Klikkaa bussia: linja, määränpää ja seuraavat pysäkit.",
     liveConnecting: "Yhdistetään reaaliaikadataan…",
     liveCount: "{n} bussia kartalla", liveNone: "Ei busseja juuri nyt.",
+    // liput ja hinnat
+    faresLink: "Liput ja hinnat",
+    faresTitle: "Liput ja hinnat",
+    faresFlatTitle: "Yksi matkustusalue – ei vyöhykkeitä",
+    faresFlatBody: "1.6.2026 alkaen vyöhykerajat poistuivat: sama lippu kelpaa koko LSL-alueella, eikä matkan pituus vaikuta hintaan.",
+    faresTransfer: "Vaihtoaika 70 minuuttia – samalla lipulla voit vaihtaa vapaasti.",
+    faresSingleTitle: "Kertaliput",
+    faresSeasonTitle: "Kausiliput",
+    faresDayTitle: "Vuorokausiliput",
+    faresWhereTitle: "Mistä ostat lipun",
+    faresExtraTitle: "Muut maksut",
+    faresColMethod: "Maksutapa",
+    faresColAdult: "Aikuinen (25–64 v)",
+    faresColChild: "Lapsi (7–16 v)",
+    faresColReduced: "Nuoriso (17–24) / opisk. / seniori (65+)",
+    faresColDuration: "Kesto",
+    faresDays: "{n} vrk",
+    faresMethodCardApp: "Waltti-kortti tai -sovellus",
+    faresMethodContactless: "Lähimaksu (sama kaikille ryhmille)",
+    faresMethodSalespoint: "Palvelupiste (käteinen)",
+    faresCaps: "Lähimaksun hintakatto: {day} € / vrk ja {week} € / viikko – useammasta matkasta ei veloiteta enempää.",
+    faresCardFee: "Waltti-kortti {n} € (kertamaksu).",
+    faresDayNote: "Muiden asiakasryhmien vuorokausilippujen hinnat: katso lsl.fi.",
+    faresWhere1: "Waltti Mobiili -sovellus",
+    faresWhere2: "Waltti-kortti (lataus verkossa tai palvelupisteessä)",
+    faresWhere3: "Lähimaksu pankki- tai lähimaksukortilla bussissa",
+    faresWhere4: "Palvelupisteet: Lahti-Piste ja Hollolan Piipahlus",
+    faresSourceNote: "Tiedot on koottu LSL:n virallisilta sivuilta ja tarkistettu {date}. Tämä on epävirallinen palvelu – varmista ajantasaiset hinnat ja ehdot osoitteesta lsl.fi.",
+    faresSourceLink: "Virallinen hinnasto (lsl.fi)",
     // asetukset
     themeTitle: "Ulkoasu", themeAria: "Teema",
     themeAuto: "Automaattinen", themeLight: "Vaalea", themeDark: "Tumma",
@@ -816,6 +884,34 @@ const STRINGS = {
     liveMapHint: "Markers are buses in real time. Tap a bus: route, destination and next stops.",
     liveConnecting: "Connecting to real-time data…",
     liveCount: "{n} buses on the map", liveNone: "No buses right now.",
+    faresLink: "Tickets and fares",
+    faresTitle: "Tickets and fares",
+    faresFlatTitle: "One travel area – no zones",
+    faresFlatBody: "Since 1 June 2026 zone boundaries have been removed: one ticket is valid across the whole LSL area and journey length does not affect the price.",
+    faresTransfer: "Transfer time 70 minutes – you can change freely on the same ticket.",
+    faresSingleTitle: "Single tickets",
+    faresSeasonTitle: "Season tickets",
+    faresDayTitle: "Day tickets",
+    faresWhereTitle: "Where to buy",
+    faresExtraTitle: "Other charges",
+    faresColMethod: "Payment method",
+    faresColAdult: "Adult (25–64)",
+    faresColChild: "Child (7–16)",
+    faresColReduced: "Youth (17–24) / student / senior (65+)",
+    faresColDuration: "Duration",
+    faresDays: "{n} days",
+    faresMethodCardApp: "Waltti card or app",
+    faresMethodContactless: "Contactless (same for all groups)",
+    faresMethodSalespoint: "Service point (cash)",
+    faresCaps: "Contactless price cap: €{day} / day and €{week} / week – additional trips are not charged beyond this.",
+    faresCardFee: "Waltti card €{n} (one-off fee).",
+    faresDayNote: "Day ticket prices for other customer groups: see lsl.fi.",
+    faresWhere1: "Waltti Mobiili app",
+    faresWhere2: "Waltti card (top up online or at a service point)",
+    faresWhere3: "Contactless with a bank/contactless card on the bus",
+    faresWhere4: "Service points: Lahti-Piste and Hollola Piipahlus",
+    faresSourceNote: "This information is compiled from LSL's official pages and checked on {date}. This is an unofficial service – please confirm current prices and terms at lsl.fi.",
+    faresSourceLink: "Official price list (lsl.fi)",
     themeTitle: "Appearance", themeAria: "Theme",
     themeAuto: "Automatic", themeLight: "Light", themeDark: "Dark",
     langTitle: "Language",
@@ -993,6 +1089,34 @@ const STRINGS = {
     liveMapHint: "Markörerna är bussar i realtid. Tryck på en buss: linje, destination och följande hållplatser.",
     liveConnecting: "Ansluter till realtidsdata…",
     liveCount: "{n} bussar på kartan", liveNone: "Inga bussar just nu.",
+    faresLink: "Biljetter och priser",
+    faresTitle: "Biljetter och priser",
+    faresFlatTitle: "Ett resområde – inga zoner",
+    faresFlatBody: "Från och med 1.6.2026 har zongränserna tagits bort: samma biljett gäller i hela LSL-området och resans längd påverkar inte priset.",
+    faresTransfer: "Bytestid 70 minuter – du kan byta fritt med samma biljett.",
+    faresSingleTitle: "Engångsbiljetter",
+    faresSeasonTitle: "Periodbiljetter",
+    faresDayTitle: "Dygnsbiljetter",
+    faresWhereTitle: "Var du köper biljett",
+    faresExtraTitle: "Övriga avgifter",
+    faresColMethod: "Betalsätt",
+    faresColAdult: "Vuxen (25–64 år)",
+    faresColChild: "Barn (7–16 år)",
+    faresColReduced: "Ungdom (17–24) / studerande / senior (65+)",
+    faresColDuration: "Längd",
+    faresDays: "{n} dygn",
+    faresMethodCardApp: "Waltti-kort eller app",
+    faresMethodContactless: "Närbetalning (samma för alla grupper)",
+    faresMethodSalespoint: "Serviceställe (kontant)",
+    faresCaps: "Närbetalningens pristak: {day} € / dygn och {week} € / vecka – fler resor debiteras inte utöver detta.",
+    faresCardFee: "Waltti-kort {n} € (engångsavgift).",
+    faresDayNote: "Dygnsbiljettpriser för andra kundgrupper: se lsl.fi.",
+    faresWhere1: "Waltti Mobiili-appen",
+    faresWhere2: "Waltti-kort (ladda online eller på serviceställe)",
+    faresWhere3: "Närbetalning med bank-/närbetalningskort i bussen",
+    faresWhere4: "Serviceställen: Lahti-Piste och Hollola Piipahlus",
+    faresSourceNote: "Uppgifterna är sammanställda från LSL:s officiella sidor och kontrollerade {date}. Detta är en inofficiell tjänst – kontrollera aktuella priser och villkor på lsl.fi.",
+    faresSourceLink: "Officiell prislista (lsl.fi)",
     themeTitle: "Utseende", themeAria: "Tema",
     themeAuto: "Automatiskt", themeLight: "Ljust", themeDark: "Mörkt",
     langTitle: "Språk",
@@ -2504,6 +2628,7 @@ function viewRoutes() {
     <p class="muted" style="margin:0 0 0.6rem">${t("homeIntro")}</p>
     <p style="margin:0 0 0.6rem"><a class="item" href="#/tulosta"><span aria-hidden="true">🖨</span> <span>${t("printPageLink")}</span></a></p>
     <p style="margin:0 0 0.6rem"><a class="item" href="#/kartta"><span aria-hidden="true">🗺</span> <span>${t("liveMapLink")}</span></a></p>
+    ${CONFIG.fares ? `<p style="margin:0 0 0.6rem"><a class="item" href="#/liput"><span aria-hidden="true">🎫</span> <span>${t("faresLink")}</span></a></p>` : ""}
     <div id="alertsBox"><details class="card alertsum" aria-hidden="true">
       <summary><span aria-hidden="true">⚠</span> <strong class="muted">…</strong></summary>
     </details></div>
@@ -3240,6 +3365,59 @@ async function viewLiveMap() {
     const el = document.getElementById("liveMap");
     if (el) el.outerHTML = `<div class="error">${esc(e.message)}</div>`;
   }
+}
+
+/* ---------- Liput ja hinnat (CONFIG.fares, vain kaupungeille joille määritelty) ---------- */
+
+function viewFares() {
+  const f = CONFIG.fares;
+  if (!f) { location.hash = "#/"; return; }
+  const eur = n => `${n} €`;
+  const grp3 = `<th>${t("faresColAdult")}</th><th>${t("faresColChild")}</th><th>${t("faresColReduced")}</th>`;
+  const singleRows = `
+    <tr><th scope="row">${t("faresMethodCardApp")}</th>
+      <td>${eur(f.single.cardApp.adult)}</td><td>${eur(f.single.cardApp.child)}</td><td>${eur(f.single.cardApp.reduced)}</td></tr>
+    <tr><th scope="row">${t("faresMethodContactless")}</th>
+      <td>${eur(f.single.contactless)}</td><td>${eur(f.single.contactless)}</td><td>${eur(f.single.contactless)}</td></tr>
+    <tr><th scope="row">${t("faresMethodSalespoint")}</th>
+      <td>${eur(f.single.salespoint.adult)}</td><td>${eur(f.single.salespoint.child)}</td><td>${eur(f.single.salespoint.reduced)}</td></tr>`;
+  const seasonRows = f.season.map(s =>
+    `<tr><th scope="row">${t("faresDays", { n: s.d })}</th><td>${eur(s.adult)}</td><td>${eur(s.child)}</td><td>${eur(s.reduced)}</td></tr>`).join("");
+  const dayRows = f.day.map(s =>
+    `<tr><th scope="row">${t("faresDays", { n: s.d })}</th><td>${eur(s.adult)}</td><td>${eur(s.child)}</td></tr>`).join("");
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <div class="card">
+      <h2><span aria-hidden="true">🎫</span> ${t("faresTitle")}</h2>
+      <div class="notice">
+        <strong>${t("faresFlatTitle")}</strong>
+        <p>${t("faresFlatBody")}</p>
+        <p>${t("faresTransfer")}</p>
+      </div>
+      <h3>${t("faresSingleTitle")}</h3>
+      <div class="fare-wrap"><table class="fare">
+        <thead><tr><th>${t("faresColMethod")}</th>${grp3}</tr></thead>
+        <tbody>${singleRows}</tbody></table></div>
+      <p class="muted">${t("faresCaps", { day: f.capDay, week: f.capWeek })}</p>
+      <h3>${t("faresSeasonTitle")}</h3>
+      <div class="fare-wrap"><table class="fare">
+        <thead><tr><th>${t("faresColDuration")}</th>${grp3}</tr></thead>
+        <tbody>${seasonRows}</tbody></table></div>
+      <h3>${t("faresDayTitle")}</h3>
+      <div class="fare-wrap"><table class="fare">
+        <thead><tr><th>${t("faresColDuration")}</th><th>${t("faresColAdult")}</th><th>${t("faresColChild")}</th></tr></thead>
+        <tbody>${dayRows}</tbody></table></div>
+      <p class="muted">${t("faresDayNote")}</p>
+      <h3>${t("faresWhereTitle")}</h3>
+      <ul class="bullets">
+        <li>${t("faresWhere1")}</li><li>${t("faresWhere2")}</li>
+        <li>${t("faresWhere3")}</li><li>${t("faresWhere4")}</li>
+      </ul>
+      <h3>${t("faresExtraTitle")}</h3>
+      <p>${t("faresCardFee", { n: f.cardFee })}</p>
+      <p class="muted fares-source">${t("faresSourceNote", { date: f.checked })}
+        <a href="${esc(f.url)}" target="_blank" rel="noopener">${t("faresSourceLink")}</a></p>
+    </div>`);
 }
 
 /* ---------- Paikkahaku: pysäkit (GraphQL) + osoitteet/POI:t (Pelias) ---------- */
@@ -4143,6 +4321,7 @@ async function route() {
     else if (parts[0] === "linja" && parts[1]) await viewRoute(parts[1], parts[2], parts[3]);
     else if (parts[0] === "monitori" && parts[1]) await viewMonitor(parts[1]);
     else if (parts[0] === "kartta") await viewLiveMap();
+    else if (parts[0] === "liput") viewFares();
     else if (parts[0] === "pysakki" && parts[1]) await viewStop(parts[1]);
     else await viewRoutes();
   } catch (err) {

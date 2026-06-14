@@ -176,6 +176,15 @@ const info = msg => console.log("INFO " + msg);
     info("live-kartta: ei busseja juuri nyt (ei reaaliaikadataa testihetkellä)");
   }
 
+  // --- Liput ja hinnat ---
+  await page.goto(BASE + "/#/liput", { waitUntil: "networkidle2" });
+  if (await expect("table.fare", "liput: hinnasto latautuu")) {
+    const has295 = await page.evaluate(() => document.body.textContent.includes("2,95"));
+    const hasSource = await page.$("a[href*='lsl.fi/liput-ja-hinnat/hinnasto']");
+    has295 && hasSource ? ok("liput: kertalippu 2,95 € näkyy + virallinen lähdelinkki")
+                        : fail("liput: vahvistettu hinta tai lähdelinkki puuttuu");
+  }
+
   // --- Asetukset + kielenvaihto ---
   await page.goto(BASE + "/#/asetukset", { waitUntil: "networkidle2" });
   await expect("[data-theme-opt]", "asetukset: teemavalitsin");
