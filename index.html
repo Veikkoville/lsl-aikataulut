@@ -852,6 +852,7 @@ const STRINGS = {
     noDepsDay: "Ei lähtöjä valittuna päivänä.",
     nextDeps: "Seuraavat lähdöt:",
     remindBefore: "Muistuta",
+    remindUnit: "min ennen lähtöä",
     remindSet: "Aseta lähtömuistutus",
     remindTitle: "Lähtömuistutus – linja {line}",
     remindBody: "Linja {line} ({dest}) lähtee pian, klo {time}.",
@@ -1087,6 +1088,7 @@ const STRINGS = {
     noDepsDay: "No departures on the selected day.",
     nextDeps: "Next departures:",
     remindBefore: "Remind",
+    remindUnit: "min before departure",
     remindSet: "Set departure reminder",
     remindTitle: "Departure reminder – route {line}",
     remindBody: "Route {line} ({dest}) departs soon, at {time}.",
@@ -1320,6 +1322,7 @@ const STRINGS = {
     noDepsDay: "Inga avgångar den valda dagen.",
     nextDeps: "Följande avgångar:",
     remindBefore: "Påminn",
+    remindUnit: "min före avgången",
     remindSet: "Ställ in avgångspåminnelse",
     remindTitle: "Avgångspåminnelse – linje {line}",
     remindBody: "Linje {line} ({dest}) avgår snart, kl. {time}.",
@@ -3173,7 +3176,7 @@ async function viewRoute(routeId, patternCode, date) {
             <label>🔔 ${t("remindBefore")}
               <select id="remindLead" aria-label="${t("remindBefore")}">
                 <option value="5">5</option><option value="10" selected>10</option><option value="15">15</option>
-              </select> min</label>
+              </select> ${t("remindUnit")}</label>
             <button type="button" id="remindBtn">${t("remindSet")}</button>
             <span id="remindMsg" class="muted" role="status"></span>
           </div>`;
