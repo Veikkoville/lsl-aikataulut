@@ -47,6 +47,22 @@ const info = msg => console.log("INFO " + msg);
   if (await page.$("#nearbyStart")) await page.click("#nearbyStart");
   await expect("#nearbyBody table.deps tr", "etusivu: lähimmät lähdöt paikannuksella");
 
+  // --- Yhdistetty haku: linja, pysäkki ja osoite samasta kentästä ---
+  await page.type("#uniSearch", "Matkakeskus", { delay: 25 });
+  if (await expect('#searchResults a[href^="#/pysakki/"]', "yhdistetty haku: pysäkkiosumat", 15000)) {
+    const cats = await page.evaluate(() =>
+      [...document.querySelectorAll("#searchResults .search-cat")].map(e => e.textContent.trim()));
+    const hasLines = await page.$('#searchResults a[href^="#/linja/"]');
+    const hasPlaces = await page.$('#searchResults button[data-place]');
+    (hasLines || hasPlaces)
+      ? ok(`yhdistetty haku: useita kategorioita (${cats.join(", ")})`)
+      : fail("yhdistetty haku: vain pysäkit, ei linjoja/osoitteita");
+  }
+  // Pelkkä linjanumero -> linjaosuma
+  await page.evaluate(() => { document.querySelector("#uniSearch").value = ""; });
+  await page.type("#uniSearch", "3", { delay: 25 });
+  await expect('#searchResults a[href^="#/linja/"]', "yhdistetty haku: linjanumero löytää linjan", 15000);
+
   // --- Reittihaku: kirjoita, valitse ehdotus, hae ---
   await page.goto(BASE + "/#/reitti", { waitUntil: "networkidle2" });
   await page.type("#fromInput", "Matkakeskus", { delay: 25 });

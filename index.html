@@ -207,6 +207,8 @@
   ul.plain { list-style: none; margin: 0; padding: 0; }
   ul.plain li { border-top: 1px solid var(--border); }
   ul.plain li:first-child { border-top: none; }
+  li.search-cat { padding: 0.5rem 0.75rem 0.2rem; font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
   a.item, button.item {
     display: flex;
     gap: 0.75rem;
@@ -660,8 +662,13 @@ const STRINGS = {
     stopSearchTitle: "Pysäkkihaku",
     stopSearchPlaceholder: "Hae pysäkkiä nimellä (esim. Matkakeskus)…",
     stopSearchAria: "Hae pysäkkiä nimellä",
+    searchTitle: "Haku",
+    searchPlaceholder: "Linja, pysäkki tai osoite…",
+    searchAria: "Hae linjaa, pysäkkiä tai osoitetta",
+    catLines: "Linjat", catStops: "Pysäkit", catPlaces: "Osoitteet",
+    searching: "Haetaan…",
     nearBtn: "Lähellä", nearBtnTitle: "Näytä lähimmät pysäkit sijaintisi perusteella",
-    routesTitle: "Linjat",
+    routesTitle: "Kaikki linjat",
     routeFilterPlaceholder: "Suodata linjaa tai määränpäätä…", routeFilterAria: "Suodata linjoja",
     noMatches: "Ei osumia.",
     // linjasivu
@@ -822,8 +829,13 @@ const STRINGS = {
     stopSearchTitle: "Stop search",
     stopSearchPlaceholder: "Search stops by name (e.g. Matkakeskus)…",
     stopSearchAria: "Search stops by name",
+    searchTitle: "Search",
+    searchPlaceholder: "Route, stop or address…",
+    searchAria: "Search for a route, stop or address",
+    catLines: "Routes", catStops: "Stops", catPlaces: "Addresses",
+    searching: "Searching…",
     nearBtn: "Nearby", nearBtnTitle: "Show nearest stops based on your location",
-    routesTitle: "Routes",
+    routesTitle: "All routes",
     routeFilterPlaceholder: "Filter by route or destination…", routeFilterAria: "Filter routes",
     noMatches: "No matches.",
     loadingRoute: "Loading route details…",
@@ -981,8 +993,13 @@ const STRINGS = {
     stopSearchTitle: "Hållplatssökning",
     stopSearchPlaceholder: "Sök hållplats med namn (t.ex. Matkakeskus)…",
     stopSearchAria: "Sök hållplats med namn",
+    searchTitle: "Sök",
+    searchPlaceholder: "Linje, hållplats eller adress…",
+    searchAria: "Sök linje, hållplats eller adress",
+    catLines: "Linjer", catStops: "Hållplatser", catPlaces: "Adresser",
+    searching: "Söker…",
     nearBtn: "Nära", nearBtnTitle: "Visa närmaste hållplatser enligt din position",
-    routesTitle: "Linjer",
+    routesTitle: "Alla linjer",
     routeFilterPlaceholder: "Filtrera linje eller destination…", routeFilterAria: "Filtrera linjer",
     noMatches: "Inga träffar.",
     loadingRoute: "Hämtar linjens uppgifter…",
@@ -1985,6 +2002,77 @@ function bindStopSearch(input, results) {
   });
 }
 
+// Yhdistetty etusivun haku: linjat (cached), pysäkit (gql) ja osoitteet
+// (geokoodaus) yhdessä, kategorioituina. Osoite avaa reittioppaan määränpääksi.
+function bindUnifiedSearch(input, results) {
+  let timer = null, seq = 0;
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    const digits = /^\d+$/.test(q);
+    if (q.length < 2 && !(digits && q.length >= 1)) { results.innerHTML = ""; return; }
+    timer = setTimeout(async () => {
+      const mySeq = ++seq;
+      results.innerHTML = `<li><p class="muted">${t("searching")}</p></li>`;
+      try {
+        await findFeed();
+        const ql = q.toLowerCase();
+        const routes = await loadRoutes().catch(() => []);
+        const lineHits = routes.filter(r =>
+          (r.shortName || "").toLowerCase().includes(ql) ||
+          (r.longName || "").toLowerCase().includes(ql)).slice(0, 6);
+
+        // Pysäkit ja osoitteet vain ≥2 merkillä (lyhyt numero = linjahaku)
+        let stopHits = [], placeHits = [];
+        if (q.length >= 2) {
+          const [stopsRes, geoRes] = await Promise.allSettled([
+            gql(`query ($name: String) { stops(name: $name) { gtfsId name code } }`, { name: q }),
+            geocode(q),
+          ]);
+          if (mySeq !== seq) return;
+          stopHits = stopsRes.status === "fulfilled"
+            ? (stopsRes.value.stops || []).filter(s => s.gtfsId.startsWith(feedId + ":")).slice(0, 6) : [];
+          placeHits = (geoRes.status === "fulfilled" ? geoRes.value : [])
+            .filter(p => p.layer !== "stop").slice(0, 5);
+        }
+        if (mySeq !== seq) return;
+
+        let html = "";
+        if (lineHits.length) {
+          html += `<li class="search-cat">${t("catLines")}</li>` +
+            lineHits.map(r => `<li><a class="item" href="#/linja/${encodeURIComponent(r.gtfsId)}">
+              ${badgeHtml(r)} <span>${esc(r.longName)}</span></a></li>`).join("");
+        }
+        if (stopHits.length) {
+          html += `<li class="search-cat">${t("catStops")}</li>` +
+            stopHits.map(s => `<li><a class="item" href="#/pysakki/${encodeURIComponent(s.gtfsId)}">
+              <span><span aria-hidden="true">🚏</span> ${esc(s.name)}</span>
+              <span class="muted">${esc(s.code || "")}</span></a></li>`).join("");
+        }
+        if (placeHits.length) {
+          html += `<li class="search-cat">${t("catPlaces")}</li>` +
+            placeHits.map((p, i) => `<li><button class="item" type="button" data-place="${i}">
+              <span><span aria-hidden="true">${PLACE_ICONS[p.layer] || "📍"}</span> ${esc(p.name)}</span></button></li>`).join("");
+        }
+        results.innerHTML = html || `<li><p class="muted">${t("noMatches")}</p></li>`;
+
+        // Osoiteklikkaus: aseta reittioppaan määränpää ja avaa reittihaku
+        results.querySelectorAll("button[data-place]").forEach(btn =>
+          btn.addEventListener("click", () => {
+            const p = placeHits[+btn.dataset.place];
+            if (!p) return;
+            addRecent(p);
+            planState.to = { name: p.name, lat: p.lat, lon: p.lon };
+            planState.from = null;
+            location.hash = "#/reitti";
+          }));
+      } catch (err) {
+        if (mySeq === seq) results.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`;
+      }
+    }, 250);
+  });
+}
+
 function bindNearbyButton(btn, results) {
   btn.addEventListener("click", () => {
     if (!navigator.geolocation) {
@@ -2252,13 +2340,13 @@ function viewRoutes() {
       <div id="lastPlanRow"></div>
     </div>
     <div class="card">
-      <h2><span aria-hidden="true">🚏</span> ${t("stopSearchTitle")}</h2>
+      <h2><span aria-hidden="true">🔎</span> ${t("searchTitle")}</h2>
       <div class="row">
-        <input type="search" id="stopSearch" placeholder="${t("stopSearchPlaceholder")}"
-               aria-label="${t("stopSearchAria")}">
+        <input type="search" id="uniSearch" placeholder="${t("searchPlaceholder")}"
+               aria-label="${t("searchAria")}">
         <button id="nearbyBtn" title="${t("nearBtnTitle")}">📍 ${t("nearBtn")}</button>
       </div>
-      <ul class="plain" id="stopResults"></ul>
+      <ul class="plain" id="searchResults"></ul>
     </div>
     <div class="card">
       <h2><span aria-hidden="true">🚌</span> ${t("routesTitle")}</h2>
@@ -2278,8 +2366,8 @@ function viewRoutes() {
     }
   } catch (e) { /* rikkinäinen merkintä ohitetaan */ }
   initNearby(document.getElementById("nearbyBody"));
-  bindStopSearch(document.getElementById("stopSearch"), document.getElementById("stopResults"));
-  bindNearbyButton(document.getElementById("nearbyBtn"), document.getElementById("stopResults"));
+  bindUnifiedSearch(document.getElementById("uniSearch"), document.getElementById("searchResults"));
+  bindNearbyButton(document.getElementById("nearbyBtn"), document.getElementById("searchResults"));
 
   loadAlertsInto(document.getElementById("alertsBox"));
   renderFavorites();
