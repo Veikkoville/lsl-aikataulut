@@ -94,6 +94,26 @@ const info = msg => console.log("INFO " + msg);
   await page.goto(shared, { waitUntil: "networkidle2" });
   await expect("details.itin[data-itin]", "jaettu reittilinkki: haku käynnistyy URL:sta");
 
+  // --- Tallennetut matkat: tallenna nykyinen reitti ja näe se etusivulla ---
+  if (await page.$("#saveTripBtn")) {
+    await page.evaluate(() => { window.prompt = () => "Testimatka"; });
+    await page.click("#saveTripBtn");
+    const saved = await page.evaluate(() => {
+      try { return JSON.parse(localStorage.getItem("savedTrips") || "[]").length; } catch (e) { return 0; }
+    });
+    saved >= 1 ? ok("tallennetut matkat: matka tallentuu") : fail("tallennetut matkat: ei tallentunut");
+    await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+    const cardOk = await page.waitForFunction(
+      () => { const c = document.getElementById("savedCard"); return c && !c.hidden && document.querySelector(".saved-trip"); },
+      { timeout: 10000 }).then(() => true).catch(() => false);
+    const connOk = await page.waitForFunction(
+      () => { const e = document.getElementById("savedNext0"); return e && !e.textContent.includes("Haetaan"); },
+      { timeout: 15000 }).then(() => true).catch(() => false);
+    cardOk && connOk ? ok("tallennetut matkat: etusivun kortti + seuraavat yhteydet")
+                     : fail("tallennetut matkat: kortti tai yhteydet eivät renderöityneet");
+    await page.evaluate(() => { localStorage.removeItem("savedTrips"); }); // siivoa
+  }
+
   // --- Linjasivu ---
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   await page.waitForSelector('#routeList a[href^="#/linja/"]', { timeout: 20000 });

@@ -389,6 +389,13 @@
   ul.bullets { margin: 0.3rem 0; padding-left: 1.2rem; }
   ul.bullets li { margin: 0.2rem 0; }
   .fares-source { margin-top: 0.9rem; font-size: 0.85em; }
+  /* Tallennetut matkat */
+  .saved-trip { border-top: 1px solid var(--border); padding: 0.2rem 0 0.4rem; }
+  .saved-trip:first-child { border-top: none; }
+  .saved-row { display: flex; align-items: center; gap: 0.5rem; }
+  .saved-row a.item { flex: 1; }
+  .saved-next { margin: 0.1rem 0 0 0.4rem; }
+  .saved-next .badge { vertical-align: middle; }
   .leaflet-popup-content a { color: var(--blue); }
   .bus-marker {
     background: #b34700;
@@ -754,6 +761,14 @@ const STRINGS = {
     // suosikit
     favsTitle: "Suosikit", favTitle: "Suosikki",
     favAdd: "Lisää suosikkeihin", favRemove: "Poista suosikeista",
+    savedTripsTitle: "Omat matkat",
+    saveTrip: "Tallenna matka", saveTripRemove: "Poista tallennettu matka",
+    tripRemove: "Poista matka",
+    nameTripPrompt: "Anna matkalle nimi (esim. Koti–Työ):",
+    loadingConns: "Haetaan yhteyksiä…",
+    noConns: "Ei yhteyksiä lähiaikoina.",
+    connFail: "Yhteyksien haku epäonnistui.",
+    selectFromTo: "Valitse ensin lähtö ja määränpää.",
     favLoading: "Haetaan suosikkipysäkkien lähtöjä…",
     noUpcoming: "Ei tulevia lähtöjä.",
     // täyttöaste ja esteettömyys
@@ -969,6 +984,14 @@ const STRINGS = {
     homeIntro: "Find route timetables, nearby departures and journeys for the Lahti region public transport.",
     favsTitle: "Favourites", favTitle: "Favourite",
     favAdd: "Add to favourites", favRemove: "Remove from favourites",
+    savedTripsTitle: "My journeys",
+    saveTrip: "Save journey", saveTripRemove: "Remove saved journey",
+    tripRemove: "Remove journey",
+    nameTripPrompt: "Name this journey (e.g. Home–Work):",
+    loadingConns: "Loading connections…",
+    noConns: "No connections soon.",
+    connFail: "Could not load connections.",
+    selectFromTo: "First choose origin and destination.",
     favLoading: "Loading favourite stop departures…",
     noUpcoming: "No upcoming departures.",
     occEmpty: "Empty", occMany: "Many seats available", occFew: "Few seats available",
@@ -1177,6 +1200,14 @@ const STRINGS = {
     geoPrivacy: "Din position används endast för att hitta närliggande hållplatser via Digitransit-gränssnittet och sparas inte någonstans.",
     homeIntro: "Sök linjetidtabeller, närliggande avgångar och resor i Lahtisregionens kollektivtrafik.",
     favsTitle: "Favoriter", favTitle: "Favorit",
+    savedTripsTitle: "Mina resor",
+    saveTrip: "Spara resa", saveTripRemove: "Ta bort sparad resa",
+    tripRemove: "Ta bort resa",
+    nameTripPrompt: "Ge resan ett namn (t.ex. Hem–Jobb):",
+    loadingConns: "Hämtar förbindelser…",
+    noConns: "Inga förbindelser inom kort.",
+    connFail: "Det gick inte att hämta förbindelser.",
+    selectFromTo: "Välj först avgångs- och destinationsplats.",
     favAdd: "Lägg till i favoriter", favRemove: "Ta bort från favoriter",
     favLoading: "Hämtar avgångar för favorithållplatser…",
     noUpcoming: "Inga kommande avgångar.",
@@ -2691,6 +2722,10 @@ function viewRoutes() {
     <div id="alertsBox"><details class="card alertsum" aria-hidden="true">
       <summary><span aria-hidden="true">⚠</span> <strong class="muted">…</strong></summary>
     </details></div>
+    <div class="card" id="savedCard" hidden>
+      <h2><span aria-hidden="true">⭐</span> ${t("savedTripsTitle")}</h2>
+      <div id="savedBody"></div>
+    </div>
     <div class="card" id="favCard" hidden>
       <h2><span aria-hidden="true">⭐</span> ${t("favsTitle")}</h2>
       <div id="favBody"></div>
@@ -2736,7 +2771,8 @@ function viewRoutes() {
 
   loadAlertsInto(document.getElementById("alertsBox"));
   renderFavorites();
-  refreshNow = () => { renderNearby(); renderFavStops(); };
+  renderSavedTrips();
+  refreshNow = () => { renderNearby(); renderFavStops(); renderSavedTrips(); };
   refreshTimer = setInterval(refreshNow, 30000);
 
   // Reittilista on sivun pääsisältö → ladataan heti rungon piirron rinnalla.
@@ -3540,6 +3576,95 @@ function addRecent(p) {
   try { localStorage.setItem(ns("recentPlaces"), JSON.stringify(r.slice(0, 6))); } catch (e) {}
 }
 
+/* ---------- Tallennetut matkat (Koti↔Työ): A→B + seuraavat yhteydet etusivulla ---------- */
+
+function getSavedTrips() {
+  try { return JSON.parse(localStorage.getItem(ns("savedTrips")) || "[]"); }
+  catch (e) { return []; }
+}
+function setSavedTrips(a) {
+  try { localStorage.setItem(ns("savedTrips"), JSON.stringify(a)); } catch (e) {}
+}
+function tripId(from, to) {
+  return `${from.lat.toFixed(5)},${from.lon.toFixed(5)}>${to.lat.toFixed(5)},${to.lon.toFixed(5)}`;
+}
+function isTripSaved(from, to) {
+  return !!(from && to) && getSavedTrips().some(x => x.id === tripId(from, to));
+}
+function addSavedTrip(name, from, to) {
+  const id = tripId(from, to);
+  const keep = p => ({ name: p.name, lat: p.lat, lon: p.lon });
+  const trips = getSavedTrips().filter(x => x.id !== id);
+  trips.unshift({ id, name, from: keep(from), to: keep(to) });
+  setSavedTrips(trips.slice(0, 8));
+}
+function removeSavedTrip(id) {
+  setSavedTrips(getSavedTrips().filter(x => x.id !== id));
+}
+function tripHash(from, to) {
+  const enc = p => encodeURIComponent(`${p.lat.toFixed(5)},${p.lon.toFixed(5)},${p.name}`);
+  return `#/reitti/${enc(from)}/${enc(to)}`;
+}
+
+// Kevyt seuraavien yhteyksien kysely etusivun korttiin (vain ensimmäinen bussi)
+const SAVED_CONN_QUERY = `
+  query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!) {
+    planConnection(origin: $origin, destination: $destination, first: 2, searchWindow: "PT3H") {
+      edges { node { legs {
+        mode start { scheduledTime estimated { time } } route { shortName color textColor }
+      } } }
+    }
+  }`;
+
+function connBrief(node) {
+  const ft = node.legs.find(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
+  if (!ft) return `<span class="muted">${t("directWalk")}</span>`;
+  const mins = Math.round((new Date(legTime(ft.start)) - Date.now()) / 60000);
+  const r = ft.route || {};
+  const style = r.color ? ` style="background:#${esc(r.color)};color:${badgeText(r.color, r.textColor)}"` : "";
+  const when = mins <= 0 ? t("depNow") : mins < 60 ? t("depMin", { n: mins }) : fmtClock(legTime(ft.start));
+  return `<span class="badge"${style}>${esc(r.shortName || "")}</span> ${when}`;
+}
+
+async function renderSavedTrips() {
+  const card = document.getElementById("savedCard");
+  const body = document.getElementById("savedBody");
+  if (!card || !body) return;
+  const trips = getSavedTrips();
+  card.hidden = !trips.length;
+  if (!trips.length) return;
+  body.innerHTML = trips.map((tr, i) => `
+    <div class="saved-trip">
+      <div class="saved-row">
+        <a class="item" href="${esc(tripHash(tr.from, tr.to))}">
+          <span><span aria-hidden="true">⭐</span> <span>${esc(tr.name)}</span></span>
+        </a>
+        <button class="star" data-del="${esc(tr.id)}" aria-label="${t("tripRemove")}" title="${t("tripRemove")}">✕</button>
+      </div>
+      <p class="muted saved-next" id="savedNext${i}">${t("loadingConns")}</p>
+    </div>`).join("");
+  body.querySelectorAll("button[data-del]").forEach(b =>
+    b.addEventListener("click", () => { removeSavedTrip(b.dataset.del); renderSavedTrips(); }));
+  await findFeed().catch(() => {});
+  const mySeq = viewSeq;
+  trips.forEach(async (tr, i) => {
+    try {
+      const data = await gql(SAVED_CONN_QUERY, {
+        origin: { location: { coordinate: { latitude: tr.from.lat, longitude: tr.from.lon } } },
+        destination: { location: { coordinate: { latitude: tr.to.lat, longitude: tr.to.lon } } },
+      });
+      if (mySeq !== viewSeq) return;
+      const el = document.getElementById("savedNext" + i);
+      if (!el) return;
+      const nodes = (data.planConnection?.edges || []).map(e => e.node);
+      el.innerHTML = nodes.length ? nodes.slice(0, 2).map(connBrief).join(" · ") : t("noConns");
+    } catch (e) {
+      const el = document.getElementById("savedNext" + i);
+      if (el) el.textContent = t("connFail");
+    }
+  });
+}
+
 // Yhdistetty osoite-/pysäkkihaku: kirjoitus hakee ehdotukset, valinta antaa
 // koordinaatit onPick-kutsulla. Tekstin muokkaus mitätöi aiemman valinnan.
 function bindPlaceInput(input, listEl, onPick) {
@@ -3940,6 +4065,9 @@ async function viewPlan(parts) {
           <label><input type="checkbox" id="lessWalkBox"${planState.lessWalk ? " checked" : ""}>
             ${t("lessWalk")}</label>
         </div>
+        <p class="row" style="margin-top:0.4rem">
+          <button type="button" id="saveTripBtn" class="linkish">★ <span id="saveTripLabel">${t("saveTrip")}</span></button>
+        </p>
       </form>
       <div id="planMsg" role="status"></div>
     </div>
@@ -3947,13 +4075,35 @@ async function viewPlan(parts) {
 
   const fromInput = document.getElementById("fromInput");
   const toInput = document.getElementById("toInput");
-  bindPlaceInput(fromInput, document.getElementById("fromList"), p => { planState.from = p; });
-  bindPlaceInput(toInput, document.getElementById("toList"), p => { planState.to = p; });
+
+  // Tallenna matka (Koti↔Työ): tallentaa nykyisen lähdön+määränpään etusivulle
+  const updateSaveBtn = () => {
+    const lbl = document.getElementById("saveTripLabel");
+    if (lbl) lbl.textContent = isTripSaved(planState.from, planState.to) ? t("saveTripRemove") : t("saveTrip");
+  };
+  document.getElementById("saveTripBtn").addEventListener("click", () => {
+    const msg = document.getElementById("planMsg");
+    if (!planState.from || !planState.to) { msg.innerHTML = `<p class="muted">${t("selectFromTo")}</p>`; return; }
+    if (isTripSaved(planState.from, planState.to)) {
+      removeSavedTrip(tripId(planState.from, planState.to));
+      updateSaveBtn();
+      return;
+    }
+    const name = (prompt(t("nameTripPrompt"), `${planState.from.name} → ${planState.to.name}`) || "").trim();
+    if (!name) return;
+    addSavedTrip(name, planState.from, planState.to);
+    updateSaveBtn();
+  });
+  updateSaveBtn();
+
+  bindPlaceInput(fromInput, document.getElementById("fromList"), p => { planState.from = p; updateSaveBtn(); });
+  bindPlaceInput(toInput, document.getElementById("toList"), p => { planState.to = p; updateSaveBtn(); });
 
   document.getElementById("swapBtn").addEventListener("click", () => {
     [planState.from, planState.to] = [planState.to, planState.from];
     fromInput.value = planState.from?.name || "";
     toInput.value = planState.to?.name || "";
+    updateSaveBtn();
     if (planState.from && planState.to) search(false);
   });
   document.getElementById("nowBtn").addEventListener("click", () => {
@@ -3969,6 +4119,7 @@ async function viewPlan(parts) {
     navigator.geolocation.getCurrentPosition(pos => {
       planState.from = { name: t("myLocation"), lat: pos.coords.latitude, lon: pos.coords.longitude };
       fromInput.value = t("myLocation");
+      updateSaveBtn();
       msg.innerHTML = "";
     }, err => {
       msg.innerHTML = `<div class="error">${t("geoFail")}${esc(err.message)}</div>`;
