@@ -122,6 +122,19 @@ const info = msg => console.log("INFO " + msg);
         ? ok(`pysäkkijuliste: tuntikaavio kootaan (${days} päivätyyppiä)`)
         : fail(`pysäkkijuliste: tuntikaaviota ei muodostunut (päivätyyppejä ${days})`);
     }
+    // Pysäkkimonitori / kioski: koko ruudun live-lähtötaulu
+    const monitorHref = stopHref.replace("#/pysakki/", "#/monitori/");
+    await page.goto(BASE + "/" + monitorHref, { waitUntil: "networkidle2" });
+    const monOk = await expect("#mRows tr", "monitori: live-lähtötaulu latautuu");
+    const monMode = await page.evaluate(() =>
+      document.body.classList.contains("monitor-mode") && !!document.getElementById("mClock"));
+    monMode ? ok("monitori: kioskitila päällä (kello + monitor-mode)")
+            : fail("monitori: kioskitila ei aktivoitunut");
+    // Poistuttaessa kioskitila puretaan
+    await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+    const exited = await page.evaluate(() => !document.body.classList.contains("monitor-mode"));
+    exited ? ok("monitori: kioskitila puretaan poistuttaessa")
+           : fail("monitori: kioskitila jäi päälle");
   }
 
   // --- Asetukset + kielenvaihto ---
