@@ -111,6 +111,10 @@
     background: linear-gradient(120deg, var(--header-bg), var(--header-bg2));
     color: #fff;
     padding: 0.85rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 600;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
   }
   .brand {
     display: flex;
@@ -141,7 +145,47 @@
     margin-bottom: 1rem;
     box-shadow: 0 1px 3px var(--shadow);
   }
-  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  h2 { font-size: 1.1rem; margin: 0 0 0.6rem; letter-spacing: 0.01em; }
+  /* Etusivun esittelyteksti */
+  .home-intro { margin: 0.2rem 0 1.1rem; font-size: 1rem; color: var(--muted); max-width: 46ch; }
+  /* Pikavalintaruudukko (etusivun työkalut): ikonikortit, helppo silmäillä */
+  .quick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 0.7rem;
+    margin: 0 0 1.2rem;
+  }
+  .quick-tile {
+    display: flex; flex-direction: column; gap: 0.55rem; align-items: flex-start;
+    padding: 0.85rem 0.9rem;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: 0 1px 3px var(--shadow);
+    text-decoration: none; color: var(--text);
+    transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+  }
+  .quick-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 16px var(--shadow); border-color: var(--blue); }
+  .qt-icon {
+    display: inline-grid; place-items: center;
+    width: 2.5rem; height: 2.5rem; border-radius: 50%;
+    background: var(--chip); font-size: 1.25rem; line-height: 1;
+  }
+  .qt-label { font-weight: 600; font-size: 0.92rem; line-height: 1.25; }
+  /* Jäsennelty footer (linkkisarakkeet + lähde + varauma) */
+  .foot-cols { max-width: 760px; margin: 0 auto; display: grid;
+    grid-template-columns: 1.7fr 1fr 1fr; gap: 1.3rem; }
+  .foot-brand { display: flex; gap: 0.6rem; align-items: flex-start; }
+  .foot-brand img { border-radius: 8px; flex-shrink: 0; }
+  .foot-brand strong { color: var(--text); }
+  .foot-col h4 { margin: 0 0 0.4rem; font-size: 0.78rem; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text); }
+  .foot-col a { display: block; padding: 0.22rem 0; color: var(--blue); text-decoration: none; }
+  .foot-col a:hover { text-decoration: underline; }
+  .foot-note { max-width: 760px; margin: 1.2rem auto 0; padding-top: 1rem;
+    border-top: 1px solid var(--border); }
+  @media (max-width: 540px) {
+    .foot-cols { grid-template-columns: 1fr 1fr; }
+    .foot-brand { grid-column: 1 / -1; }
+  }
   input[type="search"], input[type="password"], input[type="date"],
   input[type="datetime-local"], input[type="text"], select {
     font: inherit;
@@ -535,7 +579,8 @@
   details.tl-stops li { font-size: 0.85rem; color: var(--muted); padding: 0.1rem 0; }
   nav.crumb { margin-bottom: 0.75rem; font-size: 0.9rem; }
   nav.crumb a { color: var(--blue); }
-  footer { max-width: 760px; margin: 0 auto; padding: 0 1rem 2rem; font-size: 0.78rem; color: var(--muted); }
+  footer { margin-top: 2rem; padding: 1.6rem 1rem 2rem; font-size: 0.82rem; color: var(--muted);
+    background: var(--card); border-top: 1px solid var(--border); }
   @media print {
     /* Tulosteet aina normaalikokoisina, vaikka näytöllä olisi suuri teksti
        (rem-pohjaiset juliste-/vihkofontit mitoitettu A4:lle) */
@@ -549,7 +594,7 @@
     /* tulosteessa sisältö saa käyttää koko arkin leveyden (myös vaaka) */
     main { max-width: none; min-height: 0; padding: 0; }
     header { background: none; color: #000; padding: 0 0 0.5rem; }
-    header p, .logo, nav.crumb, .tabs, .map, .map-small, .no-print, #routeAlerts, button { display: none !important; }
+    header p, .logo, nav.crumb, .tabs, .map, .map-small, .no-print, #routeAlerts, button, #appFooter { display: none !important; }
     .card { border: none; padding: 0.25rem 0; margin: 0; break-inside: avoid; }
     .badge { border: 1px solid #000; background: none; color: #000; }
     .timegrid span { background: none; border: 1px solid #ccc; }
@@ -699,6 +744,9 @@ const STRINGS = {
     appTitleTag: "{cityGen} bussiaikataulut (epävirallinen)",
     headerSub: "Epävirallinen palvelu · data: {operator} / Waltti (CC BY 4.0)",
     footerNote: "Tämä on epävirallinen prototyyppi, joka ei ole liikennöitsijän ({operator}) tuottama. Aikataulu- ja reaaliaikadata: {operatorShort} / Waltti avoin data (CC BY 4.0) Digitransit-rajapinnan kautta.",
+    footColService: "Palvelu",
+    footColInfo: "Tietoa",
+    quickNavAria: "Pikavalinnat",
     settings: "Asetukset", home: "Etusivu", toHome: "Etusivulle", back: "Takaisin", save: "Tallenna",
     // virheet ja tila
     errApiKey: "API-avain puuttuu tai on virheellinen. Tarkista avain asetuksista.",
@@ -982,6 +1030,9 @@ const STRINGS = {
     appTitleTag: "{city} bus timetables (unofficial)",
     headerSub: "Unofficial service · data: {operator} / Waltti (CC BY 4.0)",
     footerNote: "This is an unofficial prototype, not produced by the transit authority ({operator}). Timetable and real-time data: {operatorShort} / Waltti open data (CC BY 4.0) via the Digitransit API.",
+    footColService: "Service",
+    footColInfo: "About",
+    quickNavAria: "Quick links",
     settings: "Settings", home: "Home", toHome: "To the front page", back: "Back", save: "Save",
     errApiKey: "The API key is missing or invalid. Check the key in settings.",
     errApi: "API error: ",
@@ -1252,6 +1303,9 @@ const STRINGS = {
     appTitleTag: "Busstidtabeller i {city} (inofficiell)",
     headerSub: "Inofficiell tjänst · data: {operator} / Waltti (CC BY 4.0)",
     footerNote: "Detta är en inofficiell prototyp som inte har producerats av trafikbolaget ({operator}). Tidtabells- och realtidsdata: {operatorShort} / Waltti öppna data (CC BY 4.0) via Digitransit-gränssnittet.",
+    footColService: "Tjänst",
+    footColInfo: "Information",
+    quickNavAria: "Snabbval",
     settings: "Inställningar", home: "Startsida", toHome: "Till startsidan", back: "Tillbaka", save: "Spara",
     errApiKey: "API-nyckeln saknas eller är ogiltig. Kontrollera nyckeln i inställningarna.",
     errApi: "Gränssnittsfel: ",
@@ -1536,8 +1590,26 @@ function updateChrome() {
   document.getElementById("appTitle").textContent = t("appTitle");
   document.getElementById("appSub").textContent = t("headerSub");
   document.getElementById("brandLink").setAttribute("aria-label", t("toHomeAria"));
-  document.getElementById("appFooter").innerHTML =
-    `${t("footerNote")} · <a href="#/saavutettavuus">${t("a11yStatement")}</a>`;
+  document.getElementById("appFooter").innerHTML = `
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <img src="icon.svg" alt="" width="30" height="30">
+        <div><strong>${t("appTitle")}</strong><br><span class="muted">${t("headerSub")}</span></div>
+      </div>
+      <nav class="foot-col" aria-label="${t("footColService")}">
+        <h4>${t("footColService")}</h4>
+        <a href="#/reitti">${t("planTitle")}</a>
+        <a href="#/linjasto">${t("netMapLink")}</a>
+        ${CONFIG.fares ? `<a href="#/liput">${t("faresLink")}</a>` : ""}
+      </nav>
+      <nav class="foot-col" aria-label="${t("footColInfo")}">
+        <h4>${t("footColInfo")}</h4>
+        <a href="#/saavutettavuus">${t("a11yStatement")}</a>
+        <a href="#/palaute">${t("fbLink")}</a>
+        <a href="#/asetukset">${t("settings")}</a>
+      </nav>
+    </div>
+    <p class="foot-note">${t("footerNote")}</p>`;
 }
 
 let apiKey = localStorage.getItem("digitransitKey") || "";
@@ -3016,13 +3088,15 @@ function initNearby(body) {
 function viewRoutes() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`
-    <p class="muted" style="margin:0 0 0.6rem">${t("homeIntro")}</p>
-    <p style="margin:0 0 0.6rem"><a class="item" href="#/tulosta"><span aria-hidden="true">🖨</span> <span>${t("printPageLink")}</span></a></p>
-    <p style="margin:0 0 0.6rem"><a class="item" href="#/kartta"><span aria-hidden="true">🗺</span> <span>${t("liveMapLink")}</span></a></p>
-    <p style="margin:0 0 0.6rem"><a class="item" href="#/linjasto"><span aria-hidden="true">🕸</span> <span>${t("netMapLink")}</span></a></p>
-    <p style="margin:0 0 0.6rem"><a class="item" href="#/poikkeukset"><span aria-hidden="true">📅</span> <span>${t("exLink")}</span></a></p>
-    ${CONFIG.fares ? `<p style="margin:0 0 0.6rem"><a class="item" href="#/liput"><span aria-hidden="true">🎫</span> <span>${t("faresLink")}</span></a></p>` : ""}
-    <p style="margin:0 0 0.6rem"><a class="item" href="#/palaute"><span aria-hidden="true">🛠</span> <span>${t("fbLink")}</span></a></p>
+    <p class="home-intro">${t("homeIntro")}</p>
+    <nav class="quick-grid" aria-label="${t("quickNavAria")}">
+      <a class="quick-tile" href="#/kartta"><span class="qt-icon" aria-hidden="true">🗺</span><span class="qt-label">${t("liveMapLink")}</span></a>
+      <a class="quick-tile" href="#/linjasto"><span class="qt-icon" aria-hidden="true">🕸</span><span class="qt-label">${t("netMapLink")}</span></a>
+      <a class="quick-tile" href="#/poikkeukset"><span class="qt-icon" aria-hidden="true">📅</span><span class="qt-label">${t("exLink")}</span></a>
+      ${CONFIG.fares ? `<a class="quick-tile" href="#/liput"><span class="qt-icon" aria-hidden="true">🎫</span><span class="qt-label">${t("faresLink")}</span></a>` : ""}
+      <a class="quick-tile" href="#/tulosta"><span class="qt-icon" aria-hidden="true">🖨</span><span class="qt-label">${t("printPageLink")}</span></a>
+      <a class="quick-tile" href="#/palaute"><span class="qt-icon" aria-hidden="true">🛠</span><span class="qt-label">${t("fbLink")}</span></a>
+    </nav>
     <div id="alertsBox"><details class="card alertsum" aria-hidden="true">
       <summary><span aria-hidden="true">⚠</span> <strong class="muted">…</strong></summary>
     </details></div>

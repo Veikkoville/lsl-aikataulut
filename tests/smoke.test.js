@@ -43,6 +43,14 @@ const info = msg => console.log("INFO " + msg);
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   await expect("#routeList li a.item", "etusivu: linjalista latautuu");
 
+  // Ulkoasu: pikavalintaruudukko + jäsennelty footer
+  const tiles = (await page.$$(".quick-grid a.quick-tile")).length;
+  tiles >= 4 ? ok(`ulkoasu: pikavalintaruudukko (${tiles} korttia)`)
+             : fail("ulkoasu: pikavalintaruudukon kortit puuttuvat");
+  (await page.$("#appFooter .foot-cols .foot-col a"))
+    ? ok("ulkoasu: jäsennelty footer linkkisarakkeineen")
+    : fail("ulkoasu: jäsennelty footer puuttuu");
+
   await page.waitForSelector("#nearbyStart", { timeout: 10000 }).catch(() => {});
   if (await page.$("#nearbyStart")) await page.click("#nearbyStart");
   await expect("#nearbyBody table.deps tr", "etusivu: lähimmät lähdöt paikannuksella");
