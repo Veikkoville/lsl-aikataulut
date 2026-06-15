@@ -49,6 +49,15 @@
   }
   applyText();
   window.applyTextSize = applyText;
+
+  // Korkea kontrasti (esteettömyys): high → html[data-contrast], ennen maalausta
+  function applyContrast() {
+    if ((localStorage.getItem("contrast") || "normal") === "high")
+      document.documentElement.dataset.contrast = "high";
+    else delete document.documentElement.dataset.contrast;
+  }
+  applyContrast();
+  window.applyContrast = applyContrast;
 })();
 </script>
 <style>
@@ -100,6 +109,29 @@
     --sev-severe: #e06050;
     --sev-warning: #e8a33d;
   }
+  /* Korkea kontrasti (esteettömyys): maksimoi tekstin ja reunojen erottuvuus.
+     Vaalea ja tumma erikseen; tumma+kontrasti voittaa specificityllä. */
+  html[data-contrast="high"] {
+    --bg: #ffffff; --card: #ffffff; --text: #000000; --muted: #1a1a1a;
+    --border: #000000; --hover: #e6e6e6; --chip: #dcdcdc;
+    --blue: #0033cc; --btn-bg: #0033cc; --btn-hover: #001f99;
+    --rt-bg: #d4f0d4; --rt-text: #005800; --error-text: #990000;
+    --sev-severe: #a00000; --sev-warning: #8a5200; --star: #6e5200;
+    --shadow: rgba(0, 0, 0, 0.5);
+  }
+  html[data-theme="dark"][data-contrast="high"] {
+    --bg: #000000; --card: #000000; --text: #ffffff; --muted: #e8e8e8;
+    --border: #ffffff; --hover: #1c1c1c; --chip: #202020;
+    --blue: #7db8ff; --btn-bg: #1a5fd0; --btn-hover: #2e78ec;
+    --rt-bg: #0a2a0a; --rt-text: #82ff82; --error-text: #ff8c8c;
+    --sev-severe: #ff7060; --sev-warning: #ffc24d; --star: #ffcf52;
+    --shadow: rgba(255, 255, 255, 0.3);
+  }
+  html[data-contrast="high"] a { text-decoration: underline; }
+  html[data-contrast="high"] .card,
+  html[data-contrast="high"] button.secondary,
+  html[data-contrast="high"] a.btnlink.secondary,
+  html[data-contrast="high"] input, html[data-contrast="high"] select { border-width: 2px; }
   html[data-theme="dark"] .leaflet-popup-content-wrapper,
   html[data-theme="dark"] .leaflet-popup-tip {
     background: var(--card);
@@ -652,7 +684,8 @@
     /* Tulosteet aina normaalikokoisina, vaikka näytöllä olisi suuri teksti
        (rem-pohjaiset juliste-/vihkofontit mitoitettu A4:lle) */
     html, html[data-text="large"], html[data-text="larger"] { font-size: 100%; }
-    html, html[data-theme="dark"] {
+    html, html[data-theme="dark"],
+    html[data-contrast="high"], html[data-theme="dark"][data-contrast="high"] {
       --bg: #fff; --card: #fff; --text: #000; --muted: #444;
       --border: #ccc; --chip: #fff; --hover: #fff;
       --rt-bg: #fff; --rt-text: #000;
@@ -907,6 +940,10 @@ const STRINGS = {
     textSizeTitle: "Tekstikoko",
     textSizeHint: "Suurenna tekstiä ja painikkeita koko palvelussa.",
     textSizeAria: "Tekstikoko",
+    contrastTitle: "Kontrasti",
+    contrastHint: "Suuri kontrasti parantaa luettavuutta heikkonäköisille.",
+    contrastAria: "Kontrasti",
+    contrastNormal: "Normaali", contrastHigh: "Suuri kontrasti",
     sizeNormal: "Normaali", sizeLarge: "Suuri", sizeLarger: "Suurin",
     langTitle: "Kieli",
     notifyTitle: "Ilmoitukset",
@@ -1194,6 +1231,10 @@ const STRINGS = {
     textSizeTitle: "Text size",
     textSizeHint: "Make text and buttons larger across the whole service.",
     textSizeAria: "Text size",
+    contrastTitle: "Contrast",
+    contrastHint: "High contrast improves readability for low vision.",
+    contrastAria: "Contrast",
+    contrastNormal: "Normal", contrastHigh: "High contrast",
     sizeNormal: "Normal", sizeLarge: "Large", sizeLarger: "Largest",
     langTitle: "Language",
     notifyTitle: "Notifications",
@@ -1473,6 +1514,10 @@ const STRINGS = {
     textSizeTitle: "Textstorlek",
     textSizeHint: "Förstora text och knappar i hela tjänsten.",
     textSizeAria: "Textstorlek",
+    contrastTitle: "Kontrast",
+    contrastHint: "Hög kontrast förbättrar läsbarheten för synsvaga.",
+    contrastAria: "Kontrast",
+    contrastNormal: "Normal", contrastHigh: "Hög kontrast",
     sizeNormal: "Normal", sizeLarge: "Stor", sizeLarger: "Störst",
     langTitle: "Språk",
     notifyTitle: "Aviseringar",
@@ -2387,6 +2432,31 @@ function bindTextSizeSetting() {
     }));
 }
 
+const CONTRAST_OPTIONS = [["normal", "contrastNormal"], ["high", "contrastHigh"]];
+
+function contrastSettingHtml() {
+  const cur = localStorage.getItem("contrast") || "normal";
+  return `
+    <div class="card">
+      <h2>${t("contrastTitle")}</h2>
+      <p class="muted">${t("contrastHint")}</p>
+      <div class="tabs" role="group" aria-label="${t("contrastAria")}">
+        ${CONTRAST_OPTIONS.map(([v, key]) => `
+          <button data-contrast-opt="${v}" aria-pressed="${v === cur}">${t(key)}</button>`).join("")}
+      </div>
+    </div>`;
+}
+
+function bindContrastSetting() {
+  document.querySelectorAll("[data-contrast-opt]").forEach(btn =>
+    btn.addEventListener("click", () => {
+      localStorage.setItem("contrast", btn.dataset.contrastOpt);
+      window.applyContrast();
+      document.querySelectorAll("[data-contrast-opt]").forEach(b =>
+        b.setAttribute("aria-pressed", String(b === btn)));
+    }));
+}
+
 function notifySettingHtml() {
   if (typeof Notification === "undefined") return "";
   const on = localStorage.getItem("notifyAlerts") === "1" && Notification.permission === "granted";
@@ -2459,6 +2529,7 @@ function viewSettings() {
       ${langSettingHtml()}
       ${themeSettingHtml()}
       ${textSizeSettingHtml()}
+      ${contrastSettingHtml()}
       ${notifySettingHtml()}
       <div class="card">
         <h2>${t("apiKeyTitle")}</h2>
@@ -2467,6 +2538,7 @@ function viewSettings() {
     bindLangSetting();
     bindThemeSetting();
     bindTextSizeSetting();
+    bindContrastSetting();
     bindNotifySetting();
     return;
   }
@@ -2475,6 +2547,7 @@ function viewSettings() {
     ${langSettingHtml()}
     ${themeSettingHtml()}
     ${textSizeSettingHtml()}
+    ${contrastSettingHtml()}
     ${notifySettingHtml()}
     <div class="card">
       <h2>${t("apiKeyTitle")}</h2>
@@ -2488,6 +2561,7 @@ function viewSettings() {
   bindLangSetting();
   bindThemeSetting();
   bindTextSizeSetting();
+  bindContrastSetting();
   bindNotifySetting();
   document.getElementById("keyForm").addEventListener("submit", e => {
     e.preventDefault();

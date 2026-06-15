@@ -328,6 +328,23 @@ const info = msg => console.log("INFO " + msg);
     await page.click('[data-text-opt="normal"]'); // palauta ettei vaikuta muihin
   }
 
+  // Korkea kontrasti: valinta asettaa html[data-contrast="high"] ja muuttaa taustaa
+  if (await page.$('[data-contrast-opt="high"]')) {
+    const bgBefore = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    await page.click('[data-contrast-opt="high"]');
+    await sleep(150);
+    const hc = await page.evaluate(() => ({
+      attr: document.documentElement.dataset.contrast,
+      bg: getComputedStyle(document.body).backgroundColor,
+    }));
+    hc.attr === "high" && hc.bg !== bgBefore
+      ? ok(`asetukset: suuri kontrasti käytössä (tausta ${bgBefore}→${hc.bg})`)
+      : fail("asetukset: suuri kontrasti ei aktivoitunut");
+    await page.click('[data-contrast-opt="normal"]'); // palauta
+  } else {
+    fail("asetukset: kontrastivalinta puuttuu");
+  }
+
   // --- Tulostusvihko (monta linjaa) ---
   await page.goto(BASE + "/#/tulosta", { waitUntil: "networkidle2" });
   if (await expect(".lineCb", "tulostusvihko: linjavalinta latautuu")) {
