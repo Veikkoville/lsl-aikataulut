@@ -112,6 +112,17 @@
     outline: 3px solid var(--blue);
     outline-offset: 2px;
   }
+  /* Kunnioita "vähennä liikettä" -asetusta: animaatiot, siirtymät ja korttien
+     hover-nostot pois käytöstä niiltä, jotka ovat sen valinneet */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+    .quick-tile:hover, .route-tile:hover, button:active { transform: none !important; }
+  }
   body {
     margin: 0;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -277,6 +288,13 @@
     border-radius: 8px; background: var(--btn-bg); color: #fff; text-decoration: none;
   }
   a.btnlink:hover { background: var(--btn-hover); }
+  /* Toissijainen (outline) painike: erottaa avustavat toiminnot ensisijaisesta */
+  button.secondary, a.btnlink.secondary {
+    background: transparent; color: var(--blue); border: 1.5px solid var(--border);
+  }
+  button.secondary:hover, a.btnlink.secondary:hover {
+    background: var(--hover); border-color: var(--blue);
+  }
   /* Pysäkkimonitori / kioski: koko ruudun live-lähtötaulu isolla fontilla */
   body.monitor-mode header, body.monitor-mode #appFooter { display: none; }
   body.monitor-mode main { max-width: none; padding: 0; }
@@ -3161,7 +3179,7 @@ function viewRoutes() {
       <div class="row">
         <input type="search" id="uniSearch" placeholder="${t("searchPlaceholder")}"
                aria-label="${t("searchAria")}">
-        <button id="nearbyBtn" title="${t("nearBtnTitle")}">📍 ${t("nearBtn")}</button>
+        <button id="nearbyBtn" class="secondary" title="${t("nearBtnTitle")}">📍 ${t("nearBtn")}</button>
       </div>
       <ul class="plain" id="searchResults"></ul>
     </div>
@@ -3380,7 +3398,7 @@ async function viewRoute(routeId, patternCode, date) {
       <div class="row no-print" style="flex-wrap:wrap;gap:0.4rem">
         <button id="printKeyBtn">🖨 ${t("printKeyStopsPort")}</button>
         <button id="printAllBtn">🖨 ${t("printAllStopsLand")}</button>
-        <button id="lineQrBtn"><span aria-hidden="true">🔳</span> ${t("qrButton")}</button>
+        <button id="lineQrBtn" class="secondary"><span aria-hidden="true">🔳</span> ${t("qrButton")}</button>
         <span id="linePrintStatus" class="muted" role="status"></span>
       </div>
       <div id="lineQr" class="qrbox no-print" hidden></div>
@@ -3486,7 +3504,7 @@ async function viewRoute(routeId, patternCode, date) {
               <select id="remindLead" aria-label="${t("remindBefore")}">
                 <option value="5">5</option><option value="10" selected>10</option><option value="15">15</option>
               </select> ${t("remindUnit")}</label>
-            <button type="button" id="remindBtn">${t("remindSet")}</button>
+            <button type="button" id="remindBtn" class="secondary">${t("remindSet")}</button>
             <span id="remindMsg" class="muted" role="status"></span>
           </div>`;
         }
@@ -3707,10 +3725,10 @@ async function viewStop(stopId) {
       <p class="muted"><span class="rt">●</span> ${t("rtLegendStop")}</p>
       <p class="no-print" style="margin:0.6rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center">
         <button type="button" id="stopPosterBtn">🖨 ${t("printStopPoster")}</button>
-        <a class="btnlink" href="#/monitori/${encodeURIComponent(stopId)}"><span aria-hidden="true">🖥</span> ${t("monitorLink")}</a>
-        ${("speechSynthesis" in window) ? `<button type="button" id="speakBtn"><span aria-hidden="true">🔊</span> ${t("speakAloud")}</button>` : ""}
-        <button type="button" id="stopQrBtn"><span aria-hidden="true">🔳</span> ${t("qrButton")}</button>
-        <button type="button" id="stopEmbedBtn"><span aria-hidden="true">🔗</span> ${t("embedButton")}</button>
+        <a class="btnlink secondary" href="#/monitori/${encodeURIComponent(stopId)}"><span aria-hidden="true">🖥</span> ${t("monitorLink")}</a>
+        ${("speechSynthesis" in window) ? `<button type="button" id="speakBtn" class="secondary"><span aria-hidden="true">🔊</span> ${t("speakAloud")}</button>` : ""}
+        <button type="button" id="stopQrBtn" class="secondary"><span aria-hidden="true">🔳</span> ${t("qrButton")}</button>
+        <button type="button" id="stopEmbedBtn" class="secondary"><span aria-hidden="true">🔗</span> ${t("embedButton")}</button>
         <span id="stopPrintStatus" class="muted" role="status"></span>
       </p>
       <div id="stopEmbed" class="embedbox no-print" hidden></div>
