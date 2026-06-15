@@ -75,12 +75,16 @@ const env = {
 };
 await env.PUSH_KV.put("sub:test", JSON.stringify(subscription));
 
-// --- Stub fetch: Digitransit-häiriöt + push-endpoint ---
+// --- Stub fetch: Digitransit-häiriöt + lsl.fi CMS + push-endpoint ---
 let currentAlerts = [];
+let currentCmsPosts = [];
 const pushSends = [];
 globalThis.fetch = async (url, opts) => {
   if (String(url).includes("digitransit.fi/routing")) {
     return { json: async () => ({ data: { alerts: currentAlerts } }) };
+  }
+  if (String(url).includes("/wp-json/")) {
+    return { ok: true, json: async () => currentCmsPosts };
   }
   if (String(url).startsWith("https://push.example")) {
     pushSends.push({ url: String(url), headers: opts.headers });
@@ -112,6 +116,36 @@ check(pushSends.length === 1, "ei uusintailmoitusta jo nähdystä häiriöstä")
 currentAlerts.push({ alertHeaderText: "Linja 4 uusi häiriö", alertDescriptionText: "Ei seurattu", effectiveStartDate: 0, effectiveEndDate: 0 });
 await runPushCheck(env);
 check(pushSends.length === 1, "ei-seurattu linja 4 ei laukaise pushia");
+
+// --- CMS-tiedotteet (lsl.fi WordPress) taustapushiin ---
+const recentIso = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+const cmsPost = (slug, title, body) => ({ date: recentIso, link: "https://www.lsl.fi/hairiotiedotteet/" + slug + "/", title: { rendered: title }, content: { rendered: body } });
+
+// 5) CMS:n oma ensiajo seedaa nykyiset ilman pushia (ei tulvi käyttöönotossa)
+currentCmsPosts = [cmsPost("poikkeus", "Poikkeusreitti keskustassa", "<p>Koskee linjoja 8(K) ja 12.</p>")];
+const before5 = pushSends.length;
+await runPushCheck(env);
+check(pushSends.length === before5, "CMS: oma ensiajo seedaa ilman pushia");
+check(!!env.PUSH_KV._m.get("seenCms:Lahti"), "CMS: seenCms:Lahti tallennettu ensiajossa");
+
+// 6) Uusi CMS-tiedote seuratusta linjasta (8K) → tasan 1 push, url lsl.fi:hin
+currentCmsPosts = [...currentCmsPosts, cmsPost("tapahtuma", "Tapahtuma vaikuttaa liikenteeseen", "<p>Linja 8(K) ajaa poikkeusreittiä.</p>")];
+const before6 = pushSends.length;
+await runPushCheck(env);
+check(pushSends.length === before6 + 1, "CMS: uusi seuratun linjan tiedote → tasan 1 push");
+check(pushSends[pushSends.length - 1].url.startsWith("https://push.example"), "CMS: push lähti tilaajan endpointtiin");
+
+// 7) "Tilanne ohi" -CMS-tiedote ei laukaise pushia
+currentCmsPosts = [...currentCmsPosts, cmsPost("ohi", "Tilanne ohi: linja 8(K) normaalisti", "<p>Linja 8(K) palasi reitille.</p>")];
+const before7 = pushSends.length;
+await runPushCheck(env);
+check(pushSends.length === before7, "CMS: 'Tilanne ohi' -tiedote ei laukaise pushia");
+
+// 8) Ei-seurattua linjaa koskeva CMS-tiedote → ei pushia
+currentCmsPosts = [...currentCmsPosts, cmsPost("nelonen", "Linja 4 poikkeaa", "<p>Linja 4 ajaa poikkeusreittiä.</p>")];
+const before8 = pushSends.length;
+await runPushCheck(env);
+check(pushSends.length === before8, "CMS: ei-seurattu linja 4 ei laukaise pushia");
 
 // --- Lähtömuistutukset (runReminderCheck) ---
 const before = pushSends.length;

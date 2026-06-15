@@ -239,6 +239,40 @@ async function fetchAlerts(feed, env) {
     !(a.effectiveEndDate && a.effectiveEndDate < now));
 }
 
+// Feed → CMS-lähde (lsl.fi häiriötiedotteet) taustapushia varten. Sama lähde
+// kuin client-CONFIG.cmsAlerts, mutta workerin cron tarvitsee oman mappauksen.
+const CMS_SOURCES = { Lahti: { host: "www.lsl.fi", cat: 4 } };
+
+// Hakee CMS-häiriötiedotteet alert-muodossa pushin täsmäytystä varten. Käyttää
+// content.rendered-tekstiä (otsikko ei aina sisällä linjanumeroita, runko sisältää),
+// jotta lineTokensFromText osuu seurattuihin linjoihin. Tuoreet, "Tilanne ohi" pois.
+async function fetchCmsAlertsForPush(feed) {
+  const src = CMS_SOURCES[feed];
+  if (!src) return [];
+  const api = `https://${src.host}/wp-json/wp/v2/posts?categories=${src.cat}&per_page=12` +
+    `&_fields=date,title,link,content`;
+  const res = await fetch(api, { headers: { Accept: "application/json" } });
+  if (!res.ok) return [];
+  const posts = await res.json();
+  const now = Date.now();
+  const maxAge = 45 * 24 * 3600 * 1000;
+  const out = [];
+  for (const p of (Array.isArray(posts) ? posts : [])) {
+    const title = htmlToText(p.title && p.title.rendered);
+    if (!title || /^\s*tilanne ohi/i.test(title)) continue;
+    const ts = Date.parse(p.date || "");
+    if (Number.isFinite(ts) && now - ts > maxAge) continue;
+    out.push({
+      alertHeaderText: title,
+      alertDescriptionText: htmlToText(p.content && p.content.rendered).slice(0, 1500),
+      alertUrl: p.link || "",
+      effectiveStartDate: Number.isFinite(ts) ? Math.floor(ts / 1000) : 0,
+      _cms: true,
+    });
+  }
+  return out;
+}
+
 // LSL ei kiinnitä tiedotteita linjaobjekteihin, joten linjat poimitaan myös
 // tiedotetekstin maininnoista: "linjoja 3, 6, 8(K)" -> 3, 6, 8, 8K
 // (sama logiikka kuin index.html:n lineTokensFromText)
@@ -254,8 +288,12 @@ export function lineTokensFromText(text) {
   return out;
 }
 
+// CMS-tiedotteen runko voi muuttua (modified) → avainnetaan pysyvästi URL:lla,
+// ettei pieni editointi laukaise uusintailmoitusta. GTFS-RT: sisältöavain.
 const alertKey = a =>
-  (a.alertHeaderText || "") + "|" + (a.alertDescriptionText || "") + "|" + (a.effectiveStartDate || "");
+  a._cms && a.alertUrl
+    ? "cms:" + a.alertUrl
+    : (a.alertHeaderText || "") + "|" + (a.alertDescriptionText || "") + "|" + (a.effectiveStartDate || "");
 
 export function alertAffects(a, sub) {
   if (a.route && sub.gtfsRoutes.includes(a.route.gtfsId)) return true;
@@ -286,34 +324,25 @@ export async function runPushCheck(env) {
 
   const feeds = [...new Set(subs.map(s => s.feed).filter(Boolean))];
   for (const feed of feeds) {
-    let alerts;
-    try { alerts = await fetchAlerts(feed, env); } catch (e) { continue; }
+    // GTFS-RT (Digitransit) ja CMS (lsl.fi) erikseen omilla seen-avaimillaan,
+    // jotta CMS:n käyttöönotto ei tulvi jo julkaistuja tiedotteita (oma ensiajo).
+    let gtfs = [];
+    try { gtfs = await fetchAlerts(feed, env); } catch (e) { /* CMS silti jäljellä */ }
+    let cms = [];
+    try { cms = await fetchCmsAlertsForPush(feed); } catch (e) { /* GTFS silti jäljellä */ }
 
-    const seenRaw = await env.PUSH_KV.get("seen:" + feed);
-    const firstRun = !seenRaw;                 // ei seed-tietoa → merkitään nykyiset ilmoittamatta
-    const seenMap = seenRaw ? JSON.parse(seenRaw) : {};
-    const now = Date.now();
-    const currentKeys = new Set();
-    const fresh = [];
-    for (const a of alerts) {
-      const k = alertKey(a);
-      currentKeys.add(k);
-      if (!firstRun && !(k in seenMap)) fresh.push(a);
-      seenMap[k] = now;
-    }
-    const cutoff = now - 30 * 24 * 3600 * 1000;
-    for (const k of Object.keys(seenMap))
-      if (seenMap[k] < cutoff && !currentKeys.has(k)) delete seenMap[k];
-    await env.PUSH_KV.put("seen:" + feed, JSON.stringify(seenMap));
-
-    if (firstRun || !fresh.length) continue;
+    const fresh = [
+      ...await freshAlerts(env, "seen:" + feed, gtfs),
+      ...await freshAlerts(env, "seenCms:" + feed, cms),
+    ];
+    if (!fresh.length) continue;
 
     const feedSubs = subs.filter(s => s.feed === feed);
     for (const a of fresh) {
       const payload = JSON.stringify({
         title: a.alertHeaderText || "Häiriötiedote",
         body: (a.alertDescriptionText || "").slice(0, 180),
-        url: "./",
+        url: a._cms && a.alertUrl ? a.alertUrl : "./",
         tag: alertKey(a),
       });
       for (const sub of feedSubs) {
@@ -325,6 +354,33 @@ export async function runPushCheck(env) {
       }
     }
   }
+}
+
+// Vertaa annettuja häiriöitä seen-karttaan (KV-avain seenKeyName), palauttaa
+// uudet ja päivittää kartan. Ensiajo (ei seen-tietoa) vain seedaa, palauttaa []
+// (ei tulvita nykyisiä). Vanhat, poistuneet avaimet siivotaan 30 vrk jälkeen.
+async function freshAlerts(env, seenKeyName, alerts) {
+  if (!alerts.length) {
+    // ei dataa (esim. haku epäonnistui) → ei muuteta seen-tilaa
+    return [];
+  }
+  const seenRaw = await env.PUSH_KV.get(seenKeyName);
+  const firstRun = !seenRaw;
+  const seenMap = seenRaw ? JSON.parse(seenRaw) : {};
+  const now = Date.now();
+  const currentKeys = new Set();
+  const fresh = [];
+  for (const a of alerts) {
+    const k = alertKey(a);
+    currentKeys.add(k);
+    if (!firstRun && !(k in seenMap)) fresh.push(a);
+    seenMap[k] = now;
+  }
+  const cutoff = now - 30 * 24 * 3600 * 1000;
+  for (const k of Object.keys(seenMap))
+    if (seenMap[k] < cutoff && !currentKeys.has(k)) delete seenMap[k];
+  await env.PUSH_KV.put(seenKeyName, JSON.stringify(seenMap));
+  return firstRun ? [] : fresh;
 }
 
 export default {
