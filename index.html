@@ -170,6 +170,27 @@
     background: var(--chip); font-size: 1.25rem; line-height: 1;
   }
   .qt-label { font-weight: 600; font-size: 0.92rem; line-height: 1.25; }
+  /* "Kaikki linjat": värillisten linjabadgejen ruudukko (joukkoliikennemäinen) */
+  ul.route-grid {
+    list-style: none; margin: 0.3rem 0 0; padding: 0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 0.55rem;
+  }
+  .route-tile {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.45rem 0.55rem; min-height: 52px;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--card);
+    text-decoration: none; color: var(--text);
+    transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
+  }
+  .route-tile:hover { transform: translateY(-2px); box-shadow: 0 4px 12px var(--shadow);
+    border-color: var(--rc, var(--blue)); }
+  .rt-badge {
+    flex: 0 0 auto; min-width: 2.7rem; padding: 0.3rem 0.45rem; border-radius: 8px;
+    text-align: center; font-weight: 800; font-size: 1.02rem; letter-spacing: 0.01em;
+    background: var(--rc, var(--chip)); color: var(--rt, var(--text));
+  }
+  .rt-name { font-size: 0.82rem; line-height: 1.2; color: var(--muted);
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   /* Jäsennelty footer (linkkisarakkeet + lähde + varauma) */
   .foot-cols { max-width: 760px; margin: 0 auto; display: grid;
     grid-template-columns: 1.7fr 1fr 1fr; gap: 1.3rem; }
@@ -3161,15 +3182,21 @@ function viewRoutes() {
     const list = document.getElementById("routeList");
     if (!list) return;
     list.style.minHeight = "";
+    list.className = "route-grid";
     const render = filter => {
       const f = filter.toLowerCase();
       list.innerHTML = routes
         .filter(r => !f || (r.shortName || "").toLowerCase().includes(f)
                         || (r.longName || "").toLowerCase().includes(f))
-        .map(r => `<li><a class="item" href="#/linja/${encodeURIComponent(r.gtfsId)}">
-            ${badgeHtml(r)}
-            <span>${esc(r.longName)}</span></a></li>`)
-        .join("") || `<li><p class="muted">${t("noMatches")}</p></li>`;
+        .map(r => {
+          const style = r.color
+            ? ` style="--rc:#${r.color};--rt:${badgeText(r.color, r.textColor)}"` : "";
+          return `<li><a class="route-tile" href="#/linja/${encodeURIComponent(r.gtfsId)}"${style}
+              title="${esc(r.longName || "")}" aria-label="${esc((r.shortName || "") + " " + (r.longName || ""))}">
+              <span class="rt-badge">${esc(r.shortName || "")}</span>
+              <span class="rt-name">${esc(r.longName || "")}</span></a></li>`;
+        })
+        .join("") || `<li style="grid-column:1/-1"><p class="muted">${t("noMatches")}</p></li>`;
     };
     render("");
     document.getElementById("routeFilter").addEventListener("input", e => render(e.target.value));

@@ -41,7 +41,7 @@ const info = msg => console.log("INFO " + msg);
 
   // --- Etusivu ---
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
-  await expect("#routeList li a.item", "etusivu: linjalista latautuu");
+  await expect("#routeList li a.route-tile .rt-badge", "etusivu: linjalista (badge-ruudukko) latautuu");
 
   // Ulkoasu: pikavalintaruudukko + jäsennelty footer
   const tiles = (await page.$$(".quick-grid a.quick-tile")).length;
