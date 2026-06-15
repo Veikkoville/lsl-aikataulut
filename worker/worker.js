@@ -14,6 +14,10 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8000",
 ]);
 
+// CMS-häiriötiedotteiden lähde (WordPress REST). Vain sallitut hostit, ettei
+// workerista tule avointa välityspalvelinta. Lahti: lsl.fi häiriötiedote-kategoria.
+const CMS_ALLOWED_HOSTS = new Set(["www.lsl.fi"]);
+
 function corsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": ALLOWED_ORIGINS.has(origin) ? origin : "https://veikkoville.github.io",
@@ -33,6 +37,110 @@ function jsonResponse(obj, status, origin) {
 async function sha256hex(str) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* ---------- CMS-häiriötiedotteet (lsl.fi WordPress REST) ---------- */
+
+// Riisuu HTML-tagit ja purkaa yleisimmät entiteetit puhtaaksi tekstiksi,
+// jotta selain voi näyttää otsikon/tiivistelmän sellaisenaan (esc()).
+export function htmlToText(html) {
+  if (!html) return "";
+  let s = String(html).replace(/<[^>]+>/g, " ");
+  s = s
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0*39;|&apos;/g, "'")
+    .replace(/&[a-zA-Z]+;/g, " ")
+    .replace(/­/g, ""); // pehmeät tavuviivat pois
+  return s.replace(/\s+/g, " ").trim();
+}
+
+// Hakee lsl.fi:n (tms. Waltti-kaupungin) häiriötiedotteet WordPressin REST-
+// rajapinnasta. Tarvitaan, koska Digitransitin GTFS-RT-alerts on vain osajoukko
+// toimituksellisista tiedotteista — osa (esim. tapahtumapoikkeukset) jää pois.
+async function handleCmsAlerts(url, origin) {
+  const host = url.searchParams.get("host") || "";
+  const cat = url.searchParams.get("cat") || "";
+  if (!CMS_ALLOWED_HOSTS.has(host) || !/^\d+$/.test(cat))
+    return jsonResponse({ error: "bad_request" }, 400, origin);
+  const per = Math.min(20, Math.max(1, parseInt(url.searchParams.get("per") || "12", 10)));
+  const api = `https://${host}/wp-json/wp/v2/posts?categories=${cat}&per_page=${per}` +
+    `&_fields=id,date,modified,title,link,excerpt`;
+  let posts;
+  try {
+    const res = await fetch(api, { headers: { Accept: "application/json" } });
+    if (!res.ok) return jsonResponse({ error: "upstream", status: res.status }, 502, origin);
+    posts = await res.json();
+  } catch (e) {
+    return jsonResponse({ error: "fetch_failed" }, 502, origin);
+  }
+  const items = (Array.isArray(posts) ? posts : []).map(p => ({
+    title: htmlToText(p.title && p.title.rendered),
+    excerpt: htmlToText(p.excerpt && p.excerpt.rendered).slice(0, 300),
+    link: p.link || "",
+    date: p.date || "",
+    modified: p.modified || "",
+  })).filter(p => p.title);
+  const headers = new Headers(corsHeaders(origin));
+  headers.set("Content-Type", "application/json");
+  headers.set("Cache-Control", "public, max-age=300");   // 5 min reuna-/selaincache
+  return new Response(JSON.stringify({ items }), { status: 200, headers });
+}
+
+/* ---------- Palaute / vikailmoitus (KV) ---------- */
+
+// Kokoaa ja validoi palautemerkinnän. Erotettu omaksi funktioksi yksikkötestiä
+// varten. Palauttaa { rec } tai { error }.
+export function buildFeedbackRecord(body, ua, nowMs) {
+  const msg = body && String(body.message || "").trim();
+  if (!msg || msg.length < 3) return { error: "bad_request" };
+  return {
+    rec: {
+      category: String((body && body.category) || "other").slice(0, 40),
+      message: msg.slice(0, 2000),
+      contact: String((body && body.contact) || "").slice(0, 120),
+      url: String((body && body.url) || "").slice(0, 300),
+      city: String((body && body.city) || "").slice(0, 40),
+      ua: String(ua || "").slice(0, 200),
+      ts: nowMs,
+    },
+  };
+}
+
+async function handleFeedback(request, env, origin) {
+  if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
+  const body = await request.json().catch(() => null);
+  const { rec, error } = buildFeedbackRecord(body, request.headers.get("User-Agent"), Date.now());
+  if (error) return jsonResponse({ error }, 400, origin);
+  const id = rec.ts + "-" + crypto.randomUUID().slice(0, 8);
+  // säilytetään 90 vrk, jonka jälkeen KV siivoaa automaattisesti
+  await env.PUSH_KV.put("fb:" + id, JSON.stringify(rec), { expirationTtl: 90 * 24 * 3600 });
+  return jsonResponse({ ok: true, id }, 200, origin);
+}
+
+// Omistajan luettavissa salaisuudella (FEEDBACK_ADMIN_KEY). Ilman avainta 403.
+async function handleFeedbackList(url, env, origin) {
+  const key = url.searchParams.get("key") || "";
+  if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
+  if (!env.FEEDBACK_ADMIN_KEY || key !== env.FEEDBACK_ADMIN_KEY)
+    return jsonResponse({ error: "forbidden" }, 403, origin);
+  const out = [];
+  let cursor;
+  do {
+    const list = await env.PUSH_KV.list({ prefix: "fb:", cursor });
+    for (const k of list.keys) {
+      const v = await env.PUSH_KV.get(k.name);
+      if (v) { try { out.push(JSON.parse(v)); } catch (e) { /* ohita */ } }
+    }
+    cursor = list.list_complete ? null : list.cursor;
+  } while (cursor);
+  out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  return jsonResponse({ items: out }, 200, origin);
 }
 
 /* ---------- Push: tilausten hallinta (KV) ---------- */
@@ -237,6 +345,16 @@ export default {
       return handleReminder(request, env, origin);
     if (url.pathname === "/push/vapidPublicKey" && request.method === "GET")
       return jsonResponse({ key: env.VAPID_PUBLIC || "" }, 200, origin);
+
+    // CMS-häiriötiedotteet (lsl.fi WordPress REST)
+    if (url.pathname === "/cms-alerts" && request.method === "GET")
+      return handleCmsAlerts(url, origin);
+
+    // Palaute / vikailmoitus
+    if (url.pathname === "/feedback" && request.method === "POST")
+      return handleFeedback(request, env, origin);
+    if (url.pathname === "/feedback/list" && request.method === "GET")
+      return handleFeedbackList(url, env, origin);
 
     const geo = url.pathname.match(/^\/geocoding\/(search|autocomplete|reverse)$/);
     if (geo) {

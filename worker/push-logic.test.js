@@ -1,10 +1,23 @@
 // Yksikkötestaa cron-push-putken (runPushCheck) mock-KV:llä ja stub-fetchillä:
 // oikea salaus + VAPID, mutta push-endpoint ja Digitransit ovat tynkiä.
 // Aja: node push-logic.test.js
-import { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText } from "./worker.js";
+import { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText, htmlToText, buildFeedbackRecord } from "./worker.js";
 
 let fail = 0;
 const check = (cond, msg) => { console.log((cond ? "OK   " : "FAIL ") + msg); if (!cond) fail++; };
+
+// --- CMS-tiedotteen htmlToText (WordPress-otsikon/tiivistelmän puhdistus) ---
+check(htmlToText("<p>Linjat 3 &#8211; 8 poikkeavat &amp; viivästyvät</p>") === "Linjat 3 – 8 poikkeavat & viivästyvät", "htmlToText: tagit + entiteetit puretaan");
+const SHY = String.fromCharCode(0xAD); // pehmeä tavuviiva
+check(htmlToText("Alek" + SHY + "san" + SHY + "te" + SHY + "rin" + SHY + "katu") === "Aleksanterinkatu", "htmlToText: pehmeät tavuviivat pois");
+check(htmlToText("") === "" && htmlToText(null) === "", "htmlToText: tyhjä/null → tyhjä");
+
+// --- Palaute (buildFeedbackRecord) ---
+check(buildFeedbackRecord({ message: "x" }, "UA", 5).error === "bad_request", "feedback: liian lyhyt viesti hylätään");
+check(!buildFeedbackRecord({ message: "" }, "UA", 5).rec, "feedback: tyhjä viesti ei tuota merkintää");
+const fb = buildFeedbackRecord({ message: "Pysäkki rikki", category: "stop", contact: "a@b.fi", url: "x", city: "lahti" }, "UA", 123).rec;
+check(fb && fb.message === "Pysäkki rikki" && fb.category === "stop" && fb.ts === 123 && fb.contact === "a@b.fi", "feedback: kelvollinen viesti → merkintä kentittäin");
+check(buildFeedbackRecord({ message: "a".repeat(5000) }, "UA", 1).rec.message.length === 2000, "feedback: viesti katkaistaan 2000 merkkiin");
 
 // --- Tekstipoiminta ---
 const tok = lineTokensFromText("Linjojen 3, 8(K) ja 12 reitti poikkeaa.");

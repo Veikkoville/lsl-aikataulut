@@ -373,9 +373,27 @@
     margin: 0.4rem 0;
   }
   details.alert summary { cursor: pointer; font-weight: 600; }
+  .alert-src { font-weight: 400; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
   details.alert p { margin: 0.4rem 0 0.2rem; white-space: pre-line; font-size: 0.9rem; }
   details.alert.sev-SEVERE { border-left-color: var(--sev-severe); }
   details.alert.sev-WARNING { border-left-color: var(--sev-warning); }
+  ul.ex-list { list-style: none; padding: 0; margin: 0.6rem 0 0; }
+  li.ex-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0; border-top: 1px solid var(--border); }
+  li.ex-row:first-child { border-top: none; }
+  .ex-date { flex: 0 0 auto; min-width: 8.5rem; }
+  .ex-name { flex: 1 1 auto; font-weight: 600; }
+  .ex-tag { flex: 0 0 auto; font-size: 0.78rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--sev-warning); color: #1a1200; white-space: nowrap; }
+  .ex-tag.ex-eve { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  p.co2 { margin: 0.3rem 0 0.1rem; font-size: 0.88rem; color: #1e7d3a; }
+  html[data-theme="dark"] p.co2 { color: #5fd07f; }
+  #fbForm label { display: block; font-size: 0.85rem; color: var(--muted); margin: 0.6rem 0 0.15rem; }
+  #fbForm select { width: 100%; }
+  #fbForm textarea { font: inherit; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px;
+    width: 100%; background: var(--card); color: var(--text); resize: vertical; }
+  #fbForm button[type="submit"] { margin-top: 0.8rem; }
+  #fbStatus { margin: 0.6rem 0 0; }
+  #fbStatus.ok-msg { color: #1e7d3a; font-weight: 600; }
+  html[data-theme="dark"] #fbStatus.ok-msg { color: #5fd07f; }
   .map { height: clamp(340px, 55vh, 540px); border-radius: 6px; margin: 0.5rem 0; z-index: 0; }
   .map-small { height: clamp(220px, 35vh, 340px); }
   .bigmap { height: clamp(400px, 78vh, 900px); }
@@ -601,6 +619,11 @@ const CONFIGS = {
     centerStopNames: ["Kauppatori", "Matkakeskus"],
     // Worker-välityspalvelin (worker/); tyhjä merkkijono → käyttäjä syöttää oman API-avaimen
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    // Toimitukselliset häiriötiedotteet lsl.fi:stä (WordPress REST). Digitransitin
+    // GTFS-RT-alerts on vain osajoukko näistä, joten etusivun banneri täydennetään
+    // näillä (vain tuoreet, "Tilanne ohi" pois, dedup GTFS-RT:tä vasten). Haku
+    // workerin /cms-alerts-endpointin kautta (CORS + sallittu host).
+    cmsAlerts: { host: "www.lsl.fi", categoryId: 4, maxAgeDays: 45 },
     // Seudun rajaus osoitehaulle (focus + boundary)
     area: {
       focus: { lat: 60.983, lon: 25.656 },
@@ -699,6 +722,39 @@ const STRINGS = {
     liveMapTitle: "Bussit kartalla nyt",
     liveMapAria: "Kartta liikkuvista busseista reaaliajassa",
     liveMapHint: "Merkit ovat busseja reaaliajassa. Klikkaa bussia: linja, määränpää ja seuraavat pysäkit.",
+    netMapLink: "Linjaston kartta",
+    netMapTitle: "Koko linjaston kartta",
+    netMapAria: "Kartta kaikkien bussilinjojen reiteistä",
+    netMapHint: "Jokainen viiva on bussilinja. Vie osoitin viivan päälle nähdäksesi linjan, klikkaa avataksesi sen aikataulun.",
+    netMapLoading: "Ladataan linjastoa…",
+    netMapCount: "{n} linjaa kartalla",
+    netMapFail: "Linjaston haku epäonnistui: ",
+    exLink: "Poikkeuspäivät",
+    exTitle: "Tulevat poikkeuspäivät",
+    exIntro: "Pyhä- ja juhlapäivinä bussit liikennöivät tavallisesti sunnuntai- tai erillisen juhlapyhäaikataulun mukaan. Aattoina liikenne voi olla tavallista vähäisempää.",
+    exNote: "Tarkista aina linjasi oma aikataulu — linjasivulla voit vaihtaa päivää ja päivätyyppiä (Ma–Pe / La / Su).",
+    exTagHoliday: "Pyhäpäivä",
+    exTagEve: "Aatto",
+    exNone: "Ei tulevia poikkeuspäiviä seuraavan vuoden aikana.",
+    exCheckCta: "Selaa linjoja ja aikatauluja",
+    fbLink: "Anna palautetta",
+    fbTitle: "Palaute ja vikailmoitus",
+    fbIntro: "Huomasitko väärän aikataulun, rikkinäisen pysäkin tai virheen sovelluksessa? Kerro siitä — viesti auttaa palvelun kehittämisessä.",
+    fbDisclaimer: "Tämä on epävirallinen palvelu. Suoraan bussiliikennettä koskeva palaute kannattaa lähettää myös {op}:lle.",
+    fbCategory: "Aihe",
+    fbCatSchedule: "Väärä aikataulu",
+    fbCatStop: "Pysäkin ongelma",
+    fbCatApp: "Sovelluksen virhe",
+    fbCatOther: "Muu",
+    fbMessage: "Viesti",
+    fbMessagePh: "Kerro mahdollisimman tarkasti (esim. linja, pysäkki, kellonaika).",
+    fbContact: "Sähköposti tai puhelin (valinnainen)",
+    fbContactHint: "Jätä yhteystieto vain jos haluat, että sinuun voidaan olla yhteydessä.",
+    fbSubmit: "Lähetä palaute",
+    fbSending: "Lähetetään…",
+    fbThanks: "Kiitos palautteesta! Viesti vastaanotettu.",
+    fbFail: "Lähetys epäonnistui. Tarkista verkkoyhteys ja yritä uudelleen.",
+    fbRequired: "Kirjoita viesti ennen lähettämistä.",
     liveConnecting: "Yhdistetään reaaliaikadataan…",
     liveCount: "{n} bussia kartalla", liveNone: "Ei busseja juuri nyt.",
     // liput ja hinnat
@@ -753,6 +809,7 @@ const STRINGS = {
     readMore: "Lue lisää",
     alertsFail: "Häiriötiedotteiden haku epäonnistui: ",
     legAlertDefault: "Häiriö linjalla",
+    cmsSource: "Lähde: lsl.fi",
     // pysäkkihaku ja paikannus
     noStopsFor: 'Ei pysäkkejä haulla "{q}".',
     noPlacesFor: 'Ei osumia haulla "{q}".',
@@ -876,6 +933,8 @@ const STRINGS = {
     searchRoutes: "Hae reitit",
     wheelchairRoute: "Esteetön reitti", lessWalk: "Vähemmän kävelyä",
     itinerariesTitle: "Reittiehdotukset",
+    co2Saved: "Säästät n. {kg} CO₂ verrattuna henkilöautoon",
+    co2Basis: "Arvio: henkilöauto 0,15 kg/km, bussi 0,04 kg/km matkustajaa kohti.",
     showLater: "Näytä myöhempiä lähtöjä",
     noItineraries: "Reittejä ei löytynyt valitulla ajalla. Kokeile toista aikaa tai tarkista lähtö- ja määräpaikka.",
     choosePlaces: "Valitse lähtöpaikka ja määränpää ehdotuslistasta.",
@@ -943,6 +1002,39 @@ const STRINGS = {
     liveMapTitle: "Buses on the map now",
     liveMapAria: "Map of moving buses in real time",
     liveMapHint: "Markers are buses in real time. Tap a bus: route, destination and next stops.",
+    netMapLink: "Network map",
+    netMapTitle: "Whole network map",
+    netMapAria: "Map of all bus routes",
+    netMapHint: "Each line is a bus route. Hover a line to see the route, tap it to open its timetable.",
+    netMapLoading: "Loading network…",
+    netMapCount: "{n} routes on the map",
+    netMapFail: "Failed to load the network: ",
+    exLink: "Special days",
+    exTitle: "Upcoming special days",
+    exIntro: "On public holidays buses usually run a Sunday or separate holiday timetable. On holiday eves service may be lighter than usual.",
+    exNote: "Always check your own line's timetable — on the line page you can change the day and day type (Mon–Fri / Sat / Sun).",
+    exTagHoliday: "Holiday",
+    exTagEve: "Eve",
+    exNone: "No upcoming special days within the next year.",
+    exCheckCta: "Browse lines and timetables",
+    fbLink: "Send feedback",
+    fbTitle: "Feedback & problem report",
+    fbIntro: "Spotted a wrong timetable, a broken stop or an app bug? Let us know — your message helps improve the service.",
+    fbDisclaimer: "This is an unofficial service. Feedback directly about bus operations should also be sent to {op}.",
+    fbCategory: "Topic",
+    fbCatSchedule: "Wrong timetable",
+    fbCatStop: "Stop problem",
+    fbCatApp: "App bug",
+    fbCatOther: "Other",
+    fbMessage: "Message",
+    fbMessagePh: "Please be as specific as possible (e.g. line, stop, time).",
+    fbContact: "Email or phone (optional)",
+    fbContactHint: "Leave contact details only if you'd like to be contacted back.",
+    fbSubmit: "Send feedback",
+    fbSending: "Sending…",
+    fbThanks: "Thanks for your feedback! Message received.",
+    fbFail: "Sending failed. Check your connection and try again.",
+    fbRequired: "Please write a message before sending.",
     liveConnecting: "Connecting to real-time data…",
     liveCount: "{n} buses on the map", liveNone: "No buses right now.",
     faresLink: "Tickets and fares",
@@ -994,6 +1086,7 @@ const STRINGS = {
     readMore: "Read more",
     alertsFail: "Failed to load disruption notices: ",
     legAlertDefault: "Disruption on route",
+    cmsSource: "Source: lsl.fi",
     noStopsFor: 'No stops found for "{q}".',
     noPlacesFor: 'No results for "{q}".',
     geoUnsupported: "Your browser does not support geolocation.",
@@ -1110,6 +1203,8 @@ const STRINGS = {
     searchRoutes: "Search",
     wheelchairRoute: "Accessible journey", lessWalk: "Less walking",
     itinerariesTitle: "Suggested journeys",
+    co2Saved: "Saves approx. {kg} CO₂ compared to a car",
+    co2Basis: "Estimate: car 0.15 kg/km, bus 0.04 kg/km per passenger.",
     showLater: "Show later departures",
     noItineraries: "No journeys found for the selected time. Try another time or check the origin and destination.",
     choosePlaces: "Select the origin and destination from the suggestion list.",
@@ -1177,6 +1272,39 @@ const STRINGS = {
     liveMapTitle: "Bussar på kartan nu",
     liveMapAria: "Karta över bussar i rörelse i realtid",
     liveMapHint: "Markörerna är bussar i realtid. Tryck på en buss: linje, destination och följande hållplatser.",
+    netMapLink: "Linjenätskarta",
+    netMapTitle: "Karta över hela linjenätet",
+    netMapAria: "Karta över alla busslinjer",
+    netMapHint: "Varje linje är en busslinje. För muspekaren över en linje för att se linjen, tryck för att öppna dess tidtabell.",
+    netMapLoading: "Laddar linjenätet…",
+    netMapCount: "{n} linjer på kartan",
+    netMapFail: "Det gick inte att hämta linjenätet: ",
+    exLink: "Avvikande dagar",
+    exTitle: "Kommande avvikande dagar",
+    exIntro: "På helg- och högtidsdagar kör bussarna vanligtvis enligt söndags- eller en separat helgtidtabell. På aftnar kan trafiken vara glesare än vanligt.",
+    exNote: "Kontrollera alltid din egen linjes tidtabell — på linjesidan kan du byta dag och dagtyp (Mån–Fre / Lör / Sön).",
+    exTagHoliday: "Helgdag",
+    exTagEve: "Afton",
+    exNone: "Inga kommande avvikande dagar under det närmaste året.",
+    exCheckCta: "Bläddra bland linjer och tidtabeller",
+    fbLink: "Ge respons",
+    fbTitle: "Respons och felanmälan",
+    fbIntro: "Märkte du en felaktig tidtabell, en trasig hållplats eller ett fel i appen? Berätta — ditt meddelande hjälper till att utveckla tjänsten.",
+    fbDisclaimer: "Detta är en inofficiell tjänst. Respons som direkt gäller busstrafiken bör även skickas till {op}.",
+    fbCategory: "Ämne",
+    fbCatSchedule: "Felaktig tidtabell",
+    fbCatStop: "Problem med hållplats",
+    fbCatApp: "Fel i appen",
+    fbCatOther: "Övrigt",
+    fbMessage: "Meddelande",
+    fbMessagePh: "Var så specifik som möjligt (t.ex. linje, hållplats, klockslag).",
+    fbContact: "E-post eller telefon (valfritt)",
+    fbContactHint: "Lämna kontaktuppgifter endast om du vill bli kontaktad.",
+    fbSubmit: "Skicka respons",
+    fbSending: "Skickar…",
+    fbThanks: "Tack för din respons! Meddelandet har tagits emot.",
+    fbFail: "Sändningen misslyckades. Kontrollera anslutningen och försök igen.",
+    fbRequired: "Skriv ett meddelande innan du skickar.",
     liveConnecting: "Ansluter till realtidsdata…",
     liveCount: "{n} bussar på kartan", liveNone: "Inga bussar just nu.",
     faresLink: "Biljetter och priser",
@@ -1228,6 +1356,7 @@ const STRINGS = {
     readMore: "Läs mer",
     alertsFail: "Det gick inte att hämta störningsmeddelanden: ",
     legAlertDefault: "Störning på linjen",
+    cmsSource: "Källa: lsl.fi",
     noStopsFor: 'Inga hållplatser hittades för "{q}".',
     noPlacesFor: 'Inga resultat för "{q}".',
     geoUnsupported: "Din webbläsare stöder inte positionering.",
@@ -1344,6 +1473,8 @@ const STRINGS = {
     searchRoutes: "Sök resor",
     wheelchairRoute: "Tillgänglig resa", lessWalk: "Mindre promenad",
     itinerariesTitle: "Reseförslag",
+    co2Saved: "Sparar ca {kg} CO₂ jämfört med bil",
+    co2Basis: "Uppskattning: bil 0,15 kg/km, buss 0,04 kg/km per passagerare.",
     showLater: "Visa senare avgångar",
     noItineraries: "Inga resor hittades för den valda tiden. Prova en annan tid eller kontrollera start- och målplatsen.",
     choosePlaces: "Välj startplats och destination i förslagslistan.",
@@ -2246,11 +2377,62 @@ function dedupAlerts(alerts) {
 }
 
 function alertHtml(a) {
+  const src = a._cms ? ` <span class="alert-src">${esc(t("cmsSource"))}</span>` : "";
   return `<details class="alert sev-${esc(a.alertSeverityLevel)}">
-    <summary>${esc(a.alertHeaderText || t("alertDefault"))}</summary>
+    <summary>${esc(a.alertHeaderText || t("alertDefault"))}${src}</summary>
     <p>${esc(a.alertDescriptionText || "")}</p>
     ${a.alertUrl ? `<p><a href="${esc(a.alertUrl)}" target="_blank" rel="noopener">${t("readMore")}</a></p>` : ""}
   </details>`;
+}
+
+/* ---------- Toimitukselliset häiriötiedotteet (lsl.fi WordPress, CONFIG.cmsAlerts) ----------
+   Digitransitin GTFS-RT-alerts kattaa vain osan lsl.fi:n julkaisemista
+   häiriötiedotteista. Täydennetään etusivun banneri WordPressistä haetuilla
+   tiedotteilla (workerin /cms-alerts kautta), jotta sovellus näyttää saman
+   tiedon kuin lsl.fi:n häiriötiedotesivu. */
+let cmsAlertsPromise = null;
+function loadCmsAlerts(force) {
+  if (!CONFIG.cmsAlerts || !PROXY_URL) return Promise.resolve([]);
+  if (force) cmsAlertsPromise = null;
+  if (!cmsAlertsPromise) {
+    const { host, categoryId } = CONFIG.cmsAlerts;
+    const u = PROXY_URL.replace(/\/$/, "") +
+      `/cms-alerts?host=${encodeURIComponent(host)}&cat=${encodeURIComponent(categoryId)}`;
+    cmsAlertsPromise = fetch(u)
+      .then(r => (r.ok ? r.json() : { items: [] }))
+      .then(d => (d && d.items) || [])
+      .catch(() => []);   // degradoidu: ilman CMS-tiedotteita näytetään pelkät GTFS-RT
+  }
+  return cmsAlertsPromise;
+}
+
+const normAlertUrl = u => (u || "").toLowerCase().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+const normAlertTitle = s => (s || "").toLowerCase()
+  .replace(/­/g, "").replace(/[^a-z0-9äöå]+/gi, " ").trim();
+
+// Muuntaa WordPress-tiedotteet alert-muotoisiksi ja suodattaa:
+// liian vanhat pois, "Tilanne ohi" pois, ja jo GTFS-RT:ssä olevat pois (dedup).
+function cmsToAlerts(items, gtfsAlerts) {
+  const maxAge = ((CONFIG.cmsAlerts && CONFIG.cmsAlerts.maxAgeDays) || 45) * 86400 * 1000;
+  const now = Date.now();
+  const gUrls = new Set((gtfsAlerts || []).map(a => normAlertUrl(a.alertUrl)).filter(Boolean));
+  const gTitles = new Set((gtfsAlerts || []).map(a => normAlertTitle(a.alertHeaderText)).filter(Boolean));
+  const out = [];
+  for (const it of items || []) {
+    const ts = Date.parse(it.date || "");
+    if (Number.isFinite(ts) && now - ts > maxAge) continue;          // liian vanha
+    if (/^\s*(tilanne ohi|p[äa]ivitys:.*(palaa|peruttu|ohi))/i.test(it.title || "")) continue;
+    if (gUrls.has(normAlertUrl(it.link))) continue;                  // jo GTFS-RT:ssä (URL)
+    if (gTitles.has(normAlertTitle(it.title))) continue;             // jo GTFS-RT:ssä (otsikko)
+    out.push({
+      alertHeaderText: it.title,
+      alertDescriptionText: it.excerpt || "",
+      alertSeverityLevel: "WARNING",
+      alertUrl: it.link || "",
+      _cms: true,
+    });
+  }
+  return out;
 }
 
 // LSL ei kiinnitä tiedotteita linjaobjekteihin, joten linjat poimitaan myös
@@ -2276,7 +2458,12 @@ function alertMatchesRoute(a, routeGtfsId, shortName, stopIds) {
 
 async function loadAlertsInto(box) {
   try {
-    const alerts = dedupAlerts(await loadAlerts());
+    const [gtfs, cmsItems] = await Promise.all([
+      loadAlerts(),
+      CONFIG.cmsAlerts ? loadCmsAlerts() : Promise.resolve([]),
+    ]);
+    const merged = [...gtfs, ...cmsToAlerts(cmsItems, gtfs)];
+    const alerts = dedupAlerts(merged);
     if (!alerts.length) { box.innerHTML = ""; return; }
     // tiivis banneri: lista aukeaa pyynnöstä (LSL pitää osaa tiedotteista
     // SEVERE-tasolla viikkoja, joten auto-avaus veisi koko etusivun)
@@ -2832,7 +3019,10 @@ function viewRoutes() {
     <p class="muted" style="margin:0 0 0.6rem">${t("homeIntro")}</p>
     <p style="margin:0 0 0.6rem"><a class="item" href="#/tulosta"><span aria-hidden="true">🖨</span> <span>${t("printPageLink")}</span></a></p>
     <p style="margin:0 0 0.6rem"><a class="item" href="#/kartta"><span aria-hidden="true">🗺</span> <span>${t("liveMapLink")}</span></a></p>
+    <p style="margin:0 0 0.6rem"><a class="item" href="#/linjasto"><span aria-hidden="true">🕸</span> <span>${t("netMapLink")}</span></a></p>
+    <p style="margin:0 0 0.6rem"><a class="item" href="#/poikkeukset"><span aria-hidden="true">📅</span> <span>${t("exLink")}</span></a></p>
     ${CONFIG.fares ? `<p style="margin:0 0 0.6rem"><a class="item" href="#/liput"><span aria-hidden="true">🎫</span> <span>${t("faresLink")}</span></a></p>` : ""}
+    <p style="margin:0 0 0.6rem"><a class="item" href="#/palaute"><span aria-hidden="true">🛠</span> <span>${t("fbLink")}</span></a></p>
     <div id="alertsBox"><details class="card alertsum" aria-hidden="true">
       <summary><span aria-hidden="true">⚠</span> <strong class="muted">…</strong></summary>
     </details></div>
@@ -3653,6 +3843,201 @@ async function viewLiveMap() {
   }
 }
 
+/* ---------- Linjaston yleiskartta (#/linjasto): kaikki linjat kartalla ---------- */
+
+let networkCache = null;
+async function loadNetwork() {
+  if (networkCache) return networkCache;
+  const feed = await findFeed();
+  const data = await gql(
+    `query ($feeds: [String]) {
+       routes(feeds: $feeds) {
+         gtfsId shortName longName mode color
+         patterns { patternGeometry { length points } }
+       }
+     }`, { feeds: [feed] });
+  networkCache = (data.routes || []).filter(r => r.mode === "BUS");
+  return networkCache;
+}
+
+async function viewNetworkMap() {
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <div class="card">
+      <h2><span aria-hidden="true">🕸</span> ${t("netMapTitle")}</h2>
+      <p class="muted" id="netCount" role="status">${t("netMapLoading")}</p>
+      <div id="netMap" class="map bigmap" aria-label="${esc(t("netMapAria"))}"></div>
+      <p class="muted">${t("netMapHint")}</p>
+    </div>`);
+  const mySeq = viewSeq;
+  try {
+    const [routes] = await Promise.all([loadNetwork(), ensureLeaflet()]);
+    if (mySeq !== viewSeq || !document.getElementById("netMap")) return;
+    const map = makeMap("netMap", [AREA.focus.lat, AREA.focus.lon], 12);
+    let bounds = null, drawn = 0;
+    for (const r of routes) {
+      // piirrä linjan pisin reittikuvio (yksi viiva/linja pitää kartan luettavana)
+      const pat = (r.patterns || [])
+        .filter(p => p.patternGeometry && p.patternGeometry.points)
+        .sort((a, b) => (b.patternGeometry.length || 0) - (a.patternGeometry.length || 0))[0];
+      if (!pat) continue;
+      const pts = decodePolyline(pat.patternGeometry.points);
+      if (!pts.length) continue;
+      const color = r.color ? "#" + r.color : "#0a4ea3";
+      const line = L.polyline(pts, { color, weight: 3, opacity: 0.55 }).addTo(map);
+      const label = (r.shortName || "") + (r.longName ? " " + r.longName : "");
+      line.bindTooltip(label.trim() || t("alertDefault"), { sticky: true });
+      line.on("mouseover", () => line.setStyle({ weight: 6, opacity: 0.95 }));
+      line.on("mouseout", () => line.setStyle({ weight: 3, opacity: 0.55 }));
+      line.on("click", () => { location.hash = "#/linja/" + encodeURIComponent(r.gtfsId); });
+      bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
+      drawn++;
+    }
+    if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
+    const el = document.getElementById("netCount");
+    if (el) el.textContent = t("netMapCount", { n: drawn });
+  } catch (e) {
+    const el = document.getElementById("netMap");
+    if (el) el.outerHTML = `<div class="error">${t("netMapFail")}${esc(e.message)}</div>`;
+  }
+}
+
+/* ---------- Poikkeuspäivät (#/poikkeukset): tulevat pyhä- ja juhlapäivät ----------
+   Suomen arkipyhät ovat deterministisiä (sama computus kuin fiHolidays), joten
+   kalenteri rakennetaan ilman rajapintaa. Sisältö on faktuaalinen päivälista;
+   palvelutason tarkka muutos kehotetaan tarkistamaan linjasivulta (rehellisyys
+   — avoin data ei anna luotettavaa "sunnuntaiaikataulu"-merkintää per päivä). */
+const HOLIDAY_NAMES = {
+  fi: { newyear: "Uudenvuodenpäivä", epiphany: "Loppiainen", goodfri: "Pitkäperjantai", easter: "Pääsiäispäivä", easter2: "2. pääsiäispäivä", mayday: "Vappu", ascension: "Helatorstai", pentecost: "Helluntai", midsummereve: "Juhannusaatto", midsummer: "Juhannuspäivä", allsaints: "Pyhäinpäivä", independence: "Itsenäisyyspäivä", xmaseve: "Jouluaatto", xmas: "Joulupäivä", boxing: "Tapaninpäivä", newyeareve: "Uudenvuodenaatto" },
+  en: { newyear: "New Year's Day", epiphany: "Epiphany", goodfri: "Good Friday", easter: "Easter Sunday", easter2: "Easter Monday", mayday: "May Day", ascension: "Ascension Day", pentecost: "Whitsun", midsummereve: "Midsummer Eve", midsummer: "Midsummer Day", allsaints: "All Saints' Day", independence: "Independence Day", xmaseve: "Christmas Eve", xmas: "Christmas Day", boxing: "St. Stephen's Day", newyeareve: "New Year's Eve" },
+  sv: { newyear: "Nyårsdagen", epiphany: "Trettondedag jul", goodfri: "Långfredagen", easter: "Påskdagen", easter2: "Annandag påsk", mayday: "Första maj", ascension: "Kristi himmelsfärdsdag", pentecost: "Pingst", midsummereve: "Midsommarafton", midsummer: "Midsommardagen", allsaints: "Alla helgons dag", independence: "Självständighetsdagen", xmaseve: "Julafton", xmas: "Juldagen", boxing: "Annandag jul", newyeareve: "Nyårsafton" },
+};
+const HOLIDAY_EVES = new Set(["xmaseve", "midsummereve", "newyeareve"]);
+
+// Nimetyt pyhäpäivät vuodelle: [{iso, key}] (sama laskenta kuin fiHolidays)
+function namedHolidays(year) {
+  const out = [];
+  const iso = (m, d) => `${year}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  out.push({ iso: iso(1, 1), key: "newyear" }, { iso: iso(1, 6), key: "epiphany" },
+    { iso: iso(5, 1), key: "mayday" }, { iso: iso(12, 6), key: "independence" },
+    { iso: iso(12, 24), key: "xmaseve" }, { iso: iso(12, 25), key: "xmas" },
+    { iso: iso(12, 26), key: "boxing" }, { iso: iso(12, 31), key: "newyeareve" });
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100, d = Math.floor(b / 4), e = b % 4,
+    f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30,
+    i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, mm = Math.floor((a + 11 * h + 22 * l) / 451),
+    month = Math.floor((h + l - 7 * mm + 114) / 31), day = ((h + l - 7 * mm + 114) % 31) + 1;
+  const easter = new Date(year, month - 1, day);
+  const off = (n, key) => { const x = new Date(easter); x.setDate(easter.getDate() + n); out.push({ iso: isoOf(x), key }); };
+  off(-2, "goodfri"); off(0, "easter"); off(1, "easter2"); off(39, "ascension"); off(49, "pentecost");
+  for (let dd = 20; dd <= 26; dd++) { const dt = new Date(year, 5, dd); if (dt.getDay() === 6) { out.push({ iso: isoOf(dt), key: "midsummer" }); const fr = new Date(dt); fr.setDate(dd - 1); out.push({ iso: isoOf(fr), key: "midsummereve" }); break; } }
+  for (let dd = 31; dd <= 37; dd++) { const dt = new Date(year, 9, dd); if (dt.getDay() === 6) { out.push({ iso: isoOf(dt), key: "allsaints" }); break; } }
+  return out;
+}
+
+function fmtWeekday(iso) {
+  const [y, m, d] = (iso || "").split("-").map(Number);
+  if (!y) return "";
+  const loc = lang === "fi" ? "fi-FI" : lang === "sv" ? "sv-FI" : "en-GB";
+  return new Date(y, m - 1, d).toLocaleDateString(loc, { weekday: "long" });
+}
+
+function viewExceptions() {
+  const today = todayISO();
+  const yr = +today.slice(0, 4);
+  const names = HOLIDAY_NAMES[lang] || HOLIDAY_NAMES.fi;
+  const all = [...namedHolidays(yr), ...namedHolidays(yr + 1)]
+    .filter(h => h.iso >= today)
+    .sort((a, b) => a.iso.localeCompare(b.iso))
+    .slice(0, 16);
+  const rows = all.map(h => {
+    const eve = HOLIDAY_EVES.has(h.key);
+    const tag = eve ? t("exTagEve") : t("exTagHoliday");
+    return `<li class="ex-row">
+      <span class="ex-date"><strong>${esc(fmtDateLong(h.iso))}</strong><br><span class="muted">${esc(fmtWeekday(h.iso))}</span></span>
+      <span class="ex-name">${esc(names[h.key] || "")}</span>
+      <span class="ex-tag ${eve ? "ex-eve" : ""}">${esc(tag)}</span>
+    </li>`;
+  }).join("");
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <div class="card">
+      <h2><span aria-hidden="true">📅</span> ${t("exTitle")}</h2>
+      <p class="muted">${t("exIntro")}</p>
+      <p class="muted">${t("exNote")}</p>
+      ${all.length ? `<ul class="ex-list">${rows}</ul>` : `<p>${t("exNone")}</p>`}
+      <p style="margin-top:0.8rem"><a class="item" href="#/"><span aria-hidden="true">🚌</span> <span>${t("exCheckCta")}</span></a></p>
+    </div>`);
+}
+
+/* ---------- Palaute / vikailmoitus (#/palaute) ---------- */
+
+function viewFeedback() {
+  const op = CONFIG.operatorShort || CONFIG.operator || "";
+  const cats = [
+    ["schedule", t("fbCatSchedule")],
+    ["stop", t("fbCatStop")],
+    ["app", t("fbCatApp")],
+    ["other", t("fbCatOther")],
+  ];
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <div class="card">
+      <h2><span aria-hidden="true">🛠</span> ${t("fbTitle")}</h2>
+      <p class="muted">${t("fbIntro")}</p>
+      <p class="muted">${t("fbDisclaimer", { op: esc(op) })}</p>
+      <form id="fbForm" novalidate>
+        <label for="fbCat">${t("fbCategory")}</label>
+        <select id="fbCat">
+          ${cats.map(([v, label]) => `<option value="${v}">${esc(label)}</option>`).join("")}
+        </select>
+        <label for="fbMsg">${t("fbMessage")}</label>
+        <textarea id="fbMsg" rows="5" required placeholder="${esc(t("fbMessagePh"))}"></textarea>
+        <label for="fbContact">${t("fbContact")}</label>
+        <input id="fbContact" type="text" autocomplete="off" maxlength="120">
+        <p class="muted" style="font-size:0.82rem;margin:0.2rem 0 0.6rem">${t("fbContactHint")}</p>
+        <button type="submit">${t("fbSubmit")}</button>
+        <p id="fbStatus" role="status" aria-live="polite"></p>
+      </form>
+    </div>`);
+
+  const form = document.getElementById("fbForm");
+  const status = document.getElementById("fbStatus");
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const message = document.getElementById("fbMsg").value.trim();
+    if (message.length < 3) { status.className = "error"; status.textContent = t("fbRequired"); return; }
+    const btn = form.querySelector("button[type=submit]");
+    btn.disabled = true;
+    status.className = "muted";
+    status.textContent = t("fbSending");
+    try {
+      if (!PROXY_URL) throw new Error("no-proxy");
+      const res = await fetch(PROXY_URL.replace(/\/$/, "") + "/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: document.getElementById("fbCat").value,
+          message,
+          contact: document.getElementById("fbContact").value.trim(),
+          url: location.href,
+          city: cityKey,
+        }),
+      });
+      if (!res.ok) throw new Error("http " + res.status);
+      status.className = "ok-msg";
+      status.textContent = t("fbThanks");
+      form.querySelector("#fbMsg").value = "";
+      form.querySelector("#fbContact").value = "";
+    } catch (err) {
+      status.className = "error";
+      status.textContent = t("fbFail");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
 /* ---------- Liput ja hinnat (CONFIG.fares, vain kaupungeille joille määritelty) ---------- */
 
 function viewFares() {
@@ -4155,10 +4540,34 @@ function itinSummaryHtml(node) {
     ${legBarHtml(node)}`;
 }
 
+// CO₂-säästöarvio: bussissa ajettu matka × (auton − bussin päästökerroin).
+// Kertoimet ovat läpinäkyviä arvioita (näytetään title-vihjeenä), ei väitettä
+// tarkasta päästömäärästä. Lähde-/oletustaso: henkilöauto ~0,15, bussi ~0,04
+// kg CO₂/km matkustajaa kohti.
+const CO2_CAR_KG_PER_KM = 0.15;
+const CO2_BUS_KG_PER_KM = 0.04;
+function transitKm(node) {
+  return node.legs
+    .filter(l => l.mode !== "WALK" && l.mode !== "BICYCLE")
+    .reduce((s, l) => s + (l.distance || 0), 0) / 1000;
+}
+function fmtKg(kg) {
+  const v = kg >= 10 ? Math.round(kg) : Math.round(kg * 10) / 10;
+  const s = lang === "en" ? String(v) : String(v).replace(".", ",");
+  return s + " kg";
+}
+function co2Html(node) {
+  const km = transitKm(node);
+  if (km < 0.3) return "";                 // hyvin lyhyt bussiosuus → ei näytetä
+  const saved = km * (CO2_CAR_KG_PER_KM - CO2_BUS_KG_PER_KM);
+  return `<p class="co2" title="${esc(t("co2Basis"))}"><span aria-hidden="true">🌱</span> ${t("co2Saved", { kg: fmtKg(saved) })}</p>`;
+}
+
 function itinHtml(node, idx) {
   return `<details class="itin" data-itin="${idx}">
     <summary>${itinSummaryHtml(node)}</summary>
     ${timelineHtml(node)}
+    ${co2Html(node)}
     <div id="itinMap${idx}" class="map map-small" aria-label="${t("mapAria")}"></div>
   </details>`;
 }
@@ -4722,6 +5131,9 @@ async function route() {
     else if (parts[0] === "linja" && parts[1]) await viewRoute(parts[1], parts[2], parts[3]);
     else if (parts[0] === "monitori" && parts[1]) await viewMonitor(parts[1]);
     else if (parts[0] === "kartta") await viewLiveMap();
+    else if (parts[0] === "linjasto") await viewNetworkMap();
+    else if (parts[0] === "poikkeukset") viewExceptions();
+    else if (parts[0] === "palaute") viewFeedback();
     else if (parts[0] === "liput") viewFares();
     else if (parts[0] === "pysakki" && parts[1]) await viewStop(parts[1]);
     else await viewRoutes();

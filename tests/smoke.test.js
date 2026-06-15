@@ -47,6 +47,16 @@ const info = msg => console.log("INFO " + msg);
   if (await page.$("#nearbyStart")) await page.click("#nearbyStart");
   await expect("#nearbyBody table.deps tr", "etusivu: lähimmät lähdöt paikannuksella");
 
+  // --- Häiriötiedotteet: banneri + lsl.fi-CMS-täydennys (vaatii workerin /cms-alerts) ---
+  await page.waitForSelector("#alertsBox details.alert", { timeout: 15000 }).catch(() => {});
+  const alertCount = (await page.$$("#alertsBox details.alert")).length;
+  alertCount > 0
+    ? ok(`etusivu: häiriöbanneri renderöityy (${alertCount} tiedotetta)`)
+    : info("etusivu: ei aktiivisia häiriötiedotteita (ei virhe)");
+  (await page.$("#alertsBox .alert-src"))
+    ? ok("etusivu: lsl.fi-CMS-tiedote mukana bannerissa")
+    : info("etusivu: ei CMS-tiedotetta (worker /cms-alerts deployaamatta tai ei tuoreita) — ei virhe");
+
   // --- Yhdistetty haku: linja, pysäkki ja osoite samasta kentästä ---
   await page.type("#uniSearch", "Matkakeskus", { delay: 25 });
   if (await expect('#searchResults a[href^="#/pysakki/"]', "yhdistetty haku: pysäkkiosumat", 15000)) {
@@ -80,6 +90,12 @@ const info = msg => console.log("INFO " + msg);
   if (await expect("details.itin[data-itin]", "reittihaku: reittiehdotuksia löytyy")) {
     await page.click(`details.itin[data-itin="0"] summary`);
     await expect("details.itin[open] .tl-row.pt", "reittihaku: aikajana piirtyy");
+    const co2 = await page.evaluate(() => {
+      const el = document.querySelector("details.itin[open] p.co2");
+      return el ? el.textContent.trim() : null;
+    });
+    (co2 && /\d/.test(co2)) ? ok(`reittihaku: CO₂-säästöarvio näkyy (${co2.replace(/\s+/g, " ")})`)
+                            : info("reittihaku: ei CO₂-riviä (lyhyt bussiosuus?) — ei virhe");
     const mapDrawn = await page.waitForFunction(
       () => !!document.querySelector("details.itin[open] .leaflet-overlay-pane path"),
       { timeout: 12000 }).then(() => true).catch(() => false);
@@ -213,6 +229,39 @@ const info = msg => console.log("INFO " + msg);
     ok(`live-kartta: busseja kartalla (${n})`);
   } else {
     info("live-kartta: ei busseja juuri nyt (ei reaaliaikadataa testihetkellä)");
+  }
+
+  // --- Linjaston yleiskartta ---
+  await page.goto(BASE + "/#/linjasto", { waitUntil: "networkidle2" });
+  await expect("#netMap.leaflet-container", "linjasto: kartta latautuu");
+  const linesShown = await page.waitForFunction(
+    () => document.querySelectorAll("#netMap path.leaflet-interactive").length > 5,
+    { timeout: 25000 }).then(() => true).catch(() => false);
+  if (linesShown) {
+    const n = await page.evaluate(() => document.querySelectorAll("#netMap path.leaflet-interactive").length);
+    ok(`linjasto: linjojen reittiviivat piirtyvät (${n})`);
+  } else {
+    fail("linjasto: reittiviivoja ei piirtynyt");
+  }
+
+  // --- Poikkeuspäivät ---
+  await page.goto(BASE + "/#/poikkeukset", { waitUntil: "networkidle2" });
+  if (await expect("ul.ex-list li.ex-row", "poikkeuspäivät: lista latautuu")) {
+    const n = await page.evaluate(() => document.querySelectorAll("ul.ex-list li.ex-row").length);
+    const hasTag = await page.$("ul.ex-list .ex-tag");
+    (n > 0 && hasTag) ? ok(`poikkeuspäivät: ${n} päivää, pyhä/aatto-merkinnät`)
+                      : fail("poikkeuspäivät: rivit tai merkinnät puuttuvat");
+  }
+
+  // --- Palaute / vikailmoitus (lomake + tyhjän validointi, ei lähetetä verkkoon) ---
+  await page.goto(BASE + "/#/palaute", { waitUntil: "networkidle2" });
+  if (await expect("#fbForm #fbMsg", "palaute: lomake latautuu")) {
+    await page.click("#fbForm button[type=submit]");
+    const validated = await page.waitForFunction(
+      () => { const s = document.querySelector("#fbStatus"); return s && s.textContent.trim().length > 0 && s.classList.contains("error"); },
+      { timeout: 5000 }).then(() => true).catch(() => false);
+    validated ? ok("palaute: tyhjä viesti estetään (validointi)")
+              : fail("palaute: tyhjän viestin validointi ei toiminut");
   }
 
   // --- Liput ja hinnat ---
