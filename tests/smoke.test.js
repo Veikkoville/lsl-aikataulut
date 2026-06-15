@@ -211,6 +211,17 @@ const info = msg => console.log("INFO " + msg);
     (await page.$("#speakBtn"))
       ? ok("pysäkkisivu: lue ääneen -nappi näkyy")
       : info("pysäkkisivu: puhesynteesi ei tuettu → ei lue ääneen -nappia");
+    // Lähestyvä bussi -hälytys: nappi näkyy ja banneri ilmestyy aktivoitaessa
+    if (await page.$("#approachBtn")) {
+      await page.click("#approachBtn");
+      const armed = await page.waitForFunction(
+        () => { const b = document.querySelector("#approachBanner"); return b && !b.hidden && b.textContent.trim().length > 0; },
+        { timeout: 5000 }).then(() => true).catch(() => false);
+      armed ? ok("pysäkkisivu: lähestyvä bussi -hälytys aktivoituu (banneri)")
+            : fail("pysäkkisivu: lähestyvä bussi -hälytyksen banneri ei ilmestynyt");
+    } else {
+      info("pysäkkisivu: Notification ei tuettu → ei lähestyvä bussi -nappia");
+    }
     // Jaa / upota: iframe-koodi monitorin URL:iin
     if (await page.$("#stopEmbedBtn")) {
       await page.click("#stopEmbedBtn");

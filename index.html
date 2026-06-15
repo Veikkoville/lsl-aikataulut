@@ -225,6 +225,11 @@
   .acc-toggle { display: inline-flex; align-items: center; gap: 0.45rem; margin: 0 0 0.7rem;
     font-size: 0.92rem; cursor: pointer; }
   .acc-toggle input { width: auto; min-height: auto; margin: 0; }
+  /* Lähestyvä bussi -hälytys */
+  .approach-banner { margin: 0.2rem 0 0.6rem; padding: 0.6rem 0.8rem; border-radius: 10px;
+    background: var(--rt-bg); color: var(--rt-text); border: 1px solid var(--rt-text); font-size: 0.95rem; }
+  button.secondary.armed { border-color: var(--blue); color: var(--blue);
+    background: var(--hover); font-weight: 600; }
   /* Jäsennelty footer (linkkisarakkeet + lähde + varauma) */
   .foot-cols { max-width: 760px; margin: 0 auto; display: grid;
     grid-template-columns: 1.7fr 1fr 1fr; gap: 1.3rem; }
@@ -951,6 +956,11 @@ const STRINGS = {
     accVehicle: "Esteetön kalusto",
     accStop: "Esteetön pysäkki", accStopNo: "Pysäkki ei ole esteetön",
     accOnlyToggle: "Vain esteettömät pysäkit", accNearbyNone: "Ei esteettömiä pysäkkejä lähistöllä.",
+    approachArm: "Ilmoita kun bussi lähestyy", approachOn: "Hälytys päällä",
+    approachWaiting: "Hälytys päällä – ilmoitamme kun bussi lähestyy pysäkkiä.",
+    approachWaitingNoPerm: "Hälytys päällä. Salli ilmoitukset selaimessa saadaksesi ilmoituksen myös taustalla.",
+    approachFired: "Linja {line} lähestyy pysäkkiä", approachTitle: "Linja {line} lähestyy",
+    approachBody: "Bussi saapuu pian pysäkille {stop}.",
     // etusivu
     homeIntro: "Hae linja-aikatauluja, lähimpiä lähtöjä ja reittejä Lahden seudun joukkoliikenteessä.",
     loadingRoutes: "Haetaan linjoja…",
@@ -1230,6 +1240,11 @@ const STRINGS = {
     accVehicle: "Wheelchair accessible vehicle",
     accStop: "Wheelchair accessible stop", accStopNo: "Stop is not wheelchair accessible",
     accOnlyToggle: "Accessible stops only", accNearbyNone: "No accessible stops nearby.",
+    approachArm: "Alert me when a bus approaches", approachOn: "Alert on",
+    approachWaiting: "Alert on – we'll notify you when a bus is approaching the stop.",
+    approachWaitingNoPerm: "Alert on. Allow notifications in your browser to be alerted in the background too.",
+    approachFired: "Line {line} is approaching the stop", approachTitle: "Line {line} approaching",
+    approachBody: "A bus will arrive at {stop} shortly.",
     loadingRoutes: "Loading routes…",
     nearbyTitle: "Nearest departures",
     rtLegend: "= real-time estimate. Updates every 30 s.",
@@ -1504,6 +1519,11 @@ const STRINGS = {
     accVehicle: "Tillgängligt fordon",
     accStop: "Tillgänglig hållplats", accStopNo: "Hållplatsen är inte tillgänglig",
     accOnlyToggle: "Endast tillgängliga hållplatser", accNearbyNone: "Inga tillgängliga hållplatser i närheten.",
+    approachArm: "Meddela när en buss närmar sig", approachOn: "Avisering på",
+    approachWaiting: "Avisering på – vi meddelar när en buss närmar sig hållplatsen.",
+    approachWaitingNoPerm: "Avisering på. Tillåt aviseringar i webbläsaren för att få meddelande även i bakgrunden.",
+    approachFired: "Linje {line} närmar sig hållplatsen", approachTitle: "Linje {line} närmar sig",
+    approachBody: "En buss anländer snart till {stop}.",
     loadingRoutes: "Hämtar linjer…",
     nearbyTitle: "Närmaste avgångar",
     rtLegend: "= realtidsuppskattning. Uppdateras var 30:e sekund.",
@@ -2173,7 +2193,7 @@ async function vehiclePopupHtml(tripId, nextStopId) {
 // Näyttää listan linjoista live-busseina kartalla. Kerrallaan aktiivisena on
 // yksi tilaus: uusi kutsu (esim. toisen reittiehdotuksen avaus) siirtää bussit
 // uudelle kartalle.
-async function startVehicles(map, routeList) {
+async function startVehicles(map, routeList, onMessage) {
   const mySeq = viewSeq;
   try {
     await ensureMqtt();
@@ -2217,6 +2237,7 @@ async function startVehicles(map, routeList) {
     m.marker.setLatLng([pos.lat, pos.lon]);
     m.marker.setTooltipContent(t("vehLine", { line: esc(route.shortName), dest: esc(headsign) }));
     m.ts = Date.now();
+    if (onMessage) try { onMessage(seg, route, pos); } catch (e) { /* hälytyslogiikka ei saa kaataa karttaa */ }
   });
   // siivoa bussit, joista ei ole kuulunut 90 sekuntiin (esim. päätepysäkillä)
   vehicleSweep = setInterval(() => {
@@ -3750,8 +3771,11 @@ async function viewStop(stopId) {
         ${("speechSynthesis" in window) ? `<button type="button" id="speakBtn" class="secondary"><span aria-hidden="true">🔊</span> ${t("speakAloud")}</button>` : ""}
         <button type="button" id="stopQrBtn" class="secondary"><span aria-hidden="true">🔳</span> ${t("qrButton")}</button>
         <button type="button" id="stopEmbedBtn" class="secondary"><span aria-hidden="true">🔗</span> ${t("embedButton")}</button>
+        ${(stop.lat != null && (stop.routes || []).length && "Notification" in window)
+          ? `<button type="button" id="approachBtn" class="secondary"><span aria-hidden="true">🔔</span> ${t("approachArm")}</button>` : ""}
         <span id="stopPrintStatus" class="muted" role="status"></span>
       </p>
+      <div id="approachBanner" class="approach-banner no-print" role="status" aria-live="polite" hidden></div>
       <div id="stopEmbed" class="embedbox no-print" hidden></div>
       <div id="stopQr" class="qrbox no-print" hidden></div>
       <div id="stopMap" class="map map-small" aria-label="${t("stopMapAria")}"></div>
@@ -3761,6 +3785,55 @@ async function viewStop(stopId) {
 
   bindFavButton({ type: "stop", id: stopId, name: stop.name });
   document.getElementById("backBtn").addEventListener("click", () => history.back());
+
+  // Lähestyvä bussi -hälytys: kun pysäkin linjojen ajoneuvon seuraava pysäkki
+  // (MQTT-topicin nextStop) on TÄMÄ pysäkki, bussi on lähestymässä (yhden pysäkin
+  // päässä). Toimii etualalla (sovellus auki); ilmoitus + sivun sisäinen banneri.
+  const stopNum = stopId.split(":")[1];
+  let approachArmed = false;
+  const notifiedVeh = new Set();
+  const fireApproach = (routeName, dest) => {
+    const banner = document.getElementById("approachBanner");
+    if (banner) {
+      banner.hidden = false;
+      banner.innerHTML = `🔔 <strong>${esc(t("approachFired", { line: routeName }))}</strong>${dest ? ` · ${esc(dest)}` : ""}`;
+    }
+    try {
+      if ("Notification" in window && Notification.permission === "granted")
+        new Notification(t("approachTitle", { line: routeName }),
+          { body: t("approachBody", { stop: stop.name }), tag: "approach-" + stopId, icon: "icon-192.png" });
+    } catch (e) { /* ilmoitus ei pakollinen */ }
+    if (navigator.vibrate) try { navigator.vibrate([200, 100, 200]); } catch (e) {}
+  };
+  const onVehicleMsg = (seg, route) => {
+    if (!approachArmed) return;
+    const vehId = seg[13] || "";
+    if ((seg[11] || "") === stopNum) {
+      if (!notifiedVeh.has(vehId)) { notifiedVeh.add(vehId); fireApproach(route.shortName, seg[9] || ""); }
+    } else {
+      notifiedVeh.delete(vehId); // bussi ohitti → salli uusi hälytys jos linja palaa
+    }
+  };
+  document.getElementById("approachBtn")?.addEventListener("click", async () => {
+    const btn = document.getElementById("approachBtn");
+    const banner = document.getElementById("approachBanner");
+    if (approachArmed) {
+      approachArmed = false; notifiedVeh.clear();
+      btn.classList.remove("armed");
+      btn.innerHTML = `<span aria-hidden="true">🔔</span> ${t("approachArm")}`;
+      if (banner) { banner.hidden = true; banner.innerHTML = ""; }
+      return;
+    }
+    let perm = Notification.permission;
+    if (perm === "default") { try { perm = await Notification.requestPermission(); } catch (e) {} }
+    approachArmed = true;
+    btn.classList.add("armed");
+    btn.innerHTML = `<span aria-hidden="true">🔔</span> ${t("approachOn")}`;
+    if (banner) {
+      banner.hidden = false;
+      banner.textContent = perm === "granted" ? t("approachWaiting") : t("approachWaitingNoPerm");
+    }
+  });
 
   // QR-koodi pysäkin live-sivulle (LSL voi teipata katokseen)
   document.getElementById("stopQrBtn")?.addEventListener("click", () => {
@@ -3851,7 +3924,7 @@ async function viewStop(stopId) {
       // pysäkkiä liikennöivien linjojen bussit lähestymässä
       const routes = (stop.routes || []).slice(0, 15);
       if (routes.length) {
-        startVehicles(map, routes);
+        startVehicles(map, routes, onVehicleMsg);
         const hint = document.getElementById("stopMapHint");
         if (hint) hint.hidden = false;
       }
