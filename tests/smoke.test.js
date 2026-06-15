@@ -55,6 +55,11 @@ const info = msg => console.log("INFO " + msg);
   if (await page.$("#nearbyStart")) await page.click("#nearbyStart");
   await expect("#nearbyBody table.deps tr", "etusivu: lähimmät lähdöt paikannuksella");
 
+  // Esteettömyys: "vain esteettömät pysäkit" -suodatin lähimmät-listassa
+  (await page.$("#nearbyBody #accOnly"))
+    ? ok("esteettömyys: lähimmät-listan esteettömyyssuodatin näkyy")
+    : fail("esteettömyys: esteettömyyssuodatin puuttuu");
+
   // --- Häiriötiedotteet: banneri + lsl.fi-CMS-täydennys (vaatii workerin /cms-alerts) ---
   await page.waitForSelector("#alertsBox details.alert", { timeout: 15000 }).catch(() => {});
   const alertCount = (await page.$$("#alertsBox details.alert")).length;
