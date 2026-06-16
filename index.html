@@ -553,6 +553,8 @@
   .plat-list { list-style: none; padding: 0; margin: 0.5rem 0 0; display: grid; gap: 0.5rem; }
   .plat-item { border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.75rem; }
   .plat-item .plat-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .plat-name { font-weight: 700; }
+  .plat-item .plat-head > a { margin-left: auto; }
   .plat-tag { display: inline-flex; min-width: 1.8rem; height: 1.8rem; padding: 0 0.45rem;
     align-items: center; justify-content: center; background: var(--blue); color: #fff;
     border-radius: 7px; font-weight: 800; }
@@ -776,16 +778,23 @@ const CONFIGS = {
     feedMatch: /lahti/i,                  // GTFS-syötteen tunnistus feedId:stä tai julkaisijasta
     // Ydinkeskustan solmupysäkit: "Keskustan linjat" -pikavalinta tulostusvihkossa
     centerStopNames: ["Kauppatori", "Matkakeskus"],
-    // Keskusterminaalien laiturit (#/laiturit). Laiturit + linjat + sijainnit
+    // Keskusterminaalien pysäkit (#/laiturit). Pysäkit + linjat + sijainnit
     // piirretään avoimesta GTFS-datasta (stops nimellä); virallinen LSL:n PDF-
-    // laiturikartta linkitetään ulos (kuvat ovat LSL:n tekijänoikeutta → ei upoteta).
+    // pysäkkikartta linkitetään ulos (kuvat ovat LSL:n tekijänoikeutta → ei upoteta).
+    // allow = LSL:n virallisen sivun lähtöpaikat (tarkistettu lsl.fi/.../lahden-
+    // keskustan-pysakit/) → suodattaa pois GTFS:n tekniset/vanhentuneet pysäkit.
+    // Ilman allow:ia näytetään kaikki pysäkit joilla on linjoja. PÄIVITÄ jos LSL muuttaa.
     hubs: [
       { key: "matkakeskus", name: "Matkakeskus", center: { lat: 60.9772, lon: 25.6588 },
+        allow: ["A", "B", "C", "D", "E", "3", "4"], // A–E pysäkit + Laituri 3 (Hämeenlinna) ja 4
         pdf: "https://www.lsl.fi/app/uploads/2026/04/lsl-matkakeskuksen-pysakit-kartta-kesa-2026-lahti.pdf" },
       { key: "kauppatori", name: "Kauppatori", center: { lat: 60.9836, lon: 25.6556 },
+        allow: ["A", "B", "C", "D", "E", "F"],
         pdf: "https://www.lsl.fi/app/uploads/2026/04/lsl_kauppatorin_pysakit_lahti_kesa2026.pdf" },
-      { key: "trio", name: "Trio", center: { lat: 60.9831, lon: 25.6617 },
-        pdf: "https://www.lsl.fi/app/uploads/2026/04/lsl_trion_pysakit_lahti_kesa2026.pdf" },
+      // Trio jätetty pois väliaikaisesti: keskustan pysäkkiuudistus on kesken
+      // (kesä–elokuu 2026) eikä GTFS-data vastaa LSL:n virallista Trio-nimeämistä
+      // (avoindatassa Trio A–F, virallisesti vain Trio A/B + erilliset Tevi P/E
+      // Vesijärvenkadulla, valmiit elokuussa). Lisätään takaisin kun data vakiintuu.
     ],
     // Worker-välityspalvelin (worker/); tyhjä merkkijono → käyttäjä syöttää oman API-avaimen
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
@@ -902,18 +911,20 @@ const STRINGS = {
     netMapLoading: "Ladataan linjastoa…",
     netMapCount: "{n} linjaa kartalla",
     netMapFail: "Linjaston haku epäonnistui: ",
-    hubLink: "Keskustan laiturit",
-    hubTitle: "Keskustan laiturit",
-    hubIntro: "Miltä laiturilta bussisi lähtee ja missä se sijaitsee. Napauta laituria nähdäksesi linjat ja live-lähdöt.",
-    hubLoading: "Ladataan laitureita…",
-    hubFail: "Laiturien haku epäonnistui: ",
-    hubNone: "Laitureita ei löytynyt.",
-    hubMapAria: "Kartta: {hub}-pysäkin laiturit",
+    hubLink: "Keskustan pysäkit",
+    hubTitle: "Keskustan pysäkit",
+    hubIntro: "Mistä bussisi lähtee ja missä pysäkki sijaitsee. Napauta pysäkkiä nähdäksesi linjat ja live-lähdöt.",
+    hubLoading: "Ladataan pysäkkejä…",
+    hubFail: "Pysäkkien haku epäonnistui: ",
+    hubNone: "Pysäkkejä ei löytynyt.",
+    hubMapAria: "Kartta: {hub}-keskuksen pysäkit",
     hubLines: "Linjat:",
     hubNoLines: "Ei säännöllisiä linjoja.",
     hubDepartures: "Live-lähdöt →",
-    hubOfficialMap: "LSL:n virallinen laiturikartta (PDF)",
-    hubOfficialNote: "Laituritiedot on koottu avoimesta datasta. Virallinen, kuvitettu laiturikartta on LSL:n sivuilla.",
+    hubOfficialMap: "LSL:n virallinen pysäkkikartta (PDF)",
+    hubOfficialNote: "Pysäkkitiedot on koottu avoimesta datasta. Virallinen, kuvitettu pysäkkikartta on LSL:n sivuilla.",
+    termStop: "Pysäkki",
+    termPlatform: "Laituri",
     exLink: "Poikkeuspäivät",
     exTitle: "Tulevat poikkeuspäivät",
     exIntro: "Pyhä- ja juhlapäivinä bussit liikennöivät tavallisesti sunnuntai- tai erillisen juhlapyhäaikataulun mukaan. Aattoina liikenne voi olla tavallista vähäisempää.",
@@ -1207,18 +1218,20 @@ const STRINGS = {
     netMapLoading: "Loading network…",
     netMapCount: "{n} routes on the map",
     netMapFail: "Failed to load the network: ",
-    hubLink: "City-centre platforms",
-    hubTitle: "City-centre platforms",
-    hubIntro: "Which platform your bus leaves from and where it is. Tap a platform to see its lines and live departures.",
-    hubLoading: "Loading platforms…",
-    hubFail: "Failed to load platforms: ",
-    hubNone: "No platforms found.",
-    hubMapAria: "Map: platforms at {hub}",
+    hubLink: "City-centre stops",
+    hubTitle: "City-centre stops",
+    hubIntro: "Where your bus leaves from and where the stop is. Tap a stop to see its lines and live departures.",
+    hubLoading: "Loading stops…",
+    hubFail: "Failed to load stops: ",
+    hubNone: "No stops found.",
+    hubMapAria: "Map: stops at {hub}",
     hubLines: "Lines:",
     hubNoLines: "No regular lines.",
     hubDepartures: "Live departures →",
-    hubOfficialMap: "Official LSL platform map (PDF)",
-    hubOfficialNote: "Platform data is compiled from open data. The official illustrated platform map is on the LSL website.",
+    hubOfficialMap: "Official LSL stop map (PDF)",
+    hubOfficialNote: "Stop data is compiled from open data. The official illustrated stop map is on the LSL website.",
+    termStop: "Stop",
+    termPlatform: "Platform",
     exLink: "Special days",
     exTitle: "Upcoming special days",
     exIntro: "On public holidays buses usually run a Sunday or separate holiday timetable. On holiday eves service may be lighter than usual.",
@@ -1504,16 +1517,18 @@ const STRINGS = {
     netMapFail: "Det gick inte att hämta linjenätet: ",
     hubLink: "Hållplatser i centrum",
     hubTitle: "Hållplatser i centrum",
-    hubIntro: "Från vilken plattform din buss avgår och var den ligger. Tryck på en plattform för att se linjer och avgångar i realtid.",
-    hubLoading: "Laddar plattformar…",
-    hubFail: "Det gick inte att hämta plattformarna: ",
-    hubNone: "Inga plattformar hittades.",
-    hubMapAria: "Karta: plattformar vid {hub}",
+    hubIntro: "Var din buss avgår och var hållplatsen ligger. Tryck på en hållplats för att se linjer och avgångar i realtid.",
+    hubLoading: "Laddar hållplatser…",
+    hubFail: "Det gick inte att hämta hållplatserna: ",
+    hubNone: "Inga hållplatser hittades.",
+    hubMapAria: "Karta: hållplatser vid {hub}",
     hubLines: "Linjer:",
     hubNoLines: "Inga regelbundna linjer.",
     hubDepartures: "Avgångar i realtid →",
-    hubOfficialMap: "LSL:s officiella plattformskarta (PDF)",
-    hubOfficialNote: "Plattformsuppgifterna är sammanställda från öppna data. Den officiella illustrerade plattformskartan finns på LSL:s webbplats.",
+    hubOfficialMap: "LSL:s officiella hållplatskarta (PDF)",
+    hubOfficialNote: "Hållplatsuppgifterna är sammanställda från öppna data. Den officiella illustrerade hållplatskartan finns på LSL:s webbplats.",
+    termStop: "Hållplats",
+    termPlatform: "Plattform",
     exLink: "Avvikande dagar",
     exTitle: "Kommande avvikande dagar",
     exIntro: "På helg- och högtidsdagar kör bussarna vanligtvis enligt söndags- eller en separat helgtidtabell. På aftnar kan trafiken vara glesare än vanligt.",
@@ -4277,16 +4292,22 @@ async function viewNetworkMap() {
    linkitetään LSL:n viralliseen PDF-laiturikarttaan (kuvia ei upoteta —
    ne ovat LSL:n tekijänoikeutta; oma kartta päivittyy avoimesta datasta). */
 
-// Laiturin tunnus: ensisijaisesti GTFS:n platformCode ("A"), muuten nimestä
-// johdettu loppuosa ("Trio A" → "A"), viimeisenä pysäkkikoodi.
-function platformLabel(stop, hubName) {
-  if (stop.platformCode) return stop.platformCode;
+// Pysäkin tunnus (kartan merkki) + näyttönimi LSL:n termein: numeropysäkki on
+// "Laituri N" (esim. Matkakeskus 3/4), kirjainpysäkki "Pysäkki X" (A–F; Trion
+// kirjaimet tulevat nimestä "Trio A"). Jos kumpaakaan ei ole, näytetään pysäkin
+// nimi sellaisenaan — koodia EI esitetä laiturinumerona.
+function boardingInfo(stop, hubName) {
+  const pc = stop.platformCode;
+  if (pc) {
+    const word = /^\d+$/.test(pc) ? t("termPlatform") : t("termStop");
+    return { tag: pc, full: word + " " + pc };
+  }
   const n = (stop.name || "").trim();
   if (hubName && n.toLowerCase().startsWith(hubName.toLowerCase())) {
     const rest = n.slice(hubName.length).replace(/^[\s,–-]+/, "").trim();
-    if (rest) return rest;
+    if (rest && rest.length <= 4) return { tag: rest, full: t("termStop") + " " + rest };
   }
-  return stop.code || "?";
+  return { tag: "•", full: n || stop.code || "?" };
 }
 
 async function loadHubStops(name) {
@@ -4323,15 +4344,21 @@ async function viewHubs(parts) {
     btn.addEventListener("click", () => { location.hash = "#/laiturit/" + btn.dataset.hubTab; }));
   const mySeq = viewSeq;
   try {
-    const [stops] = await Promise.all([loadHubStops(hub.name), ensureLeaflet()]);
+    let [stops] = await Promise.all([loadHubStops(hub.name), ensureLeaflet()]);
     if (mySeq !== viewSeq || !document.getElementById("hubMap")) return;
-    stops.sort((a, b) =>
-      platformLabel(a, hub.name).localeCompare(platformLabel(b, hub.name), "fi", { numeric: true }));
+    // Hygienia: piilota pysäkit joilla ei ole yhtään linjaa (ei lähtöjä → pelkkää kohinaa).
+    stops = stops.filter(s => (s.routes || []).length > 0);
+    // Jos hubilla on LSL:n virallinen lähtöpaikkalista (allow), näytä vain ne
+    // (suodattaa GTFS:n tekniset/vanhentuneet pysäkit, esim. Matkakeskuksen Laituri 2/7).
+    if (hub.allow) stops = stops.filter(s => hub.allow.includes(boardingInfo(s, hub.name).tag));
+    // järjestä tunnuksen mukaan (numerot ja kirjaimet luonnollisesti, nimi-pysäkit viimeiseksi)
+    const sortKey = s => { const tg = boardingInfo(s, hub.name).tag; return tg === "•" ? "￿" : tg; };
+    stops.sort((a, b) => sortKey(a).localeCompare(sortKey(b), "fi", { numeric: true }));
     const map = makeMap("hubMap", [hub.center.lat, hub.center.lon], 16);
     let bounds = null;
     const listHtml = [];
     for (const s of stops) {
-      const label = platformLabel(s, hub.name);
+      const { tag: label, full } = boardingInfo(s, hub.name);
       // uniikit linjat (sama linja voi toistua) brändiväreissä
       const lines = [...new Map((s.routes || []).map(r => [r.shortName, r])).values()]
         .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
@@ -4344,12 +4371,13 @@ async function viewHubs(parts) {
       const icon = L.divIcon({ className: "plat-marker-wrap",
         html: `<span class="plat-marker">${esc(label)}</span>`, iconSize: [30, 30] });
       const marker = L.marker([s.lat, s.lon], { icon }).addTo(map).bindPopup(
-        `<strong>${esc(hub.name)} ${esc(label)}</strong><br>${linesShort || t("hubNoLines")}<br><a href="${stopUrl}">${t("hubDepartures")}</a>`,
+        `<strong>${esc(hub.name)} — ${esc(full)}</strong><br>${linesShort || t("hubNoLines")}<br><a href="${stopUrl}">${t("hubDepartures")}</a>`,
         { maxWidth: 260 });
       bounds = bounds ? bounds.extend(marker.getLatLng()) : L.latLngBounds(marker.getLatLng(), marker.getLatLng());
       listHtml.push(
         `<li class="plat-item"><div class="plat-head"><span class="plat-tag">${esc(label)}</span>` +
-        `<a href="${stopUrl}">${t("hubDepartures")}</a></div>` +
+        `<strong class="plat-name">${esc(full)}</strong>` +
+        `<a href="${stopUrl}" aria-label="${esc(full)}: ${t("hubDepartures")}">${t("hubDepartures")}</a></div>` +
         (badges ? `<div class="plat-lines">${badges}</div>` : `<p class="muted">${t("hubNoLines")}</p>`) +
         `</li>`);
     }

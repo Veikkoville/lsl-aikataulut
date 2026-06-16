@@ -301,22 +301,27 @@ const info = msg => console.log("INFO " + msg);
                         : fail("liput: vahvistettu hinta tai lähdelinkki puuttuu");
   }
 
-  // --- Keskustan laiturit (#/laiturit): laiturit avoimesta datasta + virallinen PDF ---
+  // --- Keskustan pysäkit (#/laiturit): pysäkit avoimesta datasta + virallinen PDF ---
   await page.goto(BASE + "/#/laiturit", { waitUntil: "networkidle2" });
-  await expect("#hubMap.leaflet-container", "laiturit: kartta latautuu");
+  await expect("#hubMap.leaflet-container", "keskustan pysäkit: kartta latautuu");
   const platMarkers = await page.waitForFunction(
     () => document.querySelectorAll("#hubMap .plat-marker").length > 0,
     { timeout: 20000 }).then(() => true).catch(() => false);
   const platItems = await page.evaluate(() => document.querySelectorAll("#hubList .plat-item").length);
   (platMarkers && platItems > 0)
-    ? ok(`laiturit: laiturimerkit kartalla + lista (${platItems} laituria)`)
-    : fail("laiturit: laitureita ei piirtynyt");
+    ? ok(`keskustan pysäkit: merkit kartalla + lista (${platItems} pysäkkiä)`)
+    : fail("keskustan pysäkit: pysäkkejä ei piirtynyt");
+  // Termi: kirjainpysäkki = "Pysäkki", numerolaituri = "Laituri" (LSL:n nimeämisen mukaan)
+  const hasStopTerm = await page.evaluate(() =>
+    [...document.querySelectorAll("#hubList .plat-name")].some(e => /Pysäkki/.test(e.textContent)));
+  hasStopTerm ? ok("keskustan pysäkit: termi 'Pysäkki' kirjainpysäkeille")
+              : fail("keskustan pysäkit: 'Pysäkki'-termiä ei löytynyt");
   (await page.$('.card a[href$=".pdf"]'))
-    ? ok("laiturit: linkki LSL:n viralliseen PDF-laiturikarttaan")
-    : fail("laiturit: virallisen PDF-kartan linkki puuttuu");
+    ? ok("keskustan pysäkit: linkki LSL:n viralliseen PDF-pysäkkikarttaan")
+    : fail("keskustan pysäkit: virallisen PDF-kartan linkki puuttuu");
   const hubTabs = await page.evaluate(() => document.querySelectorAll("[data-hub-tab]").length);
-  hubTabs >= 3 ? ok(`laiturit: keskusvälilehdet (${hubTabs})`)
-               : fail(`laiturit: keskusvälilehtiä odotettiin ≥3, löytyi ${hubTabs}`);
+  hubTabs >= 2 ? ok(`keskustan pysäkit: keskusvälilehdet (${hubTabs})`)
+               : fail(`keskustan pysäkit: keskusvälilehtiä odotettiin ≥2, löytyi ${hubTabs}`);
 
   // --- Asetukset + kielenvaihto ---
   await page.goto(BASE + "/#/asetukset", { waitUntil: "networkidle2" });
