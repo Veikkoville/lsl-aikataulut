@@ -148,13 +148,25 @@ await runPushCheck(env);
 check(pushSends.length === before8, "CMS: ei-seurattu linja 4 ei laukaise pushia");
 
 // --- Lähtömuistutukset (runReminderCheck) ---
+// Odottavat muistutukset säilytetään yhdessä avaimessa (rem:pending) → cron ei tee list-operaatiota.
 const before = pushSends.length;
-await env.PUSH_KV.put("rem:past", JSON.stringify({ ...subscription, fireAt: 1000, title: "Lähtömuistutus", body: "Linja 3 lähtee pian", tag: "r1", url: "./" }));
-await env.PUSH_KV.put("rem:future", JSON.stringify({ ...subscription, fireAt: 99999999999, title: "Myöhempi", body: "x", tag: "r2" }));
+await env.PUSH_KV.put("rem:pending", JSON.stringify({
+  past: { ...subscription, fireAt: 1000, title: "Lähtömuistutus", body: "Linja 3 lähtee pian", tag: "r1", url: "./" },
+  future: { ...subscription, fireAt: 99999999999, title: "Myöhempi", body: "x", tag: "r2" },
+}));
 await runReminderCheck(env, 2000 * 1000); // nyt = 2000 s → past (1000) erääntynyt, future ei
 check(pushSends.length === before + 1, "muistutus: erääntynyt lähetetään (tasan 1)");
-check(!env.PUSH_KV._m.get("rem:past"), "muistutus: lähetetty poistetaan KV:stä");
-check(!!env.PUSH_KV._m.get("rem:future"), "muistutus: tuleva jää odottamaan");
+const remPending = JSON.parse(env.PUSH_KV._m.get("rem:pending") || "{}");
+check(!remPending.past, "muistutus: lähetetty poistetaan rem:pending-avaimesta");
+check(!!remPending.future, "muistutus: tuleva jää odottamaan");
+
+// runReminderCheck ei saa kutsua list-operaatiota (KV:n ilmaiskiintiö on niukin listoissa)
+let listCalls = 0;
+const realList = env.PUSH_KV.list.bind(env.PUSH_KV);
+env.PUSH_KV.list = async (...a) => { listCalls++; return realList(...a); };
+await runReminderCheck(env, 2000 * 1000);
+check(listCalls === 0, "muistutus: cron EI tee KV-list-operaatiota (vältetään ilmaiskiintiön ylitys)");
+env.PUSH_KV.list = realList;
 
 console.log(fail ? `\n${fail} TARKISTUS EPÄONNISTUI` : "\nKAIKKI TARKISTUKSET OK");
 process.exit(fail ? 1 : 0);

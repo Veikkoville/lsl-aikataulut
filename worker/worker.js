@@ -171,8 +171,28 @@ async function handleUnsubscribe(request, env, origin) {
   return jsonResponse({ ok: true }, 200, origin);
 }
 
+// Kaikki odottavat lähtömuistutukset säilytetään YHDESSÄ KV-avaimessa
+// ("rem:pending", muotoa { [id]: rec }). Näin minuutticron tarkistaa ne yhdellä
+// get-kutsulla EIKÄ kalliilla list-operaatiolla — KV:n ilmaiskiintiö on vain
+// 1000 list-operaatiota/vrk, ja minuutticron yksin söi sen (1440/vrk).
+async function readPending(env) {
+  const raw = await env.PUSH_KV.get("rem:pending");
+  if (!raw) return {};
+  try { const o = JSON.parse(raw); return o && typeof o === "object" ? o : {}; }
+  catch (e) { return {}; }
+}
+
+async function writePending(env, pending) {
+  const ids = Object.keys(pending);
+  if (!ids.length) { await env.PUSH_KV.delete("rem:pending"); return; }
+  // TTL-varmuus: säilytä kunnes myöhäisin muistutus + 2 h on ohi, vaikka cron jäisi väliin.
+  let maxFire = 0;
+  for (const id of ids) maxFire = Math.max(maxFire, Number(pending[id].fireAt) || 0);
+  const ttl = Math.max(60, Math.floor(maxFire + 7200 - Date.now() / 1000));
+  await env.PUSH_KV.put("rem:pending", JSON.stringify(pending), { expirationTtl: ttl });
+}
+
 // Lähtömuistutus: tallenna kertaluonteinen push joka lähetetään fireAt-hetkellä.
-// KV:n expirationTtl siivoaa merkinnän automaattisesti, vaikka cron jäisi väliin.
 async function handleReminder(request, env, origin) {
   if (!env.PUSH_KV) return jsonResponse({ error: "push_unconfigured" }, 503, origin);
   const body = await request.json().catch(() => null);
@@ -188,33 +208,33 @@ async function handleReminder(request, env, origin) {
     tag: body.tag || ("rem-" + id),
     url: body.url || "./",
   };
-  const ttl = Math.max(60, Math.floor(fireAt + 7200 - Date.now() / 1000));
-  await env.PUSH_KV.put("rem:" + id, JSON.stringify(rec), { expirationTtl: ttl });
+  const pending = await readPending(env);
+  pending[id] = rec;
+  await writePending(env, pending);
   return jsonResponse({ ok: true, id }, 200, origin);
 }
 
 // Ajetaan minuutin cronista: lähetä erääntyneet muistutukset, poista lähetetyt.
+// Lukee odottavat muistutukset yhdellä get-kutsulla (ei list-operaatiota).
 export async function runReminderCheck(env, nowMs) {
   if (!env.PUSH_KV || !env.VAPID_PRIVATE_JWK) return;
   const now = (nowMs ?? Date.now()) / 1000;
-  let cursor;
-  do {
-    const list = await env.PUSH_KV.list({ prefix: "rem:", cursor });
-    for (const k of list.keys) {
-      const v = await env.PUSH_KV.get(k.name);
-      if (!v) continue;
-      let r;
-      try { r = JSON.parse(v); } catch (e) { await env.PUSH_KV.delete(k.name); continue; }
-      if (now >= r.fireAt) {
-        if (now <= r.fireAt + 1800) { // ei lähetetä yli 30 min myöhässä
-          const payload = JSON.stringify({ title: r.title, body: r.body, tag: r.tag, url: r.url || "./" });
-          try { await sendPush(r, payload, env); } catch (e) { /* ohita */ }
-        }
-        await env.PUSH_KV.delete(k.name);
+  const pending = await readPending(env);
+  const ids = Object.keys(pending);
+  if (!ids.length) return; // tyhjä → ei kirjoituksia, ei list-operaatiota
+  let changed = false;
+  for (const id of ids) {
+    const r = pending[id];
+    if (!r || now >= r.fireAt) {
+      if (r && now >= r.fireAt && now <= r.fireAt + 1800) { // ei lähetetä yli 30 min myöhässä
+        const payload = JSON.stringify({ title: r.title, body: r.body, tag: r.tag, url: r.url || "./" });
+        try { await sendPush(r, payload, env); } catch (e) { /* ohita */ }
       }
+      delete pending[id];
+      changed = true;
     }
-    cursor = list.list_complete ? null : list.cursor;
-  } while (cursor);
+  }
+  if (changed) await writePending(env, pending);
 }
 
 /* ---------- Häiriöiden haku ja täsmäytys (cron) ---------- */
