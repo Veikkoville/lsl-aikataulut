@@ -1957,25 +1957,50 @@ async function findFeed() {
   return feedId;
 }
 
+// Edustavat tulevat päivät (Ti/To/La/Su seuraavan viikon sisällä). Riittää
+// erottamaan liikennöivät linjat kausi-/koululinjoista joilla ei ole vuoroja nyt.
+function activeProbeDates() {
+  const want = new Set([2, 4, 6, 0]); // getDay: Ti=2, To=4, La=6, Su=0
+  const out = [], base = new Date();
+  for (let i = 0; i < 8 && want.size; i++) {
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+    if (want.has(d.getDay())) {
+      out.push(`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`);
+      want.delete(d.getDay());
+    }
+  }
+  return out;
+}
+
 async function loadRoutes() {
   if (routesCache) return routesCache;
   try {
-    const cached = JSON.parse(localStorage.getItem(ns("routesCache2")) || "null");
+    const cached = JSON.parse(localStorage.getItem(ns("routesCache3")) || "null");
     if (cached && Date.now() - cached.ts < 24 * 3600 * 1000 && cached.routes?.length) {
       routesCache = cached.routes;
       return routesCache;
     }
   } catch (e) { /* rikkinäinen välimuisti ohitetaan */ }
   const feed = await findFeed();
+  // Haetaan linjat + tarkistetaan vuorojen olemassaolo edustavina päivinä samalla
+  // kyselyllä, jotta linjalista vastaa LSL:ää: ei näytetä linjoja joilla ei ole
+  // tulevia lähtöjä (esim. talvi-/koululinjat kesällä).
+  const dates = activeProbeDates();
+  const aliases = dates.map((d, i) => `d${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
   const data = await gql(
     `query ($feeds: [String]) {
-       routes(feeds: $feeds) { gtfsId shortName longName mode color textColor }
+       routes(feeds: $feeds) { gtfsId shortName longName mode color textColor patterns { ${aliases} } }
      }`, { feeds: [feed] });
+  const isActive = r => (r.patterns || []).some(p => dates.some((_, i) => (p["d" + i] || []).length));
+  // varakeino: jos jostain syystä mikään linja ei näytä aktiiviselta, näytetään kaikki
+  const anyActive = (data.routes || []).some(r => r.mode === "BUS" && isActive(r));
   routesCache = data.routes
     .filter(r => r.mode === "BUS")
+    .filter(r => !anyActive || isActive(r))
+    .map(r => ({ gtfsId: r.gtfsId, shortName: r.shortName, longName: r.longName, mode: r.mode, color: r.color, textColor: r.textColor }))
     .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
   try {
-    localStorage.setItem(ns("routesCache2"), JSON.stringify({ ts: Date.now(), routes: routesCache }));
+    localStorage.setItem(ns("routesCache3"), JSON.stringify({ ts: Date.now(), routes: routesCache }));
   } catch (e) { /* täysi localStorage ei ole este */ }
   return routesCache;
 }
@@ -4324,7 +4349,13 @@ async function loadNetwork() {
          patterns { patternGeometry { length points } }
        }
      }`, { feeds: [feed] });
-  networkCache = (data.routes || []).filter(r => r.mode === "BUS");
+  // Suodata samaan aktiivijoukkoon kuin linjalista (ei piirretä kausi-/koululinjoja
+  // joilla ei ole tulevia lähtöjä). loadRoutes on välimuistitettu → halpa.
+  let activeIds = null;
+  try { const ar = await loadRoutes(); if (ar && ar.length) activeIds = new Set(ar.map(r => r.gtfsId)); } catch (e) { /* näytä kaikki jos epäonnistuu */ }
+  networkCache = (data.routes || [])
+    .filter(r => r.mode === "BUS")
+    .filter(r => !activeIds || activeIds.has(r.gtfsId));
   return networkCache;
 }
 
