@@ -4,6 +4,7 @@
 // Avain asetetaan salaisuutena: npx wrangler secret put DIGITRANSIT_KEY
 
 import { sendPush } from "./webpush.js";
+import { ADMIN_HTML } from "./admin-page.js";
 
 const ROUTING_UPSTREAM = "https://api.digitransit.fi/routing/v2/waltti/gtfs/v1";
 const GEOCODING_UPSTREAM = "https://api.digitransit.fi/geocoding/v1";
@@ -141,6 +142,292 @@ async function handleFeedbackList(url, env, origin) {
   } while (cursor);
   out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   return jsonResponse({ items: out }, 200, origin);
+}
+
+/* ---------- Ylläpito: kirjautuminen + häiriötiedotteiden hallinta (KV) ----------
+   Kaupungin henkilöstö julkaisee häiriötiedotteita selaimessa ilman WordPressiä.
+   Tarjoillaan workerista (sama origin → istuntoeväste ilman CORS-säätöä).
+   Tuotantoon suositus: Cloudflare Access /admin* eteen (env.ADMIN_ACCESS_AUD-koukku
+   jätetty isAdminiin); nyt kevyt jaettu salasana + HMAC-allekirjoitettu eväste. */
+
+function parseCookies(request) {
+  const out = {};
+  for (const part of (request.headers.get("Cookie") || "").split(/;\s*/)) {
+    const i = part.indexOf("=");
+    if (i > 0) out[part.slice(0, i)] = decodeURIComponent(part.slice(i + 1));
+  }
+  return out;
+}
+
+function b64url(bytes) {
+  return btoa(String.fromCharCode(...new Uint8Array(bytes)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function b64urlToBytes(s) {
+  s = s.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// Vakiomittainen vertailu, ettei vasteaika paljasta salasanaa.
+export function constantTimeEqual(a, b) {
+  a = String(a); b = String(b);
+  if (a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
+async function hmacKey(secret) {
+  return crypto.subtle.importKey("raw", new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+}
+
+const SESSION_TTL = 12 * 3600; // 12 h
+
+// HMAC-allekirjoitettu istunto: base64url(payload).base64url(hmac). Itsenäinen
+// (ei KV-istuntovarastoa) → ei list-/get-kuormaa.
+export async function signSession(payloadObj, secret) {
+  const payload = b64url(new TextEncoder().encode(JSON.stringify(payloadObj)));
+  const sig = await crypto.subtle.sign("HMAC", await hmacKey(secret), new TextEncoder().encode(payload));
+  return payload + "." + b64url(sig);
+}
+
+export async function verifySession(token, secret, nowMs) {
+  if (!token || token.indexOf(".") < 0) return null;
+  const [payload, sig] = token.split(".");
+  let ok = false;
+  try {
+    ok = await crypto.subtle.verify("HMAC", await hmacKey(secret),
+      b64urlToBytes(sig), new TextEncoder().encode(payload));
+  } catch (e) { return null; }
+  if (!ok) return null;
+  try {
+    const obj = JSON.parse(new TextDecoder().decode(b64urlToBytes(payload)));
+    if (obj.exp && obj.exp < (nowMs ?? Date.now()) / 1000) return null;
+    return obj;
+  } catch (e) { return null; }
+}
+
+async function isAdmin(request, env) {
+  // TODO tuotanto: jos env.ADMIN_ACCESS_AUD asetettu, varmenna Cloudflare Access
+  // -JWT (Cf-Access-Jwt-Assertion) salasanaistunnon sijaan.
+  if (!env.ADMIN_SESSION_SECRET) return false;
+  return !!(await verifySession(parseCookies(request)["admin_session"], env.ADMIN_SESSION_SECRET));
+}
+
+function adminJson(obj, status, extraHeaders) {
+  const headers = new Headers({ "Content-Type": "application/json", "Cache-Control": "no-store" });
+  if (extraHeaders) for (const [k, v] of Object.entries(extraHeaders)) headers.set(k, v);
+  return new Response(JSON.stringify(obj), { status, headers });
+}
+
+async function handleAdminLogin(request, env) {
+  if (!env.ADMIN_PASSWORD || !env.ADMIN_SESSION_SECRET)
+    return adminJson({ error: "unconfigured" }, 503);
+  const body = await request.json().catch(() => null);
+  if (!body || !constantTimeEqual(body.password || "", env.ADMIN_PASSWORD))
+    return adminJson({ error: "invalid" }, 401);
+  const token = await signSession({ exp: Math.floor(Date.now() / 1000) + SESSION_TTL }, env.ADMIN_SESSION_SECRET);
+  return adminJson({ ok: true }, 200,
+    { "Set-Cookie": `admin_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL}` });
+}
+
+function handleAdminLogout() {
+  return adminJson({ ok: true }, 200,
+    { "Set-Cookie": "admin_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0" });
+}
+
+const ADMIN_ALERTS_KEY = city => "admin:alerts:" + String(city || "lahti").toLowerCase().slice(0, 30);
+
+// Kokoaa+validoi yhden ylläpitotiedotteen (puhdas, yksikkötestattava). Ei id:tä —
+// kutsuja asettaa id:n (uusi tai muokattava), kuten buildFeedbackRecord.
+export function buildAdminAlert(body, nowSec) {
+  const title = body && String(body.title || "").trim();
+  if (!title) return { error: "bad_request" };
+  const sev = ["INFO", "WARNING", "SEVERE"].includes(body && body.severity) ? body.severity : "WARNING";
+  const num = v => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.floor(n) : null; };
+  return {
+    rec: {
+      title: title.slice(0, 200),
+      body: String((body && body.body) || "").slice(0, 2000),
+      url: String((body && body.url) || "").slice(0, 300),
+      severity: sev,
+      lines: Array.isArray(body && body.lines)
+        ? body.lines.map(x => String(x).toUpperCase().replace(/\s+/g, "").slice(0, 8)).filter(Boolean).slice(0, 40)
+        : [],
+      startsAt: num(body && body.startsAt),
+      endsAt: num(body && body.endsAt),
+      updatedAt: nowSec,
+    },
+  };
+}
+
+// Suodattaa voimassa olevat (alku- ja loppuaika huomioiden). Julkista clientille.
+export function currentAdminAlerts(list, nowSec) {
+  return (Array.isArray(list) ? list : []).filter(a =>
+    !(a.startsAt && a.startsAt > nowSec) && !(a.endsAt && a.endsAt < nowSec));
+}
+
+async function readAdminAlerts(env, city) {
+  if (!env.PUSH_KV) return [];
+  const raw = await env.PUSH_KV.get(ADMIN_ALERTS_KEY(city));
+  if (!raw) return [];
+  try { const a = JSON.parse(raw); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+}
+
+async function handleAdminAlertsGet(request, env, url) {
+  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  return adminJson({ items: await readAdminAlerts(env, url.searchParams.get("city")) }, 200);
+}
+
+async function handleAdminAlertsSave(request, env) {
+  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  const body = await request.json().catch(() => null);
+  const city = (body && body.city) || "lahti";
+  const { rec, error } = buildAdminAlert(body, Math.floor(Date.now() / 1000));
+  if (error) return adminJson({ error }, 400);
+  const list = await readAdminAlerts(env, city);
+  const id = body.id && String(body.id).slice(0, 40);
+  if (id) {
+    const i = list.findIndex(a => a.id === id);
+    if (i >= 0) list[i] = { ...rec, id }; else list.push({ ...rec, id });
+  } else {
+    list.push({ ...rec, id: Date.now() + "-" + crypto.randomUUID().slice(0, 8) });
+  }
+  // siivoa yli 7 vrk sitten päättyneet
+  const cutoff = Math.floor(Date.now() / 1000) - 7 * 24 * 3600;
+  const cleaned = list.filter(a => !(a.endsAt && a.endsAt < cutoff));
+  await env.PUSH_KV.put(ADMIN_ALERTS_KEY(city), JSON.stringify(cleaned));
+  return adminJson({ ok: true, items: cleaned }, 200);
+}
+
+async function handleAdminAlertsDelete(request, env) {
+  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  const body = await request.json().catch(() => null);
+  const city = (body && body.city) || "lahti";
+  const id = body && String(body.id || "");
+  const list = (await readAdminAlerts(env, city)).filter(a => a.id !== id);
+  await env.PUSH_KV.put(ADMIN_ALERTS_KEY(city), JSON.stringify(list));
+  return adminJson({ ok: true, items: list }, 200);
+}
+
+/* ---------- Ylläpito: lippu- ja hintatiedot ---------- */
+
+const ADMIN_FARES_KEY = city => "admin:fares:" + String(city || "lahti").toLowerCase().slice(0, 30);
+
+// Kokoaa+validoi hintarakenteen samaan muotoon kuin client-CONFIG.fares, jotta
+// julkinen viewFares voi renderöidä sen suoraan. Tuottaa AINA täyden rakenteen
+// (puuttuvat kentät tyhjiksi), ettei sovellus kaadu vajaaseen dataan.
+export function buildAdminFares(body) {
+  if (!body || typeof body !== "object") return { error: "bad_request" };
+  const s = (v, max = 12) => String(v == null ? "" : v).trim().slice(0, max);
+  const grp = o => ({ adult: s(o && o.adult), child: s(o && o.child), reduced: s(o && o.reduced) });
+  const sng = body.single || {};
+  return {
+    rec: {
+      checked: s(body.checked, 40),
+      url: s(body.url, 300),
+      single: { cardApp: grp(sng.cardApp), contactless: s(sng.contactless), salespoint: grp(sng.salespoint) },
+      season: Array.isArray(body.season)
+        ? body.season.slice(0, 12).map(r => ({ d: s(r && r.d, 4), adult: s(r && r.adult), child: s(r && r.child), reduced: s(r && r.reduced) })).filter(r => r.d)
+        : [],
+      day: Array.isArray(body.day)
+        ? body.day.slice(0, 12).map(r => ({ d: s(r && r.d, 4), adult: s(r && r.adult), child: s(r && r.child) })).filter(r => r.d)
+        : [],
+      capDay: s(body.capDay), capWeek: s(body.capWeek), cardFee: s(body.cardFee),
+    },
+  };
+}
+
+async function readAdminFares(env, city) {
+  if (!env.PUSH_KV) return null;
+  const raw = await env.PUSH_KV.get(ADMIN_FARES_KEY(city));
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (e) { return null; }
+}
+
+async function handleAdminFaresGet(request, env, url) {
+  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  return adminJson({ fares: await readAdminFares(env, url.searchParams.get("city")) }, 200);
+}
+
+async function handleAdminFaresSave(request, env) {
+  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  const body = await request.json().catch(() => null);
+  const city = (body && body.city) || "lahti";
+  const { rec, error } = buildAdminFares(body);
+  if (error) return adminJson({ error }, 400);
+  await env.PUSH_KV.put(ADMIN_FARES_KEY(city), JSON.stringify(rec));
+  return adminJson({ ok: true, fares: rec }, 200);
+}
+
+/* ---------- Ylläpito: saavutettavuusseloste (digipalvelulaki 306/2019) ----------
+   Kun kaupunki ottaa palvelun viralliseen käyttöön, seloste on muutettava lain
+   edellyttämään muotoon (julkaiseva organisaatio, vaatimustenmukaisuus, puutteet,
+   palautekanava, valvontaviranomainen). Tämä editori tuottaa sen; julkaistu
+   seloste korvaa sovelluksen oletustekstin. */
+
+const ADMIN_A11Y_KEY = city => "admin:a11y:" + String(city || "lahti").toLowerCase().slice(0, 30);
+
+export function buildAdminA11y(body) {
+  if (!body || typeof body !== "object") return { error: "bad_request" };
+  const s = (v, m = 200) => String(v == null ? "" : v).trim().slice(0, m);
+  const status = ["full", "partial", "none"].includes(body && body.status) ? body.status : "partial";
+  return {
+    rec: {
+      orgName: s(body.orgName, 120),
+      date: s(body.date, 40),
+      status,
+      feedbackEmail: s(body.feedbackEmail, 160),
+      feedbackUrl: s(body.feedbackUrl, 300),
+      deficiencies: Array.isArray(body.deficiencies)
+        ? body.deficiencies.map(x => s(x, 400)).filter(Boolean).slice(0, 30) : [],
+      method: s(body.method, 600),
+    },
+  };
+}
+
+async function readAdminA11y(env, city) {
+  if (!env.PUSH_KV) return null;
+  const raw = await env.PUSH_KV.get(ADMIN_A11Y_KEY(city));
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (e) { return null; }
+}
+
+async function handleAdminA11yGet(request, env, url) {
+  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  return adminJson({ a11y: await readAdminA11y(env, url.searchParams.get("city")) }, 200);
+}
+
+async function handleAdminA11ySave(request, env) {
+  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  const body = await request.json().catch(() => null);
+  const city = (body && body.city) || "lahti";
+  const { rec, error } = buildAdminA11y(body);
+  if (error) return adminJson({ error }, 400);
+  await env.PUSH_KV.put(ADMIN_A11Y_KEY(city), JSON.stringify(rec));
+  return adminJson({ ok: true, a11y: rec }, 200);
+}
+
+// Julkinen (CORS): voimassa olevat tiedotteet + julkaistut hinnat + saavutettavuusseloste.
+async function handlePublished(url, env, origin) {
+  const city = url.searchParams.get("city");
+  const list = await readAdminAlerts(env, city);
+  const items = currentAdminAlerts(list, Math.floor(Date.now() / 1000));
+  const fares = await readAdminFares(env, city);
+  const a11y = await readAdminA11y(env, city);
+  const headers = new Headers(corsHeaders(origin));
+  headers.set("Content-Type", "application/json");
+  headers.set("Cache-Control", "public, max-age=60");
+  return new Response(JSON.stringify({ alerts: items, fares, a11y }), { status: 200, headers });
 }
 
 /* ---------- Push: tilausten hallinta (KV) ---------- */
@@ -411,6 +698,34 @@ export default {
     }
 
     const url = new URL(request.url);
+
+    // Ylläpito (sisällönhallinta). Admin-sivu + sen API tarjoillaan samasta
+    // originista → istuntoeväste toimii ilman CORS-säätöä.
+    if (url.pathname === "/admin" && request.method === "GET")
+      return new Response(ADMIN_HTML, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+    if (url.pathname === "/admin/login" && request.method === "POST")
+      return handleAdminLogin(request, env);
+    if (url.pathname === "/admin/logout" && request.method === "POST")
+      return handleAdminLogout();
+    if (url.pathname === "/admin/api/session" && request.method === "GET")
+      return adminJson({ authed: await isAdmin(request, env) }, 200);
+    if (url.pathname === "/admin/api/alerts" && request.method === "GET")
+      return handleAdminAlertsGet(request, env, url);
+    if (url.pathname === "/admin/api/alerts" && request.method === "POST")
+      return handleAdminAlertsSave(request, env);
+    if (url.pathname === "/admin/api/alerts/delete" && request.method === "POST")
+      return handleAdminAlertsDelete(request, env);
+    if (url.pathname === "/admin/api/fares" && request.method === "GET")
+      return handleAdminFaresGet(request, env, url);
+    if (url.pathname === "/admin/api/fares" && request.method === "POST")
+      return handleAdminFaresSave(request, env);
+    if (url.pathname === "/admin/api/a11y" && request.method === "GET")
+      return handleAdminA11yGet(request, env, url);
+    if (url.pathname === "/admin/api/a11y" && request.method === "POST")
+      return handleAdminA11ySave(request, env);
+    // Julkaistut tiedotteet sovellukselle (julkinen, CORS)
+    if (url.pathname === "/published" && request.method === "GET")
+      return handlePublished(url, env, origin);
 
     // Push-tilaukset
     if (url.pathname === "/push/subscribe" && request.method === "POST")

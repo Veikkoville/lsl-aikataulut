@@ -1010,6 +1010,7 @@ const STRINGS = {
     alertsFail: "Häiriötiedotteiden haku epäonnistui: ",
     legAlertDefault: "Häiriö linjalla",
     cmsSource: "Lähde: lsl.fi",
+    adminSource: "Kaupungin tiedote",
     // pysäkkihaku ja paikannus
     noStopsFor: 'Ei pysäkkejä haulla "{q}".',
     noPlacesFor: 'Ei osumia haulla "{q}".',
@@ -1314,6 +1315,7 @@ const STRINGS = {
     alertsFail: "Failed to load disruption notices: ",
     legAlertDefault: "Disruption on route",
     cmsSource: "Source: lsl.fi",
+    adminSource: "City notice",
     noStopsFor: 'No stops found for "{q}".',
     noPlacesFor: 'No results for "{q}".',
     geoUnsupported: "Your browser does not support geolocation.",
@@ -1611,6 +1613,7 @@ const STRINGS = {
     alertsFail: "Det gick inte att hämta störningsmeddelanden: ",
     legAlertDefault: "Störning på linjen",
     cmsSource: "Källa: lsl.fi",
+    adminSource: "Stadens meddelande",
     noStopsFor: 'Inga hållplatser hittades för "{q}".',
     noPlacesFor: 'Inga resultat för "{q}".',
     geoUnsupported: "Din webbläsare stöder inte positionering.",
@@ -2686,7 +2689,8 @@ function dedupAlerts(alerts) {
 }
 
 function alertHtml(a) {
-  const src = a._cms ? ` <span class="alert-src">${esc(t("cmsSource"))}</span>` : "";
+  const src = a._admin ? ` <span class="alert-src">${esc(t("adminSource"))}</span>`
+    : a._cms ? ` <span class="alert-src">${esc(t("cmsSource"))}</span>` : "";
   return `<details class="alert sev-${esc(a.alertSeverityLevel)}">
     <summary>${esc(a.alertHeaderText || t("alertDefault"))}${src}</summary>
     <p>${esc(a.alertDescriptionText || "")}</p>
@@ -2713,6 +2717,33 @@ function loadCmsAlerts(force) {
       .catch(() => []);   // degradoidu: ilman CMS-tiedotteita näytetään pelkät GTFS-RT
   }
   return cmsAlertsPromise;
+}
+
+/* ---------- Kaupungin itse julkaisemat tiedotteet (ylläpitonäkymä → worker /published) ----------
+   Kaupungin henkilöstö julkaisee häiriötiedotteita admin-näkymässä; ne haetaan
+   tässä ja yhdistetään etusivun banneriin GTFS-RT:n ja CMS:n rinnalle. */
+let publishedPromise = null;
+function loadPublished(force) {
+  if (!PROXY_URL) return Promise.resolve({ alerts: [], fares: null });
+  if (force) publishedPromise = null;
+  if (!publishedPromise) {
+    const u = PROXY_URL.replace(/\/$/, "") + "/published?city=" + encodeURIComponent(cityKey);
+    publishedPromise = fetch(u)
+      .then(r => (r.ok ? r.json() : {}))
+      .then(d => ({ alerts: (d && d.alerts) || [], fares: (d && d.fares) || null, a11y: (d && d.a11y) || null }))
+      .catch(() => ({ alerts: [], fares: null, a11y: null }));   // degradoidu: näytetään muut lähteet / CONFIG-oletukset
+  }
+  return publishedPromise;
+}
+function loadAdminAlerts(force) { return loadPublished(force).then(d => d.alerts); }
+function adminToAlerts(items) {
+  return (items || []).map(a => ({
+    alertHeaderText: a.title,
+    alertDescriptionText: a.body || "",
+    alertSeverityLevel: a.severity || "WARNING",
+    alertUrl: a.url || "",
+    _admin: true,
+  }));
 }
 
 const normAlertUrl = u => (u || "").toLowerCase().replace(/^https?:\/\//, "").replace(/\/+$/, "");
@@ -2767,11 +2798,12 @@ function alertMatchesRoute(a, routeGtfsId, shortName, stopIds) {
 
 async function loadAlertsInto(box) {
   try {
-    const [gtfs, cmsItems] = await Promise.all([
+    const [gtfs, cmsItems, adminItems] = await Promise.all([
       loadAlerts(),
       CONFIG.cmsAlerts ? loadCmsAlerts() : Promise.resolve([]),
+      loadAdminAlerts(),
     ]);
-    const merged = [...gtfs, ...cmsToAlerts(cmsItems, gtfs)];
+    const merged = [...adminToAlerts(adminItems), ...gtfs, ...cmsToAlerts(cmsItems, gtfs)];
     const alerts = dedupAlerts(merged);
     if (!alerts.length) { box.innerHTML = ""; return; }
     // tiivis banneri: lista aukeaa pyynnöstä (LSL pitää osaa tiedotteista
@@ -4529,8 +4561,11 @@ function viewFeedback() {
 
 /* ---------- Liput ja hinnat (CONFIG.fares, vain kaupungeille joille määritelty) ---------- */
 
-function viewFares() {
-  const f = CONFIG.fares;
+async function viewFares() {
+  // Kaupungin ylläpidossa julkaistut hinnat menevät CONFIG-oletuksen edelle,
+  // jotta kaupunki voi päivittää hinnat itse ilman koodimuutosta.
+  let f = CONFIG.fares;
+  try { const pub = await loadPublished(); if (pub && pub.fares) f = pub.fares; } catch (e) {}
   if (!f) { location.hash = "#/"; return; }
   const eur = n => `${n} €`;
   const grp3 = `<th>${t("faresColAdult")}</th><th>${t("faresColChild")}</th><th>${t("faresColReduced")}</th>`;
@@ -5352,7 +5387,12 @@ async function viewPlan(parts) {
 
 /* ---------- Saavutettavuusseloste ---------- */
 
-function viewAccessibilityStatement() {
+async function viewAccessibilityStatement() {
+  // Jos kaupunki on julkaissut virallisen selosteen ylläpidossa, näytetään se
+  // digipalvelulain (306/2019) mukaisessa muodossa; muuten oletus (prototyyppi).
+  let pub = null;
+  try { pub = (await loadPublished()).a11y; } catch (e) {}
+  if (pub && pub.orgName) { viewOfficialA11y(pub); return; }
   setView(`
     <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
     <div class="card" lang="fi">
@@ -5382,6 +5422,41 @@ function viewAccessibilityStatement() {
         organisaation tulee päivittää tämä seloste digipalvelulain
         (306/2019) edellyttämään muotoon ja lisätä valvontaviranomaisen
         yhteystiedot.</p>
+    </div>`);
+}
+
+// Kaupungin ylläpidossa julkaisema, digipalvelulain (306/2019) mukainen seloste.
+function viewOfficialA11y(a) {
+  const statusText = {
+    full: "Tämä digipalvelu täyttää saavutettavuusvaatimukset (WCAG 2.1, A- ja AA-taso).",
+    partial: "Tämä digipalvelu täyttää saavutettavuusvaatimukset (WCAG 2.1, A- ja AA-taso) osittain. Vaatimusten vastaiset sisällöt on lueteltu alla.",
+    none: "Tämä digipalvelu ei vielä täytä saavutettavuusvaatimuksia.",
+  }[a.status] || "";
+  const defs = (a.deficiencies || []).filter(Boolean);
+  const feedback = [];
+  if (a.feedbackEmail) feedback.push(`sähköpostitse osoitteeseen <a href="mailto:${esc(a.feedbackEmail)}">${esc(a.feedbackEmail)}</a>`);
+  if (a.feedbackUrl) feedback.push(`<a href="${esc(a.feedbackUrl)}" target="_blank" rel="noopener">palautelomakkeella</a>`);
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <div class="card" lang="fi">
+      <h2>Saavutettavuusseloste</h2>
+      <p>${esc(a.orgName)} pyrkii takaamaan ${esc(CONFIG.cityGenitive)} bussiaikataulupalvelun
+        saavutettavuuden digipalvelulain (306/2019) mukaisesti.${a.date ? ` Tämä seloste on laadittu/päivitetty ${esc(a.date)}.` : ""}</p>
+      <h2>Saavutettavuuden tila</h2>
+      <p>${statusText}</p>
+      ${a.method ? `<p>${esc(a.method)}</p>` : ""}
+      ${defs.length ? `<h2>Ei-saavutettava sisältö</h2><ul>${defs.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
+      <h2>Palaute ja yhteystiedot</h2>
+      <p>Huomasitko saavutettavuuspuutteen? Ilmoita siitä meille${feedback.length ? ": " + feedback.join(" tai ") : "."}${feedback.length ? "." : ""}
+        ${a.orgName ? `Vastaamme palautteeseen ${esc(a.orgName)}.` : ""}</p>
+      <h2>Valvontaviranomainen</h2>
+      <p lang="fi">Jos et ole tyytyväinen saamaasi vastaukseen tai et saa vastausta lainkaan
+        kahden viikon aikana, voit tehdä ilmoituksen valvontaviranomaiselle.
+        Valvontaviranomaisen yhteystiedot:</p>
+      <p>Etelä-Suomen aluehallintovirasto, Saavutettavuuden valvonnan yksikkö<br>
+        Verkkosivut: <a href="https://www.saavutettavuusvaatimukset.fi" target="_blank" rel="noopener">saavutettavuusvaatimukset.fi</a><br>
+        Sähköposti: <a href="mailto:saavutettavuus@avi.fi">saavutettavuus@avi.fi</a><br>
+        Puhelinvaihde: 0295 016 000</p>
     </div>`);
 }
 

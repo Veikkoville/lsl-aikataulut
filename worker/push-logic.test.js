@@ -1,7 +1,8 @@
 // Yksikkötestaa cron-push-putken (runPushCheck) mock-KV:llä ja stub-fetchillä:
 // oikea salaus + VAPID, mutta push-endpoint ja Digitransit ovat tynkiä.
 // Aja: node push-logic.test.js
-import { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText, htmlToText, buildFeedbackRecord } from "./worker.js";
+import worker, { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText, htmlToText, buildFeedbackRecord,
+  constantTimeEqual, signSession, verifySession, buildAdminAlert, currentAdminAlerts, buildAdminFares, buildAdminA11y } from "./worker.js";
 
 let fail = 0;
 const check = (cond, msg) => { console.log((cond ? "OK   " : "FAIL ") + msg); if (!cond) fail++; };
@@ -167,6 +168,132 @@ env.PUSH_KV.list = async (...a) => { listCalls++; return realList(...a); };
 await runReminderCheck(env, 2000 * 1000);
 check(listCalls === 0, "muistutus: cron EI tee KV-list-operaatiota (vältetään ilmaiskiintiön ylitys)");
 env.PUSH_KV.list = realList;
+
+// --- Ylläpito: kirjautuminen (constantTimeEqual + HMAC-istunto) ---
+check(constantTimeEqual("abc", "abc") && !constantTimeEqual("abc", "abd") && !constantTimeEqual("abc", "ab"), "constantTimeEqual: sama/eri/erimittainen");
+
+const SECRET = "test-session-secret";
+const sessTok = await signSession({ exp: Math.floor(Date.now() / 1000) + 3600 }, SECRET);
+check(!!(await verifySession(sessTok, SECRET)), "istunto: kelvollinen token hyväksytään");
+check((await verifySession(sessTok, "vaara-secret")) === null, "istunto: väärällä avaimella allekirjoitus hylätään");
+check((await verifySession(sessTok.slice(0, -3) + "AAA", SECRET)) === null, "istunto: peukaloitu allekirjoitus hylätään");
+const expired = await signSession({ exp: Math.floor(Date.now() / 1000) - 10 }, SECRET);
+check((await verifySession(expired, SECRET)) === null, "istunto: vanhentunut token hylätään");
+check((await verifySession("", SECRET)) === null && (await verifySession("rikki", SECRET)) === null, "istunto: tyhjä/virheellinen token hylätään");
+
+// --- Ylläpito: tiedotteen kokoaminen (buildAdminAlert) ---
+check(buildAdminAlert({ title: "" }, 5).error === "bad_request", "adminAlert: tyhjä otsikko hylätään");
+const aa = buildAdminAlert({ title: "Työmaa keskustassa", body: "Linjat poikkeavat", severity: "SEVERE", lines: ["3", " 8k ", "12"], startsAt: 1000, endsAt: 2000 }, 50).rec;
+check(aa.title === "Työmaa keskustassa" && aa.severity === "SEVERE" && aa.updatedAt === 50, "adminAlert: kentät kootaan");
+check(aa.lines.join(",") === "3,8K,12", "adminAlert: linjat siistitään isoiksi ja trimmataan");
+check(buildAdminAlert({ title: "x", severity: "OUTO" }, 1).rec.severity === "WARNING", "adminAlert: tuntematon vakavuus → WARNING");
+check(buildAdminAlert({ title: "a".repeat(500) }, 1).rec.title.length === 200, "adminAlert: otsikko katkaistaan 200 merkkiin");
+check(buildAdminAlert({ title: "x", startsAt: "ei-numero" }, 1).rec.startsAt === null, "adminAlert: virheellinen alkuaika → null");
+
+// --- Ylläpito: voimassaolon suodatus (currentAdminAlerts) ---
+const now = 1500;
+const list = [
+  { id: "a", title: "voimassa", startsAt: 1000, endsAt: 2000 },
+  { id: "b", title: "ei viela", startsAt: 1600, endsAt: 2000 },
+  { id: "c", title: "paattynyt", startsAt: 1000, endsAt: 1400 },
+  { id: "d", title: "toistaiseksi" },
+];
+const cur = currentAdminAlerts(list, now).map(a => a.id).join(",");
+check(cur === "a,d", "currentAdminAlerts: vain voimassa olevat (alku/loppu huomioiden)");
+
+// --- Ylläpito: reitit päästä päähän (worker.fetch + mock-KV) ---
+const adminEnv = { ...env, ADMIN_PASSWORD: "salasana123", ADMIN_SESSION_SECRET: "integraatio-secret" };
+const req = (path, opts = {}) => new Request("https://proxy.example" + path, opts);
+const cookieFrom = res => { const c = res.headers.get("Set-Cookie") || ""; return c.split(";")[0]; };
+
+// admin-sivu tarjoillaan
+const pageRes = await worker.fetch(req("/admin"), adminEnv);
+const pageHtml = await pageRes.text();
+check(pageRes.status === 200 && /Ylläpito/.test(pageHtml), "admin: /admin palauttaa HTML-sivun");
+
+// ilman evästettä API on suojattu
+const noAuth = await worker.fetch(req("/admin/api/alerts?city=lahti"), adminEnv);
+check(noAuth.status === 403, "admin: ilman istuntoa /admin/api/alerts → 403");
+
+// väärä salasana → 401
+const badLogin = await worker.fetch(req("/admin/login", { method: "POST", body: JSON.stringify({ password: "vaara" }) }), adminEnv);
+check(badLogin.status === 401, "admin: väärä salasana → 401");
+
+// oikea salasana → 200 + eväste
+const okLogin = await worker.fetch(req("/admin/login", { method: "POST", body: JSON.stringify({ password: "salasana123" }) }), adminEnv);
+const cookie = cookieFrom(okLogin);
+check(okLogin.status === 200 && /^admin_session=/.test(cookie), "admin: oikea salasana → 200 + istuntoeväste");
+
+// istuntotarkistus evästeellä
+const sess = await (await worker.fetch(req("/admin/api/session", { headers: { Cookie: cookie } }), adminEnv)).json();
+check(sess.authed === true, "admin: /admin/api/session tunnistaa istunnon");
+
+// julkaisu evästeellä
+const saveRes = await worker.fetch(req("/admin/api/alerts", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" },
+  body: JSON.stringify({ city: "lahti", title: "Hissi epäkunnossa", body: "Matkakeskus", severity: "WARNING" }) }), adminEnv);
+const saved = await saveRes.json();
+check(saveRes.status === 200 && saved.items.length === 1 && saved.items[0].id, "admin: tiedote julkaistaan (id syntyy)");
+
+// julkaistu näkyy julkisessa /published-päätepisteessä
+const pub = await (await worker.fetch(req("/published?city=lahti"), adminEnv)).json();
+check(pub.alerts.length === 1 && pub.alerts[0].title === "Hissi epäkunnossa", "admin: julkaistu tiedote näkyy /published-päätepisteessä");
+
+// muokkaus säilyttää id:n
+const editId = saved.items[0].id;
+const editRes = await worker.fetch(req("/admin/api/alerts", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" },
+  body: JSON.stringify({ city: "lahti", id: editId, title: "Hissi korjattu", severity: "INFO" }) }), adminEnv);
+const edited = await editRes.json();
+check(edited.items.length === 1 && edited.items[0].id === editId && edited.items[0].title === "Hissi korjattu", "admin: muokkaus säilyttää id:n (ei tuplaa)");
+
+// poisto
+const delRes = await worker.fetch(req("/admin/api/alerts/delete", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" },
+  body: JSON.stringify({ city: "lahti", id: editId }) }), adminEnv);
+const del = await delRes.json();
+check(delRes.status === 200 && del.items.length === 0, "admin: poisto poistaa tiedotteen");
+
+// peukaloitu eväste ei kelpaa
+const tampered = await worker.fetch(req("/admin/api/alerts?city=lahti", { headers: { Cookie: "admin_session=rikki.token" } }), adminEnv);
+check(tampered.status === 403, "admin: peukaloitu eväste → 403");
+
+// --- Ylläpito: hintojen kokoaminen (buildAdminFares) ---
+check(buildAdminFares(null).error === "bad_request", "fares: ei-objekti hylätään");
+const fr = buildAdminFares({
+  checked: "1.1.2027", url: "https://x",
+  single: { cardApp: { adult: "3,00", child: "1,50", reduced: "2,10" }, contactless: "3,20", salespoint: { adult: "3,80" } },
+  season: [{ d: "30", adult: "62", child: "31", reduced: "44" }, { d: "", adult: "x" }],
+  day: [{ d: "1", adult: "10", child: "5" }],
+  capDay: "10", capWeek: "30", cardFee: "5",
+}).rec;
+check(fr.single.cardApp.adult === "3,00" && fr.single.contactless === "3,20", "fares: kertaliput kootaan");
+check(fr.single.salespoint.child === "" && fr.single.salespoint.reduced === "", "fares: puuttuvat kentät täytetään tyhjiksi (ei kaada sovellusta)");
+check(fr.season.length === 1 && fr.season[0].d === "30", "fares: kausilippurivit ilman vrk-arvoa pudotetaan");
+check(fr.day.length === 1 && fr.day[0].adult === "10", "fares: vuorokausilippurivit kootaan");
+
+// --- Ylläpito: hinnat reittien läpi (tallenna → /published) ---
+const faresSave = await worker.fetch(req("/admin/api/fares", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" },
+  body: JSON.stringify({ city: "lahti", checked: "1.1.2027", single: { cardApp: { adult: "9,99" } }, season: [{ d: "30", adult: "62" }], day: [] }) }), adminEnv);
+check(faresSave.status === 200, "admin: hinnat tallennetaan (200)");
+const pubFares = await (await worker.fetch(req("/published?city=lahti"), adminEnv)).json();
+check(pubFares.fares && pubFares.fares.single.cardApp.adult === "9,99", "admin: julkaistut hinnat näkyvät /published-päätepisteessä");
+const faresNoAuth = await worker.fetch(req("/admin/api/fares", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }), adminEnv);
+check(faresNoAuth.status === 403, "admin: hintojen tallennus ilman istuntoa → 403");
+
+// --- Ylläpito: saavutettavuusseloste (buildAdminA11y) ---
+check(buildAdminA11y(null).error === "bad_request", "a11y: ei-objekti hylätään");
+const a11 = buildAdminA11y({ orgName: "Lahden kaupunki", date: "17.6.2026", status: "partial",
+  feedbackEmail: "saavutettavuus@lahti.fi", deficiencies: ["Kartat visuaalisia", "", "  ", "Häiriötekstit"] }).rec;
+check(a11.orgName === "Lahden kaupunki" && a11.status === "partial", "a11y: kentät kootaan");
+check(a11.deficiencies.length === 2, "a11y: tyhjät puuterivit pudotetaan");
+check(buildAdminA11y({ orgName: "x", status: "OUTO" }).rec.status === "partial", "a11y: tuntematon status → partial");
+
+// reittien läpi: tallenna → /published
+const a11ySave = await worker.fetch(req("/admin/api/a11y", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" },
+  body: JSON.stringify({ city: "lahti", orgName: "Lahden kaupunki", status: "full", feedbackEmail: "a@lahti.fi" }) }), adminEnv);
+check(a11ySave.status === 200, "admin: seloste tallennetaan (200)");
+const pubA11y = await (await worker.fetch(req("/published?city=lahti"), adminEnv)).json();
+check(pubA11y.a11y && pubA11y.a11y.orgName === "Lahden kaupunki", "admin: julkaistu seloste näkyy /published-päätepisteessä");
+const a11yNoAuth = await worker.fetch(req("/admin/api/a11y", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }), adminEnv);
+check(a11yNoAuth.status === 403, "admin: selosteen tallennus ilman istuntoa → 403");
 
 console.log(fail ? `\n${fail} TARKISTUS EPÄONNISTUI` : "\nKAIKKI TARKISTUKSET OK");
 process.exit(fail ? 1 : 0);
