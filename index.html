@@ -540,6 +540,7 @@
   .map { height: clamp(340px, 55vh, 540px); border-radius: 6px; margin: 0.5rem 0; z-index: 0; }
   .map-small { height: clamp(220px, 35vh, 340px); }
   .bigmap { height: clamp(400px, 78vh, 900px); }
+  a.badgelink { text-decoration: none; }
   .bus-live-wrap { background: none; border: none; }
   .bus-live { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center;
     border: 2px solid #fff; border-radius: 50%; font-weight: 700; font-size: 0.66rem;
@@ -1011,6 +1012,9 @@ const STRINGS = {
     legAlertDefault: "Häiriö linjalla",
     cmsSource: "Lähde: lsl.fi",
     adminSource: "Kaupungin tiedote",
+    lineMapLink: "Linja kartalla",
+    lineMapHint: "Linjan reitti ja bussit reaaliajassa. Klikkaa bussia nähdäksesi määränpään ja seuraavat pysäkit.",
+    lineFullTimetable: "Koko aikataulu",
     printHubLink: "Näytöt ja tulosteet",
     screenNetTitle: "Näyttöverkosto",
     screenNetIntro: "Hae pysäkki ja kopioi sen kioski-osoite tai upotuskoodi näytölle (kirjasto, palvelutalo, terveysasema).",
@@ -1328,6 +1332,9 @@ const STRINGS = {
     legAlertDefault: "Disruption on route",
     cmsSource: "Source: lsl.fi",
     adminSource: "City notice",
+    lineMapLink: "Line on map",
+    lineMapHint: "The line's route and live buses. Tap a bus to see its destination and next stops.",
+    lineFullTimetable: "Full timetable",
     printHubLink: "Displays & printing",
     screenNetTitle: "Display network",
     screenNetIntro: "Find a stop and copy its kiosk URL or embed code for a screen (library, care home, health centre).",
@@ -1638,6 +1645,9 @@ const STRINGS = {
     legAlertDefault: "Störning på linjen",
     cmsSource: "Källa: lsl.fi",
     adminSource: "Stadens meddelande",
+    lineMapLink: "Linjen på karta",
+    lineMapHint: "Linjens rutt och bussar i realtid. Tryck på en buss för destination och kommande hållplatser.",
+    lineFullTimetable: "Hela tidtabellen",
     printHubLink: "Skärmar och utskrifter",
     screenNetTitle: "Skärmnätverk",
     screenNetIntro: "Sök en hållplats och kopiera dess kiosk-URL eller inbäddningskod för en skärm (bibliotek, vårdhem, hälsostation).",
@@ -1991,12 +2001,21 @@ async function loadRoutes() {
     `query ($feeds: [String]) {
        routes(feeds: $feeds) { gtfsId shortName longName mode color textColor patterns { ${aliases} } }
      }`, { feeds: [feed] });
-  const isActive = r => (r.patterns || []).some(p => dates.some((_, i) => (p["d" + i] || []).length));
+  const tripCount = r => (r.patterns || []).reduce((n, p) => n + dates.reduce((m, _, i) => m + (p["d" + i] || []).length, 0), 0);
+  const isActive = r => tripCount(r) > 0;
   // varakeino: jos jostain syystä mikään linja ei näytä aktiiviselta, näytetään kaikki
   const anyActive = (data.routes || []).some(r => r.mode === "BUS" && isActive(r));
-  routesCache = data.routes
-    .filter(r => r.mode === "BUS")
-    .filter(r => !anyActive || isActive(r))
+  const buses = (data.routes || []).filter(r => r.mode === "BUS").filter(r => !anyActive || isActive(r));
+  // Dedup: sama linja voi olla feedissä kahdesti eri liikennöitsijällä (esim. 23
+  // Koiviston Auto + Vekka, identtiset vuorot = liikennöitsijävaihdoksen duplikaatti).
+  // Pidetään samannimisistä (shortName+longName) eniten vuoroja sisältävä → ei tuplaa.
+  const byKey = new Map();
+  for (const r of buses) {
+    const k = (r.shortName || "") + "|" + (r.longName || "");
+    const prev = byKey.get(k);
+    if (!prev || tripCount(r) > tripCount(prev)) byKey.set(k, r);
+  }
+  routesCache = [...byKey.values()]
     .map(r => ({ gtfsId: r.gtfsId, shortName: r.shortName, longName: r.longName, mode: r.mode, color: r.color, textColor: r.textColor }))
     .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
   try {
@@ -3359,12 +3378,24 @@ function badgeHtml(route, fallback) {
 }
 
 function depTableRows(stoptimes) {
-  return (stoptimes || []).map(st => {
+  // Poista feed-duplikaatit (sama linja kahdesti eri liikennöitsijällä → tuplalähdöt)
+  const seen = new Set();
+  return (stoptimes || []).filter(st => {
+    const r = st.trip && st.trip.route;
+    const k = ((r && r.shortName) || "") + "|" + (st.headsign || "") + "|" + ((st.serviceDay || 0) + (st.scheduledDeparture || 0));
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).map(st => {
     const d = depInfo(st);
     const acc = st.trip?.wheelchairAccessible === "POSSIBLE"
       ? ` <span role="img" aria-label="${t("accVehicle")}" title="${t("accVehicle")}">♿</span>` : "";
+    const rid = st.trip && st.trip.route && st.trip.route.gtfsId;
+    const badge = rid
+      ? `<a class="badgelink" href="#/linjakartta/${encodeURIComponent(rid)}" title="${t("lineMapLink")}">${badgeHtml(st.trip.route)}</a>`
+      : badgeHtml(st.trip.route);
     return `<tr>
-      <td>${badgeHtml(st.trip.route)}</td>
+      <td>${badge}</td>
       <td>${esc(st.headsign || "")}${acc}${occupancyHtml(st.trip)}</td>
       <td class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</td>
     </tr>`;
@@ -3604,6 +3635,66 @@ function stopPosterHtml(groups) {
   }).join("")}</div>`;
 }
 
+// Map-first linjanäkymä (#/linjakartta/<id>): koko reitti kartalla + live-bussit
+// rikkaalla popupilla (määränpää, myöhästymä, seuraavat pysäkit). Avataan esim.
+// pysäkki-/lähellä-näkymän linjabadgea klikkaamalla.
+async function viewRouteMap(routeId) {
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  setView(`<p class="muted">${t("loadingRoute")}</p>`);
+  const { data } = await cachedGql("routemap:" + routeId,
+    `query ($id: String!) {
+       route(id: $id) {
+         shortName longName color textColor
+         patterns { directionId patternGeometry { length points } stops { gtfsId name lat lon } }
+       }
+     }`, { id: routeId });
+  const route = data.route;
+  if (!route) throw new Error(t("errRouteNotFound") + routeId);
+  setView(`
+    <nav class="crumb"><button class="linkish" id="backBtn">← ${t("back")}</button> · <a href="#/">${t("home")}</a></nav>
+    <div class="card">
+      <h2>${badgeHtml(route)} <span>${esc(route.longName || "")}</span></h2>
+      <p class="muted">${t("lineMapHint")}</p>
+      <p><a class="btnlink secondary" href="#/linja/${encodeURIComponent(routeId)}">📋 ${t("lineFullTimetable")}</a></p>
+      <div id="lineMap" class="map bigmap" aria-label="${esc(t("mapAria"))}"></div>
+    </div>`);
+  document.getElementById("backBtn").addEventListener("click", () => history.back());
+  const mySeq = viewSeq;
+  try {
+    await ensureLeaflet();
+    if (mySeq !== viewSeq || !document.getElementById("lineMap")) return;
+    const map = makeMap("lineMap", [AREA.focus.lat, AREA.focus.lon], 12);
+    const color = route.color ? "#" + route.color : "#0a4ea3";
+    let bounds = null;
+    // kummankin suunnan pisin reittikuvio
+    const byDir = new Map();
+    for (const p of (route.patterns || [])) {
+      if (!p.patternGeometry || !p.patternGeometry.points) continue;
+      const prev = byDir.get(p.directionId);
+      if (!prev || (p.patternGeometry.length || 0) > (prev.patternGeometry.length || 0)) byDir.set(p.directionId, p);
+    }
+    for (const p of byDir.values()) {
+      const pts = decodePolyline(p.patternGeometry.points);
+      if (!pts.length) continue;
+      const line = L.polyline(pts, { color, weight: 5, opacity: 0.7 }).addTo(map);
+      bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
+    }
+    // pysäkit (yhdistetty kaikista patterneista)
+    const seen = new Set();
+    for (const p of (route.patterns || [])) for (const s of (p.stops || [])) {
+      if (s.lat == null || seen.has(s.gtfsId)) continue;
+      seen.add(s.gtfsId);
+      L.circleMarker([s.lat, s.lon], { radius: 4, color, weight: 2, fillColor: "#fff", fillOpacity: 1 })
+        .addTo(map).bindPopup(`<a href="#/pysakki/${encodeURIComponent(s.gtfsId)}">${esc(s.name)}</a>`);
+    }
+    if (bounds) map.fitBounds(bounds, { padding: [20, 20] });
+    startVehicles(map, [{ gtfsId: routeId, shortName: route.shortName }]);
+  } catch (err) {
+    const el = document.getElementById("lineMap");
+    if (el) el.outerHTML = `<div class="error">${t("mapFail")}${esc(err.message)}</div>`;
+  }
+}
+
 async function viewRoute(routeId, patternCode, date) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">${t("loadingRoute")}</p>`);
@@ -3664,6 +3755,7 @@ async function viewRoute(routeId, patternCode, date) {
     <div class="card">
       <h2>${favButtonHtml(routeId)}${badgeHtml(route)} ${esc(route.longName)}</h2>
       <div id="routeAlerts">${routeAlertsHtml}</div>
+      <p class="no-print" style="margin:0.2rem 0"><a class="btnlink secondary" href="#/linjakartta/${encodeURIComponent(routeId)}"><span aria-hidden="true">🗺</span> ${t("lineMapLink")}</a></p>
       <div class="tabs" role="group" aria-label="${t("directionAria")}">
         ${primaries.map(p => `
           <button data-pattern="${esc(p.code)}" aria-pressed="${p === current}">
@@ -3967,6 +4059,35 @@ function showEmbedInto(box, stopId) {
     }));
 }
 
+// Korjaa feed-duplikaatit pysäkkidatassa: sama linja voi olla kahdesti eri
+// liikennöitsijällä (esim. 23), jolloin lähdöt tuplautuisivat ja linja näkyisi
+// kahtena suodattimena. Normalisoidaan duplikaattilinja yhdeksi (kanoninen
+// gtfsId per shortName) ja poistetaan identtiset lähdöt.
+function dedupStopDuplicates(stop) {
+  const canon = new Map();
+  for (const r of (stop.routes || [])) if (r.shortName && !canon.has(r.shortName)) canon.set(r.shortName, r.gtfsId);
+  if (Array.isArray(stop.stoptimesWithoutPatterns)) {
+    const seen = new Set();
+    stop.stoptimesWithoutPatterns = stop.stoptimesWithoutPatterns.filter(st => {
+      const r = st.trip && st.trip.route;
+      if (r && r.shortName && canon.has(r.shortName)) r.gtfsId = canon.get(r.shortName); // kanonisoi
+      const k = (r && r.shortName || "") + "|" + (st.headsign || "") + "|" + ((st.serviceDay || 0) + (st.scheduledDeparture || 0));
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+  if (Array.isArray(stop.routes)) {
+    const rseen = new Set();
+    stop.routes = stop.routes.filter(r => {
+      const k = r.shortName || r.gtfsId;
+      if (rseen.has(k)) return false;
+      rseen.add(k);
+      return true;
+    });
+  }
+}
+
 async function viewStop(stopId) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">${t("loadingStopDeps")}</p>`);
@@ -3984,6 +4105,7 @@ async function viewStop(stopId) {
          }
        }`, { id: stopId });
     if (!data.stop) throw new Error(t("errStopNotFound") + stopId);
+    dedupStopDuplicates(data.stop);
     return { stop: data.stop, cachedAt };
   };
 
@@ -4245,6 +4367,7 @@ async function viewMonitor(stopId) {
          }
        }`, { id: stopId });
     if (!data.stop) throw new Error(t("errStopNotFound") + stopId);
+    dedupStopDuplicates(data.stop);
     return data.stop;
   };
 
@@ -5890,6 +6013,7 @@ async function route() {
     else if (parts[0] === "tulosteet") await viewPrintHub();
     else if (parts[0] === "reitti") await viewPlan(parts);
     else if (parts[0] === "linja" && parts[1]) { track("line", stripFeed(parts[1])); await viewRoute(parts[1], parts[2], parts[3]); }
+    else if (parts[0] === "linjakartta" && parts[1]) { track("line", stripFeed(parts[1])); await viewRouteMap(parts[1]); }
     else if (parts[0] === "monitori" && parts[1]) await viewMonitor(parts[1]);
     else if (parts[0] === "kartta") await viewLiveMap();
     else if (parts[0] === "linjasto") await viewNetworkMap();

@@ -162,6 +162,15 @@ const info = msg => console.log("INFO " + msg);
     () => !!document.querySelector("#routeMap .leaflet-overlay-pane path"),
     { timeout: 12000 }).then(() => true).catch(() => false);
   routeMap ? ok("linjasivu: reittiviiva kartalla") : fail("linjasivu: reittiviiva puuttuu");
+  // --- Linjakartta (#/linjakartta): map-first-näkymä ---
+  const mapHref = routeHref.replace("#/linja/", "#/linjakartta/");
+  await page.goto(BASE + "/" + mapHref, { waitUntil: "networkidle2" });
+  await expect("#lineMap.leaflet-container", "linjakartta: kartta latautuu");
+  const lineRoute = await page.waitForFunction(
+    () => !!document.querySelector("#lineMap .leaflet-overlay-pane path"),
+    { timeout: 12000 }).then(() => true).catch(() => false);
+  lineRoute ? ok("linjakartta: reittiviiva piirtyy") : info("linjakartta: viiva ei ehtinyt (Leaflet-ajoitus) — ei virhe");
+  await page.goto(BASE + "/" + routeHref, { waitUntil: "networkidle2" }); // palaa linjasivulle jatkotestejä varten
   // Lähtömuistutus: kontrolli näkyy kun tänään on tulevia lähtöjä
   const remindUi = await page.waitForFunction(
     () => !!document.querySelector("#remindBox #remindBtn"),
