@@ -3703,13 +3703,18 @@ async function viewRoute(routeId, patternCode, date) {
   // Häiriöt haetaan rinnakkain reittikyselyn kanssa, jotta ne voidaan
   // renderöidä jo ensipaintissa (ei async-hyppyä, CLS)
   const alertsPromise = loadAlerts().catch(() => []);
+  // Vuoromäärät edustaville tuleville päiville (Ti/To/La/Su) patternien
+  // järjestämiseen — linjalla voi olla "isoja" vanhoja/kausivariantteja joilla
+  // ei ole vuoroja NYT; ne eivät saa voittaa pää- eikä suuntavalintaa.
+  const probe = activeProbeDates();
+  const probeAliases = probe.map((d, i) => `p${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
   const { data, cachedAt: routeCachedAt } = await cachedGql("route:" + routeId,
     `query ($id: String!) {
        route(id: $id) {
          shortName longName color textColor
          patterns {
            code name directionId
-           trips { gtfsId }
+           ${probeAliases}
            stops { gtfsId name lat lon }
          }
        }
@@ -3718,11 +3723,12 @@ async function viewRoute(routeId, patternCode, date) {
   if (!route) throw new Error(t("errRouteNotFound") + routeId);
 
   const patterns = route.patterns || [];
-  // Oletuksena näytetään eniten vuoroja sisältävä pattern (linjan pääsuunta) —
-  // EI patterns[0], joka voi olla vähäliikenteinen variantti ilman tämän päivän
-  // vuoroja (→ virheellinen "ei lähtöjä"). Käyttäjän valitsema patternCode voittaa.
+  const upcoming = p => probe.reduce((n, _, i) => n + ((p["p" + i] || []).length), 0);
+  // Oletuksena pääsuunta TULEVIEN vuorojen mukaan — EI patterns[0] eikä kaikkien
+  // aikojen suurin (vanha variantti voi olla "isoin" mutta ei aja nyt → "ei lähtöjä").
+  // Käyttäjän valitsema patternCode voittaa.
   const current = patterns.find(p => p.code === patternCode)
-    || patterns.slice().sort((a, b) => (b.trips?.length || 0) - (a.trips?.length || 0))[0]
+    || patterns.slice().sort((a, b) => upcoming(b) - upcoming(a))[0]
     || patterns[0];
 
   // Selkokielinen suunta: "lähtöpysäkki → päätepysäkki" pattern-koodien sijaan
@@ -3742,7 +3748,7 @@ async function viewRoute(routeId, patternCode, date) {
   }
   const primaries = [], variants = [];
   for (const list of byDir.values()) {
-    list.sort((a, b) => (b.trips?.length || 0) - (a.trips?.length || 0));
+    list.sort((a, b) => upcoming(b) - upcoming(a)); // suuntavälilehdeksi nyt liikennöivä pääpattern
     primaries.push(list[0]);
     variants.push(...list.slice(1));
   }
@@ -5930,13 +5936,19 @@ async function viewPrint() {
     const setStatus = () => { status.textContent = t("buildingBooklet", { done, total: selected.length }); };
     setStatus();
 
+    // Pää-pattern per suunta TULEVIEN vuorojen mukaan (ei kaikkien aikojen) —
+    // muuten vanha kausivariantti voisi tuottaa tyhjän vihon.
+    const probe = activeProbeDates();
+    const probeAliases = probe.map((d, i) => `p${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
+    const upcoming = p => probe.reduce((n, _, i) => n + ((p["p" + i] || []).length), 0);
+
     const sections = await mapLimit(selected, 4, async (routeId) => {
       try {
         const { data } = await cachedGql("proute:" + routeId,
           `query ($id: String!) {
              route(id: $id) {
                shortName longName color textColor
-               patterns { code name directionId trips { gtfsId } stops { gtfsId name } }
+               patterns { code name directionId ${probeAliases} stops { gtfsId name } }
              }
            }`, { id: routeId });
         const route = data.route;
@@ -5948,7 +5960,7 @@ async function viewPrint() {
           byDir.get(k).push(p);
         }
         let primaries = [...byDir.values()]
-          .map(list => list.sort((a, b) => (b.trips?.length || 0) - (a.trips?.length || 0))[0]);
+          .map(list => list.sort((a, b) => upcoming(b) - upcoming(a))[0]);
         if (dirChoice !== "both")
           primaries = primaries.filter(p => String(p.directionId ?? 0) === dirChoice);
         if (!primaries.length) return null;
