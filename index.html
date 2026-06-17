@@ -3880,10 +3880,20 @@ async function viewRoute(routeId, patternCode, date) {
   }
   const isToday = date === todayISO();
   let nextDep = null; // seuraavan lähdön epoch (ms) lähtömuistutusta varten
+  // Aikataulu näyttää suunnan KAIKKI lähdöt valitulle päivälle — ei suodateta
+  // yhteen patterniin. Tämä on välttämätöntä, koska aikataulukauden vaihtuessa
+  // (esim. kesä→syksy) suunnan vuorot voivat olla eri pattern-koodissa eri
+  // päivinä; yhteen patterniin lukittu näkymä näyttäisi virheellisesti "ei lähtöjä".
+  const curDir = current.directionId ?? 0;
+  const dirPatterns = patterns.filter(p => (p.directionId ?? 0) === curDir);
+  const dirCodes = new Set(dirPatterns.map(p => p.code));
+  // kysely suunnan täysimmän patternin päätepysäkiltä (sieltä lähtevät kaikki vuorot)
+  const headStop = (dirPatterns.slice().sort((a, b) => (b.stops?.length || 0) - (a.stops?.length || 0))[0] || current).stops[0];
+
   const loadTimetable = async () => {
     const dateCompact = date.replace(/-/g, "");
     const { data: tt, cachedAt } = await cachedGql(
-      `tt:${routeId}:${current.code}:${date}`,
+      `tt:${routeId}:dir${curDir}:${date}`,
       `query ($stopId: String!, $date: String!) {
          stop(id: $stopId) {
            stoptimesForServiceDate(date: $date, omitNonPickups: true) {
@@ -3891,10 +3901,10 @@ async function viewRoute(routeId, patternCode, date) {
              stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay }
            }
          }
-       }`, { stopId: current.stops[0].gtfsId, date: dateCompact });
+       }`, { stopId: headStop.gtfsId, date: dateCompact });
     const stale = cachedAt || routeCachedAt;
     const sts = (tt.stop?.stoptimesForServiceDate || [])
-      .filter(g => g.pattern.code === current.code)
+      .filter(g => dirCodes.has(g.pattern.code))
       .flatMap(g => g.stoptimes)
       .sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
     const el = document.getElementById("timetable");
