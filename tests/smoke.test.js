@@ -101,7 +101,10 @@ const info = msg => console.log("INFO " + msg);
   }
   await page.click("#planForm button[type=submit]");
   if (await expect("details.itin[data-itin]", "reittihaku: reittiehdotuksia löytyy")) {
-    await page.click(`details.itin[data-itin="0"] summary`);
+    // anna tuloslistan asettua ja avaa ensimmäinen sivun sisäisellä klikkauksella —
+    // kestää uudelleenrenderöinnin (mm. linjadatan latautuessa) ilman "node detached" -flakea
+    await sleep(800);
+    await page.evaluate(() => { const s = document.querySelector('details.itin[data-itin="0"] summary'); if (s) s.click(); });
     await expect("details.itin[open] .tl-row.pt", "reittihaku: aikajana piirtyy");
     const co2 = await page.evaluate(() => {
       const el = document.querySelector("details.itin[open] p.co2");

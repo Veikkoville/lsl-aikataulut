@@ -70,8 +70,10 @@ async function handleCmsAlerts(url, origin) {
   if (!CMS_ALLOWED_HOSTS.has(host) || !/^\d+$/.test(cat))
     return jsonResponse({ error: "bad_request" }, 400, origin);
   const per = Math.min(20, Math.max(1, parseInt(url.searchParams.get("per") || "12", 10)));
+  // content mukaan, jotta linjanumerot voidaan poimia rungosta (otsikossa niitä
+  // ei aina ole, esim. "Kytölässä poikkeusreitti") → linjasivu osaa täsmätä.
   const api = `https://${host}/wp-json/wp/v2/posts?categories=${cat}&per_page=${per}` +
-    `&_fields=id,date,modified,title,link,excerpt`;
+    `&_fields=id,date,modified,title,link,excerpt,content`;
   let posts;
   try {
     const res = await fetch(api, { headers: { Accept: "application/json" } });
@@ -80,13 +82,18 @@ async function handleCmsAlerts(url, origin) {
   } catch (e) {
     return jsonResponse({ error: "fetch_failed" }, 502, origin);
   }
-  const items = (Array.isArray(posts) ? posts : []).map(p => ({
-    title: htmlToText(p.title && p.title.rendered),
-    excerpt: htmlToText(p.excerpt && p.excerpt.rendered).slice(0, 300),
-    link: p.link || "",
-    date: p.date || "",
-    modified: p.modified || "",
-  })).filter(p => p.title);
+  const items = (Array.isArray(posts) ? posts : []).map(p => {
+    const title = htmlToText(p.title && p.title.rendered);
+    const body = htmlToText(p.content && p.content.rendered);
+    return {
+      title,
+      excerpt: htmlToText(p.excerpt && p.excerpt.rendered).slice(0, 300),
+      link: p.link || "",
+      date: p.date || "",
+      modified: p.modified || "",
+      lines: [...lineTokensFromText(title + " " + body)],   // poimitut linjanumerot rungosta
+    };
+  }).filter(p => p.title);
   const headers = new Headers(corsHeaders(origin));
   headers.set("Content-Type", "application/json");
   headers.set("Cache-Control", "public, max-age=300");   // 5 min reuna-/selaincache

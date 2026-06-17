@@ -2838,6 +2838,7 @@ function adminToAlerts(items) {
     alertSeverityLevel: a.severity || "WARNING",
     alertUrl: a.url || "",
     _admin: true,
+    lines: (a.lines || []).map(x => String(x).toUpperCase()),   // ylläpitäjän valitsemat linjat
   }));
 }
 
@@ -2865,6 +2866,7 @@ function cmsToAlerts(items, gtfsAlerts) {
       alertSeverityLevel: "WARNING",
       alertUrl: it.link || "",
       _cms: true,
+      lines: it.lines || [],   // workerin rungosta poimimat linjanumerot (linjasivun täsmäys)
     });
   }
   return out;
@@ -2887,19 +2889,28 @@ function lineTokensFromText(text) {
 function alertMatchesRoute(a, routeGtfsId, shortName, stopIds) {
   if (a.route && a.route.gtfsId === routeGtfsId) return true;
   if (a.stop && stopIds.has(a.stop.gtfsId)) return true;
+  const sn = (shortName || "").toUpperCase();
+  // CMS/ylläpito-tiedotteiden valmiiksi poimitut linjat (otsikossa ei aina numeroita)
+  if (Array.isArray(a.lines) && a.lines.includes(sn)) return true;
   const tokens = lineTokensFromText((a.alertHeaderText || "") + " " + (a.alertDescriptionText || ""));
-  return tokens.has((shortName || "").toUpperCase());
+  return tokens.has(sn);
+}
+
+// Kaikki häiriölähteet yhdistettynä (GTFS-RT + lsl.fi-CMS + kaupungin ylläpito).
+// Jaettu etusivun bannerin ja linjasivun kesken, jotta linjasivu näyttää SAMAT
+// tiedotteet (esim. CMS:n "Kytölässä poikkeusreitti") eikä vain GTFS-RT:tä.
+async function loadAllAlerts() {
+  const [gtfs, cmsItems, adminItems] = await Promise.all([
+    loadAlerts(),
+    CONFIG.cmsAlerts ? loadCmsAlerts() : Promise.resolve([]),
+    loadAdminAlerts(),
+  ]);
+  return [...adminToAlerts(adminItems), ...gtfs, ...cmsToAlerts(cmsItems, gtfs)];
 }
 
 async function loadAlertsInto(box) {
   try {
-    const [gtfs, cmsItems, adminItems] = await Promise.all([
-      loadAlerts(),
-      CONFIG.cmsAlerts ? loadCmsAlerts() : Promise.resolve([]),
-      loadAdminAlerts(),
-    ]);
-    const merged = [...adminToAlerts(adminItems), ...gtfs, ...cmsToAlerts(cmsItems, gtfs)];
-    const alerts = dedupAlerts(merged);
+    const alerts = dedupAlerts(await loadAllAlerts());
     if (!alerts.length) { box.innerHTML = ""; return; }
     // tiivis banneri: lista aukeaa pyynnöstä (LSL pitää osaa tiedotteista
     // SEVERE-tasolla viikkoja, joten auto-avaus veisi koko etusivun)
@@ -3702,7 +3713,7 @@ async function viewRoute(routeId, patternCode, date) {
 
   // Häiriöt haetaan rinnakkain reittikyselyn kanssa, jotta ne voidaan
   // renderöidä jo ensipaintissa (ei async-hyppyä, CLS)
-  const alertsPromise = loadAlerts().catch(() => []);
+  const alertsPromise = loadAllAlerts().catch(() => []); // GTFS-RT + CMS + ylläpito
   // Vuoromäärät edustaville tuleville päiville (Ti/To/La/Su) patternien
   // järjestämiseen — linjalla voi olla "isoja" vanhoja/kausivariantteja joilla
   // ei ole vuoroja NYT; ne eivät saa voittaa pää- eikä suuntavalintaa.
