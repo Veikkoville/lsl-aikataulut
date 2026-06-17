@@ -389,6 +389,16 @@ const info = msg => console.log("INFO " + msg);
   await page.goto(BASE + "/#/saavutettavuus", { waitUntil: "networkidle2" });
   await expect(".card h2", "saavutettavuusseloste avautuu");
 
+  // --- Näytöt ja tulosteet (#4) ---
+  await page.goto(BASE + "/#/tulosteet", { waitUntil: "networkidle2" });
+  await expect("#hubStopSearch", "näytöt ja tulosteet: näyttöverkosto-haku näkyy");
+  if (await expect("#batchLine", "näytöt ja tulosteet: linjan erätulostus näkyy")) {
+    await sleep(1800); // loadRoutes täyttää linjavalikon
+    const opts = await page.evaluate(() => document.querySelectorAll("#batchLine option").length);
+    opts > 1 ? ok(`näytöt ja tulosteet: linjavalinta täyttyy (${opts - 1} linjaa)`)
+             : fail("näytöt ja tulosteet: linjavalinta jäi tyhjäksi");
+  }
+
   // --- Konsolivirheet ---
   const realErrors = consoleErrors.filter(e => !e.includes("favicon"));
   realErrors.length

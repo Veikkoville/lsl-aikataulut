@@ -1011,6 +1011,18 @@ const STRINGS = {
     legAlertDefault: "Häiriö linjalla",
     cmsSource: "Lähde: lsl.fi",
     adminSource: "Kaupungin tiedote",
+    printHubLink: "Näytöt ja tulosteet",
+    screenNetTitle: "Näyttöverkosto",
+    screenNetIntro: "Hae pysäkki ja kopioi sen kioski-osoite tai upotuskoodi näytölle (kirjasto, palvelutalo, terveysasema).",
+    screenNetSearch: "Hae pysäkkiä nimellä",
+    batchPosterTitle: "Linjan pysäkkijulisteet",
+    batchPosterIntro: "Valitse linja ja päivätyyppi → kaikkien linjan pysäkkien julisteet yhteen tulosteeseen kausittaista postausta varten.",
+    batchChooseLine: "Linja",
+    batchChooseDay: "Päivätyyppi",
+    batchGenerate: "Kokoa ja tulosta",
+    batchProgress: "Kootaan pysäkkejä {done}/{total}…",
+    batchNoLine: "Valitse linja ensin.",
+    batchNoStops: "Linjalla ei löytynyt pysäkkejä.",
     // pysäkkihaku ja paikannus
     noStopsFor: 'Ei pysäkkejä haulla "{q}".',
     noPlacesFor: 'Ei osumia haulla "{q}".',
@@ -1316,6 +1328,18 @@ const STRINGS = {
     legAlertDefault: "Disruption on route",
     cmsSource: "Source: lsl.fi",
     adminSource: "City notice",
+    printHubLink: "Displays & printing",
+    screenNetTitle: "Display network",
+    screenNetIntro: "Find a stop and copy its kiosk URL or embed code for a screen (library, care home, health centre).",
+    screenNetSearch: "Search stops by name",
+    batchPosterTitle: "All stop posters for a line",
+    batchPosterIntro: "Choose a line and day type → all the line's stop posters in one printout for seasonal posting.",
+    batchChooseLine: "Line",
+    batchChooseDay: "Day type",
+    batchGenerate: "Build and print",
+    batchProgress: "Collecting stops {done}/{total}…",
+    batchNoLine: "Choose a line first.",
+    batchNoStops: "No stops found on the line.",
     noStopsFor: 'No stops found for "{q}".',
     noPlacesFor: 'No results for "{q}".',
     geoUnsupported: "Your browser does not support geolocation.",
@@ -1614,6 +1638,18 @@ const STRINGS = {
     legAlertDefault: "Störning på linjen",
     cmsSource: "Källa: lsl.fi",
     adminSource: "Stadens meddelande",
+    printHubLink: "Skärmar och utskrifter",
+    screenNetTitle: "Skärmnätverk",
+    screenNetIntro: "Sök en hållplats och kopiera dess kiosk-URL eller inbäddningskod för en skärm (bibliotek, vårdhem, hälsostation).",
+    screenNetSearch: "Sök hållplatser med namn",
+    batchPosterTitle: "Alla hållplatsaffischer för en linje",
+    batchPosterIntro: "Välj linje och dagtyp → alla linjens hållplatsaffischer i en utskrift.",
+    batchChooseLine: "Linje",
+    batchChooseDay: "Dagtyp",
+    batchGenerate: "Sammanställ och skriv ut",
+    batchProgress: "Samlar hållplatser {done}/{total}…",
+    batchNoLine: "Välj en linje först.",
+    batchNoStops: "Inga hållplatser hittades på linjen.",
     noStopsFor: 'Inga hållplatser hittades för "{q}".',
     noPlacesFor: 'Inga resultat för "{q}".',
     geoUnsupported: "Din webbläsare stöder inte positionering.",
@@ -3394,6 +3430,7 @@ function viewRoutes() {
       <a class="quick-tile" href="#/poikkeukset"><span class="qt-icon" aria-hidden="true">📅</span><span class="qt-label">${t("exLink")}</span></a>
       ${CONFIG.fares ? `<a class="quick-tile" href="#/liput"><span class="qt-icon" aria-hidden="true">🎫</span><span class="qt-label">${t("faresLink")}</span></a>` : ""}
       <a class="quick-tile" href="#/tulosta"><span class="qt-icon" aria-hidden="true">🖨</span><span class="qt-label">${t("printPageLink")}</span></a>
+      <a class="quick-tile" href="#/tulosteet"><span class="qt-icon" aria-hidden="true">📺</span><span class="qt-label">${t("printHubLink")}</span></a>
       <a class="quick-tile" href="#/palaute"><span class="qt-icon" aria-hidden="true">🛠</span><span class="qt-label">${t("fbLink")}</span></a>
     </nav>
     <div id="alertsBox"><details class="card alertsum" aria-hidden="true">
@@ -4631,6 +4668,116 @@ async function viewFares() {
     </div>`);
 }
 
+/* ---------- Näytöt ja tulosteet (#4): näyttöverkosto + linjan pysäkkijulisteet ----------
+   Näyttöverkosto: hae pysäkki → valmis kioski-URL + upotuskoodi seinänäytölle.
+   Erätulostus: valitse linja + päivätyyppi → kaikkien linjan pysäkkien julisteet
+   yhteen tulosteeseen (client-puolella, ilmainen; eräajo edistymisnäytöllä). */
+async function viewPrintHub() {
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <div class="card">
+      <h2><span aria-hidden="true">📺</span> ${t("screenNetTitle")}</h2>
+      <p class="muted">${t("screenNetIntro")}</p>
+      <input type="search" id="hubStopSearch" placeholder="${t("screenNetSearch")}" aria-label="${t("screenNetSearch")}" autocomplete="off">
+      <ul class="plain" id="hubStopResults"></ul>
+      <div id="hubEmbed" class="embedbox" hidden></div>
+    </div>
+    <div class="card no-print">
+      <h2><span aria-hidden="true">🖨</span> ${t("batchPosterTitle")}</h2>
+      <p class="muted">${t("batchPosterIntro")}</p>
+      <label class="embed-field">${t("batchChooseLine")}
+        <select id="batchLine"><option value="">—</option></select></label>
+      <label class="embed-field">${t("batchChooseDay")}
+        <select id="batchDay"></select></label>
+      <p><button type="button" id="batchGo">${t("batchGenerate")}</button>
+        <span id="batchStatus" class="muted" role="status"></span></p>
+    </div>
+    <div id="batchOut"></div>`);
+
+  // Näyttöverkosto: pysäkkihaku → kioski-URL + upotuskoodi (showEmbedInto)
+  const si = document.getElementById("hubStopSearch");
+  const sr = document.getElementById("hubStopResults");
+  let stimer = null, sseq = 0;
+  si.addEventListener("input", () => {
+    clearTimeout(stimer);
+    const q = si.value.trim();
+    if (q.length < 2) { sr.innerHTML = ""; return; }
+    stimer = setTimeout(async () => {
+      const my = ++sseq;
+      sr.innerHTML = `<li><p class="muted">${t("searching")}</p></li>`;
+      try {
+        await findFeed();
+        const res = await gql(`query ($name: String) { stops(name: $name) { gtfsId name code } }`, { name: q });
+        if (my !== sseq) return;
+        const stops = (res.stops || []).filter(s => s.gtfsId.startsWith(feedId + ":")).slice(0, 8);
+        sr.innerHTML = stops.length
+          ? stops.map(s => `<li><button class="item" type="button" data-stop="${esc(s.gtfsId)}">
+              <span><span aria-hidden="true">🚏</span> ${esc(s.name)}</span>
+              <span class="muted">${esc(s.code || "")}</span></button></li>`).join("")
+          : `<li><p class="muted">${t("noMatches")}</p></li>`;
+        sr.querySelectorAll("button[data-stop]").forEach(b => b.addEventListener("click", () => {
+          const box = document.getElementById("hubEmbed");
+          box.hidden = false;
+          showEmbedInto(box, b.dataset.stop);
+          box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }));
+      } catch (e) { if (my === sseq) sr.innerHTML = `<li><div class="error">${esc(e.message)}</div></li>`; }
+    }, 250);
+  });
+
+  // Erätulostus: täytä päivätyyppi- ja linjavalinnat
+  const daySel = document.getElementById("batchDay");
+  const dts = dayTypeDates(todayISO());
+  daySel.innerHTML = dts.map((dt, i) => `<option value="${i}">${esc(dt.label)}</option>`).join("");
+  try {
+    const routes = await loadRoutes();
+    document.getElementById("batchLine").innerHTML = `<option value="">—</option>` + routes
+      .slice().sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }))
+      .map(r => `<option value="${esc(r.gtfsId)}">${esc(r.shortName || "")} ${esc(r.longName || "")}</option>`).join("");
+  } catch (e) { /* lista jää tyhjäksi */ }
+
+  document.getElementById("batchGo").addEventListener("click", async () => {
+    const routeId = document.getElementById("batchLine").value;
+    const st = document.getElementById("batchStatus");
+    const out = document.getElementById("batchOut");
+    if (!routeId) { st.textContent = t("batchNoLine"); return; }
+    const dt = dts[+daySel.value] || dts[0];
+    st.textContent = t("preparingPrint");
+    try {
+      const { data } = await cachedGql("routestops:" + routeId,
+        `query ($id: String!) { route(id: $id) { shortName patterns { stops { gtfsId name code } } } }`, { id: routeId });
+      const route = data.route;
+      const seen = new Set(), stops = [];
+      for (const p of (route?.patterns || [])) for (const s of (p.stops || []))
+        if (!seen.has(s.gtfsId)) { seen.add(s.gtfsId); stops.push(s); }
+      if (!stops.length) { st.textContent = t("batchNoStops"); return; }
+      let done = 0;
+      const sections = await mapLimit(stops, 4, async (s) => {
+        const r = await cachedGql(`poster:${s.gtfsId}:${dt.date}`,
+          `query ($id: String!, $date: String!) {
+             stop(id: $id) { stoptimesForServiceDate(date: $date, omitNonPickups: true) {
+               pattern { headsign route { shortName longName color textColor } }
+               stoptimes { scheduledDeparture headsign } } } }`,
+          { id: s.gtfsId, date: dt.date.replace(/-/g, "") }).catch(() => ({ data: null }));
+        const groups = r.data?.stop?.stoptimesForServiceDate || [];
+        st.textContent = t("batchProgress", { done: ++done, total: stops.length });
+        return `<section class="card poster-day">
+          <div class="poster-head"><div>
+            <h2>${esc(s.name)} <span class="muted">${esc(s.code || "")}</span></h2>
+            <p class="poster-sub">${esc(route.shortName || "")} · ${esc(dt.label)} · ${esc(fmtDateLong(dt.date))}</p>
+          </div></div>
+          ${stopPosterHtml(groups)}</section>`;
+      });
+      out.innerHTML = `<div class="print-only">${sections.join("")}
+        <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(dt.date) })}</p></div>`;
+      setPageOrientation("portrait");
+      st.textContent = "";
+      window.print();
+    } catch (e) { st.textContent = esc(e.message); }
+  });
+}
+
 /* ---------- Paikkahaku: pysäkit (GraphQL) + osoitteet/POI:t (Pelias) ---------- */
 
 async function geocode(text) {
@@ -5709,6 +5856,7 @@ async function route() {
     if (parts[0] === "asetukset") viewSettings();
     else if (parts[0] === "saavutettavuus") viewAccessibilityStatement();
     else if (parts[0] === "tulosta") await viewPrint();
+    else if (parts[0] === "tulosteet") await viewPrintHub();
     else if (parts[0] === "reitti") await viewPlan(parts);
     else if (parts[0] === "linja" && parts[1]) { track("line", stripFeed(parts[1])); await viewRoute(parts[1], parts[2], parts[3]); }
     else if (parts[0] === "monitori" && parts[1]) await viewMonitor(parts[1]);
