@@ -3718,7 +3718,12 @@ async function viewRoute(routeId, patternCode, date) {
   if (!route) throw new Error(t("errRouteNotFound") + routeId);
 
   const patterns = route.patterns || [];
-  const current = patterns.find(p => p.code === patternCode) || patterns[0];
+  // Oletuksena näytetään eniten vuoroja sisältävä pattern (linjan pääsuunta) —
+  // EI patterns[0], joka voi olla vähäliikenteinen variantti ilman tämän päivän
+  // vuoroja (→ virheellinen "ei lähtöjä"). Käyttäjän valitsema patternCode voittaa.
+  const current = patterns.find(p => p.code === patternCode)
+    || patterns.slice().sort((a, b) => (b.trips?.length || 0) - (a.trips?.length || 0))[0]
+    || patterns[0];
 
   // Selkokielinen suunta: "lähtöpysäkki → päätepysäkki" pattern-koodien sijaan
   const patternLabel = p => {

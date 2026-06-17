@@ -153,7 +153,7 @@ const info = msg => console.log("INFO " + msg);
   const routeHref = await page.evaluate(() =>
     document.querySelector('#routeList a[href^="#/linja/"]').getAttribute("href"));
   await page.goto(BASE + "/" + routeHref, { waitUntil: "networkidle2" });
-  await expect(".timegrid span, #timetable .muted", "linjasivu: aikataulu");
+  await expect(".timegrid span", "linjasivu: aikataulu (oletuspattern näyttää lähtöjä)");
   const tabText = await page.evaluate(() =>
     document.querySelector(".tabs button")?.textContent || "");
   tabText.includes("→") ? ok("linjasivu: selkokielinen suuntavälilehti")
