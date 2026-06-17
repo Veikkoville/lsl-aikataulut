@@ -2736,6 +2736,21 @@ function loadPublished(force) {
   return publishedPromise;
 }
 function loadAdminAlerts(force) { return loadPublished(force).then(d => d.alerts); }
+
+/* ---------- Anonyymi käyttöanalytiikka (kaupungin dashboardia varten) ----------
+   Ei käyttäjätunnuksia, ei evästeitä, ei IP-tallennusta; kunnioittaa Do Not
+   Track -asetusta. Lähetetään sendBeaconilla (fire-and-forget) workerin /track-
+   päätepisteeseen, joka kirjaa anonyymin tapahtuman Analytics Engineen. */
+function track(type, value) {
+  try {
+    if (!PROXY_URL) return;
+    if (navigator.doNotTrack === "1" || window.doNotTrack === "1") return;
+    const body = JSON.stringify({ type, value: String(value == null ? "" : value).slice(0, 80), city: cityKey });
+    const u = PROXY_URL.replace(/\/$/, "") + "/track";
+    if (navigator.sendBeacon) navigator.sendBeacon(u, body);
+    else fetch(u, { method: "POST", body, keepalive: true }).catch(() => {});
+  } catch (e) { /* analytiikka ei saa koskaan rikkoa sovellusta */ }
+}
 function adminToAlerts(items) {
   return (items || []).map(a => ({
     alertHeaderText: a.title,
@@ -3090,6 +3105,7 @@ function bindUnifiedSearch(input, results) {
             placeHits.map((p, i) => `<li><button class="item" type="button" data-place="${i}">
               <span><span aria-hidden="true">${PLACE_ICONS[p.layer] || "📍"}</span> ${esc(p.name)}</span></button></li>`).join("");
         }
+        if (!html) track("search_fail", q);   // haku ilman osumia = suunnittelijoille arvokas signaali
         results.innerHTML = html || `<li><p class="muted">${t("noMatches")}</p></li>`;
 
         // Osoiteklikkaus: aseta reittioppaan määränpää ja avaa reittihaku
@@ -5687,12 +5703,14 @@ async function viewPrint() {
 async function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   if (parts[0] !== "monitori") exitMonitorMode(); // poistuttaessa kioskista palauta normaali ulkoasu
+  const stripFeed = s => String(s || "").replace(/^[^:]+:/, ""); // "Lahti:3" → "3"
+  track("view", parts[0] || "home");
   try {
     if (parts[0] === "asetukset") viewSettings();
     else if (parts[0] === "saavutettavuus") viewAccessibilityStatement();
     else if (parts[0] === "tulosta") await viewPrint();
     else if (parts[0] === "reitti") await viewPlan(parts);
-    else if (parts[0] === "linja" && parts[1]) await viewRoute(parts[1], parts[2], parts[3]);
+    else if (parts[0] === "linja" && parts[1]) { track("line", stripFeed(parts[1])); await viewRoute(parts[1], parts[2], parts[3]); }
     else if (parts[0] === "monitori" && parts[1]) await viewMonitor(parts[1]);
     else if (parts[0] === "kartta") await viewLiveMap();
     else if (parts[0] === "linjasto") await viewNetworkMap();
@@ -5700,7 +5718,7 @@ async function route() {
     else if (parts[0] === "poikkeukset") viewExceptions();
     else if (parts[0] === "palaute") viewFeedback();
     else if (parts[0] === "liput") viewFares();
-    else if (parts[0] === "pysakki" && parts[1]) await viewStop(parts[1]);
+    else if (parts[0] === "pysakki" && parts[1]) { track("stop", stripFeed(parts[1])); await viewStop(parts[1]); }
     else await viewRoutes();
   } catch (err) {
     showError(err);

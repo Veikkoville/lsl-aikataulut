@@ -430,6 +430,81 @@ async function handlePublished(url, env, origin) {
   return new Response(JSON.stringify({ alerts: items, fares, a11y }), { status: 200, headers });
 }
 
+/* ---------- Käyttöanalytiikka (#2): Cloudflare Analytics Engine ----------
+   Anonyymi, kevyt tapahtumaseuranta: ei käyttäjätunnuksia, ei evästeitä, ei
+   IP-tallennusta → ei vaadi evästesuostumusta. Kirjoitus Analytics Engineen
+   (ei kuormita KV:tä). Dashboard lukee aggregaatit CF:n SQL-rajapinnasta
+   (vaatii CF_ACCOUNT_ID + CF_API_TOKEN; ilman niitä dashboard ilmoittaa
+   "ei konfiguroitu" eikä kaada mitään). */
+
+const TRACK_TYPES = new Set(["view", "line", "stop", "search_fail"]);
+
+// Validoi+siistii yhden tapahtuman (puhdas, testattava). Arvo katkaistaan, eikä
+// mitään henkilötietoa talleteta. Tuntematon tyyppi → null (ei kirjoiteta).
+export function buildTrackEvent(body) {
+  const type = body && String(body.type || "");
+  if (!TRACK_TYPES.has(type)) return null;
+  const value = String((body && body.value) || "").trim().slice(0, 80);
+  const city = String((body && body.city) || "lahti").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30) || "lahti";
+  return { type, value, city };
+}
+
+function handleTrack(request, env, origin) {
+  // fire-and-forget: ei koskaan virhettä clientille
+  return request.json().then(body => {
+    const ev = buildTrackEvent(body);
+    if (ev && env.AE) {
+      try {
+        env.AE.writeDataPoint({ indexes: [ev.type], blobs: [ev.type, ev.value, ev.city], doubles: [1] });
+      } catch (e) { /* ohita */ }
+    }
+    return new Response(null, { status: 204, headers: corsHeaders(origin) });
+  }).catch(() => new Response(null, { status: 204, headers: corsHeaders(origin) }));
+}
+
+// SQL aggregaattikysely 30 vrk ajalta, ryhmiteltynä tyyppi+arvo. AE altistaa
+// blobit nimillä blob1.. (blob1=tyyppi, blob2=arvo, blob3=kaupunki).
+export function buildStatsSql(city, dataset, days) {
+  const c = String(city || "lahti").toLowerCase().replace(/[^a-z0-9]/g, "") || "lahti";
+  const d = Math.min(90, Math.max(1, parseInt(days, 10) || 30));
+  return `SELECT blob1 AS type, blob2 AS value, sum(_sample_interval) AS n
+    FROM ${dataset}
+    WHERE timestamp > NOW() - INTERVAL '${d}' DAY AND blob3 = '${c}'
+    GROUP BY type, value ORDER BY n DESC LIMIT 500`;
+}
+
+async function aeQuery(env, sql) {
+  if (!env.CF_ACCOUNT_ID || !env.CF_API_TOKEN) return { error: "unconfigured" };
+  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/analytics_engine/sql`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` },
+    body: sql,
+  });
+  if (!res.ok) return { error: "query_failed", status: res.status };
+  const json = await res.json().catch(() => null);
+  return { rows: (json && json.data) || [] };
+}
+
+async function handleAdminStats(request, env, url) {
+  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  const dataset = env.AE_DATASET || "lsl_events";
+  const city = url.searchParams.get("city") || "lahti";
+  const days = url.searchParams.get("days") || "30";
+  const r = await aeQuery(env, buildStatsSql(city, dataset, days));
+  if (r.error) return adminJson({ error: r.error }, 200); // dashboard näyttää "ei konfiguroitu"
+  const num = v => Number(v) || 0;
+  const byType = t => r.rows.filter(x => x.type === t).map(x => ({ value: x.value, n: num(x.n) }));
+  const views = byType("view");
+  return adminJson({
+    days: Math.min(90, Math.max(1, parseInt(days, 10) || 30)),
+    totalViews: views.reduce((s, x) => s + x.n, 0),
+    views,
+    lines: byType("line"),
+    stops: byType("stop"),
+    failedSearches: byType("search_fail"),
+  }, 200);
+}
+
 /* ---------- Push: tilausten hallinta (KV) ---------- */
 
 async function handleSubscribe(request, env, origin) {
@@ -723,9 +798,14 @@ export default {
       return handleAdminA11yGet(request, env, url);
     if (url.pathname === "/admin/api/a11y" && request.method === "POST")
       return handleAdminA11ySave(request, env);
+    if (url.pathname === "/admin/api/stats" && request.method === "GET")
+      return handleAdminStats(request, env, url);
     // Julkaistut tiedotteet sovellukselle (julkinen, CORS)
     if (url.pathname === "/published" && request.method === "GET")
       return handlePublished(url, env, origin);
+    // Anonyymi käyttöanalytiikka (julkinen, CORS)
+    if (url.pathname === "/track" && request.method === "POST")
+      return handleTrack(request, env, origin);
 
     // Push-tilaukset
     if (url.pathname === "/push/subscribe" && request.method === "POST")

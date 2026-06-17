@@ -186,6 +186,12 @@ export const ADMIN_HTML = `<!doctype html>
         <p><button type="submit">Julkaise seloste</button></p>
       </form>
     </div>
+
+    <div class="card">
+      <h2>Käyttöanalytiikka</h2>
+      <p class="muted">Anonyymi ja evästeetön — mitä kuntalaiset etsivät ja katsovat viimeisen 30 vrk aikana. Erityisen arvokasta: epäonnistuneet haut (yhteyksiä joita ei löydy).</p>
+      <div id="statsBox"><p class="muted">Ladataan…</p></div>
+    </div>
   </section>
 </main>
 
@@ -238,6 +244,7 @@ function enterAdmin(){
   loadList();
   loadFares();
   loadA11y();
+  loadStats();
 }
 
 async function loadList(){
@@ -406,6 +413,34 @@ $("a11yForm").addEventListener("submit", async e => {
   else if (r.status===403){ msg($("a11yMsg"),"Istunto vanheni. Kirjaudu uudelleen.",false); }
   else msg($("a11yMsg"),"Tallennus epäonnistui.",false);
 });
+
+/* ---------- Käyttöanalytiikka ---------- */
+const PAGE_LABELS = { home:"Etusivu", linja:"Linja", pysakki:"Pysäkki", reitti:"Reittihaku", liput:"Liput ja hinnat", kartta:"Bussit kartalla", linjasto:"Linjasto", laiturit:"Keskustan pysäkit", tulosta:"Tulostus", poikkeukset:"Poikkeuspäivät", palaute:"Palaute", asetukset:"Asetukset", saavutettavuus:"Saavutettavuus", monitori:"Monitori" };
+function statList(title, rows, labelFn){
+  if (!rows || !rows.length) return "<div style='flex:1;min-width:220px'><h3 class='sub'>"+esc(title)+"</h3><p class='muted'>Ei tietoja vielä.</p></div>";
+  const items = rows.slice(0,10).map(r=>"<tr><td>"+esc(labelFn?labelFn(r.value):r.value)+"</td><td style='text-align:right'>"+esc(String(r.n))+"</td></tr>").join("");
+  return "<div style='flex:1;min-width:220px'><h3 class='sub'>"+esc(title)+"</h3><table class='fedit'><tbody>"+items+"</tbody></table></div>";
+}
+async function loadStats(){
+  const r = await api("/admin/api/stats?city="+CITY, { method:"GET" });
+  const box = $("statsBox");
+  if (!r.ok){ box.innerHTML="<p class='muted'>Tilastot eivät latautuneet.</p>"; return; }
+  if (r.data && r.data.error === "unconfigured"){
+    box.innerHTML="<p class='muted'>Analytiikan luku ei ole vielä käytössä. Aseta workeriin secretit <code>CF_ACCOUNT_ID</code> ja <code>CF_API_TOKEN</code> (Account Analytics -lukuoikeus), niin tilastot ilmestyvät tähän. Tapahtumien keräys on jo päällä.</p>";
+    return;
+  }
+  if (r.data && r.data.error){ box.innerHTML="<p class='muted'>Tilastokysely epäonnistui ("+esc(r.data.error)+").</p>"; return; }
+  const d = r.data || {};
+  box.innerHTML =
+    "<p><strong>"+esc(String(d.totalViews||0))+"</strong> sivunäyttöä viimeisen "+esc(String(d.days||30))+" vrk aikana.</p>"
+    + "<div class='row'>"
+    + statList("Suosituimmat sivut", d.views, v=>PAGE_LABELS[v]||v)
+    + statList("Katsotuimmat linjat", d.lines, v=>"Linja "+v)
+    + "</div><div class='row'>"
+    + statList("Katsotuimmat pysäkit", d.stops)
+    + statList("Epäonnistuneet haut", d.failedSearches)
+    + "</div>";
+}
 
 init();
 </script>

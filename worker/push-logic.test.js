@@ -2,7 +2,8 @@
 // oikea salaus + VAPID, mutta push-endpoint ja Digitransit ovat tynkiä.
 // Aja: node push-logic.test.js
 import worker, { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText, htmlToText, buildFeedbackRecord,
-  constantTimeEqual, signSession, verifySession, buildAdminAlert, currentAdminAlerts, buildAdminFares, buildAdminA11y } from "./worker.js";
+  constantTimeEqual, signSession, verifySession, buildAdminAlert, currentAdminAlerts, buildAdminFares, buildAdminA11y,
+  buildTrackEvent, buildStatsSql } from "./worker.js";
 
 let fail = 0;
 const check = (cond, msg) => { console.log((cond ? "OK   " : "FAIL ") + msg); if (!cond) fail++; };
@@ -294,6 +295,26 @@ const pubA11y = await (await worker.fetch(req("/published?city=lahti"), adminEnv
 check(pubA11y.a11y && pubA11y.a11y.orgName === "Lahden kaupunki", "admin: julkaistu seloste näkyy /published-päätepisteessä");
 const a11yNoAuth = await worker.fetch(req("/admin/api/a11y", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }), adminEnv);
 check(a11yNoAuth.status === 403, "admin: selosteen tallennus ilman istuntoa → 403");
+
+// --- Käyttöanalytiikka: tapahtuman validointi (buildTrackEvent) ---
+check(buildTrackEvent({ type: "outo", value: "x" }) === null, "track: tuntematon tyyppi → null");
+const tev = buildTrackEvent({ type: "line", value: "3", city: "Lahti!" });
+check(tev.type === "line" && tev.value === "3" && tev.city === "lahti", "track: tyyppi/arvo/kaupunki siistitään");
+check(buildTrackEvent({ type: "search_fail", value: "a".repeat(200) }).value.length === 80, "track: arvo katkaistaan 80 merkkiin");
+check(buildStatsSql("lahti", "lsl_events", 30).includes("FROM lsl_events") && buildStatsSql("la'hti", "ds", 30).includes("blob3 = 'lahti'"), "statsSql: dataset + kaupunki siivottu (ei injektiota)");
+
+// --- Käyttöanalytiikka: /track kirjoittaa Analytics Engineen (mock) ---
+adminEnv.AE = { _p: [], writeDataPoint(p) { this._p.push(p); } };
+const trk = await worker.fetch(req("/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "view", value: "linja", city: "lahti" }) }), adminEnv);
+check(trk.status === 204 && adminEnv.AE._p.length === 1 && adminEnv.AE._p[0].blobs[0] === "view", "track: /track kirjaa tapahtuman AE:hen (204)");
+const trkBad = await worker.fetch(req("/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "outo" }) }), adminEnv);
+check(trkBad.status === 204 && adminEnv.AE._p.length === 1, "track: tuntematon tyyppi ei kirjaa mitään (silti 204)");
+
+// --- Käyttöanalytiikka: dashboard ilman lukutokenia → "unconfigured", ilman istuntoa → 403 ---
+const statsUnconf = await (await worker.fetch(req("/admin/api/stats?city=lahti", { headers: { Cookie: cookie } }), adminEnv)).json();
+check(statsUnconf.error === "unconfigured", "stats: ilman CF-tokenia → unconfigured (ei kaada)");
+const statsNoAuth = await worker.fetch(req("/admin/api/stats?city=lahti"), adminEnv);
+check(statsNoAuth.status === 403, "stats: ilman istuntoa → 403");
 
 console.log(fail ? `\n${fail} TARKISTUS EPÄONNISTUI` : "\nKAIKKI TARKISTUKSET OK");
 process.exit(fail ? 1 : 0);

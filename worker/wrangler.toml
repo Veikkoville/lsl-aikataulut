@@ -13,6 +13,12 @@ VAPID_SUBJECT = "mailto:vvsaarinen@gmail.com"
 binding = "PUSH_KV"
 id = "d05f6c569d4a49339114fedf5764f4cc"
 
+# Anonyymi käyttöanalytiikka (#2): kevyt tapahtumaseuranta ilman henkilötietoja.
+# Kirjoitus ei kuormita KV:tä; dashboard-luku vaatii secretit CF_ACCOUNT_ID + CF_API_TOKEN.
+[[analytics_engine_datasets]]
+binding = "AE"
+dataset = "lsl_events"
+
 # Häiriötarkistus 5 min välein; lähtömuistutukset minuutin välein
 [triggers]
 crons = ["*/5 * * * *", "* * * * *"]
