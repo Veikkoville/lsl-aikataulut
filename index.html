@@ -3890,6 +3890,22 @@ async function viewRoute(routeId, patternCode, date) {
   // kysely suunnan täysimmän patternin päätepysäkiltä (sieltä lähtevät kaikki vuorot)
   const headStop = (dirPatterns.slice().sort((a, b) => (b.stops?.length || 0) - (a.stops?.length || 0))[0] || current).stops[0];
 
+  // Valitsee suunnan patternin (+ sen vuorot) jolla on lähtöjä annettuna päivänä.
+  // Kausivaihdon takia oikea pattern-koodi vaihtelee päivittäin → tarvitaan
+  // matriisissa ja tulostuksessa (yksittäinen pattern, ei aggregointi kuten listassa).
+  const bestPatternForDate = async (iso) => {
+    const aliases = dirPatterns.map((p, i) =>
+      `c${i}: pattern(id: "${p.code}") { tripsForDate(serviceDate: $date) { stoptimes { timepoint scheduledDeparture stop { gtfsId name } } } }`).join("\n");
+    const { data } = await cachedGql(`matrix:${routeId}:dir${curDir}:${iso}`,
+      `query ($date: String!) { ${aliases} }`, { date: iso.replace(/-/g, "") });
+    let pat = current, trips = [];
+    dirPatterns.forEach((p, i) => {
+      const tr = (data["c" + i] && data["c" + i].tripsForDate) || [];
+      if (tr.length > trips.length) { pat = p; trips = tr; }
+    });
+    return { pat, trips };
+  };
+
   const loadTimetable = async () => {
     const dateCompact = date.replace(/-/g, "");
     const { data: tt, cachedAt } = await cachedGql(
@@ -3977,25 +3993,16 @@ async function viewRoute(routeId, patternCode, date) {
     if (!mEl) return;
     const mySeq = viewSeq;
     try {
-      const { data: md } = await cachedGql(
-        `matrix:${current.code}:${date}`,
-        `query ($code: String!, $date: String!) {
-           pattern(id: $code) {
-             tripsForDate(serviceDate: $date) {
-               stoptimes { timepoint scheduledDeparture stop { gtfsId name } }
-             }
-           }
-         }`, { code: current.code, date: date.replace(/-/g, "") });
+      const { pat: mPat, trips } = await bestPatternForDate(date);
       if (mySeq !== viewSeq) return;
       const el = document.getElementById("stopMatrix");
       // Ruudulla koko pysäkkimatriisi (vieritettävä, valittu päivä)
-      const trips = md.pattern?.tripsForDate || [];
-      if (el) el.innerHTML = stopMatrixHtml(current.stops, trips);
+      if (el) el.innerHTML = stopMatrixHtml(mPat.stops, trips);
       // Oletustuloste (raaka Ctrl+P): isot pysäkit valitulta päivältä.
       // Ei ylikirjoiteta, jos käyttäjä on jo valinnut tulosteen napista.
       const po = document.getElementById("linePrintOut");
       if (po && !printOwned) po.innerHTML =
-        `<div class="card"><h2>${esc(route.shortName || "")} ${esc(patternLabel(current))}</h2>
+        `<div class="card"><h2>${esc(route.shortName || "")} ${esc(patternLabel(mPat))}</h2>
            <p>${esc(date)}</p>${bookletTableHtml(trips)}</div>`;
     } catch (err) {
       if (mySeq !== viewSeq) return;
@@ -4013,20 +4020,13 @@ async function viewRoute(routeId, patternCode, date) {
     printOwned = true; // estä matriisihaun oletustäytön ylikirjoitus
     if (st) st.textContent = t("preparingPrint");
     const dts = dayTypeDates(date);
-    const sets = await Promise.all(dts.map(dt =>
-      cachedGql(`matrix:${current.code}:${dt.date}`,
-        `query ($code: String!, $date: String!) {
-           pattern(id: $code) {
-             tripsForDate(serviceDate: $date) {
-               stoptimes { timepoint scheduledDeparture stop { gtfsId name } }
-             }
-           }
-         }`, { code: current.code, date: dt.date.replace(/-/g, "") })
-        .then(r => ({ dt, trips: r.data.pattern?.tripsForDate || [] }))
-        .catch(() => ({ dt, trips: [] }))));
-    const tables = sets.map(({ dt, trips }) =>
+    const sets = await Promise.all(dts.map(async dt => {
+      try { const { pat, trips } = await bestPatternForDate(dt.date); return { dt, pat, trips }; }
+      catch (e) { return { dt, pat: current, trips: [] }; }
+    }));
+    const tables = sets.map(({ dt, pat, trips }) =>
       `<h3 class="daytype">${esc(dt.label)}</h3>` +
-      (mode === "all" ? stopMatrixHtml(current.stops, trips) : bookletTableHtml(trips))).join("");
+      (mode === "all" ? stopMatrixHtml(pat.stops, trips) : bookletTableHtml(trips))).join("");
     po.innerHTML = `<div class="card">
         <h2>${esc(route.shortName || "")} ${esc(patternLabel(current))}</h2>
         <p class="muted">${t("dayTypeNote")}</p>${tables}</div>`;

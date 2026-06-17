@@ -174,6 +174,11 @@ const info = msg => console.log("INFO " + msg);
     { timeout: 12000 }).then(() => true).catch(() => false);
   lineRoute ? ok("linjakartta: reittiviiva piirtyy") : info("linjakartta: viiva ei ehtinyt (Leaflet-ajoitus) — ei virhe");
   await page.goto(BASE + "/" + routeHref, { waitUntil: "networkidle2" }); // palaa linjasivulle jatkotestejä varten
+  // "Koko aikataulu pysäkeittäin" -matriisi näyttää vuoroja (ei "ei lähtöjä")
+  const matrixOk = await page.waitForFunction(
+    () => { const m = document.getElementById("stopMatrix"); return m && m.querySelector("table"); },
+    { timeout: 15000 }).then(() => true).catch(() => false);
+  matrixOk ? ok("linjasivu: koko aikataulu -matriisi näyttää vuoroja") : fail("linjasivu: matriisi tyhjä (ei lähtöjä)");
   // Lähtömuistutus: kontrolli näkyy kun tänään on tulevia lähtöjä
   const remindUi = await page.waitForFunction(
     () => !!document.querySelector("#remindBox #remindBtn"),
