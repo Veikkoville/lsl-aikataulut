@@ -850,6 +850,26 @@ const CONFIGS = {
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
   },
+  // Salo-demo (?city=salo). Salolla EI ole omaa modernia reittiopasta (vain PDF:t)
+  // → tämä on "ensimmäinen moderni palvelu" -näyttödemo. Kaikki sisältö tulee
+  // avoimesta Waltti/Digitransit-GTFS:stä (sama feed kuin muillakin). EI fares-
+  // tietoja (Salon hintoja ei ole varmennettu → ei näytetä vääriä), EI hubeja
+  // (virallista keskuspysäkkilistaa ei ole varmennettu), EI cmsAlertsia (ei lsl.fi-
+  // tyyppistä WordPress-syötettä). GTFS-RT-häiriöt toimivat silti. Lisää nämä vasta
+  // varmennetulla datalla jos diili etenee.
+  salo: {
+    city: "Salo",
+    cityGenitive: "Salon",
+    operator: "Salon seudun joukkoliikenne",
+    operatorShort: "Salo",
+    feedMatch: /salo/i,
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      focus: { lat: 60.3835, lon: 23.1175 },
+      rect: { minLat: 60.00, maxLat: 60.75, minLon: 22.70, maxLon: 23.75 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
 };
 
 const cityKey = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();

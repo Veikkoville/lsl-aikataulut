@@ -81,7 +81,9 @@ Sovellus ei ole sidottu Lahteen: kaikki kaupunkikohtainen on koottu
 `index.html`-tiedoston alun `CONFIGS`-esiasetuksiin, ja kaupungin voi vaihtaa
 jopa pelkällä URL-parametrilla. **Kokeile itse:**
 [sama sovellus Kuopion datalla](https://veikkoville.github.io/lsl-aikataulut/?city=kuopio)
-(`?city=kuopio` — suosikit ja välimuistit pysyvät kaupunkikohtaisina).
+tai [Salon datalla](https://veikkoville.github.io/lsl-aikataulut/?city=salo)
+(`?city=kuopio` / `?city=salo` — suosikit ja välimuistit pysyvät
+kaupunkikohtaisina).
 
 Pysyvä käyttöönotto toiselle Waltti-kaupungille (esim. Jyväskylä, Joensuu):
 
