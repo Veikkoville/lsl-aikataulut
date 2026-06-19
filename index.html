@@ -1034,6 +1034,19 @@ const STRINGS = {
     contrastNormal: "Normaali", contrastHigh: "Suuri kontrasti",
     sizeNormal: "Normaali", sizeLarge: "Suuri", sizeLarger: "Suurin",
     langTitle: "Kieli",
+    emailSubTitle: "Häiriötiedotteet sähköpostiin",
+    emailSubHint: "Saat häiriötiedotteet valitsemiltasi linjoilta sähköpostiisi, myös ilman sovellusta. Lähetämme vahvistuslinkin: tilaus aktivoituu vasta kun klikkaat sitä. Voit perua tilauksen milloin tahansa jokaisen viestin lopussa olevasta linkistä.",
+    emailSubEmailLabel: "Sähköpostiosoite",
+    emailSubPlaceholder: "nimi@esimerkki.fi",
+    emailSubLinesLabel: "Valitse linjat",
+    emailSubFav: "Suosikkilinjasi (★) on valittu valmiiksi.",
+    emailSubNoLines: "Linjoja ei juuri nyt saatu ladattua. Yritä myöhemmin uudelleen.",
+    emailSubBtn: "Tilaa sähköpostitiedotteet",
+    emailSubSending: "Lähetetään…",
+    emailSubSent: "Tarkista sähköpostisi ja vahvista tilaus vahvistuslinkistä.",
+    emailSubErr: "Tilaus ei onnistunut. Yritä hetken kuluttua uudelleen.",
+    emailSubNeedEmail: "Syötä kelvollinen sähköpostiosoite.",
+    emailSubNeedLines: "Valitse vähintään yksi linja.",
     notifyTitle: "Ilmoitukset",
     notifyToggle: "Ilmoita suosikkilinjojen uusista häiriöistä",
     notifyHint: "Saat ilmoituksen suosikkilinjojesi uusista häiriöistä myös silloin kun sovellus on suljettuna. Lisää linjoja suosikeiksi ★-napilla linjasivulla.",
@@ -1355,6 +1368,19 @@ const STRINGS = {
     contrastNormal: "Normal", contrastHigh: "High contrast",
     sizeNormal: "Normal", sizeLarge: "Large", sizeLarger: "Largest",
     langTitle: "Language",
+    emailSubTitle: "Disruption alerts by email",
+    emailSubHint: "Get disruption alerts for the lines you choose by email, even without the app. We send a confirmation link: the subscription activates only when you click it. You can unsubscribe at any time from the link at the bottom of every message.",
+    emailSubEmailLabel: "Email address",
+    emailSubPlaceholder: "name@example.com",
+    emailSubLinesLabel: "Choose lines",
+    emailSubFav: "Your favourite lines (★) are pre-selected.",
+    emailSubNoLines: "Couldn't load lines right now. Please try again later.",
+    emailSubBtn: "Subscribe to email alerts",
+    emailSubSending: "Sending…",
+    emailSubSent: "Check your email and confirm the subscription via the link.",
+    emailSubErr: "Subscription failed. Please try again shortly.",
+    emailSubNeedEmail: "Enter a valid email address.",
+    emailSubNeedLines: "Choose at least one line.",
     notifyTitle: "Notifications",
     notifyToggle: "Notify about new disruptions on favourite routes",
     notifyHint: "You'll get a notification about new disruptions on your favourite routes even when the app is closed. Add favourite routes with the ★ button on a route page.",
@@ -1668,6 +1694,19 @@ const STRINGS = {
     contrastNormal: "Normal", contrastHigh: "Hög kontrast",
     sizeNormal: "Normal", sizeLarge: "Stor", sizeLarger: "Störst",
     langTitle: "Språk",
+    emailSubTitle: "Störningsmeddelanden via e-post",
+    emailSubHint: "Få störningsmeddelanden för de linjer du väljer via e-post, även utan appen. Vi skickar en bekräftelselänk: prenumerationen aktiveras först när du klickar på den. Du kan avsluta prenumerationen när som helst via länken i slutet av varje meddelande.",
+    emailSubEmailLabel: "E-postadress",
+    emailSubPlaceholder: "namn@exempel.fi",
+    emailSubLinesLabel: "Välj linjer",
+    emailSubFav: "Dina favoritlinjer (★) är förvalda.",
+    emailSubNoLines: "Linjerna kunde inte laddas just nu. Försök igen senare.",
+    emailSubBtn: "Prenumerera på e-postmeddelanden",
+    emailSubSending: "Skickar…",
+    emailSubSent: "Kontrollera din e-post och bekräfta prenumerationen via länken.",
+    emailSubErr: "Prenumerationen misslyckades. Försök igen om en stund.",
+    emailSubNeedEmail: "Ange en giltig e-postadress.",
+    emailSubNeedLines: "Välj minst en linje.",
     notifyTitle: "Aviseringar",
     notifyToggle: "Meddela om nya störningar på favoritlinjer",
     notifyHint: "Du får en avisering om nya störningar på dina favoritlinjer även när appen är stängd. Lägg till favoritlinjer med ★-knappen på linjesidan.",
@@ -1896,6 +1935,7 @@ function updateChrome() {
         <a href="#/linjasto">${t("netMapLink")}</a>
         ${CONFIG.hubs ? `<a href="#/laiturit">${t("hubLink")}</a>` : ""}
         ${CONFIG.fares ? `<a href="#/liput">${t("faresLink")}</a>` : ""}
+        ${PROXY_URL ? `<a href="#/sahkoposti">${t("emailSubTitle")}</a>` : ""}
       </nav>
       <nav class="foot-col" aria-label="${t("footColInfo")}">
         <h4>${t("footColInfo")}</h4>
@@ -2698,6 +2738,86 @@ function bindNotifySetting() {
   });
 }
 
+// Sähköpostipohjainen häiriötilaus: ydinkäyttäjä (ikäihminen) ei lataa appia eikä
+// saa web-pushia → sähköposti rinnalle. Lomake: osoite + linjavalinta (suosikit
+// esivalittuina, kuten push), double opt-in vahvistuslinkki workerin päässä.
+function emailSubSettingHtml() {
+  return `
+    <div class="card">
+      <h2>${t("emailSubTitle")}</h2>
+      <p class="muted">${t("emailSubHint")}</p>
+      <form id="emailSubForm">
+        <label for="emailSubInput"><strong>${t("emailSubEmailLabel")}</strong></label>
+        <input type="email" id="emailSubInput" inputmode="email" autocomplete="email"
+               placeholder="${t("emailSubPlaceholder")}" aria-label="${t("emailSubEmailLabel")}" required
+               style="width:100%;max-width:22rem;font-size:1.1rem;padding:.6rem;margin:.3rem 0 .8rem">
+        <fieldset id="emailSubLines" style="border:1px solid var(--line,#ccc);border-radius:8px;padding:.6rem .8rem;margin:0 0 .8rem">
+          <legend>${t("emailSubLinesLabel")}</legend>
+          <p class="muted" id="emailSubLinesMsg">…</p>
+        </fieldset>
+        <button type="submit">${t("emailSubBtn")}</button>
+      </form>
+      <div id="emailSubMsg" role="status"></div>
+    </div>`;
+}
+
+async function bindEmailSubSetting() {
+  const form = document.getElementById("emailSubForm");
+  if (!form) return;
+  const box = document.getElementById("emailSubLines");
+  const msg = document.getElementById("emailSubMsg");
+  let routes = [];
+  try { routes = await loadRoutes(); } catch (e) { /* näytä virhe alla */ }
+  const favIds = new Set(getFavs().filter(f => f.type === "route").map(f => f.id));
+  if (routes.length) {
+    box.innerHTML = `<legend>${t("emailSubLinesLabel")}</legend>` +
+      `<p class="muted">${t("emailSubFav")}</p>` +
+      `<div style="display:flex;flex-wrap:wrap;gap:.4rem .9rem;margin-top:.3rem">` +
+      routes.map(r => `<label style="display:inline-flex;align-items:center;gap:.35rem;min-height:44px">` +
+        `<input type="checkbox" class="emailLineCb" value="${esc(r.shortName || "")}" data-id="${esc(r.id)}"` +
+        `${favIds.has(r.id) ? " checked" : ""}><span>${esc(r.shortName || "")}</span></label>`).join("") +
+      `</div>`;
+  } else {
+    box.innerHTML = `<legend>${t("emailSubLinesLabel")}</legend><p class="muted">${t("emailSubNoLines")}</p>`;
+  }
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const email = (document.getElementById("emailSubInput").value || "").trim();
+    const checked = [...box.querySelectorAll(".emailLineCb:checked")];
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.innerHTML = `<div class="error">${t("emailSubNeedEmail")}</div>`; return; }
+    if (!checked.length) { msg.innerHTML = `<div class="error">${t("emailSubNeedLines")}</div>`; return; }
+    await findFeed().catch(() => {});
+    msg.innerHTML = `<p class="muted">${t("emailSubSending")}</p>`;
+    try {
+      const res = await fetch(PROXY_URL.replace(/\/$/, "") + "/email/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          lines: checked.map(c => (c.value || "").toUpperCase()).filter(Boolean),
+          gtfsRoutes: checked.map(c => c.getAttribute("data-id")).filter(Boolean),
+          feed: feedId,
+          city: CONFIG.city,
+          lang,
+        }),
+      });
+      if (res.ok) { msg.innerHTML = `<p class="muted">${t("emailSubSent")}</p>`; form.reset(); }
+      else { msg.innerHTML = `<div class="error">${t("emailSubErr")}</div>`; }
+    } catch (err) {
+      msg.innerHTML = `<div class="error">${t("emailSubErr")}</div>`;
+    }
+  });
+}
+
+// Oma näkymä sähköpostitilaukselle (#/sahkoposti): etusivun kortti + footer-linkki
+// ohjaavat tänne, jotta ei-app-käyttäjä löytää tilauksen ilman asetusten selailua.
+function viewEmailSub() {
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${emailSubSettingHtml()}`);
+  bindEmailSubSetting();
+}
+
 const LANG_OPTIONS = [["fi", "Suomi"], ["en", "English"], ["sv", "Svenska"]];
 
 function langSettingHtml() {
@@ -2730,6 +2850,7 @@ function viewSettings() {
       ${textSizeSettingHtml()}
       ${contrastSettingHtml()}
       ${notifySettingHtml()}
+      ${emailSubSettingHtml()}
       <div class="card">
         <h2>${t("apiKeyTitle")}</h2>
         <p>${t("apiKeyNotNeeded")}</p>
@@ -2739,6 +2860,7 @@ function viewSettings() {
     bindTextSizeSetting();
     bindContrastSetting();
     bindNotifySetting();
+    bindEmailSubSetting();
     return;
   }
   setView(`
@@ -3538,6 +3660,7 @@ function viewRoutes() {
       <a class="quick-tile" href="#/tulosta"><span class="qt-icon" aria-hidden="true">🖨</span><span class="qt-label">${t("printPageLink")}</span></a>
       <a class="quick-tile" href="#/tulosteet"><span class="qt-icon" aria-hidden="true">📺</span><span class="qt-label">${t("printHubLink")}</span></a>
       <a class="quick-tile" href="#/palaute"><span class="qt-icon" aria-hidden="true">🛠</span><span class="qt-label">${t("fbLink")}</span></a>
+      ${PROXY_URL ? `<a class="quick-tile" href="#/sahkoposti"><span class="qt-icon" aria-hidden="true">✉️</span><span class="qt-label">${t("emailSubTitle")}</span></a>` : ""}
     </nav>
     <div id="alertsBox"><details class="card alertsum" aria-hidden="true">
       <summary><span aria-hidden="true">⚠</span> <strong class="muted">…</strong></summary>
@@ -6085,6 +6208,7 @@ async function route() {
   track("view", parts[0] || "home");
   try {
     if (parts[0] === "asetukset") viewSettings();
+    else if (parts[0] === "sahkoposti") viewEmailSub();
     else if (parts[0] === "saavutettavuus") viewAccessibilityStatement();
     else if (parts[0] === "tulosta") await viewPrint();
     else if (parts[0] === "tulosteet") await viewPrintHub();

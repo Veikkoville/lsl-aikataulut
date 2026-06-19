@@ -40,6 +40,10 @@ async function sha256hex(str) {
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+// HTML-escape sähköpostien ja confirm/unsubscribe-sivujen dynaamiselle tekstille.
+const escHtml = s => String(s == null ? "" : s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
 /* ---------- CMS-häiriötiedotteet (lsl.fi WordPress REST) ---------- */
 
 // Riisuu HTML-tagit ja purkaa yleisimmät entiteetit puhtaaksi tekstiksi,
@@ -707,11 +711,26 @@ async function loadSubscriptions(env) {
 // Ajetaan cronista: hae häiriöt, vertaa nähtyihin ja lähetä push uusista
 // suosikkilinjoja seuraaville tilaajille.
 export async function runPushCheck(env) {
-  if (!env.PUSH_KV || !env.DIGITRANSIT_KEY || !env.VAPID_PRIVATE_JWK) return;
-  const subs = await loadSubscriptions(env);
-  if (!subs.length) return;
+  // Alert-haku vaatii DIGITRANSIT_KEYn; web-push vaatii lisäksi VAPIDin, mutta
+  // sähköpostikanava toimii myös ilman VAPIDia (vain RESEND_API_KEY + EMAIL_FROM).
+  if (!env.PUSH_KV || !env.DIGITRANSIT_KEY) return;
+  const pushReady = !!env.VAPID_PRIVATE_JWK;
+  const subs = pushReady ? await loadSubscriptions(env) : [];
 
-  const feeds = [...new Set(subs.map(s => s.feed).filter(Boolean))];
+  // Sähköpostitilausten kaupunki→feed-rekisteri: yksi get-kutsu, EI list-operaatiota
+  // (KV:n ilmaisraja 1000 list/vrk säilyy). Kertoo mitkä feedit tarkistetaan, vaikka
+  // ko. feedillä ei olisi yhtään web-push-tilaajaa.
+  let reg = {};
+  try { reg = JSON.parse((await env.PUSH_KV.get(EMAIL_REG_KEY)) || "{}"); } catch (e) { /* tyhjä */ }
+  const feedCity = {};
+  for (const [city, f] of Object.entries(reg)) if (f) feedCity[f] = city;
+
+  const feeds = [...new Set([
+    ...subs.map(s => s.feed).filter(Boolean),
+    ...Object.values(reg).filter(Boolean),
+  ])];
+  if (!feeds.length) return;
+
   for (const feed of feeds) {
     // GTFS-RT (Digitransit) ja CMS (lsl.fi) erikseen omilla seen-avaimillaan,
     // jotta CMS:n käyttöönotto ei tulvi jo julkaistuja tiedotteita (oma ensiajo).
@@ -720,28 +739,36 @@ export async function runPushCheck(env) {
     let cms = [];
     try { cms = await fetchCmsAlertsForPush(feed); } catch (e) { /* GTFS silti jäljellä */ }
 
+    // Sama fresh-joukko sekä pushille että sähköpostille → kanavat pysyvät synkassa.
     const fresh = [
       ...await freshAlerts(env, "seen:" + feed, gtfs),
       ...await freshAlerts(env, "seenCms:" + feed, cms),
     ];
     if (!fresh.length) continue;
 
-    const feedSubs = subs.filter(s => s.feed === feed);
-    for (const a of fresh) {
-      const payload = JSON.stringify({
-        title: a.alertHeaderText || "Häiriötiedote",
-        body: (a.alertDescriptionText || "").slice(0, 180),
-        url: a._cms && a.alertUrl ? a.alertUrl : "./",
-        tag: alertKey(a),
-      });
-      for (const sub of feedSubs) {
-        if (!alertAffects(a, sub)) continue;
-        try {
-          const status = await sendPush(sub, payload, env);
-          if (status === 404 || status === 410) await env.PUSH_KV.delete(sub.kvKey);
-        } catch (e) { /* jatka muihin tilaajiin */ }
+    // Web-push (ennallaan)
+    if (pushReady) {
+      const feedSubs = subs.filter(s => s.feed === feed);
+      for (const a of fresh) {
+        const payload = JSON.stringify({
+          title: a.alertHeaderText || "Häiriötiedote",
+          body: (a.alertDescriptionText || "").slice(0, 180),
+          url: a._cms && a.alertUrl ? a.alertUrl : "./",
+          tag: alertKey(a),
+        });
+        for (const sub of feedSubs) {
+          if (!alertAffects(a, sub)) continue;
+          try {
+            const status = await sendPush(sub, payload, env);
+            if (status === 404 || status === 410) await env.PUSH_KV.delete(sub.kvKey);
+          } catch (e) { /* jatka muihin tilaajiin */ }
+        }
       }
     }
+
+    // Sähköposti (rinnakkainen kanava): vahvistetut, oikean linjan tilaajat
+    const city = feedCity[feed];
+    if (city) await sendEmailAlertsForFeed(env, city, feed, fresh);
   }
 }
 
@@ -770,6 +797,202 @@ async function freshAlerts(env, seenKeyName, alerts) {
     if (seenMap[k] < cutoff && !currentKeys.has(k)) delete seenMap[k];
   await env.PUSH_KV.put(seenKeyName, JSON.stringify(seenMap));
   return firstRun ? [] : fresh;
+}
+
+/* ---------- Sähköpostipohjainen häiriötilaus (KV + Resend) ---------- */
+// Rinnakkainen kanava web-pushille: ydinkäyttäjä (ikäihminen) ei lataa appia
+// eikä saa web-pushia. GDPR: double opt-in (vahvistuslinkki ennen aktivointia) +
+// peruutuslinkki joka viestissä. Lähetys integroitu runPushCheck-croniin.
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const emailCity = c => String(c || "lahti").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30) || "lahti";
+const EMAIL_REC_KEY = (city, hash) => "email:" + city + ":" + hash;        // auktoritatiivinen tietue
+const EMAIL_TOK_KEY = token => "email:tok:" + token;                       // token → "<city>:<hash>"
+const EMAIL_IDX_KEY = city => "email:idx:" + city;                         // vahvistetut, cron lukee 1 get
+const EMAIL_REG_KEY = "email:reg";                                         // { city: feed } cronin feed-joukolle
+const APP_BASE_DEFAULT = "https://veikkoville.github.io/lsl-aikataulut";
+
+// Kokoaa ja validoi sähköpostitilauksen. Pure-funktio yksikkötestiä varten.
+export function buildEmailSubscription(body, nowMs) {
+  const email = String((body && body.email) || "").trim().toLowerCase();
+  if (!EMAIL_RE.test(email) || email.length > 160) return { error: "bad_email" };
+  const lines = (Array.isArray(body && body.lines) ? body.lines : [])
+    .map(s => String(s).toUpperCase().trim().slice(0, 12)).filter(Boolean).slice(0, 60);
+  const gtfsRoutes = (Array.isArray(body && body.gtfsRoutes) ? body.gtfsRoutes : [])
+    .map(s => String(s).slice(0, 60)).filter(Boolean).slice(0, 60);
+  if (!lines.length && !gtfsRoutes.length) return { error: "no_lines" };
+  const lang = ["fi", "en", "sv"].includes(body && body.lang) ? body.lang : "fi";
+  return {
+    rec: {
+      email, city: emailCity(body && body.city), feed: String((body && body.feed) || "").slice(0, 40),
+      lines, gtfsRoutes, lang, confirmed: false, ts: nowMs,
+    },
+  };
+}
+
+async function sendResendEmail(env, to, subject, html, text) {
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return { skipped: true };
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: env.EMAIL_FROM, to: [to], subject, html, text }),
+  });
+  return { status: res.status, ok: res.ok };
+}
+
+// Saavutettava, isofonttinen HTML-sivu confirm/unsubscribe-vastauksille
+// (linkkiä klikataan sähköpostista → ihmisluettava vastaus, ei JSON).
+function emailHtmlPage(title, body) {
+  const html = `<!doctype html><html lang="fi"><head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width, initial-scale=1"><title>${escHtml(title)}</title>` +
+    `<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:34rem;` +
+    `margin:2rem auto;padding:0 1.2rem;font-size:1.25rem;line-height:1.6;color:#1a1a1a}` +
+    `h1{font-size:1.6rem}a{color:#0a4ea3}.card{border:2px solid #0a4ea3;border-radius:12px;padding:1.2rem 1.4rem}</style>` +
+    `</head><body><div class="card"><h1>${escHtml(title)}</h1><p>${body}</p>` +
+    `<p><a href="${APP_BASE_DEFAULT}/">Avaa aikataulupalvelu</a></p></div></body></html>`;
+  return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+}
+
+// Vahvistusviesti (double opt-in). Pure-funktio testiä varten.
+export function buildConfirmEmail(rec, confirmUrl, unsubUrl) {
+  const lines = escHtml((rec.lines || []).join(", ") || "(ei valittuja linjoja)");
+  const subject = "Vahvista häiriötiedotteiden tilaus";
+  const html = `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;font-size:18px;line-height:1.6;color:#1a1a1a;max-width:560px">` +
+    `<h1 style="font-size:22px">Vahvista tilaus</h1>` +
+    `<p>Tilasit häiriötiedotteet sähköpostiisi linjoille: <strong>${lines}</strong>.</p>` +
+    `<p>Vahvista tilaus klikkaamalla painiketta:</p>` +
+    `<p><a href="${confirmUrl}" style="display:inline-block;background:#0a4ea3;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-size:18px">Vahvista tilaus</a></p>` +
+    `<p style="font-size:15px;color:#555">Jos et tilannut tätä, voit jättää viestin huomiotta tai <a href="${unsubUrl}">peruuttaa tilauksen</a>.</p></div>`;
+  const text = `Vahvista häiriötiedotteiden tilaus linjoille: ${(rec.lines || []).join(", ")}\n\nVahvista: ${confirmUrl}\n\nPeruuta: ${unsubUrl}`;
+  return { subject, html, text };
+}
+
+// Häiriötiedote-viesti, 3-kenttäinen (Mitä / Milloin ja missä / Tee näin). Pure.
+export function buildAlertEmail(alert, entry, serviceUrl, unsubUrl) {
+  const what = (alert.alertHeaderText || "Häiriö joukkoliikenteessä").slice(0, 160);
+  const whenWhere = (alert.alertDescriptionText || "").slice(0, 1500) || "Tarkemmat tiedot palvelusta.";
+  const subject = ("Häiriötiedote: " + what).slice(0, 120);
+  const html = `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;font-size:18px;line-height:1.6;color:#1a1a1a;max-width:560px">` +
+    `<h1 style="font-size:22px">Häiriötiedote</h1>` +
+    `<p><strong>1. Mitä</strong><br>${escHtml(what)}</p>` +
+    `<p><strong>2. Milloin ja missä</strong><br>${escHtml(whenWhere)}</p>` +
+    `<p><strong>3. Tee näin</strong><br>Katso linjan ajantasaiset lähdöt ja vaihtoehtoinen reitti palvelusta:<br>` +
+    `<a href="${serviceUrl}">${escHtml(serviceUrl)}</a></p>` +
+    `<hr style="border:none;border-top:1px solid #ddd;margin:20px 0">` +
+    `<p style="font-size:15px;color:#555">Et halua enää näitä viestejä? <a href="${unsubUrl}">Peruuta tilaus</a>.</p></div>`;
+  const text = `Häiriötiedote\n\n1. Mitä\n${what}\n\n2. Milloin ja missä\n${whenWhere}\n\n3. Tee näin\nKatso ajantasaiset lähdöt: ${serviceUrl}\n\nPeruuta tilaus: ${unsubUrl}`;
+  return { subject, html, text };
+}
+
+async function emailIndexAdd(env, rec, hash) {
+  const idxKey = EMAIL_IDX_KEY(rec.city);
+  let idx = {};
+  try { idx = JSON.parse((await env.PUSH_KV.get(idxKey)) || "{}"); } catch (e) { /* tyhjä */ }
+  idx[hash] = { email: rec.email, lines: rec.lines || [], gtfsRoutes: rec.gtfsRoutes || [], token: rec.token };
+  await env.PUSH_KV.put(idxKey, JSON.stringify(idx));
+  let reg = {};
+  try { reg = JSON.parse((await env.PUSH_KV.get(EMAIL_REG_KEY)) || "{}"); } catch (e) { /* tyhjä */ }
+  if (reg[rec.city] !== (rec.feed || "")) { reg[rec.city] = rec.feed || ""; await env.PUSH_KV.put(EMAIL_REG_KEY, JSON.stringify(reg)); }
+}
+
+async function emailIndexRemove(env, city, hash) {
+  const idxKey = EMAIL_IDX_KEY(city);
+  let idx = {};
+  try { idx = JSON.parse((await env.PUSH_KV.get(idxKey)) || "{}"); } catch (e) { /* tyhjä */ }
+  delete idx[hash];
+  if (Object.keys(idx).length) { await env.PUSH_KV.put(idxKey, JSON.stringify(idx)); return; }
+  await env.PUSH_KV.delete(idxKey); // viimeinen tilaaja poistui → siivoa idx + rekisterimerkintä
+  let reg = {};
+  try { reg = JSON.parse((await env.PUSH_KV.get(EMAIL_REG_KEY)) || "{}"); } catch (e) { /* tyhjä */ }
+  if (city in reg) {
+    delete reg[city];
+    if (Object.keys(reg).length) await env.PUSH_KV.put(EMAIL_REG_KEY, JSON.stringify(reg));
+    else await env.PUSH_KV.delete(EMAIL_REG_KEY);
+  }
+}
+
+// Lähettää häiriötiedotteen vahvistetuille, oikean linjan sähköpostitilaajille.
+// Lukee email:idx:<city> yhdellä get-kutsulla (ei list-operaatiota).
+async function sendEmailAlertsForFeed(env, city, feed, fresh) {
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return;
+  let idx = {};
+  try { idx = JSON.parse((await env.PUSH_KV.get(EMAIL_IDX_KEY(city))) || "{}"); } catch (e) { /* tyhjä */ }
+  const entries = Object.entries(idx);
+  if (!entries.length) return;
+  const base = String(env.EMAIL_LINK_BASE || "").replace(/\/$/, "");
+  const appBase = String(env.APP_BASE || APP_BASE_DEFAULT).replace(/\/$/, "");
+  for (const a of fresh) {
+    for (const [hash, e] of entries) {
+      if (!alertAffects(a, { gtfsRoutes: e.gtfsRoutes || [], routes: e.lines || [] })) continue;
+      const unsubUrl = base + "/email/unsubscribe?token=" + e.token;
+      const serviceUrl = appBase + "/?city=" + encodeURIComponent(city);
+      const mail = buildAlertEmail(a, e, serviceUrl, unsubUrl);
+      try { await sendResendEmail(env, e.email, mail.subject, mail.html, mail.text); } catch (err) { /* jatka muihin */ }
+    }
+  }
+}
+
+async function handleEmailSubscribe(request, env, origin) {
+  if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
+  const body = await request.json().catch(() => null);
+  const { rec, error } = buildEmailSubscription(body, Date.now());
+  if (error) return jsonResponse({ error }, 400, origin);
+  const hash = await sha256hex(rec.email);
+  const recKey = EMAIL_REC_KEY(rec.city, hash);
+  let existing = null;
+  try { const r = await env.PUSH_KV.get(recKey); existing = r ? JSON.parse(r) : null; } catch (e) { /* tyhjä */ }
+  // Jo vahvistettu → päivitä vain linjat, ei uutta vahvistusta
+  if (existing && existing.confirmed) {
+    const upd = { ...existing, lines: rec.lines, gtfsRoutes: rec.gtfsRoutes, feed: rec.feed, lang: rec.lang };
+    await env.PUSH_KV.put(recKey, JSON.stringify(upd));
+    await emailIndexAdd(env, upd, hash);
+    return jsonResponse({ ok: true, updated: true }, 200, origin);
+  }
+  // Vahvistamaton ja vasta luotu (< 10 min) → ei uutta vahvistusviestiä (anti-roska)
+  if (existing && !existing.confirmed && (Date.now() - (existing.ts || 0)) < 10 * 60 * 1000)
+    return jsonResponse({ ok: true, pending: true }, 200, origin);
+  const token = (existing && existing.token) || crypto.randomUUID();
+  const full = { ...rec, token };
+  await env.PUSH_KV.put(recKey, JSON.stringify(full));
+  await env.PUSH_KV.put(EMAIL_TOK_KEY(token), rec.city + ":" + hash);
+  const linkBase = (env.EMAIL_LINK_BASE || new URL(request.url).origin).replace(/\/$/, "");
+  const confirmUrl = linkBase + "/email/confirm?token=" + token;
+  const unsubUrl = linkBase + "/email/unsubscribe?token=" + token;
+  const mail = buildConfirmEmail(full, confirmUrl, unsubUrl);
+  try { await sendResendEmail(env, rec.email, mail.subject, mail.html, mail.text); } catch (e) { /* ei kaada tilausta */ }
+  return jsonResponse({ ok: true }, 200, origin);
+}
+
+async function handleEmailConfirm(url, env) {
+  const token = url.searchParams.get("token") || "";
+  if (!token || !env.PUSH_KV) return emailHtmlPage("Virheellinen linkki", "Vahvistuslinkki ei kelpaa.");
+  const ptr = await env.PUSH_KV.get(EMAIL_TOK_KEY(token));
+  if (!ptr) return emailHtmlPage("Linkki vanhentunut", "Tätä tilausta ei löytynyt. Voit tilata tiedotteet tarvittaessa uudelleen.");
+  const sep = ptr.indexOf(":");
+  const city = ptr.slice(0, sep), hash = ptr.slice(sep + 1);
+  const recRaw = await env.PUSH_KV.get(EMAIL_REC_KEY(city, hash));
+  if (!recRaw) return emailHtmlPage("Tilausta ei löytynyt", "Voit tilata tiedotteet tarvittaessa uudelleen.");
+  const rec = JSON.parse(recRaw);
+  rec.confirmed = true;
+  rec.confirmedTs = Date.now();
+  await env.PUSH_KV.put(EMAIL_REC_KEY(city, hash), JSON.stringify(rec));
+  await emailIndexAdd(env, rec, hash);
+  const lines = escHtml((rec.lines || []).join(", "));
+  return emailHtmlPage("Tilaus vahvistettu",
+    "Saat nyt häiriötiedotteet sähköpostiisi linjoille " + lines + ". Voit peruuttaa tilauksen milloin tahansa viestin lopussa olevasta linkistä.");
+}
+
+async function handleEmailUnsubscribe(url, env) {
+  const token = url.searchParams.get("token") || "";
+  if (!token || !env.PUSH_KV) return emailHtmlPage("Virheellinen linkki", "Peruutuslinkki ei kelpaa.");
+  const ptr = await env.PUSH_KV.get(EMAIL_TOK_KEY(token));
+  if (!ptr) return emailHtmlPage("Tilaus jo peruttu", "Tilausta ei löytynyt. Et saa enää häiriötiedotteita.");
+  const sep = ptr.indexOf(":");
+  const city = ptr.slice(0, sep), hash = ptr.slice(sep + 1);
+  await env.PUSH_KV.delete(EMAIL_REC_KEY(city, hash));
+  await env.PUSH_KV.delete(EMAIL_TOK_KEY(token));
+  await emailIndexRemove(env, city, hash);
+  return emailHtmlPage("Tilaus peruttu", "Et saa enää häiriötiedotteita sähköpostiisi. Kiitos!");
 }
 
 export default {
@@ -823,6 +1046,14 @@ export default {
       return handleReminder(request, env, origin);
     if (url.pathname === "/push/vapidPublicKey" && request.method === "GET")
       return jsonResponse({ key: env.VAPID_PUBLIC || "" }, 200, origin);
+
+    // Sähköpostipohjainen häiriötilaus (double opt-in)
+    if (url.pathname === "/email/subscribe" && request.method === "POST")
+      return handleEmailSubscribe(request, env, origin);
+    if (url.pathname === "/email/confirm" && request.method === "GET")
+      return handleEmailConfirm(url, env);
+    if (url.pathname === "/email/unsubscribe" && request.method === "GET")
+      return handleEmailUnsubscribe(url, env);
 
     // CMS-häiriötiedotteet (lsl.fi WordPress REST)
     if (url.pathname === "/cms-alerts" && request.method === "GET")

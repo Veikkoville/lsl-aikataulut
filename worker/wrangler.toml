@@ -8,6 +8,17 @@ compatibility_date = "2026-06-01"
 VAPID_PUBLIC = "BL0Ah2TowfE75fO8V6b8hncoh4Au-br_ycKHLGD1C6ohfXZV3Jpr863PHFWWd3qpU4wASUdJsuBLwhufuZMKx74"
 VAPID_SUBJECT = "mailto:vvsaarinen@gmail.com"
 
+# Sähköpostipohjainen häiriötilaus (Resend). Nämä ovat SALAISUUKSIA (wrangler secret),
+# EIVÄT [vars]:issa (vältetään secret/var-nimikläshi):
+#   npx wrangler secret put RESEND_API_KEY     (Resendin API-avain)
+#   npx wrangler secret put EMAIL_FROM          (lähettäjäosoite, esim. hairiotiedote@aikataulut.selkoturva.fi;
+#                                                domain todennetaan Resendiin OMANA domaininaan, ei juuri-selkoturva.fi.
+#                                                Tuotantokaupan yhteydessä vaihdetaan kaupungin domainiin tällä, ei koodiin.)
+# EMAIL_LINK_BASE: workerin julkinen URL confirm/unsubscribe-linkkeihin (cronissa ei ole request-URLia).
+EMAIL_LINK_BASE = "https://lsl-aikataulut-proxy.veikkoville.workers.dev"
+# (APP_BASE = frontendin osoite sähköpostin "katso lähdöt" -linkkiin; koodissa oletusvakio,
+#  ylikirjoitettavissa tarvittaessa env.APP_BASE:lla.)
+
 # Tilausten ja nähtyjen häiriöiden tallennus (luotu: wrangler kv namespace create PUSH_KV)
 [[kv_namespaces]]
 binding = "PUSH_KV"

@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node webpush.test.js"
+    "test": "node webpush.test.js && node push-logic.test.js && node email-logic.test.js"
   }
 }
