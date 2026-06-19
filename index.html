@@ -210,7 +210,7 @@
     padding: var(--pad-card);
     margin-bottom: 1rem;
   }
-  h2 { font-size: 1.15rem; font-weight: var(--wmed); margin: 0 0 0.7rem; letter-spacing: 0.01em; }
+  h2 { font-size: 1.2rem; font-weight: 600; margin: 0 0 0.7rem; letter-spacing: 0.01em; }
   /* "Kaikki linjat": värillisten linjabadgejen ruudukko (joukkoliikennemäinen) */
   ul.route-grid {
     list-style: none; margin: 0.3rem 0 0; padding: 0;
@@ -223,10 +223,11 @@
     text-decoration: none; color: var(--text);
     transition: background 0.1s, border-color 0.1s;
   }
-  .route-tile:hover { background: var(--hover); border-color: var(--rc, var(--blue)); }
+  /* Kevyt linjaruudukko: vaalea neutraali kortti, värillinen vain numerorondelli */
+  .route-tile:hover { background: var(--hover); border-color: var(--blue); }
   .rt-badge {
-    flex: 0 0 auto; min-width: 2.7rem; padding: 0.3rem 0.5rem; border-radius: var(--radius-sm);
-    text-align: center; font-weight: var(--wmed); font-size: 1.02rem; letter-spacing: 0.01em;
+    flex: 0 0 auto; min-width: 2.4rem; padding: 0.3rem 0.6rem; border-radius: 999px;
+    text-align: center; font-weight: 600; font-size: 1.02rem; letter-spacing: 0.01em;
     background: var(--rc, var(--chip)); color: var(--rt, var(--text));
   }
   .rt-name { font-size: 0.82rem; line-height: 1.2; color: var(--muted);
@@ -317,7 +318,7 @@
   a.btnlink:hover { background: var(--btn-hover); }
   /* Toissijainen (outline) painike: erottaa avustavat toiminnot ensisijaisesta */
   button.secondary, a.btnlink.secondary {
-    background: transparent; color: var(--blue); border: 1.5px solid var(--border);
+    background: transparent; color: var(--text); border: 1.5px solid var(--border);
   }
   button.secondary:hover, a.btnlink.secondary:hover {
     background: var(--hover); border-color: var(--blue);
@@ -627,12 +628,14 @@
   .legchips button.badge[aria-pressed="true"] { outline: 3px solid var(--blue); outline-offset: 2px; }
   #stopRoutes.filtered button.badge[aria-pressed="false"] { opacity: 0.4; }
   /* Suhteellinen osuuspalkki: legien leveys = kesto */
-  .legbar { display: flex; gap: 2px; margin-top: 0.4rem; height: 1.5rem; border-radius: 7px; overflow: hidden; }
+  /* Reittitulosten kevyt edistymispalkki (matalampi, pehmeämpi) */
+  .legbar { display: flex; gap: 2px; margin-top: 0.4rem; height: 1.05rem; border-radius: 5px; overflow: hidden; opacity: 0.92; }
+  .legbar .seg .ic { width: 0.85em; height: 0.85em; }
   .legbar .seg {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.78rem;
+    font-size: 0.66rem;
     font-weight: var(--wmed);
     color: #fff;
     min-width: 0.9rem;
@@ -795,6 +798,28 @@
   .nl-sep { display: flex; align-items: center; gap: 0.6rem; color: var(--muted);
     font-size: 0.85rem; margin: 0.7rem 0; }
   .nl-sep::before, .nl-sep::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  /* Yhtenäinen haku: mic-ikoni Mistä-kentän sisällä */
+  .suggest.with-mic input { padding-right: 3rem; }
+  .field-mic { position: absolute; top: 0; right: 0; height: 100%; width: 2.8rem;
+    display: inline-flex; align-items: center; justify-content: center; min-height: 0;
+    background: none; border: none; color: var(--muted); cursor: pointer; padding: 0; }
+  .field-mic:hover { color: var(--blue); }
+  .field-mic.listening { color: var(--sev-severe); }
+  .field-mic .ic { width: 1.4em; height: 1.4em; }
+  /* Hero-toiminnot: ensisijainen (sininen) + lähimmät (neutraali). Mobiili = pinottu
+     luonnollisella korkeudella; ≥560px = vierekkäin (flex-basis vain row-suunnassa). */
+  .hero-actions { display: flex; flex-direction: column; gap: 0.6rem; margin: 0.5rem 0 0.2rem; }
+  .hero-actions .btn-primary, .hero-actions .secondary { width: 100%; flex: 0 0 auto; }
+  @media (min-width: 560px) {
+    .hero-actions { flex-direction: row; }
+    .hero-actions .btn-primary { flex: 1 1 15rem; width: auto; }
+    .hero-actions .secondary { flex: 0 1 auto; width: auto; }
+  }
+  /* Häiriöt ohuena bannerina otsikon alle (ei iso pinottu kortti) */
+  .alerts-banner { margin-bottom: 0.9rem; }
+  .alerts-banner:empty { display: none; }
+  .alerts-banner .alertsum { padding: 0.5rem 0.85rem; margin-bottom: 0; }
+  .alerts-banner .alertsum summary { font-size: 0.95rem; }
   @media print {
     /* Tulosteet aina normaalikokoisina, vaikka näytöllä olisi suuri teksti
        (rem-pohjaiset juliste-/vihkofontit mitoitettu A4:lle) */
@@ -3955,9 +3980,13 @@ async function renderNearby() {
   }
 }
 
+// Lähimmät lähdöt -paikannuksen käynnistin (etusivun yhtenäisen haun viereinen nappi
+// kutsuu tätä). null jos selain ei tue paikannusta.
+let nearbyLocate = null;
 function initNearby(body) {
   if (!navigator.geolocation) {
     body.innerHTML = `<p class="muted">${t("geoUnsupportedHint")}</p>`;
+    nearbyLocate = null;
     return;
   }
   const locate = () => {
@@ -3972,37 +4001,24 @@ function initNearby(body) {
         <p class="muted">${t("searchByNameHint")}</p>`;
     }, { timeout: 10000, maximumAge: 60000 });
   };
-  if (localStorage.getItem("geoAllowed")) {
-    locate();
-  } else {
-    body.innerHTML = `
-      <button id="nearbyStart">${icon("pin")} ${t("showNearby")}</button>
-      <p class="muted">${t("geoPrivacy")}</p>`;
-    document.getElementById("nearbyStart").addEventListener("click", locate);
-  }
+  nearbyLocate = locate;
+  // Luvan kanssa: paikannetaan heti. Ilman lupaa: hero-nappi käynnistää (prompt pyytää luvan).
+  if (localStorage.getItem("geoAllowed")) locate();
 }
 
 function viewRoutes() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`
+    <div id="alertsBox" class="alerts-banner"></div>
     <section class="card hero">
       <h2>${icon("route")} ${t("heroTitle")}</h2>
-      <div class="nl-field">
-        <label for="homeNlInput">${t("nlLabel")}</label>
-        <div class="nl-row">
-          <input type="text" id="homeNlInput" autocomplete="off" placeholder="${t("nlPlaceholder")}">
-          <button type="button" id="homeNlMic" class="secondary nl-mic" aria-label="${t("nlMicStart")}" title="${t("nlMicStart")}">${icon("mic")}</button>
-        </div>
-        <p class="muted nl-hint">${t("nlHint")}</p>
-        <div id="homeNlMsg" role="status"></div>
-      </div>
-      <div class="nl-sep"><span>${t("nlOr")}</span></div>
       <div class="hero-fields">
         <div class="field">
           <label for="homeFromInput">${t("from")}</label>
-          <div class="suggest">
+          <div class="suggest with-mic">
             <input type="text" id="homeFromInput" autocomplete="off" placeholder="${t("placePlaceholder")}"
                    value="${esc(planState.from?.name || "")}">
+            <button type="button" id="homeNlMic" class="field-mic" aria-label="${t("nlMicStart")}" title="${t("nlMicStart")}">${icon("mic")}</button>
             <ul class="plain suggest-list" id="homeFromList" hidden></ul>
           </div>
         </div>
@@ -4015,17 +4031,16 @@ function viewRoutes() {
           </div>
         </div>
       </div>
-      <button type="button" id="heroSearch" class="btn-primary">${icon("search")} ${t("heroSearch")}</button>
+      <div class="hero-actions">
+        <button type="button" id="heroSearch" class="btn-primary">${icon("search")} ${t("heroSearch")}</button>
+        <button type="button" id="nearbyBtn2" class="secondary">${icon("pin")} ${t("showNearby")}</button>
+      </div>
+      <p class="muted nl-hint">${t("nlHint")}</p>
       <div id="heroMsg" role="status"></div>
+      <div id="homeNlMsg" role="status"></div>
+      <div id="nearbyBody"></div>
       <div id="lastPlanRow"></div>
     </section>
-    <div id="alertsBox"><details class="card alertsum" aria-hidden="true">
-      <summary>${icon("warning")} <strong class="muted">…</strong></summary>
-    </details></div>
-    <div class="card">
-      <h2>${icon("pin")} ${t("nearbyTitle")}</h2>
-      <div id="nearbyBody"></div>
-    </div>
     <div class="card" id="savedCard" hidden>
       <h2>${icon("star")} ${t("savedTripsTitle")}</h2>
       <div id="savedBody"></div>
@@ -4072,26 +4087,38 @@ function viewRoutes() {
     }
   } catch (e) { /* rikkinäinen merkintä ohitetaan */ }
   initNearby(document.getElementById("nearbyBody"));
+  document.getElementById("nearbyBtn2")?.addEventListener("click", () => nearbyLocate
+    ? nearbyLocate()
+    : (document.getElementById("nearbyBody").innerHTML = `<p class="muted">${t("geoUnsupportedHint")}</p>`));
   bindUnifiedSearch(document.getElementById("uniSearch"), document.getElementById("searchResults"));
   bindNearbyButton(document.getElementById("nearbyBtn"), document.getElementById("searchResults"));
 
-  // Hero-reittihaku: Mistä/Minne → "Hae yhteydet" hyppää reittinäkymään (sama planConnection).
-  bindPlaceInput(document.getElementById("homeFromInput"), document.getElementById("homeFromList"), p => { planState.from = p; });
-  bindPlaceInput(document.getElementById("homeToInput"), document.getElementById("homeToList"), p => { planState.to = p; });
-  document.getElementById("heroSearch").addEventListener("click", () => {
-    if (planState.from && planState.to) { location.hash = planHash(); }
-    else { document.getElementById("heroMsg").innerHTML = `<p class="muted">${t("heroNeedBoth")}</p>`; }
-  });
-  // Luonnollisen kielen kenttä: täyttää saman Mistä/Minne + ajaa saman haun
-  bindNlField(document.getElementById("homeNlInput"), document.getElementById("homeNlMic"), {
+  // Yhtenäinen reittihaku: Mistä/Minne ensisijaisina; Mistä-kenttä hyväksyy MYÖS koko lauseen
+  // (luonnollinen kieli) ja sen sisäinen mic puhuttaa matkan — sama planConnection-haku.
+  const homeFrom = document.getElementById("homeFromInput");
+  const homeTo = document.getElementById("homeToInput");
+  const nlCtx = {
     msg: document.getElementById("homeNlMsg"),
-    fromInput: document.getElementById("homeFromInput"),
-    toInput: document.getElementById("homeToInput"),
+    fromInput: homeFrom, toInput: homeTo,
     setFrom: p => { planState.from = p; },
     setTo: p => { planState.to = p; },
     setTime: hhmm => { planState.time = todayISO() + "T" + hhmm; planState.timeMode = "dep"; },
     focus: el => el.focus(),
     run: () => { if (planState.from && planState.to) location.hash = planHash(); },
+  };
+  bindPlaceInput(homeFrom, document.getElementById("homeFromList"), p => { planState.from = p; });
+  bindPlaceInput(homeTo, document.getElementById("homeToList"), p => { planState.to = p; });
+  // Koko lause Mistä-kentässä (esim. "Matkakeskukselta Kauppatorille") → jäsennä + aja heti
+  homeFrom.addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    const v = homeFrom.value.trim(); if (!v) return;
+    const parsed = parseNlTrip(v);
+    if (parsed.from && parsed.to) { e.preventDefault(); runNlTrip(v, nlCtx); }
+  });
+  bindNlMic(document.getElementById("homeNlMic"), homeFrom, nlCtx);
+  document.getElementById("heroSearch").addEventListener("click", () => {
+    if (planState.from && planState.to) { location.hash = planHash(); }
+    else { document.getElementById("heroMsg").innerHTML = `<p class="muted">${t("heroNeedBoth")}</p>`; }
   });
 
   loadAlertsInto(document.getElementById("alertsBox"));
@@ -5868,10 +5895,10 @@ function nlSpeechCtor() { return window.SpeechRecognition || window.webkitSpeech
 
 // Kytkee älykentän: Enter ajaa runNlTrip; mikrofoni (jos tuettu) puhuttaa lauseen. Jos
 // SpeechRecognition puuttuu, mikrofonipainike poistetaan siististi (ei virhettä).
-function bindNlField(input, micBtn, c) {
-  input.addEventListener("keydown", e => {
-    if (e.key === "Enter") { e.preventDefault(); const v = input.value.trim(); if (v) runNlTrip(v, c); }
-  });
+// Mikrofoni: puhuttaa lauseen kenttään ja ajaa runNlTrip. Jos SpeechRecognition puuttuu,
+// painike poistetaan siististi (ei virhettä). Käytetään sekä erillisessä NL-kentässä että
+// etusivun yhtenäisessä Mistä-kentässä (mic-ikoni kentän sisällä).
+function bindNlMic(micBtn, input, c) {
   const SR = nlSpeechCtor();
   if (!SR || !micBtn) { if (micBtn) micBtn.remove(); return; }
   let rec = null, listening = false;
@@ -5895,6 +5922,14 @@ function bindNlField(input, micBtn, c) {
       setState(true); rec.start();
     } catch (e) { setState(false); }
   });
+}
+
+// Erillinen NL-kenttä (palvelutiski): Enter ajaa runNlTrip + mikrofoni.
+function bindNlField(input, micBtn, c) {
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); const v = input.value.trim(); if (v) runNlTrip(v, c); }
+  });
+  bindNlMic(micBtn, input, c);
 }
 
 /* ---------- Palvelutiski-tila (#/palvelutiski) ---------- */

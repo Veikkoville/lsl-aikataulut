@@ -57,9 +57,9 @@ const info = msg => console.log("INFO " + msg);
     ? ok("etusivu: jäsennelty footer linkkisarakkeineen")
     : fail("etusivu: jäsennelty footer puuttuu");
 
-  await page.waitForSelector("#nearbyStart", { timeout: 10000 }).catch(() => {});
-  if (await page.$("#nearbyStart")) await page.click("#nearbyStart");
-  await expect("#nearbyBody table.deps tr", "etusivu: lähimmät lähdöt paikannuksella");
+  await page.waitForSelector("#nearbyBtn2", { timeout: 10000 }).catch(() => {});
+  if (await page.$("#nearbyBtn2")) await page.click("#nearbyBtn2");
+  await expect("#nearbyBody table.deps tr", "etusivu: lähimmät lähdöt napista (haun vieressä)");
 
   // Esteettömyys: "vain esteettömät pysäkit" -suodatin lähimmät-listassa
   (await page.$("#nearbyBody #accOnly"))
@@ -170,15 +170,20 @@ const info = msg => console.log("INFO " + msg);
   nlPass === nlCases.length ? ok(`NL-jäsennys: ${nlPass}/${nlCases.length} lausetta oikein (FI/EN/SV + aika)`)
                             : fail(`NL-jäsennys: vain ${nlPass}/${nlCases.length} oikein`);
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
-  (await page.$("#homeNlInput")) ? ok("NL: älykenttä näkyy etusivun hero:ssa") : fail("NL: älykenttä puuttuu");
+  // Yhtenäinen haku: ei erillistä NL-lohkoa eikä "— tai —"; mic on Mistä-kentän sisällä
+  const unified = await page.evaluate(() => !document.getElementById("homeNlInput") && !document.querySelector(".nl-sep")
+    && !!document.querySelector(".suggest.with-mic #homeFromInput"));
+  unified ? ok("etusivu: yksi yhtenäinen haku (mic Mistä-kentässä, ei kahta lohkoa)")
+          : fail("etusivu: yhtenäinen haku puuttuu (NL-lohko/erotin yhä?)");
   const srOk = await page.evaluate(() => !!(window.SpeechRecognition || window.webkitSpeechRecognition));
-  const micThere = !!(await page.$("#homeNlMic"));
+  const micThere = !!(await page.$(".field-mic#homeNlMic"));
   (srOk ? micThere : !micThere)
-    ? ok(`NL: mikrofoni ${srOk ? "näkyy (tuettu)" : "piilotettu siististi (ei tuettu)"}`)
+    ? ok(`NL: kentän mic ${srOk ? "näkyy (tuettu)" : "piilotettu siististi (ei tuettu)"}`)
     : fail("NL: mikrofonin degradointi väärin");
-  await page.type("#homeNlInput", "from Matkakeskus to Mukkulankatu 2", { delay: 20 });
+  // Mistä-kenttä hyväksyy koko lauseen → jäsentää + ajaa haun
+  await page.type("#homeFromInput", "from Matkakeskus to Mukkulankatu 2", { delay: 20 });
   await page.keyboard.press("Enter");
-  await expect("details.itin[data-itin]", "NL: tekstilause täyttää kentät ja ajaa reittihaun", 20000);
+  await expect("details.itin[data-itin]", "etusivu: koko lause Mistä-kentässä ajaa reittihaun", 20000);
 
   // --- Palvelutiski-tila (#/palvelutiski): A→B + pysäkin linjat työntekijälle ---
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
