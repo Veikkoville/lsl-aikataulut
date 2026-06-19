@@ -150,6 +150,36 @@ const info = msg => console.log("INFO " + msg);
     }
   }
 
+  // --- Luonnollisen kielen syöttö (paikallinen jäsennys) + puhe ---
+  // Jäsennin-yksikkötestit: deterministinen, selaimessa, ei verkkoa (FI/EN/SV-lauseet)
+  const nlCases = [
+    ["from Matkakeskus to Kauppatori at 14:30", "Matkakeskus", "Kauppatori", "14:30"],
+    ["Matkakeskus -> Kauppatori", "Matkakeskus", "Kauppatori", null],
+    ["paikasta Matkakeskus paikkaan Kauppatori", "Matkakeskus", "Kauppatori", null],
+    ["från Matkakeskus till Kauppatori", "Matkakeskus", "Kauppatori", null],
+    ["Kauppatorilta Asemalle", "Kauppatori", "Asema", null],
+    ["Salosta Turkuun klo 9", "Salo", "Turku", "09:00"],
+    ["haluan mennä Kauppatorilta Asemalle", "Kauppatori", "Asema", null],
+  ];
+  let nlPass = 0;
+  for (const [snt, ef, et, etime] of nlCases) {
+    const r = await page.evaluate(x => parseNlTrip(x), snt);
+    (r && r.from === ef && r.to === et && (r.time || null) === etime) ? nlPass++
+      : console.log("INFO NL-jäsennys poikkeama: " + snt + " → " + JSON.stringify(r));
+  }
+  nlPass === nlCases.length ? ok(`NL-jäsennys: ${nlPass}/${nlCases.length} lausetta oikein (FI/EN/SV + aika)`)
+                            : fail(`NL-jäsennys: vain ${nlPass}/${nlCases.length} oikein`);
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  (await page.$("#homeNlInput")) ? ok("NL: älykenttä näkyy etusivun hero:ssa") : fail("NL: älykenttä puuttuu");
+  const srOk = await page.evaluate(() => !!(window.SpeechRecognition || window.webkitSpeechRecognition));
+  const micThere = !!(await page.$("#homeNlMic"));
+  (srOk ? micThere : !micThere)
+    ? ok(`NL: mikrofoni ${srOk ? "näkyy (tuettu)" : "piilotettu siististi (ei tuettu)"}`)
+    : fail("NL: mikrofonin degradointi väärin");
+  await page.type("#homeNlInput", "from Matkakeskus to Mukkulankatu 2", { delay: 20 });
+  await page.keyboard.press("Enter");
+  await expect("details.itin[data-itin]", "NL: tekstilause täyttää kentät ja ajaa reittihaun", 20000);
+
   // --- Palvelutiski-tila (#/palvelutiski): A→B + pysäkin linjat työntekijälle ---
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   (await page.$('#appFooter a[href="#/palvelutiski"]'))

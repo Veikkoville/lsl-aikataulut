@@ -742,6 +742,21 @@
     transition: background 0.12s, border-color 0.12s; }
   .tool:hover { background: var(--hover); border-color: var(--blue); }
   .tool .ic { color: var(--blue); width: 1.35em; height: 1.35em; }
+  /* Luonnollisen kielen älykenttä + mikrofoni */
+  .nl-field { margin: 0.2rem 0 0.3rem; }
+  .nl-field label { display: block; font-weight: var(--wmed); margin-bottom: 0.3rem; }
+  .nl-row { display: flex; gap: 0.5rem; align-items: stretch; }
+  .nl-row input { flex: 1; }
+  .nl-mic { flex: none; min-width: 52px; padding: 0.5rem;
+    display: inline-flex; align-items: center; justify-content: center; }
+  .nl-mic .ic { width: 1.45em; height: 1.45em; }
+  /* Kuuntelutila: staattinen korostus (ei animaatiokikkoja) */
+  .nl-mic.listening { background: var(--sev-severe); color: #fff; border-color: var(--sev-severe); }
+  .nl-hint { font-size: 0.82rem; margin: 0.35rem 0 0; }
+  /* "— tai —" -erotin NL-kentän ja Mistä/Minne-lomakkeen välissä */
+  .nl-sep { display: flex; align-items: center; gap: 0.6rem; color: var(--muted);
+    font-size: 0.85rem; margin: 0.7rem 0; }
+  .nl-sep::before, .nl-sep::after { content: ""; flex: 1; height: 1px; background: var(--border); }
   @media print {
     /* Tulosteet aina normaalikokoisina, vaikka näytöllä olisi suuri teksti
        (rem-pohjaiset juliste-/vihkofontit mitoitettu A4:lle) */
@@ -969,6 +984,17 @@ const STRINGS = {
     heroTitle: "Mihin matka?",
     heroSearch: "Hae yhteydet",
     heroNeedBoth: "Valitse lähtö ja määränpää ehdotuslistasta.",
+    nlLabel: "Sano tai kirjoita, mihin haluat mennä",
+    nlPlaceholder: "Esim. Matkakeskukselta Kauppatorille",
+    nlHint: "Kirjoita koko matka ja paina Enter, tai käytä mikrofonia.",
+    nlOr: "tai",
+    nlMicStart: "Puhu matka",
+    nlMicStop: "Lopeta kuuntelu",
+    nlListening: "Kuuntelee…",
+    nlNeedOrigin: "En saanut kiinni lähtöpaikasta, täydennä tähän.",
+    nlNeedDest: "En saanut kiinni määränpäästä, täydennä tähän.",
+    nlNeedBoth: "En saanut kiinni lähtöä ja määränpäätä. Kokeile esim. \"Matkakeskukselta Kauppatorille\".",
+    nlMicError: "Puheentunnistus ei onnistunut. Voit kirjoittaa matkan.",
     footerNote: "Tämä on epävirallinen prototyyppi, joka ei ole liikennöitsijän ({operator}) tuottama. Aikataulu- ja reaaliaikadata: {operatorShort} / Waltti avoin data (CC BY 4.0) Digitransit-rajapinnan kautta.",
     footColService: "Palvelu",
     footColInfo: "Tietoa",
@@ -1333,6 +1359,17 @@ const STRINGS = {
     heroTitle: "Where to?",
     heroSearch: "Find connections",
     heroNeedBoth: "Choose origin and destination from the suggestions.",
+    nlLabel: "Say or type where you want to go",
+    nlPlaceholder: "E.g. from Matkakeskus to Kauppatori",
+    nlHint: "Type the whole trip and press Enter, or use the microphone.",
+    nlOr: "or",
+    nlMicStart: "Speak your trip",
+    nlMicStop: "Stop listening",
+    nlListening: "Listening…",
+    nlNeedOrigin: "I didn't catch the origin, please add it here.",
+    nlNeedDest: "I didn't catch the destination, please add it here.",
+    nlNeedBoth: "I couldn't catch the origin and destination. Try e.g. \"from Matkakeskus to Kauppatori\".",
+    nlMicError: "Speech recognition failed. You can type the trip instead.",
     footerNote: "This is an unofficial prototype, not produced by the transit authority ({operator}). Timetable and real-time data: {operatorShort} / Waltti open data (CC BY 4.0) via the Digitransit API.",
     footColService: "Service",
     footColInfo: "About",
@@ -1684,6 +1721,17 @@ const STRINGS = {
     heroTitle: "Vart vill du?",
     heroSearch: "Sök förbindelser",
     heroNeedBoth: "Välj startplats och destination från förslagen.",
+    nlLabel: "Säg eller skriv vart du vill åka",
+    nlPlaceholder: "T.ex. från Matkakeskus till Kauppatori",
+    nlHint: "Skriv hela resan och tryck Enter, eller använd mikrofonen.",
+    nlOr: "eller",
+    nlMicStart: "Tala in din resa",
+    nlMicStop: "Sluta lyssna",
+    nlListening: "Lyssnar…",
+    nlNeedOrigin: "Jag uppfattade inte startplatsen, fyll i den här.",
+    nlNeedDest: "Jag uppfattade inte destinationen, fyll i den här.",
+    nlNeedBoth: "Jag uppfattade inte start och destination. Försök t.ex. \"från Matkakeskus till Kauppatori\".",
+    nlMicError: "Taligenkänningen misslyckades. Du kan skriva resan istället.",
     footerNote: "Detta är en inofficiell prototyp som inte har producerats av trafikbolaget ({operator}). Tidtabells- och realtidsdata: {operatorShort} / Waltti öppna data (CC BY 4.0) via Digitransit-gränssnittet.",
     footColService: "Tjänst",
     footColInfo: "Information",
@@ -2393,6 +2441,7 @@ const ICONS = {
   warning: '<path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.6v.01"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/>',
 };
 function icon(name, cls) {
   return `<svg class="ic${cls ? " " + cls : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor"` +
@@ -3841,6 +3890,16 @@ function viewRoutes() {
   setView(`
     <section class="card hero">
       <h2>${icon("route")} ${t("heroTitle")}</h2>
+      <div class="nl-field">
+        <label for="homeNlInput">${t("nlLabel")}</label>
+        <div class="nl-row">
+          <input type="text" id="homeNlInput" autocomplete="off" placeholder="${t("nlPlaceholder")}">
+          <button type="button" id="homeNlMic" class="secondary nl-mic" aria-label="${t("nlMicStart")}" title="${t("nlMicStart")}">${icon("mic")}</button>
+        </div>
+        <p class="muted nl-hint">${t("nlHint")}</p>
+        <div id="homeNlMsg" role="status"></div>
+      </div>
+      <div class="nl-sep"><span>${t("nlOr")}</span></div>
       <div class="hero-fields">
         <div class="field">
           <label for="homeFromInput">${t("from")}</label>
@@ -3925,6 +3984,17 @@ function viewRoutes() {
   document.getElementById("heroSearch").addEventListener("click", () => {
     if (planState.from && planState.to) { location.hash = planHash(); }
     else { document.getElementById("heroMsg").innerHTML = `<p class="muted">${t("heroNeedBoth")}</p>`; }
+  });
+  // Luonnollisen kielen kenttä: täyttää saman Mistä/Minne + ajaa saman haun
+  bindNlField(document.getElementById("homeNlInput"), document.getElementById("homeNlMic"), {
+    msg: document.getElementById("homeNlMsg"),
+    fromInput: document.getElementById("homeFromInput"),
+    toInput: document.getElementById("homeToInput"),
+    setFrom: p => { planState.from = p; },
+    setTo: p => { planState.to = p; },
+    setTime: hhmm => { planState.time = todayISO() + "T" + hhmm; planState.timeMode = "dep"; },
+    focus: el => el.focus(),
+    run: () => { if (planState.from && planState.to) location.hash = planHash(); },
   });
 
   loadAlertsInto(document.getElementById("alertsBox"));
@@ -5566,6 +5636,124 @@ function bindPlaceInput(input, listEl, onPick) {
   });
 }
 
+/* ---------- Luonnollisen kielen matkasyöttö (paikallinen jäsennys) + puhe ---------- */
+// TEKSTIJÄSENNYS on 100 % selaimessa (ei rajapintaa → ilmainen + offline, säilyttää ~0 €/kk).
+// PUHE käyttää selaimen SpeechRecognitionia, joka VOI lähettää äänen selainvalmistajan
+// pilveen (esim. Chrome → Google) → puhe EI ole täysin paikallinen, toisin kuin tekstijäsennys.
+// Tästä syystä UI-teksteissä ei väitetä puhetta paikalliseksi.
+
+// Suomen lähtö-/määränpääsijapäätteen trimmaus (best-effort; täydellinen lemmaus vaatisi
+// kirjaston, joten epäonnistuessa geocoderin sumeus + graceful fallback paikkaavat).
+function trimFiOrig(w) { return w.replace(/:?(sta|stä|lta|ltä)$/i, ""); }
+function trimFiDest(w) {
+  return w
+    .replace(/:?(lle|seen)$/i, "")
+    .replace(/:?([aeiouyåäö])\1n$/i, "$1")   // illatiivi vokaalinpidennyksellä: Turkuun→Turku, Helsinkiin→Helsinki
+    .replace(/:?h([aeiouyåäö])n$/i, "");      // illatiivi -hVn: maahan→maa
+}
+const isFiOrig = w => /:?(sta|stä|lta|ltä)$/i.test(w);
+const isFiDest = w => /:?(lle|seen)$/i.test(w) || /:?([aeiouyåäö])\1n$/i.test(w) || /:?h([aeiouyåäö])n$/i.test(w);
+
+// Jäsentää matkalauseen → { from, to, time } (merkkijonoina; paikat resolvoidaan geocodella).
+function parseNlTrip(raw) {
+  const out = { from: null, to: null, time: null };
+  let s = String(raw || "").trim().replace(/\s+/g, " ");
+  if (!s) return out;
+  // Aika: klo/kello/kl./at HH(.MM/:MM); nyt/now/nu poistetaan (oletus = nyt)
+  const tm = s.match(/\b(?:klo|kello|kl\.?|at)\s*(\d{1,2})(?:[.:](\d{2}))?\b/i);
+  if (tm) {
+    out.time = String(Math.min(23, parseInt(tm[1], 10))).padStart(2, "0") + ":" + (tm[2] || "00");
+    s = s.replace(tm[0], " ");
+  }
+  s = s.replace(/\b(nyt|now|nu)\b/gi, " ").replace(/\s+/g, " ").trim();
+  // Intent-/verbietuliitteet pois
+  s = s.replace(/^(?:haluan|haluaisin|asiakas haluaa|menen|miten p[aä][aä]sen|kuinka p[aä][aä]sen|i want to go|i would like to go|how (?:do|can) i get|jag vill (?:åka|resa))\b/i, "").trim();
+  // Matkaverbi heti alusta (intent-etuliitteen jälkeen); \b ei toimi suomen ä/ö-päätteissä → ^-ankkuri
+  s = s.replace(/^(?:menn[äa]|menen|to go|åka|resa)\s+/i, "").replace(/\s+/g, " ").trim();
+  const clean = v => v.replace(/^[\s,;:.\-]+|[\s,;:.\-]+$/g, "").trim();
+  // 1) Nuoli
+  let m = s.match(/^(.+?)\s*(?:->|→|=>|–>)\s*(.+)$/);
+  if (m) { out.from = clean(m[1]); out.to = clean(m[2]); return out; }
+  // 2) Eksplisiittiset liittimet (from/to, från/till, paikasta/paikkaan…)
+  m = s.match(/\b(?:from|från)\s+(.+?)\s+\b(?:to|till)\s+(.+)$/i)
+    || s.match(/\b(?:paikasta|pys[aä]kilt[äa]|osoitteesta|kohteesta)\s+(.+?)\s+\b(?:paikkaan|pys[aä]kille|osoitteeseen|kohteeseen)\s+(.+)$/i);
+  if (m) { out.from = clean(m[1]); out.to = clean(m[2]); return out; }
+  // 3) Pelkkä to/till -jako
+  m = s.match(/^(.+?)\s+\b(?:to|till)\s+(.+)$/i);
+  if (m) { out.from = clean(m[1]); out.to = clean(m[2]); return out; }
+  // 4) FI sijapääte-jako (lähtö = elatiivi/ablatiivi, määränpää = illatiivi/allatiivi)
+  const words = s.split(" ");
+  const oi = words.findIndex(isFiOrig);
+  if (oi >= 0) {
+    const di = words.findIndex((w, k) => k > oi && isFiDest(w));
+    if (di >= 0) {
+      const o = words.slice(0, oi + 1); o[o.length - 1] = trimFiOrig(o[o.length - 1]);
+      const d = words.slice(oi + 1, di + 1); d[d.length - 1] = trimFiDest(d[d.length - 1]);
+      out.from = clean(o.join(" ")); out.to = clean(d.join(" ")); return out;
+    }
+    const o = words.slice(0, oi + 1); o[o.length - 1] = trimFiOrig(o[o.length - 1]);
+    out.from = clean(o.join(" ")); return out;   // vain lähtö saatiin
+  }
+  // 5) Pelkkä määränpää
+  const di = words.findIndex(isFiDest);
+  if (di >= 0) {
+    const d = words.slice(0, di + 1); d[d.length - 1] = trimFiDest(d[d.length - 1]);
+    out.to = clean(d.join(" ")); return out;
+  }
+  return out;
+}
+
+// Jäsennä → geocode (ylin ehdotus) → täytä kentät → jos MOLEMMAT paikat saatiin: aja haku;
+// muuten täytä saatu, kohdista puuttuvaan kenttään + lempeä vihje (ei kovaa virhettä).
+async function runNlTrip(text, c) {
+  const p = parseNlTrip(text);
+  const hint = msg => { c.msg.innerHTML = msg ? `<p class="muted">${esc(msg)}</p>` : ""; };
+  if (!p.from && !p.to) { hint(t("nlNeedBoth")); c.focus(c.fromInput); return; }
+  hint(t("searchingRoutes"));
+  const top = async q => { try { const r = await searchPlaces(q); return r[0] || null; } catch (e) { return null; } };
+  const [fp, tp] = await Promise.all([p.from ? top(p.from) : Promise.resolve(null), p.to ? top(p.to) : Promise.resolve(null)]);
+  if (fp) { c.setFrom(fp); c.fromInput.value = fp.name; }
+  if (tp) { c.setTo(tp); c.toInput.value = tp.name; }
+  if (p.time && c.setTime) c.setTime(p.time);
+  if (fp && tp) { hint(""); c.run(); }                                   // molemmat varmasti → aja heti
+  else if (fp && !tp) { hint(t("nlNeedDest")); c.focus(c.toInput); }
+  else if (!fp && tp) { hint(t("nlNeedOrigin")); c.focus(c.fromInput); }
+  else { hint(t("nlNeedBoth")); c.focus(c.fromInput); }
+}
+
+function nlSpeechCtor() { return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
+
+// Kytkee älykentän: Enter ajaa runNlTrip; mikrofoni (jos tuettu) puhuttaa lauseen. Jos
+// SpeechRecognition puuttuu, mikrofonipainike poistetaan siististi (ei virhettä).
+function bindNlField(input, micBtn, c) {
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); const v = input.value.trim(); if (v) runNlTrip(v, c); }
+  });
+  const SR = nlSpeechCtor();
+  if (!SR || !micBtn) { if (micBtn) micBtn.remove(); return; }
+  let rec = null, listening = false;
+  const setState = on => {
+    listening = on;
+    micBtn.classList.toggle("listening", on);
+    micBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    micBtn.setAttribute("aria-label", on ? t("nlMicStop") : t("nlMicStart"));
+    micBtn.title = on ? t("nlMicStop") : t("nlMicStart");
+    if (on) c.msg.innerHTML = `<p class="muted">${esc(t("nlListening"))}</p>`;
+  };
+  micBtn.addEventListener("click", () => {
+    if (listening && rec) { try { rec.stop(); } catch (e) {} return; }
+    try {
+      rec = new SR();
+      rec.lang = lang === "sv" ? "sv-SE" : lang === "en" ? "en-GB" : "fi-FI";
+      rec.interimResults = false; rec.maxAlternatives = 1;
+      rec.onresult = ev => { const txt = ev.results?.[0]?.[0]?.transcript || ""; if (txt) { input.value = txt; runNlTrip(txt, c); } };
+      rec.onerror = () => { setState(false); c.msg.innerHTML = `<p class="muted">${esc(t("nlMicError"))}</p>`; };
+      rec.onend = () => setState(false);
+      setState(true); rec.start();
+    } catch (e) { setState(false); }
+  });
+}
+
 /* ---------- Palvelutiski-tila (#/palvelutiski) ---------- */
 // Koko ruudun, näppäimistövetoinen A→B-haku + "pysäkin linjat" kaupungin työntekijän
 // näytölle. Pakotettu kirkas korkea kontrasti (.desk ylikirjoittaa tokenit, ei riipu
@@ -5710,6 +5898,16 @@ async function viewServiceDesk() {
       <div class="desk-grid">
         <section class="desk-col">
           <h2>${t("deskRouteTitle")}</h2>
+          <div class="nl-field">
+            <label for="deskNlInput">${t("nlLabel")}</label>
+            <div class="nl-row">
+              <input type="text" id="deskNlInput" autocomplete="off" placeholder="${t("nlPlaceholder")}">
+              <button type="button" id="deskNlMic" class="secondary nl-mic" aria-label="${t("nlMicStart")}" title="${t("nlMicStart")}">${icon("mic")}</button>
+            </div>
+            <p class="muted nl-hint">${t("nlHint")}</p>
+            <div id="deskNlMsg" role="status"></div>
+          </div>
+          <div class="nl-sep"><span>${t("nlOr")}</span></div>
           <div class="desk-field"><label for="deskFrom">${t("from")}</label>
             <div class="suggest"><input id="deskFrom" type="text" autocomplete="off" placeholder="${t("placePlaceholder")}">
               <ul class="plain suggest-list" id="deskFromList" hidden></ul></div></div>
@@ -5753,6 +5951,16 @@ async function viewServiceDesk() {
 
   bindDeskPlace(fromEl, document.getElementById("deskFromList"), p => { dFrom = p; }, () => toEl.focus());
   bindDeskPlace(toEl, document.getElementById("deskToList"), p => { dTo = p; }, runSearch);
+  // Luonnollisen kielen kenttä palvelutiskissä: täyttää saman Mistä/Minne + ajaa runSearchin
+  bindNlField(document.getElementById("deskNlInput"), document.getElementById("deskNlMic"), {
+    msg: document.getElementById("deskNlMsg"),
+    fromInput: fromEl, toInput: toEl,
+    setFrom: p => { dFrom = p; },
+    setTo: p => { dTo = p; },
+    setTime: null,   // palvelutiski on nyt-orientoitunut → parsittu aika ohitetaan v1:ssä
+    focus: el => el.focus(),
+    run: () => runSearch(),
+  });
   fromEl.focus();
 
   // "Pysäkin linjat" -pikahaku
