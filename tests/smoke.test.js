@@ -43,13 +43,19 @@ const info = msg => console.log("INFO " + msg);
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   await expect("#routeList li a.route-tile .rt-badge", "etusivu: linjalista (badge-ruudukko) latautuu");
 
-  // Ulkoasu: pikavalintaruudukko + jäsennelty footer
-  const tiles = (await page.$$(".quick-grid a.quick-tile")).length;
-  tiles >= 4 ? ok(`ulkoasu: pikavalintaruudukko (${tiles} korttia)`)
-             : fail("ulkoasu: pikavalintaruudukon kortit puuttuvat");
+  // Etusivun uudistus: hero-reittihaku + työkalurivi (inline-SVG-ikonit) + jäsennelty footer
+  (await page.$("#homeFromInput") && await page.$("#homeToInput") && await page.$("#heroSearch"))
+    ? ok("etusivu: hero-reittihaku (Mistä/Minne/Hae yhteydet) latautuu")
+    : fail("etusivu: hero-reittihaku puuttuu");
+  const tools = (await page.$$(".tool-grid a.tool")).length;
+  tools >= 4 ? ok(`etusivu: työkalurivi (${tools} työkalua)`)
+             : fail("etusivu: työkalurivin työkalut puuttuvat");
+  const svgIcons = await page.$$eval(".tool-grid a.tool svg.ic", els => els.length).catch(() => 0);
+  svgIcons > 0 ? ok(`etusivu: inline-SVG-ikonit työkaluissa (${svgIcons}, ei emoji-fonttia)`)
+               : fail("etusivu: SVG-ikonit puuttuvat");
   (await page.$("#appFooter .foot-cols .foot-col a"))
-    ? ok("ulkoasu: jäsennelty footer linkkisarakkeineen")
-    : fail("ulkoasu: jäsennelty footer puuttuu");
+    ? ok("etusivu: jäsennelty footer linkkisarakkeineen")
+    : fail("etusivu: jäsennelty footer puuttuu");
 
   await page.waitForSelector("#nearbyStart", { timeout: 10000 }).catch(() => {});
   if (await page.$("#nearbyStart")) await page.click("#nearbyStart");
@@ -129,6 +135,20 @@ const info = msg => console.log("INFO " + msg);
     encodeURIComponent("60.99653,25.66417,Mukkulankatu 2");
   await page.goto(shared, { waitUntil: "networkidle2" });
   await expect("details.itin[data-itin]", "jaettu reittilinkki: haku käynnistyy URL:sta");
+
+  // --- Etusivun hero-reittihaku: Mistä/Minne → "Hae yhteydet" → reittinäkymä ---
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  await page.waitForSelector("#homeFromInput", { timeout: 10000 }).catch(() => {});
+  await page.type("#homeFromInput", "Matkakeskus", { delay: 25 });
+  if (await expect("#homeFromList button[data-i]", "etusivu hero: lähtö-ehdotus", 15000)) {
+    await page.click("#homeFromList button[data-i]");
+    await page.type("#homeToInput", "Mukkulankatu 2", { delay: 25 });
+    if (await expect("#homeToList button[data-i]", "etusivu hero: määränpää-ehdotus", 15000)) {
+      await page.click("#homeToList button[data-i]");
+      await page.click("#heroSearch");
+      await expect("details.itin[data-itin]", "etusivu hero: 'Hae yhteydet' avaa reittiehdotukset", 20000);
+    }
+  }
 
   // --- Palvelutiski-tila (#/palvelutiski): A→B + pysäkin linjat työntekijälle ---
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
