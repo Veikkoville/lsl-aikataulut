@@ -156,7 +156,23 @@ const info = msg => console.log("INFO " + msg);
   const routeHref = await page.evaluate(() =>
     document.querySelector('#routeList a[href^="#/linja/"]').getAttribute("href"));
   await page.goto(BASE + "/" + routeHref, { waitUntil: "networkidle2" });
-  await expect(".timegrid span", "linjasivu: aikataulu (oletuspattern näyttää lähtöjä)");
+  // Aikataulun on näytettävä aito lähtö (.timegrid span) PALVELUPÄIVÄNÄ. "Tänään" voi olla
+  // arkipyhä (esim. juhannus), jolloin linja ei aja → ei lähtöjä, vaikka koodi toimii oikein.
+  // Siksi: jos tänään ei lähtöjä, käydään päivätyyppivälilehdet (La/Su käyttävät pyhät
+  // ohittavaa palvelupäivää). Tyhjä KAIKILLA päivätyypeillä = oikea bugi. EI hyväksytä
+  // virhetilan fallbackia ("ei lähtöjä") onnistumisena — vaaditaan aina aito .timegrid span.
+  let timegridOk = await page.waitForSelector(".timegrid span", { timeout: 12000 }).then(() => true).catch(() => false);
+  if (!timegridOk) {
+    const dayCount = (await page.$$(".daytab")).length;
+    for (let i = 0; i < dayCount && !timegridOk; i++) {
+      await page.evaluate(idx => document.querySelectorAll(".daytab")[idx]?.click(), i);
+      timegridOk = await page.waitForSelector(".timegrid span", { timeout: 8000 }).then(() => true).catch(() => false);
+    }
+  }
+  timegridOk ? ok("linjasivu: aikataulu (oletuspattern näyttää lähtöjä palvelupäivänä)")
+             : fail("linjasivu: aikataulu — ei lähtöjä millään päivätyypillä (.timegrid span)");
+  // Nykyinen hash = palvelupäivän linjasivu (sis. päivämäärän) → käytetään matriisitestissä
+  const serviceHref = await page.evaluate(() => location.hash);
   const tabText = await page.evaluate(() =>
     document.querySelector(".tabs button")?.textContent || "");
   tabText.includes("→") ? ok("linjasivu: selkokielinen suuntavälilehti")
@@ -173,8 +189,8 @@ const info = msg => console.log("INFO " + msg);
     () => !!document.querySelector("#lineMap .leaflet-overlay-pane path"),
     { timeout: 12000 }).then(() => true).catch(() => false);
   lineRoute ? ok("linjakartta: reittiviiva piirtyy") : info("linjakartta: viiva ei ehtinyt (Leaflet-ajoitus) — ei virhe");
-  await page.goto(BASE + "/" + routeHref, { waitUntil: "networkidle2" }); // palaa linjasivulle jatkotestejä varten
-  // "Koko aikataulu pysäkeittäin" -matriisi näyttää vuoroja (ei "ei lähtöjä")
+  await page.goto(BASE + "/" + serviceHref, { waitUntil: "networkidle2" }); // palaa linjasivulle (palvelupäivä) jatkotestejä varten
+  // "Koko aikataulu pysäkeittäin" -matriisi näyttää vuoroja palvelupäivänä (ei "ei lähtöjä")
   const matrixOk = await page.waitForFunction(
     () => { const m = document.getElementById("stopMatrix"); return m && m.querySelector("table"); },
     { timeout: 15000 }).then(() => true).catch(() => false);
