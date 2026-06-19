@@ -870,6 +870,25 @@ const CONFIGS = {
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
   },
+  // Kajaani-demo (?city=kajaani). Sama minimimalli kuin Salo: kaikki sisältö tulee
+  // avoimesta Waltti/Digitransit-GTFS:stä. feedId "Kajaani" varmennettu feeds-kyselyllä
+  // proxyn kautta 19.6.2026 (17 BUS-linjaa, ml. liikennöitsijä-duplikaatit 7/11/16 jotka
+  // sovellus deduppaa). Uusi linjasto 1–16 voimaan 8.6.2026. EI fares/hubs/cmsAlerts
+  // (Kajaanin hintoja, keskuspysäkkejä eikä häiriö-CMS:ää varmennettu) → lisää vasta
+  // varmennetulla datalla jos diili etenee. GTFS-RT-häiriöt toimivat silti.
+  kajaani: {
+    city: "Kajaani",
+    cityGenitive: "Kajaanin",
+    operator: "Kajaanin joukkoliikenne",
+    operatorShort: "Kajaani",
+    feedMatch: /kajaani/i,
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      focus: { lat: 64.224087, lon: 27.733423 },
+      rect: { minLat: 63.95, maxLat: 64.55, minLon: 27.10, maxLon: 28.45 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
 };
 
 const cityKey = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();
