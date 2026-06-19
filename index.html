@@ -444,6 +444,16 @@
   }
   .timegrid span.past { background: none; color: var(--muted); border: 1px solid var(--border); }
   .timegrid span.rt { background: var(--rt-bg); color: var(--rt-text); font-weight: 600; }
+  /* Klikattavat lähdöt: napit peilaavat chip-ulkoasun; valittu vuoro korostettu */
+  .timegrid button { font: inherit; cursor: pointer; min-height: 0;
+    background: var(--chip); border: 1px solid transparent; border-radius: 5px;
+    padding: 0.28rem 0.6rem; font-size: 1.05rem; font-variant-numeric: tabular-nums; color: var(--text); }
+  .timegrid button.past { background: none; color: var(--muted); border-color: var(--border); }
+  .timegrid button.rt { background: var(--rt-bg); color: var(--rt-text); font-weight: 600; }
+  .timegrid button:hover { border-color: var(--blue); }
+  .timegrid button.selected { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 600; }
+  .timeline-sel { font-weight: 600; color: var(--text); margin: 0.2rem 0 0.4rem; }
+  .timeline-sel:empty { display: none; }
   /* Linjanäkymä: suunta yhdellä rivillä + vaihtonappi */
   .dir-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.6rem 0; }
   .dir-label { color: var(--muted); }
@@ -1355,6 +1365,9 @@ const STRINGS = {
     noServiceSoon: "Ei liikennöintiä lähipäivinä.",
     openFullMap: "Koko kartta",
     stopTimelineTitle: "Pysäkit ja seuraava lähtö",
+    timelineSelected: "Linjan {time} lähtö",
+    depSelectAria: "Lähtö {time}, näytä pysäkkiajat",
+    routePatternLabel: "Reittikuvio:",
     nextDeps: "Seuraavat lähdöt:",
     remindBefore: "Muistuta",
     remindUnit: "min ennen lähtöä",
@@ -1730,6 +1743,9 @@ const STRINGS = {
     noServiceSoon: "No service in the coming days.",
     openFullMap: "Full map",
     stopTimelineTitle: "Stops and next departure",
+    timelineSelected: "The {time} departure",
+    depSelectAria: "Departure {time}, show stop times",
+    routePatternLabel: "Route variant:",
     nextDeps: "Next departures:",
     remindBefore: "Remind",
     remindUnit: "min before departure",
@@ -2103,6 +2119,9 @@ const STRINGS = {
     noServiceSoon: "Ingen trafik de närmaste dagarna.",
     openFullMap: "Hela kartan",
     stopTimelineTitle: "Hållplatser och nästa avgång",
+    timelineSelected: "Avgången {time}",
+    depSelectAria: "Avgång {time}, visa hållplatstider",
+    routePatternLabel: "Linjevariant:",
     nextDeps: "Följande avgångar:",
     remindBefore: "Påminn",
     remindUnit: "min före avgången",
@@ -4328,12 +4347,16 @@ async function viewRoute(routeId, patternCode, date) {
     if (!byDir.has(k)) byDir.set(k, []);
     byDir.get(k).push(p);
   }
-  const primaries = [], variants = [];
+  const primaries = [];
   for (const list of byDir.values()) {
     list.sort((a, b) => upcoming(b) - upcoming(a)); // suuntavälilehdeksi nyt liikennöivä pääpattern
     primaries.push(list[0]);
-    variants.push(...list.slice(1));
   }
+  // Varianttivalikko skoopataan NYKYISEEN suuntaan: näkyy vain jos tällä suunnalla on
+  // aidosti useampi reittikuvio (useimmilla 1 → valikko piilossa, näkymä pysyy puhtaana).
+  const curDirId = current.directionId ?? 0;
+  const curDirPatterns = (byDir.get(curDirId) || [current]).slice()
+    .sort((a, b) => upcoming(b) - upcoming(a));
 
   let routeAlertsHtml = "";
   try {
@@ -4353,12 +4376,11 @@ async function viewRoute(routeId, patternCode, date) {
         <strong class="dir-current">${esc(patternLabel(current))}</strong>
         ${primaries.length > 1 ? `<button type="button" id="dirSwap" class="secondary" aria-label="${t("directionSwap")}" title="${t("directionSwap")}">${icon("swap")} ${t("directionSwap")}</button>` : ""}
       </div>
-      ${variants.length ? `
+      ${curDirPatterns.length > 1 ? `
         <div class="row no-print" style="margin:0.3rem 0">
-          <label class="muted" for="variantSel">${t("moreVariants")}</label>
+          <label class="muted" for="variantSel">${t("routePatternLabel")}</label>
           <select id="variantSel">
-            <option value="">${t("chooseVariant")}</option>
-            ${variants.map(p => `
+            ${curDirPatterns.map(p => `
               <option value="${esc(p.code)}"${p === current ? " selected" : ""}>
                 ${esc(patternLabel(p))} (${t("nStops", { n: (p.stops || []).length })})
               </option>`).join("")}
@@ -4374,6 +4396,7 @@ async function viewRoute(routeId, patternCode, date) {
       <h2>${t("mapStopsTitle")} <a class="linkish" style="font-size:0.8rem;font-weight:400" href="#/linjakartta/${encodeURIComponent(routeId)}">${icon("map")} ${t("openFullMap")}</a></h2>
       <div id="routeMap" class="map" aria-label="${t("mapAria")}"></div>
       <p class="muted">${t("busesHint")}</p>
+      <p id="timelineSel" class="timeline-sel" role="status"></p>
       <ol class="stop-timeline" id="stopTimeline">
         ${(current?.stops || []).map(s => `
           <li class="stl-item">
@@ -4454,6 +4477,7 @@ async function viewRoute(routeId, patternCode, date) {
   }
   const isTodayPrimary = date === todayISO();
   let nextDep = null; // seuraavan lähdön epoch (ms) lähtömuistutusta varten
+  let selectedDepSec = null; // valittu lähtö (head-pysäkin scheduledDeparture); säilyy 30 s -päivityksen yli
   // Aikataulu näyttää suunnan KAIKKI lähdöt valitulle päivälle — ei suodateta
   // yhteen patterniin. Tämä on välttämätöntä, koska aikataulukauden vaihtuessa
   // (esim. kesä→syksy) suunnan vuorot voivat olla eri pattern-koodissa eri
@@ -4472,12 +4496,13 @@ async function viewRoute(routeId, patternCode, date) {
       `c${i}: pattern(id: "${p.code}") { tripsForDate(serviceDate: $date) { stoptimes { timepoint scheduledDeparture stop { gtfsId name } } } }`).join("\n");
     const { data } = await cachedGql(`matrix:${routeId}:dir${curDir}:${iso}`,
       `query ($date: String!) { ${aliases} }`, { date: iso.replace(/-/g, "") });
-    let pat = current, trips = [];
+    let pat = current, trips = [], allTrips = [];
     dirPatterns.forEach((p, i) => {
       const tr = (data["c" + i] && data["c" + i].tripsForDate) || [];
+      allTrips.push(...tr);
       if (tr.length > trips.length) { pat = p; trips = tr; }
     });
-    return { pat, trips };
+    return { pat, trips, allTrips };
   };
 
   const TT_QUERY = `query ($stopId: String!, $date: String!) {
@@ -4506,22 +4531,21 @@ async function viewRoute(routeId, patternCode, date) {
     }
     return null;
   };
-  // Täyttää pysäkkiaikajanan seuraavan vuoron lähtöajalla per pysäkki (paras pattern tälle päivälle).
-  const annotateTimeline = async (useDate, isToday) => {
-    const { trips } = await bestPatternForDate(useDate);
-    if (!trips.length) return;
-    trips.sort((a, b) => (a.stoptimes?.[0]?.scheduledDeparture ?? 0) - (b.stoptimes?.[0]?.scheduledDeparture ?? 0));
-    let trip = trips[0];
-    if (isToday) {
-      const d = new Date(), nowSec = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
-      trip = trips.find(tr => (tr.stoptimes?.[0]?.scheduledDeparture ?? -1) >= nowSec - 30) || trips[0];
+  // Indeksoi suunnan KAIKKI vuorot head-pysäkin lähtöajalla → per-pysäkki-ajat. Avain =
+  // head-pysäkin scheduledDeparture (sama kuin timegridin lähtö) → Map(stop.gtfsId → aika).
+  const buildTripIndex = (allTrips) => {
+    const idx = new Map();
+    for (const tr of (allTrips || [])) {
+      const stts = tr.stoptimes || [];
+      const head = stts.find(s => s.stop?.gtfsId === headStop.gtfsId) || stts[0];
+      if (!head) continue;
+      if (!idx.has(head.scheduledDeparture)) {
+        const byStop = new Map();
+        for (const s of stts) if (s.stop?.gtfsId) byStop.set(s.stop.gtfsId, s.scheduledDeparture);
+        idx.set(head.scheduledDeparture, byStop);
+      }
     }
-    const byStop = new Map();
-    for (const stt of (trip.stoptimes || [])) if (stt.stop?.gtfsId) byStop.set(stt.stop.gtfsId, stt.scheduledDeparture);
-    document.querySelectorAll("#stopTimeline .stl-time[data-stop]").forEach(span => {
-      const sec = byStop.get(span.getAttribute("data-stop"));
-      if (sec != null) span.textContent = fmtSec(sec);
-    });
+    return idx;
   };
 
   const loadTimetable = async (useDate, redirectNote) => {
@@ -4565,9 +4589,10 @@ async function viewRoute(routeId, patternCode, date) {
     const grid = sts.map(st => {
       const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
       const past = isToday && depEpoch(st) < now;
-      const cls = (past ? "past" : "") + (st.realtime && !past ? " rt" : "");
-      return `<span class="${cls.trim()}"${st.realtime && !past ? ` title="${t("rtTitleAttr")}"` : ""}>
-        ${fmtSec(dep)}${st.realtime && !past ? " ●" : ""}</span>`;
+      const cls = "timegrid-dep" + (past ? " past" : "") + (st.realtime && !past ? " rt" : "");
+      return `<button type="button" class="${cls}" data-dep="${st.scheduledDeparture}" aria-pressed="false"` +
+        ` aria-label="${t("depSelectAria", { time: fmtSec(dep) })}"${st.realtime && !past ? ` title="${t("rtTitleAttr")}"` : ""}>` +
+        `${fmtSec(dep)}${st.realtime && !past ? " ●" : ""}</button>`;
     }).join("");
     el.innerHTML = `
       ${redirectNote ? `<p class="redirect-note">${icon("warning")} ${esc(redirectNote)}</p>` : ""}
@@ -4575,12 +4600,44 @@ async function viewRoute(routeId, patternCode, date) {
       <p class="muted">${t("depsFromStop", { stop: esc(current.stops[0].name) })}</p>
       ${nextHtml}
       ${remindHtml}
-      <div class="timegrid">${grid}</div>
+      <div class="timegrid" id="timegrid">${grid}</div>
       ${isToday ? `<p class="muted"><span class="rt">●</span> ${t("rtLegend")}</p>` : ""}`;
     const rb = document.getElementById("remindBtn");
     if (rb) rb.addEventListener("click", () =>
       setDepartureReminder(nextDep, route.shortName || "", patternLabel(current)));
-    annotateTimeline(useDate, isToday).catch(() => {});
+    // Klikattavat lähdöt: kytke napit pysäkkiaikajanaan + valitse oletus (muisti / seuraava tuleva)
+    (async () => {
+      const seq = viewSeq;
+      let index;
+      try { index = buildTripIndex((await bestPatternForDate(useDate)).allTrips); }
+      catch (e) { return; }
+      const tg = document.getElementById("timegrid");
+      const selEl = document.getElementById("timelineSel");
+      if (!tg || seq !== viewSeq) return;
+      const paint = depSec => {
+        const byStop = index.get(depSec);
+        document.querySelectorAll("#stopTimeline .stl-time[data-stop]").forEach(span => {
+          const s = byStop && byStop.get(span.getAttribute("data-stop"));
+          span.textContent = s != null ? fmtSec(s) : "";
+        });
+        if (selEl) selEl.textContent = t("timelineSelected", { time: fmtSec(depSec) });
+        tg.querySelectorAll("button[data-dep]").forEach(b => {
+          const on = Number(b.dataset.dep) === depSec;
+          b.classList.toggle("selected", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        selectedDepSec = depSec;
+      };
+      tg.querySelectorAll("button[data-dep]").forEach(b =>
+        b.addEventListener("click", () => paint(Number(b.dataset.dep))));
+      // oletus: aiempi valinta jos yhä listalla, muuten seuraava tuleva (tänään) / ensimmäinen
+      const inIdx = d => index.has(d);
+      let def = (selectedDepSec != null && inIdx(selectedDepSec) && sts.some(st => st.scheduledDeparture === selectedDepSec))
+        ? selectedDepSec : null;
+      if (def == null && isToday) def = sts.find(st => depEpoch(st) >= now - 30000 && inIdx(st.scheduledDeparture))?.scheduledDeparture;
+      if (def == null) def = sts.map(st => st.scheduledDeparture).find(inIdx);
+      if (def != null) paint(def);
+    })();
   };
   try {
     await loadTimetable();

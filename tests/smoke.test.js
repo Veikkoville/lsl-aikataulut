@@ -289,21 +289,21 @@ const info = msg => console.log("INFO " + msg);
   const routeHref = await page.evaluate(() =>
     document.querySelector('#routeList a[href^="#/linja/"]').getAttribute("href"));
   await page.goto(BASE + "/" + routeHref, { waitUntil: "networkidle2" });
-  // Aikataulun on näytettävä aito lähtö (.timegrid span) PALVELUPÄIVÄNÄ. "Tänään" voi olla
+  // Aikataulun on näytettävä aito lähtö (.timegrid button) PALVELUPÄIVÄNÄ. "Tänään" voi olla
   // arkipyhä (esim. juhannus), jolloin linja ei aja → ei lähtöjä, vaikka koodi toimii oikein.
   // Siksi: jos tänään ei lähtöjä, käydään päivätyyppivälilehdet (La/Su käyttävät pyhät
   // ohittavaa palvelupäivää). Tyhjä KAIKILLA päivätyypeillä = oikea bugi. EI hyväksytä
-  // virhetilan fallbackia ("ei lähtöjä") onnistumisena — vaaditaan aina aito .timegrid span.
-  let timegridOk = await page.waitForSelector(".timegrid span", { timeout: 12000 }).then(() => true).catch(() => false);
+  // virhetilan fallbackia ("ei lähtöjä") onnistumisena — vaaditaan aina aito .timegrid button.
+  let timegridOk = await page.waitForSelector(".timegrid button", { timeout: 12000 }).then(() => true).catch(() => false);
   if (!timegridOk) {
     const dayCount = (await page.$$(".daytab")).length;
     for (let i = 0; i < dayCount && !timegridOk; i++) {
       await page.evaluate(idx => document.querySelectorAll(".daytab")[idx]?.click(), i);
-      timegridOk = await page.waitForSelector(".timegrid span", { timeout: 8000 }).then(() => true).catch(() => false);
+      timegridOk = await page.waitForSelector(".timegrid button", { timeout: 8000 }).then(() => true).catch(() => false);
     }
   }
   timegridOk ? ok("linjasivu: aikataulu (oletuspattern näyttää lähtöjä palvelupäivänä)")
-             : fail("linjasivu: aikataulu — ei lähtöjä millään päivätyypillä (.timegrid span)");
+             : fail("linjasivu: aikataulu — ei lähtöjä millään päivätyypillä (.timegrid button)");
   // Nykyinen hash = palvelupäivän linjasivu (sis. päivämäärän) → käytetään matriisitestissä
   const serviceHref = await page.evaluate(() => location.hash);
   const dirText = await page.evaluate(() =>
@@ -350,6 +350,34 @@ const info = msg => console.log("INFO " + msg);
     () => { const m = document.getElementById("stopMatrix"); return m && m.querySelector("table"); },
     { timeout: 15000 }).then(() => true).catch(() => false);
   matrixOk ? ok("linjasivu: koko aikataulu -matriisi näyttää vuoroja") : fail("linjasivu: matriisi tyhjä (ei lähtöjä)");
+  // --- Klikattavat lähdöt → pysäkkiaikajana päivittyy + varianttivalikon siivous ---
+  const depBtns = (await page.$$(".timegrid button[data-dep]")).length;
+  depBtns > 0 ? ok(`linjasivu: lähdöt klikattavia nappeja (${depBtns})`) : fail("linjasivu: lähtönapit puuttuvat");
+  const selOk = await page.waitForFunction(
+    () => document.querySelector(".timegrid button.selected")
+       && (document.getElementById("timelineSel")?.textContent || "").trim().length > 0,
+    { timeout: 12000 }).then(() => true).catch(() => false);
+  selOk ? ok("linjasivu: oletuslähtö valittu + aikajanan otsikko näkyy") : fail("linjasivu: oletusvalinta/otsikko puuttuu");
+  const changed = await page.evaluate(async () => {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const sel = document.getElementById("timelineSel");
+    const before = sel.textContent;
+    const beforeTimes = [...document.querySelectorAll("#stopTimeline .stl-time")].map(s => s.textContent).join("|");
+    const other = [...document.querySelectorAll(".timegrid button[data-dep]")].find(b => !b.classList.contains("selected"));
+    if (!other) return { ok: false, reason: "vain yksi lähtö" };
+    other.click();
+    await sleep(150);
+    const afterTimes = [...document.querySelectorAll("#stopTimeline .stl-time")].map(s => s.textContent).join("|");
+    return { ok: sel.textContent !== before && afterTimes !== beforeTimes && other.classList.contains("selected") };
+  });
+  changed.ok ? ok("linjasivu: lähdön klikkaus vaihtaa pysäkkiajat + otsikon")
+             : fail("linjasivu: lähdön klikkaus ei muuttanut aikoja (" + JSON.stringify(changed) + ")");
+  const variantClean = await page.evaluate(() => {
+    const s = document.getElementById("variantSel");
+    return !s || s.options.length > 1;
+  });
+  variantClean ? ok("linjasivu: varianttivalikko siisti (piilossa tai ≥2 kuviota)")
+               : fail("linjasivu: varianttivalikko näkyy yhdellä kuviolla");
   // Lähtömuistutus: kontrolli näkyy kun tänään on tulevia lähtöjä
   const remindUi = await page.waitForFunction(
     () => !!document.querySelector("#remindBox #remindBtn"),
