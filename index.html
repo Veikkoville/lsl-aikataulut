@@ -705,6 +705,16 @@
   .desk-tell-h { font-size: 0.8em; font-weight: var(--wmed); text-transform: uppercase;
     letter-spacing: 0.08em; color: var(--blue); }
   .desk-tell-body { font-size: clamp(1.2rem, 2vw, 1.7rem); line-height: 1.4; margin: 0.35rem 0 0; }
+  /* "Seuraava bussi" -kortti: kun kävely on nopein mutta asiakas kysyi bussia (rauhallinen korostus) */
+  .desk-next-bus { border: 2px solid var(--blue); border-left-width: 6px; border-radius: var(--radius);
+    padding: 0.85rem 1.1rem; margin: 0.2rem 0 0.7rem; background: var(--card); }
+  .desk-next-bus--none { border-color: var(--border); border-left-color: var(--muted); }
+  .desk-next-bus-h { font-size: 0.8em; font-weight: var(--wmed); text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--blue); display: flex; align-items: center; gap: 0.35rem; }
+  .desk-next-bus-h .ic { width: 1.2em; height: 1.2em; }
+  .desk-next-bus-body { font-size: clamp(1.1rem, 1.8vw, 1.5rem); line-height: 1.4; margin: 0.35rem 0 0;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+  .desk-next-bus-body .badge { font-size: 1em; padding: 0.15rem 0.55rem; }
   .desk-opt { border: 2px solid var(--border); border-radius: var(--radius); padding: 0.8rem 1rem; margin: 0.5rem 0; }
   .desk-opt-top { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; align-items: baseline; }
   .desk-opt-time { font-size: 1.3em; font-weight: var(--wmed); font-variant-numeric: tabular-nums; }
@@ -1139,6 +1149,11 @@ const STRINGS = {
     deskTransfer1: "1 vaihto, pysäkillä {stop}.",
     deskTransferN: "{n} vaihtoa ({stop}).",
     deskWalkOnly: "Koko matka kävellen ({dur}).",
+    deskWalkFastest: "Kävely on nyt nopein ({dur}).",
+    deskNextBusTitle: "Seuraava bussi",
+    deskNextBusLine: "Bussi: linja {line} pysäkiltä {stop} klo {dep}, perillä {arr}.",
+    deskNextBusFromTo: "pysäkiltä {stop} klo {dep}, perillä {arr}.",
+    deskNoBusToday: "Tänään ei bussivuoroja tälle välille.",
     deskOptionsTitle: "Kaikki vaihtoehdot",
     deskStopsTitle: "Pysäkit reitillä",
     deskStopTitle: "Pysäkin linjat",
@@ -1509,6 +1524,11 @@ const STRINGS = {
     deskTransfer1: "1 transfer, at stop {stop}.",
     deskTransferN: "{n} transfers ({stop}).",
     deskWalkOnly: "Whole trip on foot ({dur}).",
+    deskWalkFastest: "Walking is fastest right now ({dur}).",
+    deskNextBusTitle: "Next bus",
+    deskNextBusLine: "Bus: line {line} from {stop} at {dep}, arriving {arr}.",
+    deskNextBusFromTo: "from {stop} at {dep}, arriving {arr}.",
+    deskNoBusToday: "No bus departures for this route today.",
     deskOptionsTitle: "All options",
     deskStopsTitle: "Stops on the route",
     deskStopTitle: "Lines at a stop",
@@ -1871,6 +1891,11 @@ const STRINGS = {
     deskTransfer1: "1 byte, vid hållplats {stop}.",
     deskTransferN: "{n} byten ({stop}).",
     deskWalkOnly: "Hela resan till fots ({dur}).",
+    deskWalkFastest: "Att gå är snabbast just nu ({dur}).",
+    deskNextBusTitle: "Nästa buss",
+    deskNextBusLine: "Buss: linje {line} från {stop} kl. {dep}, framme {arr}.",
+    deskNextBusFromTo: "från {stop} kl. {dep}, framme {arr}.",
+    deskNoBusToday: "Inga bussturer för den här sträckan idag.",
     deskOptionsTitle: "Alla alternativ",
     deskStopsTitle: "Hållplatser på rutten",
     deskStopTitle: "Linjer vid en hållplats",
@@ -5820,13 +5845,53 @@ function bindDeskPlace(input, listEl, onPick, onAdvance) {
 }
 
 // "Kerro asiakkaalle" -yhteenveto: nopein yhteys + saman linjan/pysäkin seuraava lähtö.
-function deskTellHtml(nodes) {
+// Ensimmäinen joukkoliikenne-leg (ei kävely/pyöräily) tai null.
+function firstTransitLeg(node) { return node?.legs?.find(l => l.mode !== "WALK" && l.mode !== "BICYCLE") || null; }
+// Aikaisin node jossa on bussileg (ensimmäisen joukkoliikenne-legin lähtöajan mukaan), tai null.
+function soonestBusNode(nodes) {
+  const withBus = (nodes || []).filter(firstTransitLeg);
+  if (!withBus.length) return null;
+  return withBus.reduce((a, b) =>
+    new Date(legTime(firstTransitLeg(a).start)) <= new Date(legTime(firstTransitLeg(b).start)) ? a : b);
+}
+// Vaihdot-teksti nodelle (jaettu tell + kortti).
+function deskTransfersTxt(node) {
+  const tr = node.numberOfTransfers;
+  if (!tr) return "";
+  const tStops = node.legs.filter((l, i) => i > 0 && l.mode !== "WALK" && l.mode !== "BICYCLE").map(l => l.from.name);
+  return tr === 1 ? t("deskTransfer1", { stop: esc(tStops[0] || "") }) : t("deskTransferN", { n: tr, stop: esc(tStops.join(", ")) });
+}
+// "Bussi: linja Y pysäkiltä Z klo HH:MM, perillä HH:MM." (+ vaihdot) — luettavaksi ääneen tellissä.
+function deskBusSentence(node) {
+  const ft = firstTransitLeg(node);
+  const s = t("deskNextBusLine", { line: esc(ft.route?.shortName || ""), stop: esc(ft.from.name),
+    dep: fmtClock(legTime(ft.start)), arr: fmtClock(node.end) });
+  const tr = deskTransfersTxt(node);
+  return tr ? s + " " + tr : s;
+}
+// Korostettu "Seuraava bussi" -kortti (näytetään VAIN kun kävely on nopein). busNode null → ei bussia tänään.
+function deskNextBusHtml(busNode) {
+  const head = `<div class="desk-next-bus-h">${icon("bus")} ${t("deskNextBusTitle")}</div>`;
+  if (!busNode) return `<div class="desk-next-bus desk-next-bus--none">${head}<p>${t("deskNoBusToday")}</p></div>`;
+  const ft = firstTransitLeg(busNode);
+  const bg = ft.route?.color ? "#" + ft.route.color : "var(--btn-bg)";
+  const fg = ft.route?.color ? badgeText(ft.route.color, ft.route.textColor) : "#fff";
+  const tr = deskTransfersTxt(busNode);
+  return `<div class="desk-next-bus">${head}
+    <p class="desk-next-bus-body"><span class="badge" style="background:${bg};color:${fg}">${esc(ft.route?.shortName || "")}</span>
+      ${t("deskNextBusFromTo", { stop: esc(ft.from.name), dep: fmtClock(legTime(ft.start)), arr: fmtClock(busNode.end) })}${tr ? ` <span class="muted">${tr}</span>` : ""}</p></div>`;
+}
+
+function deskTellHtml(nodes, busNode) {
   const node = nodes[0];
   const transit = node.legs.filter(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
   const head = `<div class="desk-tell-h">${t("deskTellTitle")}</div>`;
   if (!transit.length) {
+    // Nopein on pelkkä kävely → kerro silti seuraava bussi (asiakas kysyi bussia)
     const dur = fmtDur((new Date(node.end) - new Date(node.start)) / 1000);
-    return `<div class="desk-tell">${head}<p class="desk-tell-body">${t("deskWalkOnly", { dur })}</p></div>`;
+    const walk = t("deskWalkFastest", { dur });
+    const bus = busNode ? deskBusSentence(busNode) : t("deskNoBusToday");
+    return `<div class="desk-tell">${head}<p class="desk-tell-body">${walk} ${bus}</p></div>`;
   }
   const first = transit[0];
   const line = first.route?.shortName || "";
@@ -5944,9 +6009,21 @@ async function viewServiceDesk() {
     msg.innerHTML = "";
     const nodes = (data.planConnection?.edges || []).map(e => e.node);
     const res = document.getElementById("deskResults");
-    res.innerHTML = nodes.length
-      ? deskTellHtml(nodes) + `<h3 class="desk-h3">${t("deskOptionsTitle")}</h3>` + nodes.map(n => deskOptionHtml(n)).join("")
-      : `<p class="muted">${t("noItineraries")}</p>`;
+    if (!nodes.length) { res.innerHTML = `<p class="muted">${t("noItineraries")}</p>`; return; }
+    // Aina seuraava bussi näkyviin: jos ensisijaisessa haussa ei ole bussia (kävely voittaa tai
+    // vuoroja ei juuri nyt aja), aja pakotettu bussikysely leveällä ikkunalla.
+    const fastestHasBus = !!firstTransitLeg(nodes[0]);
+    let busNode = soonestBusNode(nodes);
+    if (!busNode) {
+      try {
+        const nb = await gql(NEXT_BUS_QUERY, { origin, destination });
+        busNode = (nb.planConnection?.edges || []).map(e => e.node).find(firstTransitLeg) || null;
+      } catch (e) { busNode = null; }
+    }
+    res.innerHTML = deskTellHtml(nodes, busNode)
+      + (fastestHasBus ? "" : deskNextBusHtml(busNode))   // erillinen "Seuraava bussi" -kortti vain kun kävely voittaa
+      + `<h3 class="desk-h3">${t("deskOptionsTitle")}</h3>`
+      + nodes.map(n => deskOptionHtml(n)).join("");
   };
 
   bindDeskPlace(fromEl, document.getElementById("deskFromList"), p => { dFrom = p; }, () => toEl.focus());
@@ -6088,6 +6165,28 @@ const PLAN_QUERY = `
           intermediateStops { name }
           legGeometry { points }
           alerts { alertHeaderText alertSeverityLevel }
+        }
+      } }
+    }
+  }`;
+
+// Toissijainen "seuraava bussi" -kysely palvelutiskille: pakottaa joukkoliikennetuloksen
+// (transitOnly: true → ei koko matkan kävelyä) leveällä aikaikkunalla, kun ensisijaisessa
+// haussa ei ole lainkaan bussia. transit BUS rajaa busseihin. Tyhjä → ei bussia loppupäivänä.
+const NEXT_BUS_QUERY = `
+  query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!) {
+    planConnection(origin: $origin, destination: $destination, first: 3,
+                   searchWindow: "PT16H",
+                   modes: { transitOnly: true, transit: { transit: [{ mode: BUS }] } }) {
+      edges { node {
+        start end numberOfTransfers
+        legs {
+          mode duration
+          start { scheduledTime estimated { time } }
+          end { scheduledTime estimated { time } }
+          from { name stop { platformCode } }
+          to { name }
+          route { gtfsId shortName color textColor }
         }
       } }
     }

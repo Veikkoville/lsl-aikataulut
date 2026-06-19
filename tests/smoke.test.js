@@ -203,6 +203,9 @@ const info = msg => console.log("INFO " + msg);
       const tell = await expect(".desk-tell .desk-tell-body", "palvelutiski: 'Kerro asiakkaalle' -yhteenveto näkyy", 20000);
       const opts = (await page.$$(".desk-opt")).length;
       opts > 0 ? ok(`palvelutiski: yhteysvaihtoehdot (${opts})`) : fail("palvelutiski: vaihtoehtoja ei näy");
+      const busRef = await page.evaluate(() => document.querySelectorAll("#deskResults .badge, #deskResults .desk-next-bus").length);
+      busRef > 0 ? ok("palvelutiski: tulos sisältää aina bussiviittauksen (badge tai 'Seuraava bussi')")
+                 : fail("palvelutiski: bussiviittaus puuttuu tuloksesta");
       if (tell) {
         const stops = await page.evaluate(() => {
           const d = document.querySelector(".desk-opt details.desk-stops"); if (d) d.open = true;
@@ -213,6 +216,32 @@ const info = msg => console.log("INFO " + msg);
       }
     }
   }
+  // Yksikkötestit: "seuraava bussi vaikka kävely voittaa" -logiikka synteettisillä nodeilla
+  const nb = await page.evaluate(() => {
+    const walk = { start: "2026-06-23T12:00:00+03:00", end: "2026-06-23T12:15:00+03:00", numberOfTransfers: 0,
+      legs: [{ mode: "WALK", start: { scheduledTime: "2026-06-23T12:00:00+03:00" }, end: { scheduledTime: "2026-06-23T12:15:00+03:00" }, from: { name: "Origin" }, to: { name: "Destination" }, route: null }] };
+    const bus = { start: "2026-06-23T12:05:00+03:00", end: "2026-06-23T12:25:00+03:00", numberOfTransfers: 0,
+      legs: [
+        { mode: "WALK", start: { scheduledTime: "2026-06-23T12:05:00+03:00" }, end: { scheduledTime: "2026-06-23T12:07:00+03:00" }, from: { name: "Origin" }, to: { name: "Matkakeskus" }, route: null },
+        { mode: "BUS", start: { scheduledTime: "2026-06-23T12:10:00+03:00" }, end: { scheduledTime: "2026-06-23T12:23:00+03:00" }, from: { name: "Matkakeskus D" }, to: { name: "Kauppatori" }, route: { shortName: "32", color: "0a4ea3", textColor: "ffffff" } }] };
+    return {
+      walkHasNoBus: firstTransitLeg(walk) === null,
+      busLine: firstTransitLeg(bus) && firstTransitLeg(bus).route.shortName,
+      soonestIsBus: soonestBusNode([walk, bus]) === bus,
+      tellWithBus: deskTellHtml([walk], bus),
+      tellNoBus: deskTellHtml([walk], null),
+      cardWithBus: deskNextBusHtml(bus),
+      cardNoBus: deskNextBusHtml(null),
+    };
+  });
+  const nbPass = nb.walkHasNoBus && nb.busLine === "32" && nb.soonestIsBus
+    && /32/.test(nb.tellWithBus) && /Matkakeskus D/.test(nb.tellWithBus) && /(nopein|fastest|snabbast)/i.test(nb.tellWithBus)
+    && /(ei bussivuoroja|no bus|inga bussturer)/i.test(nb.tellNoBus)
+    && /class="badge"/.test(nb.cardWithBus) && /32/.test(nb.cardWithBus) && /Matkakeskus D/.test(nb.cardWithBus)
+    && /(ei bussivuoroja|no bus|inga bussturer)/i.test(nb.cardNoBus);
+  nbPass ? ok("palvelutiski: 'seuraava bussi' -logiikka (kävely voittaa → bussi näkyy; ei bussia → selkeä viesti)")
+         : fail("palvelutiski: 'seuraava bussi' -logiikka virheellinen: " + JSON.stringify(nb).slice(0, 300));
+
   // Pysäkin linjat -pikahaku
   await page.click("#deskStop");
   await page.type("#deskStop", "Matkakeskus", { delay: 25 });
