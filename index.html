@@ -776,6 +776,9 @@ const CONFIGS = {
     cityGenitive: "Lahden",               // suomen genetiivi ("Lahden bussiaikataulut")
     operator: "Lahden seudun liikenne",
     operatorShort: "LSL",
+    // {network}-ilmaus homeIntroon/metoihin: Lahti käyttää "seudun"-muotoa (muut: oletus
+    // "[genetiivi] joukkoliikenteessä" johdetaan automaattisesti CONFIGista).
+    network: { fi: "Lahden seudun joukkoliikenteessä", en: "the Lahti region public transport", sv: "Lahtisregionens kollektivtrafik" },
     feedMatch: /lahti/i,                  // GTFS-syötteen tunnistus feedId:stä tai julkaisijasta
     // Ydinkeskustan solmupysäkit: "Keskustan linjat" -pikavalinta tulostusvihkossa
     centerStopNames: ["Kauppatori", "Matkakeskus"],
@@ -916,6 +919,7 @@ const STRINGS = {
     // sovelluskehys
     appTitle: "{cityGen} bussiaikataulut",
     appTitleTag: "{cityGen} bussiaikataulut (epävirallinen)",
+    metaDesc: "{cityGen} bussien aikataulut, reaaliaikaiset lähdöt, reittiopas, häiriötiedotteet, liput ja kartat selaimessa. Epävirallinen palvelu avoimen Waltti-/Digitransit-datan päälle.",
     headerSub: "Epävirallinen palvelu · data: {operator} / Waltti (CC BY 4.0)",
     footerNote: "Tämä on epävirallinen prototyyppi, joka ei ole liikennöitsijän ({operator}) tuottama. Aikataulu- ja reaaliaikadata: {operatorShort} / Waltti avoin data (CC BY 4.0) Digitransit-rajapinnan kautta.",
     footColService: "Palvelu",
@@ -1116,7 +1120,7 @@ const STRINGS = {
     approachFired: "Linja {line} lähestyy pysäkkiä", approachTitle: "Linja {line} lähestyy",
     approachBody: "Bussi saapuu pian pysäkille {stop}.",
     // etusivu
-    homeIntro: "Hae linja-aikatauluja, lähimpiä lähtöjä ja reittejä Lahden seudun joukkoliikenteessä.",
+    homeIntro: "Hae linja-aikatauluja, lähimpiä lähtöjä ja reittejä {network}.",
     loadingRoutes: "Haetaan linjoja…",
     nearbyTitle: "Lähimmät lähdöt",
     rtLegend: "= reaaliaikainen arvio. Päivittyy 30 s välein.",
@@ -1255,6 +1259,7 @@ const STRINGS = {
   en: {
     appTitle: "{city} bus timetables",
     appTitleTag: "{city} bus timetables (unofficial)",
+    metaDesc: "{city} bus timetables, real-time departures, journey planner, disruption alerts, tickets and maps in your browser. Unofficial service built on open Waltti/Digitransit data.",
     headerSub: "Unofficial service · data: {operator} / Waltti (CC BY 4.0)",
     footerNote: "This is an unofficial prototype, not produced by the transit authority ({operator}). Timetable and real-time data: {operatorShort} / Waltti open data (CC BY 4.0) via the Digitransit API.",
     footColService: "Service",
@@ -1423,7 +1428,7 @@ const STRINGS = {
     noDepsRadius: "No departing buses within 800 m. Are you in the {city} region?",
     showNearby: "Show nearest departures",
     geoPrivacy: "Your location is only used to find nearby stops via the Digitransit API and is not stored anywhere.",
-    homeIntro: "Find route timetables, nearby departures and journeys for the Lahti region public transport.",
+    homeIntro: "Find route timetables, nearby departures and journeys for {network}.",
     favsTitle: "Favourites", favTitle: "Favourite",
     favAdd: "Add to favourites", favRemove: "Remove from favourites",
     savedTripsTitle: "My journeys",
@@ -1581,6 +1586,7 @@ const STRINGS = {
   sv: {
     appTitle: "Busstidtabeller i {city}",
     appTitleTag: "Busstidtabeller i {city} (inofficiell)",
+    metaDesc: "Busstidtabeller i {city}, avgångar i realtid, reseplanerare, störningsmeddelanden, biljetter och kartor i webbläsaren. Inofficiell tjänst byggd på öppna Waltti-/Digitransit-data.",
     headerSub: "Inofficiell tjänst · data: {operator} / Waltti (CC BY 4.0)",
     footerNote: "Detta är en inofficiell prototyp som inte har producerats av trafikbolaget ({operator}). Tidtabells- och realtidsdata: {operatorShort} / Waltti öppna data (CC BY 4.0) via Digitransit-gränssnittet.",
     footColService: "Tjänst",
@@ -1749,7 +1755,7 @@ const STRINGS = {
     noDepsRadius: "Inga avgående bussar inom 800 m. Är du i {city}-regionen?",
     showNearby: "Visa närmaste avgångar",
     geoPrivacy: "Din position används endast för att hitta närliggande hållplatser via Digitransit-gränssnittet och sparas inte någonstans.",
-    homeIntro: "Sök linjetidtabeller, närliggande avgångar och resor i Lahtisregionens kollektivtrafik.",
+    homeIntro: "Sök linjetidtabeller, närliggande avgångar och resor i {network}.",
     favsTitle: "Favoriter", favTitle: "Favorit",
     savedTripsTitle: "Mina resor",
     saveTrip: "Spara resa", saveTripRemove: "Ta bort sparad resa",
@@ -1909,10 +1915,22 @@ const STRINGS = {
 let lang = localStorage.getItem("lang") || "fi";
 if (!STRINGS[lang]) lang = "fi";
 
+// Kuntalaiselle näkyvä joukkoliikenneverkon ilmaus (esim. "Kajaanin joukkoliikenteessä").
+// Oletus johdetaan kaupungin genetiivistä/nimestä; CONFIG.network (per kieli) ylikirjoittaa
+// (Lahti käyttää "seudun"-muotoa). Käytetään {network}-placeholderissa, esim. homeIntro.
+function networkPhrase() {
+  if (CONFIG.network && CONFIG.network[lang]) return CONFIG.network[lang];
+  if (CONFIG.network && CONFIG.network.fi) return CONFIG.network.fi;
+  if (lang === "en") return CONFIG.city + " public transport";
+  if (lang === "sv") return CONFIG.city + " kollektivtrafik";
+  return CONFIG.cityGenitive + " joukkoliikenteessä";
+}
+
 function t(key, params) {
   let s = STRINGS[lang][key] ?? STRINGS.fi[key] ?? key;
   const all = { city: CONFIG.city, cityGen: CONFIG.cityGenitive,
-                operator: CONFIG.operator, operatorShort: CONFIG.operatorShort, ...params };
+                operator: CONFIG.operator, operatorShort: CONFIG.operatorShort,
+                network: networkPhrase(), ...params };
   return s.replace(/\{(\w+)\}/g, (_, k) => all[k] ?? "");
 }
 
@@ -1920,6 +1938,17 @@ function t(key, params) {
 function updateChrome() {
   document.documentElement.lang = lang;
   document.title = t("appTitleTag");
+  // Some-/hakukoneiden meta-tagit kaupungin mukaan (staattiset <head>-oletukset ovat
+  // Lahti; some-skraprit eivät aja JS:ää, mutta selain + JS:ää ajavat hakukoneet saavat
+  // oikean kaupungin). og-kuva pysyy Lahti-brändättynä (per-kaupunki-kuvat erikseen).
+  const setMeta = (sel, val) => { const el = document.querySelector(sel); if (el) el.setAttribute("content", val); };
+  setMeta('meta[name="description"]', t("metaDesc"));
+  setMeta('meta[property="og:title"]', t("appTitle"));
+  setMeta('meta[property="og:site_name"]', t("appTitle"));
+  setMeta('meta[property="og:description"]', t("metaDesc"));
+  setMeta('meta[property="og:image:alt"]', t("appTitle"));
+  setMeta('meta[name="twitter:title"]', t("appTitle"));
+  setMeta('meta[name="twitter:description"]', t("metaDesc"));
   document.getElementById("appTitle").textContent = t("appTitle");
   document.getElementById("appSub").textContent = t("headerSub");
   document.getElementById("brandLink").setAttribute("aria-label", t("toHomeAria"));
