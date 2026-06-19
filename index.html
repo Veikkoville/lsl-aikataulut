@@ -230,9 +230,16 @@
     background: var(--rc, var(--chip)); color: var(--rt, var(--text));
   }
   .rt-name { font-size: 0.82rem; line-height: 1.2; color: var(--muted);
-    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow-wrap: anywhere; }
+  /* Vuorokuormitus: värillinen piste emojin tilalle (aria-label säilyttää merkityksen) */
+  .occ-dot { display: inline-block; width: 0.72em; height: 0.72em; border-radius: 50%;
+    vertical-align: -0.04em; margin-left: 0.15em; }
+  .occ-low { background: #1a8a3a; } .occ-mid { background: #b58900; }
+  .occ-high { background: #cf6a00; } .occ-full { background: #c0392b; }
   /* Esteettömyys: pysäkkimerkki + "vain esteettömät" -suodatin */
   .acc-mark { color: var(--blue); }
+  .acc-mark .ic, .occ-ico .ic { vertical-align: -0.18em; }
   .acc-toggle { display: inline-flex; align-items: center; gap: 0.45rem; margin: 0 0 0.7rem;
     font-size: 0.92rem; cursor: pointer; }
   .acc-toggle input { width: auto; min-height: auto; margin: 0; }
@@ -1016,7 +1023,7 @@ const STRINGS = {
     errFeedNotFound: "Kaupungin {city} syötettä ei löytynyt Waltti-rajapinnasta.",
     errLibLoad: "Kirjaston lataus epäonnistui: ",
     errGeocode: "Osoitehaku epäonnistui: HTTP ",
-    staleNote: "⚠ Ei yhteyttä — näytetään viimeksi päivitetty tieto ({when}).",
+    staleNote: "Ei yhteyttä — näytetään viimeksi päivitetty tieto ({when}).",
     dateAt: "{date} klo {time}",
     depNow: "nyt", depMin: "{n} min",
     osmAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-tekijät',
@@ -1127,7 +1134,7 @@ const STRINGS = {
     emailSubEmailLabel: "Sähköpostiosoite",
     emailSubPlaceholder: "nimi@esimerkki.fi",
     emailSubLinesLabel: "Valitse linjat",
-    emailSubFav: "Suosikkilinjasi (★) on valittu valmiiksi.",
+    emailSubFav: "Suosikkilinjasi on valittu valmiiksi.",
     emailSubNoLines: "Linjoja ei juuri nyt saatu ladattua. Yritä myöhemmin uudelleen.",
     emailSubBtn: "Tilaa sähköpostitiedotteet",
     emailSubSending: "Lähetetään…",
@@ -1164,7 +1171,7 @@ const STRINGS = {
     deskNoStop: "Pysäkkiä ei löytynyt.",
     notifyTitle: "Ilmoitukset",
     notifyToggle: "Ilmoita suosikkilinjojen uusista häiriöistä",
-    notifyHint: "Saat ilmoituksen suosikkilinjojesi uusista häiriöistä myös silloin kun sovellus on suljettuna. Lisää linjoja suosikeiksi ★-napilla linjasivulla.",
+    notifyHint: "Saat ilmoituksen suosikkilinjojesi uusista häiriöistä myös silloin kun sovellus on suljettuna. Lisää linjoja suosikeiksi tähti-napilla linjasivulla.",
     notifyDenied: "Ilmoituslupa evättiin selaimen asetuksissa.",
     notifyOn: "Ilmoitukset käytössä.",
     apiKeyTitle: "API-avain",
@@ -1395,7 +1402,7 @@ const STRINGS = {
     errFeedNotFound: "The {city} feed was not found in the Waltti API.",
     errLibLoad: "Failed to load library: ",
     errGeocode: "Address search failed: HTTP ",
-    staleNote: "⚠ No connection — showing last updated data ({when}).",
+    staleNote: "No connection — showing last updated data ({when}).",
     dateAt: "{date} at {time}",
     depNow: "now", depMin: "{n} min",
     osmAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -1502,7 +1509,7 @@ const STRINGS = {
     emailSubEmailLabel: "Email address",
     emailSubPlaceholder: "name@example.com",
     emailSubLinesLabel: "Choose lines",
-    emailSubFav: "Your favourite lines (★) are pre-selected.",
+    emailSubFav: "Your favourite lines are pre-selected.",
     emailSubNoLines: "Couldn't load lines right now. Please try again later.",
     emailSubBtn: "Subscribe to email alerts",
     emailSubSending: "Sending…",
@@ -1539,7 +1546,7 @@ const STRINGS = {
     deskNoStop: "Stop not found.",
     notifyTitle: "Notifications",
     notifyToggle: "Notify about new disruptions on favourite routes",
-    notifyHint: "You'll get a notification about new disruptions on your favourite routes even when the app is closed. Add favourite routes with the ★ button on a route page.",
+    notifyHint: "You'll get a notification about new disruptions on your favourite routes even when the app is closed. Add favourite routes with the star button on a route page.",
     notifyDenied: "Notification permission was denied in browser settings.",
     notifyOn: "Notifications enabled.",
     apiKeyTitle: "API key",
@@ -1762,7 +1769,7 @@ const STRINGS = {
     errFeedNotFound: "Flödet för {city} hittades inte i Waltti-gränssnittet.",
     errLibLoad: "Biblioteket kunde inte laddas: ",
     errGeocode: "Adresssökningen misslyckades: HTTP ",
-    staleNote: "⚠ Ingen anslutning — visar senast uppdaterad information ({when}).",
+    staleNote: "Ingen anslutning — visar senast uppdaterad information ({when}).",
     dateAt: "{date} kl. {time}",
     depNow: "nu", depMin: "{n} min",
     osmAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-bidragsgivare',
@@ -1869,7 +1876,7 @@ const STRINGS = {
     emailSubEmailLabel: "E-postadress",
     emailSubPlaceholder: "namn@exempel.fi",
     emailSubLinesLabel: "Välj linjer",
-    emailSubFav: "Dina favoritlinjer (★) är förvalda.",
+    emailSubFav: "Dina favoritlinjer är förvalda.",
     emailSubNoLines: "Linjerna kunde inte laddas just nu. Försök igen senare.",
     emailSubBtn: "Prenumerera på e-postmeddelanden",
     emailSubSending: "Skickar…",
@@ -1906,7 +1913,7 @@ const STRINGS = {
     deskNoStop: "Hållplatsen hittades inte.",
     notifyTitle: "Aviseringar",
     notifyToggle: "Meddela om nya störningar på favoritlinjer",
-    notifyHint: "Du får en avisering om nya störningar på dina favoritlinjer även när appen är stängd. Lägg till favoritlinjer med ★-knappen på linjesidan.",
+    notifyHint: "Du får en avisering om nya störningar på dina favoritlinjer även när appen är stängd. Lägg till favoritlinjer med stjärnknappen på linjesidan.",
     notifyDenied: "Aviseringstillstånd nekades i webbläsarens inställningar.",
     notifyOn: "Aviseringar aktiverade.",
     apiKeyTitle: "API-nyckel",
@@ -2238,7 +2245,7 @@ function staleNoteHtml(ts) {
   const sameDay = d.toDateString() === new Date().toDateString();
   const when = sameDay ? time
     : t("dateAt", { date: d.toLocaleDateString(lang === "fi" ? "fi-FI" : lang === "sv" ? "sv-FI" : "en-GB"), time });
-  return `<p class="muted">${t("staleNote", { when })}</p>`;
+  return `<p class="muted">${icon("warning")} ${t("staleNote", { when })}</p>`;
 }
 
 // Käynnistyssiivous: vanhentuneet ja ylimääräiset cache-avaimet pois
@@ -2467,6 +2474,19 @@ const ICONS = {
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/>',
+  bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.5 21a2 2 0 0 1-3 0"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/>',
+  speaker: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/>',
+  doc: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  walk: '<circle cx="13" cy="4" r="2"/><path d="M13 6l-2 6 3 2 1 6M11 12l-3 1-1 4M14 14l3 1"/>',
+  bike: '<circle cx="6" cy="17" r="3.3"/><circle cx="18" cy="17" r="3.3"/><path d="M6 17l4-7h4l-2 7M9 6h3l3 4"/>',
+  leaf: '<path d="M5 19c0-8 6-13 14-14 1 8-4 14-14 14z"/><path d="M5 19c4-5 7-7 10-8"/>',
+  wheelchair: '<circle cx="12" cy="4" r="2"/><path d="M11 7v5h5l3 6M11 9.5a5 5 0 1 0 4.5 8"/>',
+  qr: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v7h-7"/>',
+  home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  download: '<path d="M12 3v12M7 11l5 5 5-5M5 21h14"/>',
 };
 function icon(name, cls) {
   return `<svg class="ic${cls ? " " + cls : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor"` +
@@ -2551,7 +2571,7 @@ async function showQrInto(box, url, caption, fileBase) {
     dl.download = fileBase + ".png";
     dl.className = "btnlink";
     dl.style.marginTop = "0.5rem";
-    dl.innerHTML = "⬇ " + esc(t("qrDownload"));
+    dl.innerHTML = icon("download") + " " + esc(t("qrDownload"));
     const cap = document.createElement("p");
     cap.className = "muted";
     cap.textContent = caption;
@@ -2634,6 +2654,18 @@ function makeMap(elId, center, zoom) {
     maxZoom: 19,
   }).addTo(map);
   return map;
+}
+
+// Rajaa kartta AINA reitin/pysäkkien bboxiin (ei oletuszoomiin). Jos bbox puuttuu tai on
+// virheellinen, fall back kaupungin keskipisteeseen — ei koskaan maailmanlaajuista näkymää.
+function fitMap(map, bounds, fallbackLatLon) {
+  try { map.invalidateSize(false); } catch (e) {}
+  if (bounds && bounds.isValid && bounds.isValid()) {
+    map.fitBounds(bounds, { padding: [20, 20], maxZoom: 16 });
+    return;
+  }
+  // bbox puuttuu: aseta fallback-näkymä vain jos karttaa ei ole vielä keskitetty (makeMap ilman keskipistettä)
+  try { map.getCenter(); } catch (e) { map.setView(fallbackLatLon || [AREA.focus.lat, AREA.focus.lon], 13); }
 }
 
 const STOP_MARKER = { radius: 5, color: "#0a4ea3", weight: 2, fillColor: "#fff", fillOpacity: 1 };
@@ -3341,7 +3373,7 @@ async function loadAlertsInto(box) {
     const label = alerts.length === 1 ? t("alertsCount1") : t("alertsCountN", { n: alerts.length });
     box.innerHTML = `
       <details class="card alertsum">
-        <summary><span aria-hidden="true">⚠</span> <strong>${label}</strong></summary>
+        <summary>${icon("warning")} <strong>${label}</strong></summary>
         ${alerts.map(alertHtml).join("")}
       </details>`;
   } catch (err) {
@@ -3612,13 +3644,13 @@ function bindUnifiedSearch(input, results) {
         if (stopHits.length) {
           html += `<li class="search-cat">${t("catStops")}</li>` +
             stopHits.map(s => `<li><a class="item" href="#/pysakki/${encodeURIComponent(s.gtfsId)}">
-              <span><span aria-hidden="true">🚏</span> ${esc(s.name)}</span>
+              <span>${icon("pin")} ${esc(s.name)}</span>
               <span class="muted">${esc(s.code || "")}</span></a></li>`).join("");
         }
         if (placeHits.length) {
           html += `<li class="search-cat">${t("catPlaces")}</li>` +
             placeHits.map((p, i) => `<li><button class="item" type="button" data-place="${i}">
-              <span><span aria-hidden="true">${PLACE_ICONS[p.layer] || "📍"}</span> ${esc(p.name)}</span></button></li>`).join("");
+              <span>${icon(PLACE_ICONS[p.layer] || "pin")} ${esc(p.name)}</span></button></li>`).join("");
         }
         if (!html) track("search_fail", q);   // haku ilman osumia = suunnittelijoille arvokas signaali
         results.innerHTML = html || `<li><p class="muted">${t("noMatches")}</p></li>`;
@@ -3700,7 +3732,7 @@ function toggleFav(item) {
 function favButtonHtml(id) {
   const fav = isFav(id);
   return `<button class="star no-print" id="favBtn" aria-pressed="${fav}"
-    aria-label="${fav ? t("favRemove") : t("favAdd")}" title="${t("favTitle")}">★</button>`;
+    aria-label="${fav ? t("favRemove") : t("favAdd")}" title="${t("favTitle")}">${icon("star")}</button>`;
 }
 
 function bindFavButton(item) {
@@ -3777,17 +3809,17 @@ let nearbyAccessibleOnly = localStorage.getItem(ns("accOnly")) === "1";
 // Täyttöaste näytetään vain kun syöte kertoo sen; LSL:n GTFS-RT antaa nyt
 // NO_DATA_AVAILABLE, jolloin ikonia ei näytetä lainkaan (degrade gracefully)
 const OCCUPANCY_LABELS = {
-  EMPTY: ["🟢", "occEmpty"],
-  MANY_SEATS_AVAILABLE: ["🟢", "occMany"],
-  FEW_SEATS_AVAILABLE: ["🟡", "occFew"],
-  STANDING_ROOM_ONLY: ["🟠", "occStanding"],
-  CRUSHED_STANDING_ROOM_ONLY: ["🔴", "occCrushed"],
-  FULL: ["🔴", "occFull"],
+  EMPTY: ["low", "occEmpty"],
+  MANY_SEATS_AVAILABLE: ["low", "occMany"],
+  FEW_SEATS_AVAILABLE: ["mid", "occFew"],
+  STANDING_ROOM_ONLY: ["high", "occStanding"],
+  CRUSHED_STANDING_ROOM_ONLY: ["full", "occCrushed"],
+  FULL: ["full", "occFull"],
 };
 
 function occupancyHtml(trip) {
   const o = OCCUPANCY_LABELS[trip?.occupancy?.occupancyStatus];
-  return o ? ` <span role="img" aria-label="${t(o[1])}" title="${t(o[1])}">${o[0]}</span>` : "";
+  return o ? ` <span class="occ-dot occ-${o[0]}" role="img" aria-label="${t(o[1])}" title="${t(o[1])}"></span>` : "";
 }
 
 // WCAG-kontrasti: syötteen tekstiväriä käytetään vain jos se täyttää 4.5:1,
@@ -3824,7 +3856,7 @@ function depTableRows(stoptimes) {
   }).map(st => {
     const d = depInfo(st);
     const acc = st.trip?.wheelchairAccessible === "POSSIBLE"
-      ? ` <span role="img" aria-label="${t("accVehicle")}" title="${t("accVehicle")}">♿</span>` : "";
+      ? ` <span role="img" aria-label="${t("accVehicle")}" title="${t("accVehicle")}">${icon("wheelchair")}</span>` : "";
     const rid = st.trip && st.trip.route && st.trip.route.gtfsId;
     const badge = rid
       ? `<a class="badgelink" href="#/linjakartta/${encodeURIComponent(rid)}" title="${t("lineMapLink")}">${badgeHtml(st.trip.route)}</a>`
@@ -3841,7 +3873,7 @@ function stopDepGroupHtml(stop, extra) {
   const rows = depTableRows(stop.stoptimesWithoutPatterns);
   if (!rows) return "";
   const acc = stop.wheelchairBoarding === "POSSIBLE"
-    ? ` <span class="acc-mark" role="img" aria-label="${t("accStop")}" title="${t("accStop")}">♿</span>` : "";
+    ? ` <span class="acc-mark" role="img" aria-label="${t("accStop")}" title="${t("accStop")}">${icon("wheelchair")}</span>` : "";
   return `<h3 class="stophead"><a href="#/pysakki/${encodeURIComponent(stop.gtfsId)}">${esc(stop.name)}</a>${acc}
       ${extra ? `<span class="dist">${extra}</span>` : ""}</h3>
     <table class="deps"><tbody>${rows}</tbody></table>`;
@@ -3861,7 +3893,7 @@ async function renderNearby() {
       .sort((a, b) => a.distance - b.distance);
     const groups = (nearbyAccessibleOnly
       ? all.filter(n => n.stop.wheelchairBoarding === "POSSIBLE") : all).slice(0, 5);
-    const toggle = `<label class="acc-toggle no-print"><input type="checkbox" id="accOnly"${nearbyAccessibleOnly ? " checked" : ""}> <span>♿ ${t("accOnlyToggle")}</span></label>`;
+    const toggle = `<label class="acc-toggle no-print"><input type="checkbox" id="accOnly"${nearbyAccessibleOnly ? " checked" : ""}> <span>${icon("wheelchair")} ${t("accOnlyToggle")}</span></label>`;
     const list = groups.length
       ? (cachedAt ? staleNoteHtml(cachedAt) : "")
         + groups.map(n => stopDepGroupHtml(n.stop, n.distance + " m")).join("")
@@ -4138,7 +4170,7 @@ async function viewRouteMap(routeId) {
     <div class="card">
       <h2>${badgeHtml(route)} <span>${esc(route.longName || "")}</span></h2>
       <p class="muted">${t("lineMapHint")}</p>
-      <p><a class="btnlink secondary" href="#/linja/${encodeURIComponent(routeId)}">📋 ${t("lineFullTimetable")}</a></p>
+      <p><a class="btnlink secondary" href="#/linja/${encodeURIComponent(routeId)}">${icon("list")} ${t("lineFullTimetable")}</a></p>
       <div id="lineMap" class="map bigmap" aria-label="${esc(t("mapAria"))}"></div>
     </div>`);
   document.getElementById("backBtn").addEventListener("click", () => history.back());
@@ -4170,7 +4202,7 @@ async function viewRouteMap(routeId) {
       L.circleMarker([s.lat, s.lon], { radius: 4, color, weight: 2, fillColor: "#fff", fillOpacity: 1 })
         .addTo(map).bindPopup(`<a href="#/pysakki/${encodeURIComponent(s.gtfsId)}">${esc(s.name)}</a>`);
     }
-    if (bounds) map.fitBounds(bounds, { padding: [20, 20] });
+    fitMap(map, bounds);
     startVehicles(map, [{ gtfsId: routeId, shortName: route.shortName }]);
   } catch (err) {
     const el = document.getElementById("lineMap");
@@ -4249,7 +4281,7 @@ async function viewRoute(routeId, patternCode, date) {
     <div class="card">
       <h2>${favButtonHtml(routeId)}${badgeHtml(route)} ${esc(route.longName)}</h2>
       <div id="routeAlerts">${routeAlertsHtml}</div>
-      <p class="no-print" style="margin:0.2rem 0"><a class="btnlink secondary" href="#/linjakartta/${encodeURIComponent(routeId)}"><span aria-hidden="true">🗺</span> ${t("lineMapLink")}</a></p>
+      <p class="no-print" style="margin:0.2rem 0"><a class="btnlink secondary" href="#/linjakartta/${encodeURIComponent(routeId)}">${icon("map")} ${t("lineMapLink")}</a></p>
       <div class="tabs" role="group" aria-label="${t("directionAria")}">
         ${primaries.map(p => `
           <button data-pattern="${esc(p.code)}" aria-pressed="${p === current}">
@@ -4286,9 +4318,9 @@ async function viewRoute(routeId, patternCode, date) {
       <h2 class="no-print">${t("fullTimetableTitle")}</h2>
       <p class="muted no-print">${t("fullTimetableHint")}</p>
       <div class="row no-print" style="flex-wrap:wrap;gap:0.4rem">
-        <button id="printKeyBtn">🖨 ${t("printKeyStopsPort")}</button>
-        <button id="printAllBtn">🖨 ${t("printAllStopsLand")}</button>
-        <button id="lineQrBtn" class="secondary"><span aria-hidden="true">🔳</span> ${t("qrButton")}</button>
+        <button id="printKeyBtn">${icon("print")} ${t("printKeyStopsPort")}</button>
+        <button id="printAllBtn">${icon("print")} ${t("printAllStopsLand")}</button>
+        <button id="lineQrBtn" class="secondary">${icon("qr")} ${t("qrButton")}</button>
         <span id="linePrintStatus" class="muted" role="status"></span>
       </div>
       <div id="lineQr" class="qrbox no-print" hidden></div>
@@ -4337,7 +4369,7 @@ async function viewRoute(routeId, patternCode, date) {
           .bindPopup(`<a href="#/pysakki/${encodeURIComponent(s.gtfsId)}">${esc(s.name)}</a>`);
       }
       if (!bounds && located.length) bounds = L.latLngBounds(located.map(s => [s.lat, s.lon]));
-      if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
+      fitMap(map, bounds);
       startVehicles(map, [{ gtfsId: routeId, shortName: route.shortName }]);
     } catch (err) {
       mapEl.outerHTML = `<div class="error">${t("mapFail")}${esc(err.message)}</div>`;
@@ -4416,7 +4448,7 @@ async function viewRoute(routeId, patternCode, date) {
         }).join(" · ")}</p>`;
         if (pushSupported()) {
           remindHtml = `<div class="remind no-print" id="remindBox">
-            <label>🔔 ${t("remindBefore")}
+            <label>${icon("bell")} ${t("remindBefore")}
               <select id="remindLead" aria-label="${t("remindBefore")}">
                 <option value="5">5</option><option value="10" selected>10</option><option value="15">15</option>
               </select> ${t("remindUnit")}</label>
@@ -4638,9 +4670,9 @@ async function viewStop(stopId) {
   const { stop, cachedAt } = await fetchStop();
   lastStopData = stop;
   const accNote = stop.wheelchairBoarding === "POSSIBLE"
-    ? `<p class="muted">♿ ${t("accStop")}</p>`
+    ? `<p class="muted">${icon("wheelchair")} ${t("accStop")}</p>`
     : stop.wheelchairBoarding === "NOT_POSSIBLE"
-      ? `<p class="muted">⚠ ${t("accStopNo")}</p>` : "";
+      ? `<p class="muted">${icon("warning")} ${t("accStopNo")}</p>` : "";
   setView(`
     <nav class="crumb"><button class="linkish" id="backBtn">← ${t("back")}</button> · <a href="#/">${t("home")}</a></nav>
     <div class="card">
@@ -4654,13 +4686,13 @@ async function viewStop(stopId) {
       </table>
       <p class="muted"><span class="rt">●</span> ${t("rtLegendStop")}</p>
       <p class="no-print" style="margin:0.6rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center">
-        <button type="button" id="stopPosterBtn">🖨 ${t("printStopPoster")}</button>
-        <a class="btnlink secondary" href="#/monitori/${encodeURIComponent(stopId)}"><span aria-hidden="true">🖥</span> ${t("monitorLink")}</a>
-        ${("speechSynthesis" in window) ? `<button type="button" id="speakBtn" class="secondary"><span aria-hidden="true">🔊</span> ${t("speakAloud")}</button>` : ""}
-        <button type="button" id="stopQrBtn" class="secondary"><span aria-hidden="true">🔳</span> ${t("qrButton")}</button>
-        <button type="button" id="stopEmbedBtn" class="secondary"><span aria-hidden="true">🔗</span> ${t("embedButton")}</button>
+        <button type="button" id="stopPosterBtn">${icon("print")} ${t("printStopPoster")}</button>
+        <a class="btnlink secondary" href="#/monitori/${encodeURIComponent(stopId)}">${icon("monitor")} ${t("monitorLink")}</a>
+        ${("speechSynthesis" in window) ? `<button type="button" id="speakBtn" class="secondary">${icon("speaker")} ${t("speakAloud")}</button>` : ""}
+        <button type="button" id="stopQrBtn" class="secondary">${icon("qr")} ${t("qrButton")}</button>
+        <button type="button" id="stopEmbedBtn" class="secondary">${icon("link")} ${t("embedButton")}</button>
         ${(stop.lat != null && (stop.routes || []).length && "Notification" in window)
-          ? `<button type="button" id="approachBtn" class="secondary"><span aria-hidden="true">🔔</span> ${t("approachArm")}</button>` : ""}
+          ? `<button type="button" id="approachBtn" class="secondary">${icon("bell")} ${t("approachArm")}</button>` : ""}
         <span id="stopPrintStatus" class="muted" role="status"></span>
       </p>
       <div id="approachBanner" class="approach-banner no-print" role="status" aria-live="polite" hidden></div>
@@ -4684,7 +4716,7 @@ async function viewStop(stopId) {
     const banner = document.getElementById("approachBanner");
     if (banner) {
       banner.hidden = false;
-      banner.innerHTML = `🔔 <strong>${esc(t("approachFired", { line: routeName }))}</strong>${dest ? ` · ${esc(dest)}` : ""}`;
+      banner.innerHTML = `${icon("bell")} <strong>${esc(t("approachFired", { line: routeName }))}</strong>${dest ? ` · ${esc(dest)}` : ""}`;
     }
     try {
       if ("Notification" in window && Notification.permission === "granted")
@@ -4708,7 +4740,7 @@ async function viewStop(stopId) {
     if (approachArmed) {
       approachArmed = false; notifiedVeh.clear();
       btn.classList.remove("armed");
-      btn.innerHTML = `<span aria-hidden="true">🔔</span> ${t("approachArm")}`;
+      btn.innerHTML = `${icon("bell")} ${t("approachArm")}`;
       if (banner) { banner.hidden = true; banner.innerHTML = ""; }
       return;
     }
@@ -4716,7 +4748,7 @@ async function viewStop(stopId) {
     if (perm === "default") { try { perm = await Notification.requestPermission(); } catch (e) {} }
     approachArmed = true;
     btn.classList.add("armed");
-    btn.innerHTML = `<span aria-hidden="true">🔔</span> ${t("approachOn")}`;
+    btn.innerHTML = `${icon("bell")} ${t("approachOn")}`;
     if (banner) {
       banner.hidden = false;
       banner.textContent = perm === "granted" ? t("approachWaiting") : t("approachWaitingNoPerm");
@@ -5020,7 +5052,7 @@ async function viewNetworkMap() {
       bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
       drawn++;
     }
-    if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
+    fitMap(map, bounds);
     const el = document.getElementById("netCount");
     if (el) el.textContent = t("netMapCount", { n: drawn });
   } catch (e) {
@@ -5080,7 +5112,7 @@ async function viewHubs(parts) {
       <p class="muted">${t("hubIntro")}</p>
       <div class="tabs plat-tabs" role="group" aria-label="${esc(t("hubTitle"))}">${tabs}</div>
       <div id="hubMap" class="map bigmap" aria-label="${esc(t("hubMapAria", { hub: hub.name }))}"></div>
-      <p class="muted">📄 <a href="${esc(hub.pdf)}" target="_blank" rel="noopener">${t("hubOfficialMap")}</a><br><span class="muted">${t("hubOfficialNote")}</span></p>
+      <p class="muted">${icon("doc")} <a href="${esc(hub.pdf)}" target="_blank" rel="noopener">${t("hubOfficialMap")}</a><br><span class="muted">${t("hubOfficialNote")}</span></p>
       <div id="hubList"><p class="muted">${t("hubLoading")}</p></div>
     </div>`);
   document.querySelectorAll("[data-hub-tab]").forEach(btn =>
@@ -5124,7 +5156,7 @@ async function viewHubs(parts) {
         (badges ? `<div class="plat-lines">${badges}</div>` : `<p class="muted">${t("hubNoLines")}</p>`) +
         `</li>`);
     }
-    if (bounds) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 17 });
+    fitMap(map, bounds);
     const listEl = document.getElementById("hubList");
     if (listEl) listEl.innerHTML = stops.length
       ? `<ul class="plat-list">${listHtml.join("")}</ul>`
@@ -5198,7 +5230,7 @@ function viewExceptions() {
       <p class="muted">${t("exIntro")}</p>
       <p class="muted">${t("exNote")}</p>
       ${all.length ? `<ul class="ex-list">${rows}</ul>` : `<p>${t("exNone")}</p>`}
-      <p style="margin-top:0.8rem"><a class="item" href="#/"><span aria-hidden="true">🚌</span> <span>${t("exCheckCta")}</span></a></p>
+      <p style="margin-top:0.8rem"><a class="item" href="#/">${icon("bus")} <span>${t("exCheckCta")}</span></a></p>
     </div>`);
 }
 
@@ -5371,7 +5403,7 @@ async function viewPrintHub() {
         const stops = (res.stops || []).filter(s => s.gtfsId.startsWith(feedId + ":")).slice(0, 8);
         sr.innerHTML = stops.length
           ? stops.map(s => `<li><button class="item" type="button" data-stop="${esc(s.gtfsId)}">
-              <span><span aria-hidden="true">🚏</span> ${esc(s.name)}</span>
+              <span>${icon("pin")} ${esc(s.name)}</span>
               <span class="muted">${esc(s.code || "")}</span></button></li>`).join("")
           : `<li><p class="muted">${t("noMatches")}</p></li>`;
         sr.querySelectorAll("button[data-stop]").forEach(b => b.addEventListener("click", () => {
@@ -5482,7 +5514,7 @@ async function searchPlaces(q) {
   return [...stops, ...places].slice(0, 9);
 }
 
-const PLACE_ICONS = { stop: "🚏", address: "🏠", street: "🏠", venue: "📍" };
+const PLACE_ICONS = { stop: "pin", address: "home", street: "home", venue: "pin" };
 
 /* Viimeksi haetut paikat nopeuttavat toistuvia hakuja */
 function getRecents() {
@@ -5558,7 +5590,7 @@ async function renderSavedTrips() {
     <div class="saved-trip">
       <div class="saved-row">
         <a class="item" href="${esc(tripHash(tr.from, tr.to))}">
-          <span><span aria-hidden="true">⭐</span> <span>${esc(tr.name)}</span></span>
+          <span>${icon("star")} <span>${esc(tr.name)}</span></span>
         </a>
         <button class="star" data-del="${esc(tr.id)}" aria-label="${t("tripRemove")}" title="${t("tripRemove")}">✕</button>
       </div>
@@ -5603,7 +5635,7 @@ function bindPlaceInput(input, listEl, onPick) {
     if (!recents.length) return;
     listEl.innerHTML = `<li><p class="muted" style="padding:0.3rem 0.45rem;margin:0">${t("recent")}</p></li>`
       + recents.map((p, i) => `<li><button type="button" class="item" data-r="${i}">
-          <span aria-hidden="true">🕓</span><span>${esc(p.name)}</span></button></li>`).join("");
+          ${icon("clock")}<span>${esc(p.name)}</span></button></li>`).join("");
     listEl.hidden = false;
     listEl.querySelectorAll("button[data-r]").forEach(btn =>
       btn.addEventListener("click", () => pick(recents[Number(btn.dataset.r)])));
@@ -5620,7 +5652,7 @@ function bindPlaceInput(input, listEl, onPick) {
         if (my !== seq) return;
         listEl.innerHTML = places.length
           ? places.map((p, i) => `<li><button type="button" class="item" data-i="${i}">
-              <span aria-hidden="true">${PLACE_ICONS[p.layer] || "📍"}</span>
+              ${icon(PLACE_ICONS[p.layer] || "pin")}
               <span>${esc(p.name)}</span></button></li>`).join("")
           : `<li><p class="muted" style="padding:0.4rem">${t("noPlacesFor", { q: esc(q) })}</p></li>`;
         listEl.hidden = false;
@@ -5825,7 +5857,7 @@ function bindDeskPlace(input, listEl, onPick, onAdvance) {
         places = r;
         listEl.innerHTML = r.length
           ? r.map((p, i) => `<li><button type="button" class="item" data-i="${i}">
-              <span aria-hidden="true">${PLACE_ICONS[p.layer] || "📍"}</span><span>${esc(p.name)}</span></button></li>`).join("")
+              ${icon(PLACE_ICONS[p.layer] || "pin")}<span>${esc(p.name)}</span></button></li>`).join("")
           : `<li><p class="muted" style="padding:0.4rem">${t("noPlacesFor", { q: esc(q) })}</p></li>`;
         listEl.hidden = false;
         listEl.querySelectorAll("button[data-i]").forEach(btn =>
@@ -6066,7 +6098,7 @@ async function viewServiceDesk() {
         .filter(s => (s.routes || []).length).slice(0, 12);
       stopList.innerHTML = stopMatches.length
         ? stopMatches.map((s, i) => `<li><button type="button" class="item" data-s="${i}">
-            <span aria-hidden="true">🚏</span><span>${esc(s.name)}${s.code ? " (" + esc(s.code) + ")" : ""}</span></button></li>`).join("")
+            ${icon("pin")}<span>${esc(s.name)}${s.code ? " (" + esc(s.code) + ")" : ""}</span></button></li>`).join("")
         : `<li><p class="muted" style="padding:0.4rem">${t("deskNoStop")}</p></li>`;
       stopList.hidden = false;
       stopList.querySelectorAll("button[data-s]").forEach(btn =>
@@ -6205,7 +6237,7 @@ const DIRECT_QUERY = `
     }
   }`;
 
-const MODE_ICONS = { WALK: "🚶", BICYCLE: "🚴" };
+const MODE_ICONS = { WALK: "walk", BICYCLE: "bike" };
 
 function fmtKm(m) {
   const km = (m / 1000).toFixed(1);
@@ -6220,7 +6252,7 @@ function legBarHtml(node) {
   return `<span class="legbar" aria-hidden="true">${node.legs.map(leg => {
     const grow = Math.max(leg.duration / total, 0.04);
     if (leg.mode === "WALK" || leg.mode === "BICYCLE") {
-      return `<span class="seg walk" style="flex-grow:${grow.toFixed(3)}">${MODE_ICONS[leg.mode] || ""}</span>`;
+      return `<span class="seg walk" style="flex-grow:${grow.toFixed(3)}">${MODE_ICONS[leg.mode] ? icon(MODE_ICONS[leg.mode]) : ""}</span>`;
     }
     const bg = leg.route?.color ? "#" + leg.route.color : "var(--btn-bg)";
     const fg = leg.route?.color ? badgeText(leg.route.color, leg.route.textColor) : "#fff";
@@ -6250,7 +6282,7 @@ function timelineHtml(node) {
         <div class="tl-row leg dashed">
           <span class="tl-time"></span>
           <span class="tl-mid" aria-hidden="true"></span>
-          <div class="tl-body">${MODE_ICONS[leg.mode]} ${t(leg.mode === "WALK" ? "walkVerb" : "bikeVerb")}
+          <div class="tl-body">${icon(MODE_ICONS[leg.mode])} ${t(leg.mode === "WALK" ? "walkVerb" : "bikeVerb")}
             ${Math.round(leg.distance)} m
             <span class="muted">(${fmtDur(leg.duration)})</span></div>
         </div>`);
@@ -6261,7 +6293,7 @@ function timelineHtml(node) {
       const midLabel = mids.length === 0 ? t("intermediate0")
         : mids.length === 1 ? t("intermediate1") : t("intermediateN", { n: mids.length });
       const alerts = (leg.alerts || []).map(a =>
-        `<p class="muted">⚠ ${esc(a.alertHeaderText || t("legAlertDefault"))}</p>`).join("");
+        `<p class="muted">${icon("warning")} ${esc(a.alertHeaderText || t("legAlertDefault"))}</p>`).join("");
       rows.push(`
         <div class="tl-row leg" style="--rail:${rail}">
           <span class="tl-time"></span>
@@ -6347,7 +6379,7 @@ function co2Html(node) {
   const km = transitKm(node);
   if (km < 0.3) return "";                 // hyvin lyhyt bussiosuus → ei näytetä
   const saved = km * (CO2_CAR_KG_PER_KM - CO2_BUS_KG_PER_KM);
-  return `<p class="co2" title="${esc(t("co2Basis"))}"><span aria-hidden="true">🌱</span> ${t("co2Saved", { kg: fmtKg(saved) })}</p>`;
+  return `<p class="co2" title="${esc(t("co2Basis"))}">${icon("leaf")} ${t("co2Saved", { kg: fmtKg(saved) })}</p>`;
 }
 
 function itinHtml(node, idx) {
@@ -6366,7 +6398,7 @@ function directHtml(node, key) {
   return `<details class="itin direct" data-direct="${key}">
     <summary>
       <span class="itin-head">
-        <span>${MODE_ICONS[leg.mode]} <strong>${label}</strong></span>
+        <span>${icon(MODE_ICONS[leg.mode])} <strong>${label}</strong></span>
         <span>${fmtDur(node.legs.reduce((s, l) => s + l.duration, 0))}</span>
         <span class="muted">${fmtKm(node.legs.reduce((s, l) => s + l.distance, 0))}</span>
       </span>
@@ -6424,7 +6456,7 @@ async function viewPlan(parts) {
                    autocomplete="off" value="${esc(planState.from?.name || "")}">
             <ul class="plain suggest-list" id="fromList" hidden></ul>
           </div>
-          <button type="button" id="fromGeo" class="linkish">📍 ${t("useMyLocation")}</button>
+          <button type="button" id="fromGeo" class="linkish">${icon("pin")} ${t("useMyLocation")}</button>
           <button type="button" id="swapBtn" class="linkish" title="${t("swap")}"
                   aria-label="${t("swap")}">⇅ ${t("swap")}</button>
         </div>
@@ -6448,12 +6480,12 @@ async function viewPlan(parts) {
         </div>
         <div class="row" style="flex-wrap:wrap; margin-top:0.4rem">
           <label><input type="checkbox" id="wheelchairBox"${planState.wheelchair ? " checked" : ""}>
-            ♿ ${t("wheelchairRoute")}</label>
+            ${icon("wheelchair")} ${t("wheelchairRoute")}</label>
           <label><input type="checkbox" id="lessWalkBox"${planState.lessWalk ? " checked" : ""}>
             ${t("lessWalk")}</label>
         </div>
         <p class="row" style="margin-top:0.4rem">
-          <button type="button" id="saveTripBtn" class="linkish">★ <span id="saveTripLabel">${t("saveTrip")}</span></button>
+          <button type="button" id="saveTripBtn" class="linkish">${icon("star")} <span id="saveTripLabel">${t("saveTrip")}</span></button>
         </p>
       </form>
       <div id="planMsg" role="status"></div>
@@ -6525,7 +6557,7 @@ async function viewPlan(parts) {
     results.innerHTML = nodes.length || directRow
       ? `<div class="card">
            <h2>${t("itinerariesTitle")}
-             <button id="shareBtn" class="linkish no-print" style="float:right">🔗 ${t("share")}</button></h2>
+             <button id="shareBtn" class="linkish no-print" style="float:right">${icon("link")} ${t("share")}</button></h2>
            ${directRow}
            ${lastHasPrev && nodes.length ? `<button id="earlierBtn" class="linkish no-print">↑ ${t("showEarlier")}</button>` : ""}
            ${nodes.map((n, i) => itinHtml(n, i)).join("")}
@@ -6548,7 +6580,7 @@ async function viewPlan(parts) {
         if (navigator.share) { await navigator.share({ url }); return; }
         await navigator.clipboard.writeText(url);
         e.target.textContent = "✓ " + t("linkCopied");
-        setTimeout(() => { e.target.textContent = "🔗 " + t("share"); }, 2500);
+        setTimeout(() => { e.target.innerHTML = icon("link") + " " + t("share"); }, 2500);
       } catch (err) { /* käyttäjä perui jaon */ }
     });
   };
@@ -6940,7 +6972,7 @@ async function viewPrint() {
         <p>${dts.map(d => esc(d.label)).join(" · ")}. ${t("bookletKeyStopsNote")}</p>
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
         ${dayKeys.includes("weekday") ? `<p class="muted">${t("dayTypeNote")}</p>` : ""}
-        <p class="no-print"><button type="button" id="bookletPrint">🖨 ${t("bookletPrintBtn")}</button></p>
+        <p class="no-print"><button type="button" id="bookletPrint">${icon("print")} ${t("bookletPrintBtn")}</button></p>
         ${toc ? `<nav class="booklet-toc"><h3>${t("bookletToc")}</h3><ul>${toc}</ul></nav>` : ""}
       </div>
       ${ok.map(s => s.html).join("")}`;

@@ -309,6 +309,24 @@ const info = msg => console.log("INFO " + msg);
     () => !!document.querySelector("#routeMap .leaflet-overlay-pane path"),
     { timeout: 12000 }).then(() => true).catch(() => false);
   routeMap ? ok("linjasivu: reittiviiva kartalla") : fail("linjasivu: reittiviiva puuttuu");
+  // fitBounds: kartta rajautuu reittiin (ei maailmanäkymään) → tiilien zoom on kaupunkitasoa
+  const mapZoom = await page.evaluate(() => {
+    const tile = document.querySelector("#routeMap img.leaflet-tile");
+    const m = tile && tile.src.match(/\/(\d+)\/\d+\/\d+\.png/);
+    return m ? parseInt(m[1], 10) : -1;
+  });
+  mapZoom >= 9 ? ok(`linjasivu: kartta rajautuu reittiin (tiilizoom ${mapZoom}, ei maailmanäkymää)`)
+              : fail(`linjasivu: kartan zoom liian laaja (${mapZoom}) — fitBounds ei rajaa bboxiin`);
+  // Emoji-siivous: renderöidyssä näkymässä 0 piktografista emojia (ikonit ovat inline-SVG:tä)
+  const emojiLeft = await page.evaluate(() => {
+    const re = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
+    const skip = new Set(["→", "←", "↔", "↑", "⇅", "↻", "✓", "✕"]);
+    let n = 0;
+    for (const ch of (document.body.innerText || "")) if (re.test(ch) && !skip.has(ch)) n++;
+    return n;
+  });
+  emojiLeft === 0 ? ok("emoji-siivous: linjasivun renderöinnissä 0 piktografista emojia")
+                  : fail(`emoji-siivous: ${emojiLeft} emojia jäljellä linjasivulla`);
   // --- Linjakartta (#/linjakartta): map-first-näkymä ---
   const mapHref = routeHref.replace("#/linja/", "#/linjakartta/");
   await page.goto(BASE + "/" + mapHref, { waitUntil: "networkidle2" });
