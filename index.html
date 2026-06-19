@@ -160,7 +160,7 @@
       transition-duration: 0.001ms !important;
       scroll-behavior: auto !important;
     }
-    .quick-tile:hover, .route-tile:hover, button:active { transform: none !important; }
+    .route-tile:hover, button:active { transform: none !important; }
   }
   body {
     margin: 0;
@@ -211,29 +211,6 @@
     margin-bottom: 1rem;
   }
   h2 { font-size: 1.15rem; font-weight: var(--wmed); margin: 0 0 0.7rem; letter-spacing: 0.01em; }
-  /* Etusivun esittelyteksti */
-  .home-intro { margin: 0.2rem 0 1.1rem; font-size: 1rem; color: var(--muted); max-width: 46ch; }
-  /* Pikavalintaruudukko (etusivun työkalut): ikonikortit, helppo silmäillä */
-  .quick-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-    gap: 0.7rem;
-    margin: 0 0 1.2rem;
-  }
-  .quick-tile {
-    display: flex; flex-direction: column; gap: 0.55rem; align-items: flex-start;
-    padding: 0.9rem 1rem;
-    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    text-decoration: none; color: var(--text);
-    transition: background 0.12s, border-color 0.12s;
-  }
-  .quick-tile:hover { background: var(--hover); border-color: var(--blue); }
-  .qt-icon {
-    display: inline-grid; place-items: center;
-    width: 2.5rem; height: 2.5rem; border-radius: 50%;
-    background: var(--chip); font-size: 1.25rem; line-height: 1;
-  }
-  .qt-label { font-weight: var(--wmed); font-size: 0.95rem; line-height: 1.25; }
   /* "Kaikki linjat": värillisten linjabadgejen ruudukko (joukkoliikennemäinen) */
   ul.route-grid {
     list-style: none; margin: 0.3rem 0 0; padding: 0;
@@ -1213,7 +1190,6 @@ const STRINGS = {
     approachFired: "Linja {line} lähestyy pysäkkiä", approachTitle: "Linja {line} lähestyy",
     approachBody: "Bussi saapuu pian pysäkille {stop}.",
     // etusivu
-    homeIntro: "Hae linja-aikatauluja, lähimpiä lähtöjä ja reittejä {network}.",
     loadingRoutes: "Haetaan linjoja…",
     nearbyTitle: "Lähimmät lähdöt",
     rtLegend: "= reaaliaikainen arvio. Päivittyy 30 s välein.",
@@ -1546,7 +1522,6 @@ const STRINGS = {
     noDepsRadius: "No departing buses within 800 m. Are you in the {city} region?",
     showNearby: "Show nearest departures",
     geoPrivacy: "Your location is only used to find nearby stops via the Digitransit API and is not stored anywhere.",
-    homeIntro: "Find route timetables, nearby departures and journeys for {network}.",
     favsTitle: "Favourites", favTitle: "Favourite",
     favAdd: "Add to favourites", favRemove: "Remove from favourites",
     savedTripsTitle: "My journeys",
@@ -1898,7 +1873,6 @@ const STRINGS = {
     noDepsRadius: "Inga avgående bussar inom 800 m. Är du i {city}-regionen?",
     showNearby: "Visa närmaste avgångar",
     geoPrivacy: "Din position används endast för att hitta närliggande hållplatser via Digitransit-gränssnittet och sparas inte någonstans.",
-    homeIntro: "Sök linjetidtabeller, närliggande avgångar och resor i {network}.",
     favsTitle: "Favoriter", favTitle: "Favorit",
     savedTripsTitle: "Mina resor",
     saveTrip: "Spara resa", saveTripRemove: "Ta bort sparad resa",
