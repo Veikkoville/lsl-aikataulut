@@ -696,6 +696,53 @@
   nav.crumb a { color: var(--blue); }
   footer { margin-top: 2rem; padding: 1.6rem 1rem 2rem; font-size: 0.82rem; color: var(--muted);
     background: var(--card); border-top: 1px solid var(--border); }
+  /* Palvelutiski-tila: koko ruudun työntekijän näyttö. Pakotettu kirkas korkea
+     kontrasti — .desk ylikirjoittaa tokenit, joten ilme on sama riippumatta teemasta. */
+  body.desk-mode header, body.desk-mode #appFooter { display: none; }
+  body.desk-mode main { max-width: none; padding: 0; }
+  .desk {
+    --bg: #ffffff; --card: #ffffff; --text: #111111; --muted: #2f2f2f;
+    --border: #1a1a1a; --hover: #eaf0fb; --chip: #e7edf6;
+    --blue: #0033cc; --btn-bg: #0033cc; --btn-hover: #001f99;
+    --rt-bg: #d6f0d6; --rt-text: #00540f;
+    background: #ffffff; color: #111111; min-height: 100vh; box-sizing: border-box;
+    padding: clamp(1rem, 2.2vw, 2.2rem);
+    font-size: clamp(1.05rem, 1.35vw, 1.3rem);
+  }
+  .desk-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    border-bottom: 3px solid var(--blue); padding-bottom: 0.6rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
+  .desk-top h1 { margin: 0; font-size: clamp(1.5rem, 2.6vw, 2.4rem); font-weight: var(--wmed); }
+  .desk-grid { display: grid; grid-template-columns: 1.7fr 1fr; gap: 1.4rem; align-items: start; }
+  @media (max-width: 820px) { .desk-grid { grid-template-columns: 1fr; } }
+  .desk-col { border: 2px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; background: #fff; }
+  .desk-col h2 { font-size: clamp(1.2rem, 1.9vw, 1.6rem); }
+  .desk-field { margin: 0 0 0.9rem; }
+  .desk-field label { display: block; font-weight: var(--wmed); margin-bottom: 0.3rem; }
+  .desk input[type="text"] { font-size: 1.15em; min-height: 60px; border: 2px solid var(--border); }
+  .desk .suggest-list { border: 2px solid var(--border); }
+  .desk .suggest-list .item { padding: 0.7rem 0.5rem; min-height: 52px; font-size: 1.02em; }
+  .desk-h3 { font-size: clamp(1.1rem, 1.7vw, 1.4rem); margin: 1.1rem 0 0.4rem; font-weight: var(--wmed); }
+  /* "Kerro asiakkaalle": korostettu, iso, ääneen luettava suositus */
+  .desk-tell { border: 3px solid var(--blue); border-radius: var(--radius); padding: 1rem 1.2rem;
+    margin: 0.4rem 0 0.7rem; background: #eef4ff; }
+  .desk-tell-h { font-size: 0.8em; font-weight: var(--wmed); text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--blue); }
+  .desk-tell-body { font-size: clamp(1.2rem, 2vw, 1.7rem); line-height: 1.4; margin: 0.35rem 0 0; }
+  .desk-opt { border: 2px solid var(--border); border-radius: var(--radius); padding: 0.8rem 1rem; margin: 0.5rem 0; }
+  .desk-opt-top { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; align-items: baseline; }
+  .desk-opt-time { font-size: 1.3em; font-weight: var(--wmed); font-variant-numeric: tabular-nums; }
+  .desk-opt-dur { font-weight: var(--wmed); }
+  .desk-opt-lines { margin: 0.45rem 0; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+  .desk-opt-lines .badge { font-size: 1.05em; }
+  details.desk-stops summary { cursor: pointer; color: var(--blue); font-weight: var(--wmed); margin-top: 0.2rem; }
+  ul.desk-stoplist { list-style: none; margin: 0.4rem 0 0; padding: 0; }
+  ul.desk-stoplist li { padding: 0.22rem 0; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  ul.desk-stoplist li:last-child { border-bottom: none; }
+  ul.desk-stoplist li.ds-mid { color: var(--muted); padding-left: 1.3rem; font-size: 0.95em; }
+  ul.desk-stoplist li.ds-board, ul.desk-stoplist li.ds-alight { font-weight: var(--wmed); }
+  .desk-stop-h { font-weight: var(--wmed); margin: 0.7rem 0 0.35rem; }
+  .desk-stop-lines { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .desk-stop-lines .badge { font-size: 1.1em; padding: 0.2rem 0.6rem; }
   @media print {
     /* Tulosteet aina normaalikokoisina, vaikka näytöllä olisi suuri teksti
        (rem-pohjaiset juliste-/vihkofontit mitoitettu A4:lle) */
@@ -1050,6 +1097,28 @@ const STRINGS = {
     emailSubErr: "Tilaus ei onnistunut. Yritä hetken kuluttua uudelleen.",
     emailSubNeedEmail: "Syötä kelvollinen sähköpostiosoite.",
     emailSubNeedLines: "Valitse vähintään yksi linja.",
+    deskTitle: "Palvelutiski",
+    deskExit: "← Poistu palvelutiskistä",
+    deskRouteTitle: "Reittihaku (A→B)",
+    deskKbdHint: "Kirjoita lähtö, paina Enter; kirjoita määränpää, paina Enter. Enter hyväksyy ylimmän ehdotuksen.",
+    deskNeedBoth: "Valitse sekä lähtö että määränpää (Enter hyväksyy ehdotuksen).",
+    deskSearchErr: "Haku ei onnistunut. Yritä uudelleen.",
+    deskTellTitle: "Kerro asiakkaalle",
+    deskTellBoard: "Linja {line} pysäkiltä {stop} klo {time}.",
+    deskTellBoardNext: "Linja {line} pysäkiltä {stop} klo {time} (seuraava {next}).",
+    deskTellArrive: "Jää pois pysäkillä {stop}, perillä klo {time}.",
+    deskNoTransfers: "Ei vaihtoja.",
+    deskTransfer1: "1 vaihto, pysäkillä {stop}.",
+    deskTransferN: "{n} vaihtoa ({stop}).",
+    deskWalkOnly: "Koko matka kävellen ({dur}).",
+    deskOptionsTitle: "Kaikki vaihtoehdot",
+    deskStopsTitle: "Pysäkit reitillä",
+    deskStopTitle: "Pysäkin linjat",
+    deskStopLabel: "Pysäkki",
+    deskStopPlaceholder: "Pysäkin nimi",
+    deskStopLines: "Linjat pysäkiltä {stop}:",
+    deskStopNoLines: "Ei säännöllisiä linjoja.",
+    deskNoStop: "Pysäkkiä ei löytynyt.",
     notifyTitle: "Ilmoitukset",
     notifyToggle: "Ilmoita suosikkilinjojen uusista häiriöistä",
     notifyHint: "Saat ilmoituksen suosikkilinjojesi uusista häiriöistä myös silloin kun sovellus on suljettuna. Lisää linjoja suosikeiksi ★-napilla linjasivulla.",
@@ -1385,6 +1454,28 @@ const STRINGS = {
     emailSubErr: "Subscription failed. Please try again shortly.",
     emailSubNeedEmail: "Enter a valid email address.",
     emailSubNeedLines: "Choose at least one line.",
+    deskTitle: "Service desk",
+    deskExit: "← Exit service desk",
+    deskRouteTitle: "Journey search (A→B)",
+    deskKbdHint: "Type origin, press Enter; type destination, press Enter. Enter accepts the top suggestion.",
+    deskNeedBoth: "Choose both origin and destination (Enter accepts the suggestion).",
+    deskSearchErr: "Search failed. Please try again.",
+    deskTellTitle: "Tell the customer",
+    deskTellBoard: "Line {line} from stop {stop} at {time}.",
+    deskTellBoardNext: "Line {line} from stop {stop} at {time} (next {next}).",
+    deskTellArrive: "Get off at stop {stop}, arriving by {time}.",
+    deskNoTransfers: "No transfers.",
+    deskTransfer1: "1 transfer, at stop {stop}.",
+    deskTransferN: "{n} transfers ({stop}).",
+    deskWalkOnly: "Whole trip on foot ({dur}).",
+    deskOptionsTitle: "All options",
+    deskStopsTitle: "Stops on the route",
+    deskStopTitle: "Lines at a stop",
+    deskStopLabel: "Stop",
+    deskStopPlaceholder: "Stop name",
+    deskStopLines: "Lines at stop {stop}:",
+    deskStopNoLines: "No regular lines.",
+    deskNoStop: "Stop not found.",
     notifyTitle: "Notifications",
     notifyToggle: "Notify about new disruptions on favourite routes",
     notifyHint: "You'll get a notification about new disruptions on your favourite routes even when the app is closed. Add favourite routes with the ★ button on a route page.",
@@ -1712,6 +1803,28 @@ const STRINGS = {
     emailSubErr: "Prenumerationen misslyckades. Försök igen om en stund.",
     emailSubNeedEmail: "Ange en giltig e-postadress.",
     emailSubNeedLines: "Välj minst en linje.",
+    deskTitle: "Servicedisk",
+    deskExit: "← Avsluta servicedisk",
+    deskRouteTitle: "Reseökning (A→B)",
+    deskKbdHint: "Skriv startplats, tryck Enter; skriv destination, tryck Enter. Enter väljer det översta förslaget.",
+    deskNeedBoth: "Välj både startplats och destination (Enter väljer förslaget).",
+    deskSearchErr: "Sökningen misslyckades. Försök igen.",
+    deskTellTitle: "Berätta för kunden",
+    deskTellBoard: "Linje {line} från hållplats {stop} kl. {time}.",
+    deskTellBoardNext: "Linje {line} från hållplats {stop} kl. {time} (nästa {next}).",
+    deskTellArrive: "Stig av vid hållplats {stop}, framme kl. {time}.",
+    deskNoTransfers: "Inga byten.",
+    deskTransfer1: "1 byte, vid hållplats {stop}.",
+    deskTransferN: "{n} byten ({stop}).",
+    deskWalkOnly: "Hela resan till fots ({dur}).",
+    deskOptionsTitle: "Alla alternativ",
+    deskStopsTitle: "Hållplatser på rutten",
+    deskStopTitle: "Linjer vid en hållplats",
+    deskStopLabel: "Hållplats",
+    deskStopPlaceholder: "Hållplatsens namn",
+    deskStopLines: "Linjer vid hållplats {stop}:",
+    deskStopNoLines: "Inga reguljära linjer.",
+    deskNoStop: "Hållplatsen hittades inte.",
     notifyTitle: "Aviseringar",
     notifyToggle: "Meddela om nya störningar på favoritlinjer",
     notifyHint: "Du får en avisering om nya störningar på dina favoritlinjer även när appen är stängd. Lägg till favoritlinjer med ★-knappen på linjesidan.",
@@ -1970,6 +2083,7 @@ function updateChrome() {
         <a href="#/saavutettavuus">${t("a11yStatement")}</a>
         <a href="#/palaute">${t("fbLink")}</a>
         <a href="#/asetukset">${t("settings")}</a>
+        ${PROXY_URL ? `<a href="#/palvelutiski">${t("deskTitle")}</a>` : ""}
       </nav>
     </div>
     <p class="foot-note">${t("footerNote")}</p>`;
@@ -5379,6 +5493,236 @@ function bindPlaceInput(input, listEl, onPick) {
   });
 }
 
+/* ---------- Palvelutiski-tila (#/palvelutiski) ---------- */
+// Koko ruudun, näppäimistövetoinen A→B-haku + "pysäkin linjat" kaupungin työntekijän
+// näytölle. Pakotettu kirkas korkea kontrasti (.desk ylikirjoittaa tokenit, ei riipu
+// teemasta). Uudelleenkäyttää reittihaun koneiston (searchPlaces, PLAN_QUERY, badgeHtml…).
+
+function exitDeskMode() { document.body.classList.remove("desk-mode"); }
+
+// Pysäkkihaku linjoineen (feed-rajattu): stops(name:) palauttaa pysäkit + linjat yhdellä kyselyllä.
+const DESK_STOP_QUERY = `query ($name: String!) {
+  stops(name: $name) { gtfsId name code routes { shortName longName } }
+}`;
+
+function dedupeRoutesByShort(routes) {
+  const seen = new Set(), out = [];
+  for (const r of routes || []) {
+    const k = (r.shortName || "").toUpperCase();
+    if (k && !seen.has(k)) { seen.add(k); out.push(r); }
+  }
+  out.sort((a, b) => String(a.shortName || "").localeCompare(String(b.shortName || ""), undefined, { numeric: true }));
+  return out;
+}
+
+// Näppäinvetoinen paikkakenttä: Enter hyväksyy ylimmän ehdotuksen ja etenee (onAdvance).
+function bindDeskPlace(input, listEl, onPick, onAdvance) {
+  let timer = null, seq = 0, places = [], picked = null;
+  const close = () => { listEl.innerHTML = ""; listEl.hidden = true; };
+  const pick = p => { picked = p; input.value = p.name; close(); addRecent(p); onPick(p); };
+  const pickTop = async () => {
+    if (picked && picked.name === input.value.trim()) return true;
+    if (places.length) { pick(places[0]); return true; }
+    const q = input.value.trim();
+    if (q.length >= 3) { try { const r = await searchPlaces(q); if (r.length) { pick(r[0]); return true; } } catch (e) {} }
+    return false;
+  };
+  input.addEventListener("input", () => {
+    picked = null; onPick(null); clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 3) { close(); places = []; return; }
+    timer = setTimeout(async () => {
+      const my = ++seq;
+      try {
+        const r = await searchPlaces(q);
+        if (my !== seq) return;
+        places = r;
+        listEl.innerHTML = r.length
+          ? r.map((p, i) => `<li><button type="button" class="item" data-i="${i}">
+              <span aria-hidden="true">${PLACE_ICONS[p.layer] || "📍"}</span><span>${esc(p.name)}</span></button></li>`).join("")
+          : `<li><p class="muted" style="padding:0.4rem">${t("noPlacesFor", { q: esc(q) })}</p></li>`;
+        listEl.hidden = false;
+        listEl.querySelectorAll("button[data-i]").forEach(btn =>
+          btn.addEventListener("click", () => { pick(r[Number(btn.dataset.i)]); onAdvance(); }));
+      } catch (err) {
+        if (my === seq) { listEl.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`; listEl.hidden = false; }
+      }
+    }, 250);
+  });
+  input.addEventListener("keydown", async e => {
+    if (e.key === "Enter") { e.preventDefault(); await pickTop(); onAdvance(); }
+    else if (e.key === "Tab" && !e.shiftKey) { if (places.length) pick(places[0]); }
+    else if (e.key === "Escape") { close(); }
+  });
+  const wrap = input.closest(".suggest") || input.parentElement;
+  wrap.addEventListener("focusout", e => { if (!wrap.contains(e.relatedTarget)) setTimeout(close, 150); });
+}
+
+// "Kerro asiakkaalle" -yhteenveto: nopein yhteys + saman linjan/pysäkin seuraava lähtö.
+function deskTellHtml(nodes) {
+  const node = nodes[0];
+  const transit = node.legs.filter(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
+  const head = `<div class="desk-tell-h">${t("deskTellTitle")}</div>`;
+  if (!transit.length) {
+    const dur = fmtDur((new Date(node.end) - new Date(node.start)) / 1000);
+    return `<div class="desk-tell">${head}<p class="desk-tell-body">${t("deskWalkOnly", { dur })}</p></div>`;
+  }
+  const first = transit[0];
+  const line = first.route?.shortName || "";
+  const board = first.from.name, dep = fmtClock(legTime(first.start));
+  // Jättöpysäkki = viimeisen bussiosuuden päätepysäkki (ei kävelyn "Destination"-label);
+  // perilläoloaika = koko matkan loppu (sisältää mahd. loppukävelyn).
+  const lastTransit = transit[transit.length - 1];
+  const arrStop = lastTransit.to.name, arr = fmtClock(node.end);
+  let next = "";
+  for (let i = 1; i < nodes.length; i++) {
+    const ft = nodes[i].legs.find(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
+    if (ft && (ft.route?.shortName || "") === line && ft.from.name === board) { next = fmtClock(legTime(ft.start)); break; }
+  }
+  const boardTxt = next
+    ? t("deskTellBoardNext", { line: esc(line), stop: esc(board), time: dep, next })
+    : t("deskTellBoard", { line: esc(line), stop: esc(board), time: dep });
+  const tr = node.numberOfTransfers;
+  let transferTxt;
+  if (tr === 0) transferTxt = t("deskNoTransfers");
+  else {
+    const tStops = node.legs.filter((l, i) => i > 0 && l.mode !== "WALK" && l.mode !== "BICYCLE").map(l => l.from.name);
+    transferTxt = tr === 1 ? t("deskTransfer1", { stop: esc(tStops[0] || "") })
+                           : t("deskTransferN", { n: tr, stop: esc(tStops.join(", ")) });
+  }
+  return `<div class="desk-tell">${head}
+    <p class="desk-tell-body">${boardTxt} ${t("deskTellArrive", { stop: esc(arrStop), time: arr })} ${transferTxt}</p></div>`;
+}
+
+// Pysäkit reitillä: nousupysäkki (+ linja) → välipysäkit → jättö/vaihto, legeittäin.
+function deskStopsListHtml(node) {
+  const items = [];
+  node.legs.forEach(leg => {
+    if (leg.mode === "WALK" || leg.mode === "BICYCLE") return;
+    const plat = leg.from.stop?.platformCode ? " (" + esc(leg.from.stop.platformCode) + ")" : "";
+    items.push(`<li class="ds-board">▶ ${esc(leg.from.name)}${plat} — ${esc(leg.route?.shortName || "")}</li>`);
+    (leg.intermediateStops || []).forEach(s => items.push(`<li class="ds-mid">${esc(s.name)}</li>`));
+    items.push(`<li class="ds-alight">■ ${esc(leg.to.name)} ${fmtClock(legTime(leg.end))}</li>`);
+  });
+  return `<ul class="desk-stoplist">${items.join("")}</ul>`;
+}
+
+// Yhden yhteyden tiivistelmä (iso): ajat, kesto, linjabadget, vaihdot + pysäkit reitillä.
+function deskOptionHtml(node) {
+  const dur = fmtDur((new Date(node.end) - new Date(node.start)) / 1000);
+  const tr = node.numberOfTransfers === 0 ? t("transfers0")
+    : node.numberOfTransfers === 1 ? t("transfers1") : t("transfersN", { n: node.numberOfTransfers });
+  const lines = node.legs.filter(l => l.route).map(l => badgeHtml(l.route, l.mode)).join(" ");
+  return `<div class="desk-opt">
+    <div class="desk-opt-top">
+      <span class="desk-opt-time">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
+      <span class="desk-opt-dur">${dur}</span>
+      <span class="muted">${tr}</span>
+    </div>
+    <div class="desk-opt-lines">${lines || `<span class="muted">${t("deskWalkOnly", { dur })}</span>`}</div>
+    <details class="desk-stops"><summary>${t("deskStopsTitle")}</summary>${deskStopsListHtml(node)}</details>
+  </div>`;
+}
+
+async function viewServiceDesk() {
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  document.body.classList.add("desk-mode");
+  await findFeed().catch(() => {});
+  setView(`
+    <div class="desk">
+      <div class="desk-top">
+        <h1>${t("deskTitle")}</h1>
+        <a class="btnlink secondary" href="#/">${t("deskExit")}</a>
+      </div>
+      <div class="desk-grid">
+        <section class="desk-col">
+          <h2>${t("deskRouteTitle")}</h2>
+          <div class="desk-field"><label for="deskFrom">${t("from")}</label>
+            <div class="suggest"><input id="deskFrom" type="text" autocomplete="off" placeholder="${t("placePlaceholder")}">
+              <ul class="plain suggest-list" id="deskFromList" hidden></ul></div></div>
+          <div class="desk-field"><label for="deskTo">${t("to")}</label>
+            <div class="suggest"><input id="deskTo" type="text" autocomplete="off" placeholder="${t("placePlaceholder")}">
+              <ul class="plain suggest-list" id="deskToList" hidden></ul></div></div>
+          <p class="muted">${t("deskKbdHint")}</p>
+          <div id="deskMsg" role="status"></div>
+          <div id="deskResults"></div>
+        </section>
+        <section class="desk-col">
+          <h2>${t("deskStopTitle")}</h2>
+          <div class="desk-field"><label for="deskStop">${t("deskStopLabel")}</label>
+            <div class="suggest"><input id="deskStop" type="text" autocomplete="off" placeholder="${t("deskStopPlaceholder")}">
+              <ul class="plain suggest-list" id="deskStopList" hidden></ul></div></div>
+          <div id="deskStopResults"></div>
+        </section>
+      </div>
+    </div>`);
+
+  const fromEl = document.getElementById("deskFrom");
+  const toEl = document.getElementById("deskTo");
+  let dFrom = null, dTo = null;
+
+  const runSearch = async () => {
+    const msg = document.getElementById("deskMsg");
+    if (!dFrom || !dTo) { msg.innerHTML = `<p class="muted">${t("deskNeedBoth")}</p>`; return; }
+    msg.innerHTML = `<p class="muted">${t("searchingRoutes")}</p>`;
+    const origin = { location: { coordinate: { latitude: dFrom.lat, longitude: dFrom.lon } } };
+    const destination = { location: { coordinate: { latitude: dTo.lat, longitude: dTo.lon } } };
+    let data;
+    try { data = await gql(PLAN_QUERY, { origin, destination, first: 5 }); }
+    catch (e) { msg.innerHTML = `<div class="error">${t("deskSearchErr")}</div>`; return; }
+    msg.innerHTML = "";
+    const nodes = (data.planConnection?.edges || []).map(e => e.node);
+    const res = document.getElementById("deskResults");
+    res.innerHTML = nodes.length
+      ? deskTellHtml(nodes) + `<h3 class="desk-h3">${t("deskOptionsTitle")}</h3>` + nodes.map(n => deskOptionHtml(n)).join("")
+      : `<p class="muted">${t("noItineraries")}</p>`;
+  };
+
+  bindDeskPlace(fromEl, document.getElementById("deskFromList"), p => { dFrom = p; }, () => toEl.focus());
+  bindDeskPlace(toEl, document.getElementById("deskToList"), p => { dTo = p; }, runSearch);
+  fromEl.focus();
+
+  // "Pysäkin linjat" -pikahaku
+  const stopEl = document.getElementById("deskStop");
+  const stopList = document.getElementById("deskStopList");
+  let stopTimer = null, stopSeq = 0, stopMatches = [];
+  const showStopRoutes = s => {
+    const routes = dedupeRoutesByShort(s.routes);
+    document.getElementById("deskStopResults").innerHTML =
+      `<p class="desk-stop-h">${t("deskStopLines", { stop: esc(s.name) })}</p>
+       <div class="desk-stop-lines">${routes.length
+         ? routes.map(r => `<span class="badge">${esc(r.shortName || "")}</span>`).join(" ")
+         : `<span class="muted">${t("deskStopNoLines")}</span>`}</div>`;
+  };
+  stopEl.addEventListener("input", () => {
+    clearTimeout(stopTimer);
+    const q = stopEl.value.trim();
+    if (q.length < 2) { stopList.hidden = true; stopList.innerHTML = ""; return; }
+    stopTimer = setTimeout(async () => {
+      const my = ++stopSeq;
+      let data;
+      try { data = await gql(DESK_STOP_QUERY, { name: q }); } catch (e) { return; }
+      if (my !== stopSeq) return;
+      const pref = feedId ? feedId + ":" : "";
+      stopMatches = (data.stops || []).filter(s => !pref || String(s.gtfsId).startsWith(pref))
+        .filter(s => (s.routes || []).length).slice(0, 12);
+      stopList.innerHTML = stopMatches.length
+        ? stopMatches.map((s, i) => `<li><button type="button" class="item" data-s="${i}">
+            <span aria-hidden="true">🚏</span><span>${esc(s.name)}${s.code ? " (" + esc(s.code) + ")" : ""}</span></button></li>`).join("")
+        : `<li><p class="muted" style="padding:0.4rem">${t("deskNoStop")}</p></li>`;
+      stopList.hidden = false;
+      stopList.querySelectorAll("button[data-s]").forEach(btn =>
+        btn.addEventListener("click", () => { const s = stopMatches[Number(btn.dataset.s)]; stopEl.value = s.name; stopList.hidden = true; showStopRoutes(s); }));
+    }, 250);
+  });
+  stopEl.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); if (stopMatches.length) { const s = stopMatches[0]; stopEl.value = s.name; stopList.hidden = true; showStopRoutes(s); } }
+    else if (e.key === "Escape") { stopList.hidden = true; }
+  });
+  const sw = stopEl.closest(".suggest");
+  sw.addEventListener("focusout", e => { if (!sw.contains(e.relatedTarget)) setTimeout(() => { stopList.hidden = true; }, 150); });
+}
+
 /* ---------- A→B-reitinhaku (planConnection) ---------- */
 
 // Säilyy istunnon ajan, jotta paluu näkymään ei tyhjennä kenttiä
@@ -6232,11 +6576,13 @@ async function viewPrint() {
 async function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   if (parts[0] !== "monitori") exitMonitorMode(); // poistuttaessa kioskista palauta normaali ulkoasu
+  if (parts[0] !== "palvelutiski") exitDeskMode(); // poistuttaessa palvelutiskistä palauta normaali ulkoasu
   const stripFeed = s => String(s || "").replace(/^[^:]+:/, ""); // "Lahti:3" → "3"
   track("view", parts[0] || "home");
   try {
     if (parts[0] === "asetukset") viewSettings();
     else if (parts[0] === "sahkoposti") viewEmailSub();
+    else if (parts[0] === "palvelutiski") await viewServiceDesk();
     else if (parts[0] === "saavutettavuus") viewAccessibilityStatement();
     else if (parts[0] === "tulosta") await viewPrint();
     else if (parts[0] === "tulosteet") await viewPrintHub();

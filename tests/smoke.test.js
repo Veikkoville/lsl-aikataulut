@@ -130,6 +130,55 @@ const info = msg => console.log("INFO " + msg);
   await page.goto(shared, { waitUntil: "networkidle2" });
   await expect("details.itin[data-itin]", "jaettu reittilinkki: haku käynnistyy URL:sta");
 
+  // --- Palvelutiski-tila (#/palvelutiski): A→B + pysäkin linjat työntekijälle ---
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  (await page.$('#appFooter a[href="#/palvelutiski"]'))
+    ? ok("palvelutiski: footer-linkki näkyy")
+    : fail("palvelutiski: footer-linkki puuttuu");
+  await page.goto(BASE + "/#/palvelutiski", { waitUntil: "networkidle2" });
+  const deskOk = await page.evaluate(() =>
+    document.body.classList.contains("desk-mode") &&
+    !!document.getElementById("deskFrom") && !!document.getElementById("deskTo") && !!document.getElementById("deskStop"));
+  deskOk ? ok("palvelutiski: koko ruudun näkymä + kentät latautuvat")
+         : fail("palvelutiski: näkymä/kentät puuttuvat");
+  // Näppäinflow: lähtö → Enter (valitsee ylimmän + siirtää määränpäähän) → Enter ajaa haun
+  await page.click("#deskFrom");
+  await page.type("#deskFrom", "Matkakeskus", { delay: 25 });
+  if (await expect("#deskFromList button[data-i]", "palvelutiski: lähtö-ehdotus", 15000)) {
+    await page.keyboard.press("Enter");
+    await sleep(300);
+    await page.type("#deskTo", "Mukkulankatu 2", { delay: 25 });
+    if (await expect("#deskToList button[data-i]", "palvelutiski: määränpää-ehdotus", 15000)) {
+      await page.keyboard.press("Enter");
+      const tell = await expect(".desk-tell .desk-tell-body", "palvelutiski: 'Kerro asiakkaalle' -yhteenveto näkyy", 20000);
+      const opts = (await page.$$(".desk-opt")).length;
+      opts > 0 ? ok(`palvelutiski: yhteysvaihtoehdot (${opts})`) : fail("palvelutiski: vaihtoehtoja ei näy");
+      if (tell) {
+        const stops = await page.evaluate(() => {
+          const d = document.querySelector(".desk-opt details.desk-stops"); if (d) d.open = true;
+          return document.querySelectorAll(".desk-stoplist li").length;
+        });
+        stops > 0 ? ok(`palvelutiski: pysäkit reitillä listautuvat (${stops})`)
+                  : info("palvelutiski: pysäkkilista tyhjä (lyhyt reitti?) — ei virhe");
+      }
+    }
+  }
+  // Pysäkin linjat -pikahaku
+  await page.click("#deskStop");
+  await page.type("#deskStop", "Matkakeskus", { delay: 25 });
+  if (await expect("#deskStopList button[data-s]", "palvelutiski: pysäkkiehdotus (linjat)", 15000)) {
+    await page.keyboard.press("Enter");
+    const lines = await page.waitForFunction(
+      () => document.querySelectorAll(".desk-stop-lines .badge").length > 0,
+      { timeout: 12000 }).then(() => true).catch(() => false);
+    lines ? ok("palvelutiski: pysäkin linjat listautuvat") : fail("palvelutiski: pysäkin linjat eivät listaudu");
+  }
+  // Poistuminen purkaa koko ruudun tilan
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  (await page.evaluate(() => document.body.classList.contains("desk-mode")))
+    ? fail("palvelutiski: desk-mode ei purkaudu poistuttaessa")
+    : ok("palvelutiski: desk-mode purkautuu poistuttaessa");
+
   // --- Tallennetut matkat: tallenna nykyinen reitti ja näe se etusivulla ---
   if (await page.$("#saveTripBtn")) {
     await page.evaluate(() => { window.prompt = () => "Testimatka"; });
