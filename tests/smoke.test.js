@@ -301,10 +301,14 @@ const info = msg => console.log("INFO " + msg);
              : fail("linjasivu: aikataulu — ei lähtöjä millään päivätyypillä (.timegrid span)");
   // Nykyinen hash = palvelupäivän linjasivu (sis. päivämäärän) → käytetään matriisitestissä
   const serviceHref = await page.evaluate(() => location.hash);
-  const tabText = await page.evaluate(() =>
-    document.querySelector(".tabs button")?.textContent || "");
-  tabText.includes("→") ? ok("linjasivu: selkokielinen suuntavälilehti")
-                        : fail("linjasivu: suuntavälilehdestä puuttuu →");
+  const dirText = await page.evaluate(() =>
+    document.querySelector(".dir-current")?.textContent || "");
+  dirText.includes("→") ? ok("linjasivu: selkokielinen suunta yhdellä rivillä (A → B)")
+                        : fail("linjasivu: suuntariviltä puuttuu →");
+  // Pysäkkiaikajana (pisteet + viiva) renderöityy
+  const stlCount = (await page.$$("#stopTimeline .stl-item")).length;
+  stlCount > 0 ? ok(`linjasivu: pysäkkiaikajana (${stlCount} pysäkkiä, pisteet + viiva)`)
+               : fail("linjasivu: pysäkkiaikajana puuttuu");
   const routeMap = await page.waitForFunction(
     () => !!document.querySelector("#routeMap .leaflet-overlay-pane path"),
     { timeout: 12000 }).then(() => true).catch(() => false);
