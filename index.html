@@ -62,35 +62,42 @@
 </script>
 <style>
   :root {
-    --blue: #0a4ea3;
+    /* Transit-grade design-tokenit. Yksi vahva sininen primääri + neutraalit harmaat.
+       Semanttiset värit VAIN merkitykseen: --green = ok/nopein, --sev-warning = häiriö,
+       --sev-severe = vakava. Litteä ilme: ei gradientteja/varjoja (--shadow = läpinäkyvä). */
+    --blue: #0a4ea3;            /* primääri, AA valkoisella (~7.6:1) */
     --btn-bg: #0a4ea3;
     --btn-hover: #083d80;
-    --header-bg: #0a4ea3;
-    --header-bg2: #0d63cf;
-    --bg: #f4f6f9;
+    --header-bg: #0a4ea3;       /* litteä, ei gradienttia */
+    --bg: #f3f5f8;
     --card: #ffffff;
-    --text: #1a2233;
-    --muted: #5a6478;
+    --text: #182234;
+    --muted: #56607a;          /* AA valkoisella (~5.9:1) */
     --green: #1a7f4b;
-    --border: #d8dee9;
+    --border: #dbe1ea;
     --hover: #eef3fb;
-    --chip: #e7edf6;
+    --chip: #eaeff6;
     --rt-bg: #e2f3e9;
     --rt-text: #135c37;
     --error-bg: #fdecec;
     --error-border: #f3b6b6;
     --error-text: #8a1f1f;
-    --shadow: rgba(0, 0, 0, 0.15);
+    --shadow: transparent;     /* litteä: ei varjoja (muuttuja säilytetty yhteensopivuuden vuoksi) */
     --star: #b8860b;
     --sev-severe: #c0392b;
-    --sev-warning: #d68910;
+    --sev-warning: #b9740f;
+    /* Muoto- ja välitokenit: yhtenäiset kortit, badget ja painikkeet */
+    --radius: 12px;            /* kortit */
+    --radius-sm: 8px;          /* napit, badget, kentät */
+    --pill: 999px;             /* pilleri-/etäisyysmerkit */
+    --pad-card: 1.05rem 1.15rem;
+    --wmed: 500;               /* ainoa korostuspaino (perus 400) */
   }
   html[data-theme="dark"] {
     --blue: #7db3f0;
     --btn-bg: #155bb5;
     --btn-hover: #1e6ad0;
     --header-bg: #102a4d;
-    --header-bg2: #16407a;
     --bg: #0f1522;
     --card: #19202f;
     --text: #e6ebf5;
@@ -104,7 +111,7 @@
     --error-bg: #3a1414;
     --error-border: #7a2e2e;
     --error-text: #f0a0a0;
-    --shadow: rgba(0, 0, 0, 0.6);
+    --shadow: transparent;
     --star: #e0b13e;
     --sev-severe: #e06050;
     --sev-warning: #e8a33d;
@@ -117,7 +124,7 @@
     --blue: #0033cc; --btn-bg: #0033cc; --btn-hover: #001f99;
     --rt-bg: #d4f0d4; --rt-text: #005800; --error-text: #990000;
     --sev-severe: #a00000; --sev-warning: #8a5200; --star: #6e5200;
-    --shadow: rgba(0, 0, 0, 0.5);
+    --shadow: transparent;
   }
   html[data-theme="dark"][data-contrast="high"] {
     --bg: #000000; --card: #000000; --text: #ffffff; --muted: #e8e8e8;
@@ -125,7 +132,7 @@
     --blue: #7db8ff; --btn-bg: #1a5fd0; --btn-hover: #2e78ec;
     --rt-bg: #0a2a0a; --rt-text: #82ff82; --error-text: #ff8c8c;
     --sev-severe: #ff7060; --sev-warning: #ffc24d; --star: #ffcf52;
-    --shadow: rgba(255, 255, 255, 0.3);
+    --shadow: transparent;
   }
   html[data-contrast="high"] a { text-decoration: underline; }
   html[data-contrast="high"] .card,
@@ -169,13 +176,12 @@
   html[data-text="large"] button, html[data-text="large"] a.btnlink,
   html[data-text="larger"] button, html[data-text="larger"] a.btnlink { min-height: 52px; }
   header {
-    background: linear-gradient(120deg, var(--header-bg), var(--header-bg2));
+    background: var(--header-bg);
     color: #fff;
     padding: 0.85rem 1rem;
     position: sticky;
     top: 0;
     z-index: 600;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
   }
   .brand {
     display: flex;
@@ -189,11 +195,10 @@
   .logo {
     width: 2.6rem;
     height: 2.6rem;
-    border-radius: 14px;
+    border-radius: var(--radius);
     flex-shrink: 0;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
   }
-  header h1 { margin: 0; font-size: 1.2rem; letter-spacing: 0.01em; }
+  header h1 { margin: 0; font-size: 1.25rem; font-weight: var(--wmed); letter-spacing: 0.01em; }
   header p { margin: 0.1rem 0 0; font-size: 0.78rem; opacity: 0.88; }
   /* min-height pitää footerin aina taitteen alapuolella, joten näkymän
      sisällön asynkroninen latautuminen ei työnnä sitä näkyvistä (CLS) */
@@ -201,12 +206,11 @@
   .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1rem 1.05rem;
+    border-radius: var(--radius);
+    padding: var(--pad-card);
     margin-bottom: 1rem;
-    box-shadow: 0 1px 3px var(--shadow);
   }
-  h2 { font-size: 1.1rem; margin: 0 0 0.6rem; letter-spacing: 0.01em; }
+  h2 { font-size: 1.15rem; font-weight: var(--wmed); margin: 0 0 0.7rem; letter-spacing: 0.01em; }
   /* Etusivun esittelyteksti */
   .home-intro { margin: 0.2rem 0 1.1rem; font-size: 1rem; color: var(--muted); max-width: 46ch; }
   /* Pikavalintaruudukko (etusivun työkalut): ikonikortit, helppo silmäillä */
@@ -218,19 +222,18 @@
   }
   .quick-tile {
     display: flex; flex-direction: column; gap: 0.55rem; align-items: flex-start;
-    padding: 0.85rem 0.9rem;
-    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-    box-shadow: 0 1px 3px var(--shadow);
+    padding: 0.9rem 1rem;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
     text-decoration: none; color: var(--text);
-    transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+    transition: background 0.12s, border-color 0.12s;
   }
-  .quick-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 16px var(--shadow); border-color: var(--blue); }
+  .quick-tile:hover { background: var(--hover); border-color: var(--blue); }
   .qt-icon {
     display: inline-grid; place-items: center;
     width: 2.5rem; height: 2.5rem; border-radius: 50%;
     background: var(--chip); font-size: 1.25rem; line-height: 1;
   }
-  .qt-label { font-weight: 600; font-size: 0.92rem; line-height: 1.25; }
+  .qt-label { font-weight: var(--wmed); font-size: 0.95rem; line-height: 1.25; }
   /* "Kaikki linjat": värillisten linjabadgejen ruudukko (joukkoliikennemäinen) */
   ul.route-grid {
     list-style: none; margin: 0.3rem 0 0; padding: 0;
@@ -238,16 +241,15 @@
   }
   .route-tile {
     display: flex; align-items: center; gap: 0.6rem;
-    padding: 0.45rem 0.55rem; min-height: 52px;
-    border: 1px solid var(--border); border-radius: 12px; background: var(--card);
+    padding: 0.5rem 0.6rem; min-height: 52px;
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);
     text-decoration: none; color: var(--text);
-    transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
+    transition: background 0.1s, border-color 0.1s;
   }
-  .route-tile:hover { transform: translateY(-2px); box-shadow: 0 4px 12px var(--shadow);
-    border-color: var(--rc, var(--blue)); }
+  .route-tile:hover { background: var(--hover); border-color: var(--rc, var(--blue)); }
   .rt-badge {
-    flex: 0 0 auto; min-width: 2.7rem; padding: 0.3rem 0.45rem; border-radius: 8px;
-    text-align: center; font-weight: 800; font-size: 1.02rem; letter-spacing: 0.01em;
+    flex: 0 0 auto; min-width: 2.7rem; padding: 0.3rem 0.5rem; border-radius: var(--radius-sm);
+    text-align: center; font-weight: var(--wmed); font-size: 1.02rem; letter-spacing: 0.01em;
     background: var(--rc, var(--chip)); color: var(--rt, var(--text));
   }
   .rt-name { font-size: 0.82rem; line-height: 1.2; color: var(--muted);
@@ -298,25 +300,24 @@
     left: 0; right: 0; top: 100%;
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 0 0 6px 6px;
-    box-shadow: 0 4px 12px var(--shadow);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     max-height: 15rem;
     overflow: auto;
     z-index: 500;
   }
   button {
     font: inherit;
-    padding: 0.5rem 0.9rem;
+    font-weight: var(--wmed);
+    padding: 0.5rem 0.95rem;
     min-height: 44px;            /* riittävä kosketuskohde (myös ikäihmisille) */
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     background: var(--btn-bg);
     color: #fff;
     cursor: pointer;
     transition: background 0.15s;
   }
   button:hover { background: var(--btn-hover); }
-  button:active { transform: translateY(1px); }
   button.linkish {
     background: none;
     color: var(--blue);
@@ -325,9 +326,9 @@
     text-decoration: underline;
   }
   a.btnlink {
-    display: inline-flex; align-items: center; gap: 0.4rem; font: inherit;
-    padding: 0.5rem 0.9rem; min-height: 44px; box-sizing: border-box;
-    border-radius: 8px; background: var(--btn-bg); color: #fff; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 0.4rem; font: inherit; font-weight: var(--wmed);
+    padding: 0.5rem 0.95rem; min-height: 44px; box-sizing: border-box;
+    border-radius: var(--radius-sm); background: var(--btn-bg); color: #fff; text-decoration: none;
   }
   a.btnlink:hover { background: var(--btn-hover); }
   /* Toissijainen (outline) painike: erottaa avustavat toiminnot ensisijaisesta */
@@ -344,19 +345,19 @@
     padding: clamp(0.8rem, 2.5vw, 2rem); box-sizing: border-box; }
   .m-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
     border-bottom: 3px solid var(--blue); padding-bottom: 0.5rem; margin-bottom: 0.4rem; }
-  .m-title { font-size: clamp(1.4rem, 4.5vw, 3rem); font-weight: 800; line-height: 1.1; }
-  .m-code { color: var(--muted); font-weight: 600; font-size: 0.6em; }
-  .m-clock { font-size: clamp(1.4rem, 4.5vw, 3rem); font-weight: 800;
+  .m-title { font-size: clamp(1.4rem, 4.5vw, 3rem); font-weight: var(--wmed); line-height: 1.1; }
+  .m-code { color: var(--muted); font-weight: var(--wmed); font-size: 0.6em; }
+  .m-clock { font-size: clamp(1.4rem, 4.5vw, 3rem); font-weight: var(--wmed);
     font-variant-numeric: tabular-nums; color: var(--blue); }
   .m-table { width: 100%; border-collapse: collapse; }
   .m-table thead th { text-align: left; font-size: clamp(0.75rem, 1.8vw, 1.1rem);
     color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0 0.4rem 0.3rem; }
-  .m-table td { font-size: clamp(1.2rem, 3.6vw, 2.6rem); font-weight: 600;
+  .m-table td { font-size: clamp(1.2rem, 3.6vw, 2.6rem); font-weight: var(--wmed);
     padding: clamp(0.3rem, 1.2vw, 0.7rem) 0.4rem; border-bottom: 1px solid var(--border); }
   .m-line { width: 1%; white-space: nowrap; }
   .monitor .badge { font-size: clamp(1.1rem, 3.4vw, 2.3rem); padding: 0.1em 0.45em; }
   .m-dest { overflow: hidden; text-overflow: ellipsis; }
-  td.m-when { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 800; }
+  td.m-when { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: var(--wmed); }
   .m-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: center;
     gap: 1rem; padding-top: 0.8rem; flex-wrap: wrap; }
   a.m-exit { color: var(--blue); text-decoration: none; padding: 0.5rem 0.9rem;
@@ -390,9 +391,9 @@
     text-align: center;
     background: var(--btn-bg);
     color: #fff;
-    border-radius: 5px;
-    padding: 0.05rem 0.4rem;
-    font-weight: 600;
+    border-radius: var(--radius-sm);
+    padding: 0.1rem 0.45rem;
+    font-weight: var(--wmed);
     font-size: 0.95rem;
     flex-shrink: 0;
   }
@@ -420,8 +421,8 @@
   .dist {
     background: var(--chip);
     color: var(--muted);
-    border-radius: 99px;
-    padding: 0.05rem 0.55rem;
+    border-radius: var(--pill);
+    padding: 0.1rem 0.6rem;
     font-size: 0.74rem;
     white-space: nowrap;
   }
@@ -445,7 +446,7 @@
   }
   table.deps td:first-child { width: 3em; }
   tbody tr:last-child td { border-bottom: none; }
-  .rt { color: var(--green); font-weight: 600; }
+  .rt { color: var(--green); font-weight: var(--wmed); }
   .remind { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.5rem; }
   .remind select { font: inherit; padding: 0.2rem; }
   .timegrid { display: flex; flex-wrap: wrap; gap: 0.35rem; }
@@ -477,7 +478,7 @@
   .booklet-toc li { break-inside: avoid; }
   h4.daytype { font-size: 0.92rem; font-weight: 600; margin: 0.5rem 0 0.15rem; }
   /* Pysäkkijuliste: linjat tuntikaavioina, vierekkäin kun tilaa */
-  .poster-sub { font-weight: 600; margin: 0.1rem 0 0.5rem; }
+  .poster-sub { font-weight: var(--wmed); margin: 0.1rem 0 0.5rem; }
   .poster-lines { display: flex; flex-wrap: wrap; gap: 0.8rem 1.6rem; align-items: flex-start; }
   .poster-line { break-inside: avoid; min-width: 11rem; }
   .poster-line h4 { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.2rem; font-size: 0.95rem; }
@@ -515,7 +516,7 @@
     padding: 0.45rem 0.6rem;
     margin: 0.4rem 0;
   }
-  details.alert summary { cursor: pointer; font-weight: 600; }
+  details.alert summary { cursor: pointer; font-weight: var(--wmed); }
   .alert-src { font-weight: 400; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
   details.alert p { margin: 0.4rem 0 0.2rem; white-space: pre-line; font-size: 0.9rem; }
   details.alert.sev-SEVERE { border-left-color: var(--sev-severe); }
@@ -524,7 +525,7 @@
   li.ex-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0; border-top: 1px solid var(--border); }
   li.ex-row:first-child { border-top: none; }
   .ex-date { flex: 0 0 auto; min-width: 8.5rem; }
-  .ex-name { flex: 1 1 auto; font-weight: 600; }
+  .ex-name { flex: 1 1 auto; font-weight: var(--wmed); }
   .ex-tag { flex: 0 0 auto; font-size: 0.78rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--sev-warning); color: #1a1200; white-space: nowrap; }
   .ex-tag.ex-eve { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
   p.co2 { margin: 0.3rem 0 0.1rem; font-size: 0.88rem; color: #1e7d3a; }
@@ -543,22 +544,21 @@
   a.badgelink { text-decoration: none; }
   .bus-live-wrap { background: none; border: none; }
   .bus-live { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center;
-    border: 2px solid #fff; border-radius: 50%; font-weight: 700; font-size: 0.66rem;
-    box-sizing: border-box; box-shadow: 0 1px 4px rgba(0,0,0,0.45); }
+    border: 2px solid #fff; border-radius: 50%; font-weight: var(--wmed); font-size: 0.66rem;
+    box-sizing: border-box; }
   /* Keskusterminaalien laituritunnukset kartalla */
   .plat-marker-wrap { background: none; border: none; }
   .plat-marker { display: flex; min-width: 30px; height: 30px; padding: 0 6px; align-items: center;
     justify-content: center; background: var(--blue); color: #fff; border: 2px solid #fff;
-    border-radius: 8px; font-weight: 800; font-size: 0.85rem; box-sizing: border-box;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.45); }
+    border-radius: var(--radius-sm); font-weight: var(--wmed); font-size: 0.85rem; box-sizing: border-box; }
   .plat-list { list-style: none; padding: 0; margin: 0.5rem 0 0; display: grid; gap: 0.5rem; }
   .plat-item { border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.75rem; }
   .plat-item .plat-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-  .plat-name { font-weight: 700; }
+  .plat-name { font-weight: var(--wmed); }
   .plat-item .plat-head > a { margin-left: auto; }
   .plat-tag { display: inline-flex; min-width: 1.8rem; height: 1.8rem; padding: 0 0.45rem;
     align-items: center; justify-content: center; background: var(--blue); color: #fff;
-    border-radius: 7px; font-weight: 800; }
+    border-radius: var(--radius-sm); font-weight: var(--wmed); }
   .plat-lines { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
   .plat-tabs { flex-wrap: wrap; }
   /* Liput ja hinnat */
@@ -569,7 +569,7 @@
   table.fare { width: 100%; border-collapse: collapse; }
   table.fare th, table.fare td { padding: 0.4rem 0.55rem; border-bottom: 1px solid var(--border); text-align: left; }
   table.fare thead th { font-size: 0.8rem; color: var(--muted); font-weight: 600; vertical-align: bottom; }
-  table.fare tbody th { font-weight: 600; }
+  table.fare tbody th { font-weight: var(--wmed); }
   table.fare td { font-variant-numeric: tabular-nums; white-space: nowrap; }
   ul.bullets { margin: 0.3rem 0; padding-left: 1.2rem; }
   ul.bullets li { margin: 0.2rem 0; }
@@ -590,20 +590,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
+    font-weight: var(--wmed);
     font-size: 0.68rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
   }
   details.itin {
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius);
+    padding: 0.7rem 0.85rem;
     margin: 0.55rem 0;
     background: var(--card);
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition: border-color 0.15s;
   }
   details.itin:hover { border-color: var(--blue); }
-  details.itin[open] { border-color: var(--blue); box-shadow: 0 2px 10px var(--shadow); }
+  details.itin[open] { border-color: var(--blue); }
   details.itin summary { cursor: pointer; list-style: none; position: relative; padding-right: 1.4rem; }
   details.itin summary::-webkit-details-marker { display: none; }
   details.itin summary::after {
@@ -616,7 +615,7 @@
   }
   details.itin[open] summary::after { transform: rotate(180deg); }
   .itin-head { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; align-items: baseline; }
-  .itin-head .times { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 1.02rem; }
+  .itin-head .times { font-weight: var(--wmed); font-variant-numeric: tabular-nums; font-size: 1.02rem; }
   .legchips { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-top: 0.25rem; }
   .legchips .sep { color: var(--muted); }
   .legchips button.badge { border: none; cursor: pointer; padding: 0.15rem 0.5rem; }
@@ -629,14 +628,14 @@
     align-items: center;
     justify-content: center;
     font-size: 0.78rem;
-    font-weight: 700;
+    font-weight: var(--wmed);
     color: #fff;
     min-width: 0.9rem;
     overflow: hidden;
     white-space: nowrap;
   }
   .legbar .seg.walk {
-    background: repeating-linear-gradient(45deg, var(--chip) 0 5px, var(--border) 5px 10px);
+    background: var(--chip);
     color: var(--text);
   }
   /* Pystyaikajana reittiohjeille */
@@ -649,7 +648,7 @@
   .tl-time {
     text-align: right;
     font-variant-numeric: tabular-nums;
-    font-weight: 700;
+    font-weight: var(--wmed);
     font-size: 0.9rem;
     padding-top: 0.05rem;
   }
