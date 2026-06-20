@@ -4628,9 +4628,10 @@ async function viewRoute(routeId, patternCode, date) {
   // päivinä; yhteen patterniin lukittu näkymä näyttäisi virheellisesti "ei lähtöjä".
   const curDir = current.directionId ?? 0;
   const dirPatterns = patterns.filter(p => (p.directionId ?? 0) === curDir);
-  const dirCodes = new Set(dirPatterns.map(p => p.code));
-  // kysely suunnan täysimmän patternin päätepysäkiltä (sieltä lähtevät kaikki vuorot)
-  const headStop = (dirPatterns.slice().sort((a, b) => (b.stops?.length || 0) - (a.stops?.length || 0))[0] || current).stops[0];
+  // HUOM: lähtöjen referenssipysäkki EI ole suunnan pisin pattern (sen lähtöpysäkki voi
+  // käännetyissä varianteissa olla reitin VIIMEINEN pysäkki → saapumisajat). Referenssi on
+  // päivän hallitseva pattern (bestPatternForDate, sama kuin koko aikataulu -taulu) ja sen
+  // stops[0]. Ratkaistaan per päivä fetchDepsissä, ei kiinteää headStopia.
 
   // Valitsee suunnan patternin (+ sen vuorot) jolla on lähtöjä annettuna päivänä.
   // Kausivaihdon takia oikea pattern-koodi vaihtelee päivittäin → tarvitaan
@@ -4657,14 +4658,20 @@ async function viewRoute(routeId, patternCode, date) {
       }
     }
   }`;
-  // Suunnan kaikki lähdöt annetulle päivälle (suunnan patternit yhdistettynä).
+  // Päivän lähdöt = SAMA totuus kuin koko aikataulu -taulu: hallitsevan patternin
+  // (bestPatternForDate) vuorot sen LÄHTÖpysäkiltä. Suodatetaan ko. pattern-koodiin →
+  // chipit == taulun sarakkeet (sama määrä/ajat/järjestys) ja duplikaatit poistuvat.
+  // stoptimesForServiceDate tuo reaaliajan (●, seuraavat lähdöt -laskuri).
   const fetchDeps = async (iso) => {
-    const { data: tt, cachedAt } = await cachedGql(`tt:${routeId}:dir${curDir}:${iso}`, TT_QUERY,
-      { stopId: headStop.gtfsId, date: iso.replace(/-/g, "") });
+    const { pat, trips } = await bestPatternForDate(iso);
+    const refStop = (pat.stops || [])[0];
+    if (!trips.length || !refStop) return { sts: [], pat, refStop, stale: routeCachedAt };
+    const { data: tt, cachedAt } = await cachedGql(`tt:${routeId}:${pat.code}:${iso}`, TT_QUERY,
+      { stopId: refStop.gtfsId, date: iso.replace(/-/g, "") });
     const sts = (tt.stop?.stoptimesForServiceDate || [])
-      .filter(g => dirCodes.has(g.pattern.code)).flatMap(g => g.stoptimes)
+      .filter(g => g.pattern.code === pat.code).flatMap(g => g.stoptimes)
       .sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
-    return { sts, stale: cachedAt || routeCachedAt };
+    return { sts, pat, refStop, stale: cachedAt || routeCachedAt };
   };
   // Etsii seuraavan liikennöintipäivän (enintään 14 vrk eteenpäin) jolla on lähtöjä.
   const findNextServiceDate = async (fromISO) => {
@@ -4675,13 +4682,13 @@ async function viewRoute(routeId, patternCode, date) {
     }
     return null;
   };
-  // Indeksoi suunnan KAIKKI vuorot head-pysäkin lähtöajalla → per-pysäkki-ajat. Avain =
-  // head-pysäkin scheduledDeparture (sama kuin timegridin lähtö) → Map(stop.gtfsId → aika).
-  const buildTripIndex = (allTrips) => {
+  // Indeksoi hallitsevan patternin vuorot referenssipysäkin lähtöajalla → per-pysäkki-ajat.
+  // Avain = refStopin scheduledDeparture (sama kuin chipin data-dep) → Map(stop.gtfsId → aika).
+  const buildTripIndex = (trips, refStop) => {
     const idx = new Map();
-    for (const tr of (allTrips || [])) {
+    for (const tr of (trips || [])) {
       const stts = tr.stoptimes || [];
-      const head = stts.find(s => s.stop?.gtfsId === headStop.gtfsId) || stts[0];
+      const head = (refStop && stts.find(s => s.stop?.gtfsId === refStop.gtfsId)) || stts[0];
       if (!head) continue;
       if (!idx.has(head.scheduledDeparture)) {
         const byStop = new Map();
@@ -4694,7 +4701,7 @@ async function viewRoute(routeId, patternCode, date) {
 
   const loadTimetable = async (useDate, redirectNote) => {
     useDate = useDate || date;
-    const { sts, stale } = await fetchDeps(useDate);
+    const { sts, stale, refStop } = await fetchDeps(useDate);
     const el = document.getElementById("timetable");
     if (!el) return;
     if (!sts.length) {
@@ -4741,7 +4748,7 @@ async function viewRoute(routeId, patternCode, date) {
     el.innerHTML = `
       ${redirectNote ? `<p class="redirect-note">${icon("warning")} ${esc(redirectNote)}</p>` : ""}
       ${stale ? staleNoteHtml(stale) : ""}
-      <p class="muted">${t("depsFromStop", { stop: esc(current.stops[0].name) })}</p>
+      <p class="muted">${t("depsFromStop", { stop: esc((refStop || current.stops[0]).name) })}</p>
       ${nextHtml}
       ${remindHtml}
       <div class="timegrid" id="timegrid">${grid}</div>
@@ -4753,7 +4760,7 @@ async function viewRoute(routeId, patternCode, date) {
     (async () => {
       const seq = viewSeq;
       let index;
-      try { index = buildTripIndex((await bestPatternForDate(useDate)).allTrips); }
+      try { const { pat, trips } = await bestPatternForDate(useDate); index = buildTripIndex(trips, (pat.stops || [])[0]); }
       catch (e) { return; }
       const tg = document.getElementById("timegrid");
       const selEl = document.getElementById("timelineSel");
