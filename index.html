@@ -893,9 +893,14 @@
     table.stoptable:not(.booklet) { font-size: var(--mfs, 6pt); }
     table.stoptable:not(.booklet) th, table.stoptable:not(.booklet) td { padding: 1pt 1pt; }
     table.stoptable:not(.booklet) thead th:first-child { width: 12%; }
-    /* Vihko: harvat sarakkeet → iso luettava fontti, jokainen linja omalle sivulle */
-    .booklet-line { break-before: page; }
-    .booklet-line:first-of-type { break-before: avoid; }
+    /* Vihko: harvat sarakkeet → iso luettava fontti. Jokainen LINJA omalle sivulle —
+       myös 1. linja (→ sisällysluettelo jää yksin omalle sivulleen). Jokainen SUUNTA
+       ("X → Y") omalle sivulle (paluusuunta uudelta sivulta), paitsi linjan 1. suunta
+       joka alkaa linjan omalta sivulta. Päivätyypit (h4.daytype) virtaavat ennallaan. */
+    .booklet-line { break-before: page; page-break-before: always; }
+    .booklet-line > h3 { break-before: page; page-break-before: always;
+                         break-after: avoid; page-break-after: avoid; }
+    .booklet-line > h3:first-of-type { break-before: avoid; page-break-before: avoid; }
     table.booklet { font-size: 0.95rem; }
     table.booklet th, table.booklet td { padding: 0.2rem 0.4rem; }
     /* Pysäkkijuliste: kukin päivätyyppi omalle arkille, linjat virtaavat sarakkeisiin */
