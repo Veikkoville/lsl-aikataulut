@@ -843,9 +843,19 @@
     body { background: #fff; }
     /* tulosteessa sisältö saa käyttää koko arkin leveyden (myös vaaka) */
     main { max-width: none; min-height: 0; padding: 0; }
-    header { background: none; color: #000; padding: 0 0 0.5rem; }
-    header p, .logo, nav.crumb, .tabs, .map, .map-small, .no-print, #routeAlerts, button, #appFooter { display: none !important; }
+    /* Globaali sovellusotsikko (sis. h1 "…aikataulut") on ruutukehystä — pois
+       tulosteesta; vihko/juliste/linjatuloste otsikoi itsensä. */
+    header { display: none !important; }
+    .logo, nav.crumb, .tabs, .map, .map-small, .no-print, #routeAlerts, button, #appFooter { display: none !important; }
     .card { border: none; padding: 0.25rem 0; margin: 0; break-inside: avoid; }
+    /* Linjatuloste: sekä #linePrintOut:n SISÄkortti että sen KÄÄRE (.lineprint-wrap)
+       saavat virrata — muuten kääreen break-inside:avoid työntäisi koko taulun
+       sivulle 2 ja jättäisi tyhjän etusivun. */
+    #linePrintOut .card, .lineprint-wrap { break-inside: auto; page-break-inside: auto; }
+    .lineprint-wrap { padding: 0; }
+    /* Vihon otsikko+sisällys virtaa, ettei pitkä sisällysluettelo työnny sivulle 2
+       (jättäen tyhjän etusivun). #bookletOut on print-mediassa ensimmäinen lohko. */
+    .booklet-head { break-inside: auto; page-break-inside: auto; }
     .badge { border: 1px solid #000; background: none; color: #000; }
     .timegrid span { background: none; border: 1px solid #ccc; }
     .print-only { display: block !important; }
@@ -860,8 +870,24 @@
     table.stoptable tbody tr:nth-child(even) td { background: none; }
     /* Yhden linjan täysmatriisi on leveä (kaikki vuorot) → tiivis fontti,
        tulostuu vaaka-arkille jotta sarakkeet mahtuvat leikkautumatta */
-    table.stoptable:not(.booklet) { font-size: 0.5rem; }
-    table.stoptable:not(.booklet) th, table.stoptable:not(.booklet) td { padding: 0.05rem 0.12rem; }
+    /* Päivätyyppiotsikko (Ma–Pe/La/Su): pysyy kiinni taulussa (break-after:avoid),
+       eikä jätä orpoja rivejä (thead/tr break-inside). Visuaalinen vahvistus, jotta
+       keskellä sivua alkava osio näyttää tarkoitukselliselta — ei page-breakia per
+       päivätyyppi (kompakti virtaus säilyy). Mustavalkokestävä: ylä-/alareunus kantaa
+       erotuksen myös kun "Taustagrafiikka" on pois; harmaa palkki on vain lisävihje. */
+    h3.daytype, h4.daytype {
+      break-after: avoid; page-break-after: avoid;
+      margin: 16pt 0 0; padding: 2.5pt 4pt;
+      border-top: 1.5pt solid #000; border-bottom: 0.75pt solid #777;
+      background: #e8e8e8; font-size: 12.5pt; font-weight: 700;
+    }
+    table.stoptable thead, table.booklet thead { break-inside: avoid; page-break-inside: avoid; }
+    table.stoptable tr, table.booklet tr { break-inside: avoid; page-break-inside: avoid; }
+    /* Laaja "kaikki pysäkit" -matriisi (vaaka-arkki): fonttikoko skaalataan
+       vuorosarakkeiden määrän mukaan (--mfs, asetettu stopMatrixHtml:ssä) niin
+       suureksi kuin sarakkeet sallivat leikkautumatta. Tiivis 1pt-paddaus. */
+    table.stoptable:not(.booklet) { font-size: var(--mfs, 6pt); }
+    table.stoptable:not(.booklet) th, table.stoptable:not(.booklet) td { padding: 1pt 1pt; }
     table.stoptable:not(.booklet) thead th:first-child { width: 12%; }
     /* Vihko: harvat sarakkeet → iso luettava fontti, jokainen linja omalle sivulle */
     .booklet-line { break-before: page; }
@@ -1059,7 +1085,7 @@ const STRINGS = {
     heroNeedBoth: "Valitse lähtö ja määränpää ehdotuslistasta.",
     nlLabel: "Sano tai kirjoita, mihin haluat mennä",
     nlPlaceholder: "Esim. Matkakeskukselta Kauppatorille",
-    nlHint: "Kirjoita koko matka ja paina Enter, tai käytä mikrofonia.",
+    nlHint: "Täytä Mistä ja Minne. Voit myös sanella koko matkan Mistä-kenttään mikrofonilla.",
     nlOr: "tai",
     nlMicStart: "Puhu matka",
     nlMicStop: "Lopeta kuuntelu",
@@ -1448,7 +1474,7 @@ const STRINGS = {
     heroNeedBoth: "Choose origin and destination from the suggestions.",
     nlLabel: "Say or type where you want to go",
     nlPlaceholder: "E.g. from Matkakeskus to Kauppatori",
-    nlHint: "Type the whole trip and press Enter, or use the microphone.",
+    nlHint: "Fill in From and To. You can also dictate the whole trip in the From field using the microphone.",
     nlOr: "or",
     nlMicStart: "Speak your trip",
     nlMicStop: "Stop listening",
@@ -1824,7 +1850,7 @@ const STRINGS = {
     heroNeedBoth: "Välj startplats och destination från förslagen.",
     nlLabel: "Säg eller skriv vart du vill åka",
     nlPlaceholder: "T.ex. från Matkakeskus till Kauppatori",
-    nlHint: "Skriv hela resan och tryck Enter, eller använd mikrofonen.",
+    nlHint: "Fyll i Från och Till. Du kan också diktera hela resan i Från-fältet med mikrofonen.",
     nlOr: "eller",
     nlMicStart: "Tala in din resa",
     nlMicStop: "Sluta lyssna",
@@ -4197,7 +4223,12 @@ function stopMatrixHtml(stops, trips) {
       `<td>${m[s.gtfsId] == null ? "·" : fmtSec(m[s.gtfsId])}</td>`).join("");
     return `<tr><th scope="row">${esc(s.name)}</th>${cells}</tr>`;
   }).join("");
-  return `<div class="matrix-wrap"><table class="stoptable">
+  // Print-fonttikoko vuorosarakkeiden määrän mukaan: leveys/sarake ∝ 1/cols, joten
+  // koko skaalataan ~215/cols (yläraja 11pt). Mitoitus todennettu A4-vaakaan Chromen
+  // print-renderöinnistä niin, ettei yksikään kellonaika leikkaudu (myös ~36+ sar.).
+  // --mfs luetaan vain @media print -lohkossa → ruutunäkymä ennallaan.
+  const printPt = Math.min(11, Math.floor((215 / valid.length) / 0.25) * 0.25);
+  return `<div class="matrix-wrap"><table class="stoptable" style="--mfs:${printPt}pt">
       <thead><tr><th scope="col">${t("stopColHead")}</th>${headCols}</tr></thead>
       <tbody>${rows}</tbody></table></div>`;
 }
@@ -4368,7 +4399,7 @@ async function viewRoute(routeId, patternCode, date) {
 
   setView(`
     <nav class="crumb"><a href="#/">← ${t("allRoutes")}</a></nav>
-    <div class="card">
+    <div class="card no-print">
       <h2>${favButtonHtml(routeId)}${badgeHtml(route)} ${esc(route.longName)}</h2>
       <div id="routeAlerts">${routeAlertsHtml}</div>
       <div class="dir-row" role="group" aria-label="${t("directionAria")}">
@@ -4406,7 +4437,7 @@ async function viewRoute(routeId, patternCode, date) {
           </li>`).join("")}
       </ol>
     </div>
-    <div class="card">
+    <div class="card lineprint-wrap">
       <h2 class="no-print">${t("fullTimetableTitle")}</h2>
       <p class="muted no-print">${t("fullTimetableHint")}</p>
       <div class="row no-print" style="flex-wrap:wrap;gap:0.4rem">

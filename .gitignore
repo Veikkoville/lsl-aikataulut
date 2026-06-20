@@ -1,1 +1,7 @@
 ﻿worker/.wrangler/
+
+# Paikallinen Claude Code -konteksti — EI julkiseen repoon (viittaa yksityisiin strategiadokkareihin)
+CLAUDE.md
+
+# Väliaikaiset tuloste-preview-artefaktit (puppeteer-generoidut, ei repoon)
+preview-*.pdf
