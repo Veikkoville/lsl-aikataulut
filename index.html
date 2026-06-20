@@ -893,9 +893,16 @@
     table.stoptable:not(.booklet) { font-size: var(--mfs, 6pt); }
     table.stoptable:not(.booklet) th, table.stoptable:not(.booklet) td { padding: 1pt 1pt; }
     table.stoptable:not(.booklet) thead th:first-child { width: 12%; }
+    /* Aikaotsikot (vuoron lähtöaika): sama koko/paino kuin solut → mahtuu kiinteään
+       sarakkeeseen. font-size:var(--mfs) kumoaa globaalin th{font-size:0.8rem}:n joka
+       muuten tekisi otsikoista soluja isommat → leikkaisi HH:MM:n tiheillä arkeilla. */
+    table.stoptable:not(.booklet) thead th:not(:first-child) {
+      font-size: var(--mfs); font-weight: 400; white-space: nowrap; overflow: hidden; }
     /* Laaja matriisi pilkottu sarakkeittain useammalle vaaka-arkille (8pt-lattia):
        jatkoarkki omalle sivulle. 1. arkki virtaa → päivätyyppien kompakti virtaus säilyy. */
     .matrix-cont { break-before: page; page-break-before: always; }
+    /* Jatkoarkin konteksti-otsikko (linja · suunta · päivätyyppi · vuoroväli). */
+    .matrix-cont-head { font-size: 9.5pt; font-weight: 700; margin: 0 0 2pt; }
     /* Vihko: harvat sarakkeet → iso luettava fontti. Jokainen LINJA omalle sivulle —
        myös 1. linja (→ sisällysluettelo jää yksin omalle sivulleen). Jokainen SUUNTA
        ("X → Y") omalle sivulle (paluusuunta uudelta sivulta), paitsi linjan 1. suunta
@@ -1365,6 +1372,7 @@ const STRINGS = {
     fullTimetableTitle: "Koko aikataulu pysäkeittäin",
     fullTimetableHint: "Lue saraketta ylhäältä alas: yksi sarake on yhden vuoron kellonajat jokaisella pysäkillä.",
     stopColHead: "Pysäkki",
+    matrixContHead: "Linja {line} · {dir} · {day} · lähdöt klo {from}–{to}",
     loadingMatrix: "Haetaan koko aikataulua…",
     // tulostusvihko (monta linjaa)
     printPageTitle: "Tulosta aikatauluja",
@@ -1743,6 +1751,7 @@ const STRINGS = {
     fullTimetableTitle: "Full timetable by stop",
     fullTimetableHint: "Read a column top to bottom: each column is one trip's times at every stop.",
     stopColHead: "Stop",
+    matrixContHead: "Line {line} · {dir} · {day} · departures {from}–{to}",
     loadingMatrix: "Loading full timetable…",
     // print booklet (multiple routes)
     printPageTitle: "Print timetables",
@@ -2119,6 +2128,7 @@ const STRINGS = {
     fullTimetableTitle: "Hela tidtabellen per hållplats",
     fullTimetableHint: "Läs en kolumn uppifrån och ned: varje kolumn är en turs tider vid varje hållplats.",
     stopColHead: "Hållplats",
+    matrixContHead: "Linje {line} · {dir} · {day} · avgångar {from}–{to}",
     loadingMatrix: "Hämtar hela tidtabellen…",
     // utskriftshäfte (flera linjer)
     printPageTitle: "Skriv ut tidtabeller",
@@ -4243,9 +4253,18 @@ function stopMatrixHtml(stops, trips, opts) {
   // Fonttilattia 8pt; harvemmille sarakkeille isompi (215/cols, katto 11pt). --mfs
   // luetaan vain @media print -lohkossa.
   const printPt = Math.max(8, Math.min(11, Math.floor((215 / perSheet) / 0.25) * 0.25));
+  // Sarakeotsikko = vuoron lähtöaika = sarakkeen varhaisin ei-tyhjä aika (robusti myös
+  // jos vuoro ei lähde reitin alkupysäkiltä). HH:MM ≤ solun aika → leveys ei kasva.
+  const colDep = c => {
+    const v = Object.values(tripTimes[c]);
+    return v.length ? Math.min(...v) : null;
+  };
   const sheetHtml = (from, to, contClass) => {
     const n = to - from;
-    const headCols = Array.from({ length: n }, (_, i) => `<th scope="col">${from + i + 1}</th>`).join("");
+    const headCols = Array.from({ length: n }, (_, i) => {
+      const d = colDep(from + i);
+      return `<th scope="col">${d == null ? "" : fmtSec(d)}</th>`;
+    }).join("");
     const rows = stops.map(s => {
       const cells = Array.from({ length: n }, (_, i) => {
         const v = tripTimes[from + i][s.gtfsId];
@@ -4253,7 +4272,15 @@ function stopMatrixHtml(stops, trips, opts) {
       }).join("");
       return `<tr><th scope="row">${esc(s.name)}</th>${cells}</tr>`;
     }).join("");
-    return `<div class="matrix-wrap${contClass}"><table class="stoptable" style="--mfs:${printPt}pt">
+    // Jatkoarkilla kompakti otsikkorivi (linja · suunta · päivätyyppi · lähtöaikaväli),
+    // jotta irrallinen jatkosivu on luettavissa ilman 1. arkkia. Konteksti tulee
+    // opts:sta (printLine), ei globaalista DOMista. 1. arkki ei saa otsikkoa.
+    const contHead = contClass && opts
+      ? `<p class="matrix-cont-head">${t("matrixContHead", { line: esc(opts.line || ""),
+          dir: esc(opts.dir || ""), day: esc(opts.daytype || ""),
+          from: fmtSec(colDep(from) ?? 0), to: fmtSec(colDep(to - 1) ?? 0) })}</p>`
+      : "";
+    return `<div class="matrix-wrap${contClass}">${contHead}<table class="stoptable" style="--mfs:${printPt}pt">
         <thead><tr><th scope="col">${t("stopColHead")}</th>${headCols}</tr></thead>
         <tbody>${rows}</tbody></table></div>`;
   };
@@ -4764,7 +4791,9 @@ async function viewRoute(routeId, patternCode, date) {
     }));
     const tables = sets.map(({ dt, pat, trips }) =>
       `<h3 class="daytype">${esc(dt.label)}</h3>` +
-      (mode === "all" ? stopMatrixHtml(pat.stops, trips, { paginate: true }) : bookletTableHtml(trips))).join("");
+      (mode === "all"
+        ? stopMatrixHtml(pat.stops, trips, { paginate: true, line: route.shortName, dir: patternLabel(pat), daytype: dt.label })
+        : bookletTableHtml(trips))).join("");
     po.innerHTML = `<div class="card">
         <h2>${esc(route.shortName || "")} ${esc(patternLabel(current))}</h2>
         <p class="muted">${t("dayTypeNote")}</p>${tables}</div>`;
