@@ -893,6 +893,9 @@
     table.stoptable:not(.booklet) { font-size: var(--mfs, 6pt); }
     table.stoptable:not(.booklet) th, table.stoptable:not(.booklet) td { padding: 1pt 1pt; }
     table.stoptable:not(.booklet) thead th:first-child { width: 12%; }
+    /* Laaja matriisi pilkottu sarakkeittain useammalle vaaka-arkille (8pt-lattia):
+       jatkoarkki omalle sivulle. 1. arkki virtaa → päivätyyppien kompakti virtaus säilyy. */
+    .matrix-cont { break-before: page; page-break-before: always; }
     /* Vihko: harvat sarakkeet → iso luettava fontti. Jokainen LINJA omalle sivulle —
        myös 1. linja (→ sisällysluettelo jää yksin omalle sivulleen). Jokainen SUUNTA
        ("X → Y") omalle sivulle (paluusuunta uudelta sivulta), paitsi linjan 1. suunta
@@ -4220,7 +4223,7 @@ function viewRoutes() {
 // Rakentaa pysäkeittäisen aikataulumatriisin: pysäkit riveinä, vuorot
 // sarakkeina. Yksi sarake = yhden vuoron kellonajat reitin jokaisella
 // pysäkillä (klassinen painettu bussiaikataulu).
-function stopMatrixHtml(stops, trips) {
+function stopMatrixHtml(stops, trips, opts) {
   const valid = (trips || []).filter(tr => (tr.stoptimes || []).length);
   valid.sort((a, b) => a.stoptimes[0].scheduledDeparture - b.stoptimes[0].scheduledDeparture);
   if (!valid.length || !(stops || []).length) return `<p class="muted">${t("noDepsDay")}</p>`;
@@ -4229,20 +4232,38 @@ function stopMatrixHtml(stops, trips) {
     for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture;
     return m;
   });
-  const headCols = valid.map((_, i) => `<th scope="col">${i + 1}</th>`).join("");
-  const rows = stops.map(s => {
-    const cells = tripTimes.map(m =>
-      `<td>${m[s.gtfsId] == null ? "·" : fmtSec(m[s.gtfsId])}</td>`).join("");
-    return `<tr><th scope="row">${esc(s.name)}</th>${cells}</tr>`;
-  }).join("");
-  // Print-fonttikoko vuorosarakkeiden määrän mukaan: leveys/sarake ∝ 1/cols, joten
-  // koko skaalataan ~215/cols (yläraja 11pt). Mitoitus todennettu A4-vaakaan Chromen
-  // print-renderöinnistä niin, ettei yksikään kellonaika leikkaudu (myös ~36+ sar.).
-  // --mfs luetaan vain @media print -lohkossa → ruutunäkymä ennallaan.
-  const printPt = Math.min(11, Math.floor((215 / valid.length) / 0.25) * 0.25);
-  return `<div class="matrix-wrap"><table class="stoptable" style="--mfs:${printPt}pt">
-      <thead><tr><th scope="col">${t("stopColHead")}</th>${headCols}</tr></thead>
-      <tbody>${rows}</tbody></table></div>`;
+  // Tulosteessa (opts.paginate): jos vuoroja enemmän kuin luettavuuslattialle (8pt)
+  // mahtuu, pilko vuorot useammalle VAAKA-arkille fontin kutistamisen sijaan — max 30
+  // saraketta/arkki (mitattu A4-vaakaan), pysäkkisarake toistuu ja numerointi jatkuu.
+  // Ruutunäkymä (ilman paginate) = yksi vieritettävä taulu kuten ennen.
+  const MAX_COLS = 30;
+  const sheets = (opts && opts.paginate && valid.length > MAX_COLS)
+    ? Math.ceil(valid.length / MAX_COLS) : 1;
+  const perSheet = Math.ceil(valid.length / sheets);
+  // Fonttilattia 8pt; harvemmille sarakkeille isompi (215/cols, katto 11pt). --mfs
+  // luetaan vain @media print -lohkossa.
+  const printPt = Math.max(8, Math.min(11, Math.floor((215 / perSheet) / 0.25) * 0.25));
+  const sheetHtml = (from, to, contClass) => {
+    const n = to - from;
+    const headCols = Array.from({ length: n }, (_, i) => `<th scope="col">${from + i + 1}</th>`).join("");
+    const rows = stops.map(s => {
+      const cells = Array.from({ length: n }, (_, i) => {
+        const v = tripTimes[from + i][s.gtfsId];
+        return `<td>${v == null ? "·" : fmtSec(v)}</td>`;
+      }).join("");
+      return `<tr><th scope="row">${esc(s.name)}</th>${cells}</tr>`;
+    }).join("");
+    return `<div class="matrix-wrap${contClass}"><table class="stoptable" style="--mfs:${printPt}pt">
+        <thead><tr><th scope="col">${t("stopColHead")}</th>${headCols}</tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+  };
+  if (sheets === 1) return sheetHtml(0, valid.length, "");
+  let out = "";
+  for (let s = 0; s < sheets; s++) {
+    const from = s * perSheet, to = Math.min(valid.length, from + perSheet);
+    out += sheetHtml(from, to, s === 0 ? "" : " matrix-cont");  // jatkoarkki omalle sivulle
+  }
+  return out;
 }
 
 // Pysäkkijuliste: yhdeltä pysäkiltä lähtevät linjat tuntikaaviona
@@ -4743,7 +4764,7 @@ async function viewRoute(routeId, patternCode, date) {
     }));
     const tables = sets.map(({ dt, pat, trips }) =>
       `<h3 class="daytype">${esc(dt.label)}</h3>` +
-      (mode === "all" ? stopMatrixHtml(pat.stops, trips) : bookletTableHtml(trips))).join("");
+      (mode === "all" ? stopMatrixHtml(pat.stops, trips, { paginate: true }) : bookletTableHtml(trips))).join("");
     po.innerHTML = `<div class="card">
         <h2>${esc(route.shortName || "")} ${esc(patternLabel(current))}</h2>
         <p class="muted">${t("dayTypeNote")}</p>${tables}</div>`;
