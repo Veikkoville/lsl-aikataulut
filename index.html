@@ -4654,7 +4654,7 @@ async function viewRoute(routeId, patternCode, date) {
     stop(id: $stopId) {
       stoptimesForServiceDate(date: $date, omitNonPickups: true) {
         pattern { code }
-        stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay }
+        stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay trip { gtfsId } }
       }
     }
   }`;
@@ -4668,9 +4668,20 @@ async function viewRoute(routeId, patternCode, date) {
     if (!trips.length || !refStop) return { sts: [], pat, refStop, stale: routeCachedAt };
     const { data: tt, cachedAt } = await cachedGql(`tt:${routeId}:${pat.code}:${iso}`, TT_QUERY,
       { stopId: refStop.gtfsId, date: iso.replace(/-/g, "") });
-    const sts = (tt.stop?.stoptimesForServiceDate || [])
-      .filter(g => g.pattern.code === pat.code).flatMap(g => g.stoptimes)
-      .sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
+    // Yksi (varhaisin) lähtö per vuoro: jos lähtöpysäkki on reitillä kahdesti (silmukka/
+    // palveluliikenne, esim. Salo 31, Kajaani Pali), stoptimesForServiceDate palauttaa
+    // saman vuoron kahdesti → pidetään ensimmäinen käynti = taulun sarake (joka ottaa
+    // myös 1. käynnin). Vuorottelematon tapaus säilyy ennallaan.
+    const byTrip = new Map();
+    for (const g of (tt.stop?.stoptimesForServiceDate || [])) {
+      if (g.pattern.code !== pat.code) continue;
+      for (const s of (g.stoptimes || [])) {
+        const key = s.trip?.gtfsId || ("anon:" + s.scheduledDeparture);
+        const prev = byTrip.get(key);
+        if (!prev || s.scheduledDeparture < prev.scheduledDeparture) byTrip.set(key, s);
+      }
+    }
+    const sts = [...byTrip.values()].sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
     return { sts, pat, refStop, stale: cachedAt || routeCachedAt };
   };
   // Etsii seuraavan liikennöintipäivän (enintään 14 vrk eteenpäin) jolla on lähtöjä.
