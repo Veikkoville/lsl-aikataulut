@@ -3426,6 +3426,9 @@ function cmsToAlerts(items, gtfsAlerts) {
     if (/^\s*(tilanne ohi|p[äa]ivitys:.*(palaa|peruttu|ohi))/i.test(it.title || "")) continue;
     if (gUrls.has(normAlertUrl(it.link))) continue;                  // jo GTFS-RT:ssä (URL)
     if (gTitles.has(normAlertTitle(it.title))) continue;             // jo GTFS-RT:ssä (otsikko)
+    // Päättynyt poikkeus pois: workerin jäsentämä loppupvm menneisyydessä (inklusiivinen).
+    // validUntil null/puuttuu (vanha worker, ei loppuvihjettä) → fallback yllä olevaan ikä-/ohi-suotimeen.
+    if (it.validUntil && it.validUntil < todayISO()) continue;
     out.push({
       alertHeaderText: it.title,
       alertDescriptionText: it.excerpt || "",

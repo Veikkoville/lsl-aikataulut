@@ -96,6 +96,7 @@ async function handleCmsAlerts(url, origin) {
       date: p.date || "",
       modified: p.modified || "",
       lines: [...lineTokensFromText(title + " " + body)],   // poimitut linjanumerot rungosta
+      validUntil: parseValidUntil(title + " " + body, p.date),   // loppupvm (otsikko+runko) tai null
     };
   }).filter(p => p.title);
   const headers = new Headers(corsHeaders(origin));
@@ -679,6 +680,48 @@ export function lineTokensFromText(text) {
     }
   }
   return out;
+}
+
+// Tiedotteen voimassaolon VIIMEINEN päivä otsikosta + rungosta → "YYYY-MM-DD".
+// Vain selvät loppuvihjeet: päivämääräväli (D1.[M1.]-D2.M2.[YYYY]), "päättyy …",
+// "… asti|saakka|mennessä". Useammasta otetaan MYÖHÄISIN. Paljaita tai "alkaen"-
+// päiviä EI pidetä loppuna (→ null, client säilyttää nykyisen 45 pv -käytöksen).
+// Vuosi päätellään JULKAISUPÄIVÄSTÄ (deterministinen → reunacache pysyy ehjänä),
+// ei kellosta. Inklusiivinen: validUntil = viimeinen voimassaolopäivä.
+export function parseValidUntil(text, publishISO) {
+  if (!text) return null;
+  const t = String(text).replace(/[–—−]/g, "-");   // – — − → -
+  const ts = Date.parse(publishISO || "");
+  let anchor = null;
+  if (Number.isFinite(ts)) {
+    const d = new Date(ts);
+    anchor = { y: d.getUTCFullYear(), ms: Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) };
+  }
+  const cands = [];
+  const add = (d, mo, y) => {
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return;
+    let year = y;
+    if (!year) {
+      if (!anchor) return;                                          // ei vuotta eikä ankkuria → ei arvata
+      year = anchor.y;
+      if (Date.UTC(year, mo - 1, d) < anchor.ms - 31 * 86400000) year += 1;   // pvm ennen julkaisua → seuraava vuosi
+    }
+    const dt = new Date(Date.UTC(year, mo - 1, d));
+    if (dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d)       // hylkää epäpäivät (esim. 31.2.)
+      cands.push(dt.toISOString().slice(0, 10));
+  };
+  // 1) väli D1.[M1.]-D2.M2.[YYYY] → loppu = jälkimmäinen pvm
+  for (const m of t.matchAll(/(\d{1,2})\.(?:\d{1,2}\.)?\s*-\s*(\d{1,2})\.(\d{1,2})\.(\d{4})?/g))
+    add(+m[2], +m[3], m[4] ? +m[4] : null);
+  // 2) "päättyy … DD.MM.[YYYY]" (viikonpäivä-etuliite sallitaan välissä)
+  for (const m of t.matchAll(/p[äa][äa]tty[^0-9]{0,20}(\d{1,2})\.(\d{1,2})\.(\d{4})?/gi))
+    add(+m[1], +m[2], m[3] ? +m[3] : null);
+  // 3) "DD.MM.[YYYY] asti|saakka|mennessä"
+  for (const m of t.matchAll(/(\d{1,2})\.(\d{1,2})\.(\d{4})?\s*(?:asti|saakka|menness[äa])/gi))
+    add(+m[1], +m[2], m[3] ? +m[3] : null);
+  if (!cands.length) return null;
+  cands.sort();                       // YYYY-MM-DD: leksikografinen = kronologinen
+  return cands[cands.length - 1];     // myöhäisin loppu
 }
 
 // CMS-tiedotteen runko voi muuttua (modified) → avainnetaan pysyvästi URL:lla,
