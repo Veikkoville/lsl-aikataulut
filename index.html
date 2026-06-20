@@ -1070,6 +1070,25 @@ const CONFIGS = {
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
   },
+  // Vaasa-demo (?city=vaasa). Sama minimimalli kuin Salo/Kajaani: kaikki sisältö tulee
+  // avoimesta Waltti/Digitransit-GTFS:stä. feedId "Vaasa" varmennettu feeds-kyselyllä
+  // proxyn kautta 20.6.2026 (28 BUS-linjaa). Kaksikielinen alue (FI/SV): GTFS:n longNamet
+  // sisältävät molempia, sovellus toimii FI/SV/EN. EI fares/hubs/cmsAlerts (Vaasan hintoja,
+  // keskuspysäkkejä eikä häiriö-CMS:ää varmennettu) eikä brändiväriä (GTFS:ssä ei värejä,
+  // Liftin hex varmentamatta → neutraali oletus). GTFS-RT-häiriöt toimivat silti.
+  vaasa: {
+    city: "Vaasa",
+    cityGenitive: "Vaasan",
+    operator: "Vaasan paikallisliikenne",
+    operatorShort: "Lifti",
+    feedMatch: /vaasa/i,
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      focus: { lat: 63.0951, lon: 21.6165 },
+      rect: { minLat: 62.85, maxLat: 63.35, minLon: 21.25, maxLon: 22.50 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
 };
 
 const cityKey = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();
@@ -2425,7 +2444,7 @@ function activeProbeDates() {
 async function loadRoutes() {
   if (routesCache) return routesCache;
   try {
-    const cached = JSON.parse(localStorage.getItem(ns("routesCache3")) || "null");
+    const cached = JSON.parse(localStorage.getItem(ns("routesCache4")) || "null");
     if (cached && Date.now() - cached.ts < 24 * 3600 * 1000 && cached.routes?.length) {
       routesCache = cached.routes;
       return routesCache;
@@ -2455,13 +2474,40 @@ async function loadRoutes() {
     const prev = byKey.get(k);
     if (!prev || tripCount(r) > tripCount(prev)) byKey.set(k, r);
   }
-  routesCache = [...byKey.values()]
-    .map(r => ({ gtfsId: r.gtfsId, shortName: r.shortName, longName: r.longName, mode: r.mode, color: r.color, textColor: r.textColor }))
+  // Ryhmittele saman shortNamen route-objektit yhdeksi "linjaksi": osa feedeistä (esim.
+  // Vaasa) julkaisee suunnat/variantit erillisinä objekteina samalla numerolla → muuten
+  // sama numero näkyisi listoissa useasti ja linjasivu vain yhden suunnan. Eri shortNamet
+  // (1 vs 1K) pysyvät erillisinä. gtfsIds = ryhmän kaikki route-ID:t; linjasivu/vihko/
+  // juliste/kartta kokoavat patternit niiden unionista (ks. lineIds). Lahdessa ryhmä = 1.
+  const byShort = new Map();
+  for (const r of byKey.values()) {
+    const k = r.shortName || "";
+    if (!byShort.has(k)) byShort.set(k, []);
+    byShort.get(k).push(r);
+  }
+  routesCache = [...byShort.values()]
+    .map(group => {
+      group.sort((a, b) => tripCount(b) - tripCount(a)); // primary = nyt eniten liikennöivä
+      const primary = group[0];
+      return { gtfsId: primary.gtfsId, gtfsIds: group.map(r => r.gtfsId),
+        shortName: primary.shortName, longName: primary.longName, mode: primary.mode,
+        color: primary.color, textColor: primary.textColor };
+    })
     .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
   try {
-    localStorage.setItem(ns("routesCache3"), JSON.stringify({ ts: Date.now(), routes: routesCache }));
+    localStorage.setItem(ns("routesCache4"), JSON.stringify({ ts: Date.now(), routes: routesCache }));
   } catch (e) { /* täysi localStorage ei ole este */ }
   return routesCache;
+}
+
+// Linjan kaikki route-ID:t (sama shortName) loadRoutes-ryhmästä. Vaasan kaltaiset feedit
+// julkaisevat suunnat erillisinä route-objekteina; Lahdessa ryhmä = 1 ID. Kun linjan
+// patternit kootaan kaikista suunnista (linjasivu, vihko, juliste, linjakartta), haetaan
+// routes(ids: lineIds) ja yhdistetään patternit → byDir/suunnanvaihto toimii unionin yli.
+async function lineIds(routeId) {
+  const list = await loadRoutes().catch(() => []);
+  const g = list.find(r => (r.gtfsIds || []).includes(routeId));
+  return (g && g.gtfsIds && g.gtfsIds.length) ? g.gtfsIds : [routeId];
 }
 
 /* ---------- Helpers ---------- */
@@ -4333,15 +4379,18 @@ function stopPosterHtml(groups) {
 async function viewRouteMap(routeId) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">${t("loadingRoute")}</p>`);
-  const { data } = await cachedGql("routemap:" + routeId,
-    `query ($id: String!) {
-       route(id: $id) {
-         shortName longName color textColor
+  const ids = await lineIds(routeId);
+  const { data } = await cachedGql("routemap:" + ids.join(","),
+    `query ($ids: [String]) {
+       routes(ids: $ids) {
+         gtfsId shortName longName color textColor
          patterns { directionId patternGeometry { length points } stops { gtfsId name lat lon } }
        }
-     }`, { id: routeId });
-  const route = data.route;
+     }`, { ids });
+  const routesArr = (data.routes || []).filter(Boolean);
+  const route = routesArr.find(r => r.gtfsId === routeId) || routesArr[0];
   if (!route) throw new Error(t("errRouteNotFound") + routeId);
+  const patterns = routesArr.flatMap(r => r.patterns || []);  // kaikki suunnat unioniin
   setView(`
     <nav class="crumb"><button class="linkish" id="backBtn">← ${t("back")}</button> · <a href="#/">${t("home")}</a></nav>
     <div class="card">
@@ -4360,7 +4409,7 @@ async function viewRouteMap(routeId) {
     let bounds = null;
     // kummankin suunnan pisin reittikuvio
     const byDir = new Map();
-    for (const p of (route.patterns || [])) {
+    for (const p of patterns) {
       if (!p.patternGeometry || !p.patternGeometry.points) continue;
       const prev = byDir.get(p.directionId);
       if (!prev || (p.patternGeometry.length || 0) > (prev.patternGeometry.length || 0)) byDir.set(p.directionId, p);
@@ -4373,7 +4422,7 @@ async function viewRouteMap(routeId) {
     }
     // pysäkit (yhdistetty kaikista patterneista)
     const seen = new Set();
-    for (const p of (route.patterns || [])) for (const s of (p.stops || [])) {
+    for (const p of patterns) for (const s of (p.stops || [])) {
       if (s.lat == null || seen.has(s.gtfsId)) continue;
       seen.add(s.gtfsId);
       L.circleMarker([s.lat, s.lon], { radius: 4, color, weight: 2, fillColor: "#fff", fillOpacity: 1 })
@@ -4400,21 +4449,25 @@ async function viewRoute(routeId, patternCode, date) {
   // ei ole vuoroja NYT; ne eivät saa voittaa pää- eikä suuntavalintaa.
   const probe = activeProbeDates();
   const probeAliases = probe.map((d, i) => `p${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
-  const { data, cachedAt: routeCachedAt } = await cachedGql("route:" + routeId,
-    `query ($id: String!) {
-       route(id: $id) {
-         shortName longName color textColor
+  const ids = await lineIds(routeId);
+  const { data, cachedAt: routeCachedAt } = await cachedGql("route:" + ids.join(","),
+    `query ($ids: [String]) {
+       routes(ids: $ids) {
+         gtfsId shortName longName color textColor
          patterns {
            code name directionId
            ${probeAliases}
            stops { gtfsId name lat lon }
          }
        }
-     }`, { id: routeId });
-  const route = data.route;
+     }`, { ids });
+  // Linjan kaikkien suunta-/varianttiobjektien patternit yhteen (Vaasa: erilliset objektit
+  // per suunta; Lahti: 1 objekti). route = primary (URL:n routeId) badgea/väriä varten.
+  const routesArr = (data.routes || []).filter(Boolean);
+  const route = routesArr.find(r => r.gtfsId === routeId) || routesArr[0];
   if (!route) throw new Error(t("errRouteNotFound") + routeId);
 
-  const patterns = route.patterns || [];
+  const patterns = routesArr.flatMap(r => r.patterns || []);
   const upcoming = p => probe.reduce((n, _, i) => n + ((p["p" + i] || []).length), 0);
   // Oletuksena pääsuunta TULEVIEN vuorojen mukaan — EI patterns[0] eikä kaikkien
   // aikojen suurin (vanha variantti voi olla "isoin" mutta ei aja nyt → "ei lähtöjä").
@@ -5698,11 +5751,11 @@ async function viewPrintHub() {
     const dt = dts[+daySel.value] || dts[0];
     st.textContent = t("preparingPrint");
     try {
-      const { data } = await cachedGql("routestops:" + routeId,
-        `query ($id: String!) { route(id: $id) { shortName patterns { stops { gtfsId name code } } } }`, { id: routeId });
-      const route = data.route;
+      const ids = await lineIds(routeId);
+      const { data } = await cachedGql("routestops:" + ids.join(","),
+        `query ($ids: [String]) { routes(ids: $ids) { patterns { stops { gtfsId name code } } } }`, { ids });
       const seen = new Set(), stops = [];
-      for (const p of (route?.patterns || [])) for (const s of (p.stops || []))
+      for (const r of (data.routes || [])) for (const p of (r?.patterns || [])) for (const s of (p.stops || []))
         if (!seen.has(s.gtfsId)) { seen.add(s.gtfsId); stops.push(s); }
       if (!stops.length) { st.textContent = t("batchNoStops"); return; }
       let done = 0;
@@ -7182,17 +7235,20 @@ async function viewPrint() {
 
     const sections = await mapLimit(selected, 4, async (routeId) => {
       try {
-        const { data } = await cachedGql("proute:" + routeId,
-          `query ($id: String!) {
-             route(id: $id) {
-               shortName longName color textColor
+        const ids = await lineIds(routeId);
+        const { data } = await cachedGql("proute:" + ids.join(","),
+          `query ($ids: [String]) {
+             routes(ids: $ids) {
+               gtfsId shortName longName color textColor
                patterns { code name directionId ${probeAliases} stops { gtfsId name } }
              }
-           }`, { id: routeId });
-        const route = data.route;
+           }`, { ids });
+        const routesArr = (data.routes || []).filter(Boolean);
+        const route = routesArr.find(r => r.gtfsId === routeId) || routesArr[0];
         if (!route) return null;
+        const patterns = routesArr.flatMap(r => r.patterns || []);  // suunnat unioniin
         const byDir = new Map();
-        for (const p of route.patterns || []) {
+        for (const p of patterns) {
           const k = p.directionId ?? 0;
           if (!byDir.has(k)) byDir.set(k, []);
           byDir.get(k).push(p);
