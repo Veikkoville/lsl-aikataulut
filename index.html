@@ -856,6 +856,10 @@
     /* Vihon otsikko+sisällys virtaa, ettei pitkä sisällysluettelo työnny sivulle 2
        (jättäen tyhjän etusivun). #bookletOut on print-mediassa ensimmäinen lohko. */
     .booklet-head { break-inside: auto; page-break-inside: auto; }
+    /* Sisällysluettelo: lista alkaa heti "Sisältö"-otsikon alta sivulla 1 ja saa
+       jatkua sivulle 2 (täyttää tyhjän) — ei monoliittinä sivulle 2. */
+    .booklet-toc, .booklet-toc ul { break-inside: auto; page-break-inside: auto; }
+    .booklet-toc h3 { break-after: avoid; page-break-after: avoid; }
     .badge { border: 1px solid #000; background: none; color: #000; }
     .timegrid span { background: none; border: 1px solid #ccc; }
     .print-only { display: block !important; }
