@@ -861,6 +861,22 @@
   /* Työkalut: hillitty, sekundaarinen ikonirivi (pienemmät kuin hero/lähimmät) */
   .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 0.55rem; margin: 0 0 1.1rem; }
+  /* Kompakti yhden rivin haku heron alle (ei isoa korttia) */
+  .home-search { margin: 0 0 1.1rem; }
+  .hs-field { display: flex; align-items: center; gap: 0.5rem;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 0 0.7rem; }
+  .home-search:focus-within .hs-field { border-color: var(--blue); }
+  .hs-field .ic { color: var(--muted); flex: none; }
+  .hs-field input { flex: 1; min-width: 0; border: 0; background: transparent;
+    padding: 0.65rem 0; font: inherit; color: var(--text); }
+  .hs-field input:focus { outline: none; }
+  .home-search #searchResults:not(:empty) { margin-top: 0.4rem; }
+  /* Ryhmitellyt pikavalinnat: otsikoitu ryhmä; tyhjä ryhmä ei renderöidy lainkaan */
+  .tool-group { margin: 0 0 1.1rem; }
+  .tool-group-h { font-size: 0.95rem; font-weight: var(--wmed); margin: 0 0 0.5rem;
+    color: var(--muted); letter-spacing: 0.01em; }
+  .tool-group .tool-grid { margin: 0; }
   .tool { display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem 0.8rem;
     border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);
     color: var(--text); text-decoration: none; font-size: 0.9rem; line-height: 1.2;
@@ -1230,6 +1246,9 @@ const STRINGS = {
     footColService: "Palvelu",
     footColInfo: "Tietoa",
     quickNavAria: "Pikavalinnat",
+    groupMaps: "Kartat",
+    groupSchedules: "Aikataulut & tulosteet",
+    groupTickets: "Liput & palvelu",
     settings: "Asetukset", home: "Etusivu", toHome: "Etusivulle", back: "Takaisin", save: "Tallenna",
     // virheet ja tila
     errApiKey: "API-avain puuttuu tai on virheellinen. Tarkista avain asetuksista.",
@@ -1638,6 +1657,9 @@ const STRINGS = {
     footColService: "Service",
     footColInfo: "About",
     quickNavAria: "Quick links",
+    groupMaps: "Maps",
+    groupSchedules: "Timetables & printing",
+    groupTickets: "Tickets & service",
     settings: "Settings", home: "Home", toHome: "To the front page", back: "Back", save: "Save",
     errApiKey: "The API key is missing or invalid. Check the key in settings.",
     errApi: "API error: ",
@@ -2033,6 +2055,9 @@ const STRINGS = {
     footColService: "Tjänst",
     footColInfo: "Information",
     quickNavAria: "Snabbval",
+    groupMaps: "Kartor",
+    groupSchedules: "Tidtabeller & utskrifter",
+    groupTickets: "Biljetter & service",
     settings: "Inställningar", home: "Startsida", toHome: "Till startsidan", back: "Tillbaka", save: "Spara",
     errApiKey: "API-nyckeln saknas eller är ogiltig. Kontrollera nyckeln i inställningarna.",
     errApi: "Gränssnittsfel: ",
@@ -4190,39 +4215,6 @@ function bindUnifiedSearch(input, results) {
   });
 }
 
-function bindNearbyButton(btn, results) {
-  btn.addEventListener("click", () => {
-    if (!navigator.geolocation) {
-      results.innerHTML = `<li><div class="error">${t("geoUnsupported")}</div></li>`;
-      return;
-    }
-    results.innerHTML = `<li><p class="muted">${t("gettingLocation")}</p></li>`;
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        const data = await gql(
-          `query ($lat: Float!, $lon: Float!) {
-             stopsByRadius(lat: $lat, lon: $lon, radius: 800, first: 15) {
-               edges { node { distance stop { gtfsId name@L code } } }
-             }
-           }`, { lat: pos.coords.latitude, lon: pos.coords.longitude });
-        const nodes = (data.stopsByRadius?.edges || [])
-          .map(e => e.node)
-          .filter(n => n.stop && n.stop.gtfsId.startsWith(feedId + ":"))
-          .sort((a, b) => a.distance - b.distance);
-        results.innerHTML = nodes.length
-          ? nodes.map(n => `<li><a class="item" href="#/pysakki/${encodeURIComponent(n.stop.gtfsId)}">
-              <span>${esc(n.stop.name)}</span>
-              <span class="muted">${n.distance} m</span></a></li>`).join("")
-          : `<li><p class="muted">${t("noStopsRadius")}</p></li>`;
-      } catch (err) {
-        results.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`;
-      }
-    }, geoErr => {
-      results.innerHTML = `<li><div class="error">${t("geoFail")}${esc(geoErr.message)}</div></li>`;
-    }, { timeout: 10000 });
-  });
-}
-
 /* ---------- Suosikit (localStorage) ---------- */
 
 function getFavs() {
@@ -4459,6 +4451,34 @@ function initNearby(body) {
   if (localStorage.getItem("geoAllowed")) locate();
 }
 
+// Etusivun ryhmitellyt pikavalinnat: 3 otsikoitua ryhmää. CONFIG-puuttuvat napit (esim. hubs/
+// fares minimi-CONFIG-kaupungeissa) jäävät pois, ja kokonaan tyhjä ryhmä piilotetaan kokonaan
+// (ei tyhjää otsikkoa) — sama tyhjätila-logiikka kuin häiriölohkoilla.
+function homeToolGroupsHtml() {
+  const tool = (href, ic, label) => `<a class="tool" href="${href}">${icon(ic)}<span>${label}</span></a>`;
+  const group = (titleKey, items) => {
+    const list = items.filter(Boolean);
+    if (!list.length) return "";   // kaikki napit puuttuvat → ei ryhmää lainkaan
+    return `<section class="tool-group">
+        <h3 class="tool-group-h">${t(titleKey)}</h3>
+        <nav class="tool-grid" aria-label="${t(titleKey)}">${list.join("")}</nav>
+      </section>`;
+  };
+  return group("groupMaps", [
+    tool("#/kartta", "map", t("liveMapLink")),
+    tool("#/linjasto", "network", t("netMapLink")),
+    CONFIG.hubs ? tool("#/laiturit", "pin", t("hubLink")) : "",
+  ]) + group("groupSchedules", [
+    tool("#/poikkeukset", "calendar", t("exLink")),
+    tool("#/tulosta", "print", t("printPageLink")),
+    tool("#/tulosteet", "monitor", t("printHubLink")),
+  ]) + group("groupTickets", [
+    CONFIG.fares ? tool("#/liput", "ticket", t("faresLink")) : "",
+    PROXY_URL ? tool("#/sahkoposti", "mail", t("emailSubTitle")) : "",
+    tool("#/palaute", "tools", t("fbLink")),
+  ]);
+}
+
 function viewRoutes() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`
@@ -4494,6 +4514,16 @@ function viewRoutes() {
       <div id="nearbyBody"></div>
       <div id="lastPlanRow"></div>
     </section>
+    <!-- Kompakti yhden rivin haku heron alle (linja/pysäkki/osoite) — ei toista isoa laatikkoa.
+         "Lähellä" yhdistetty heron "Näytä lähimmät lähdöt" -toimintoon (yksi nappi). -->
+    <div class="home-search">
+      <div class="hs-field">
+        ${icon("search")}
+        <input type="search" id="uniSearch" placeholder="${t("searchPlaceholder")}"
+               aria-label="${t("searchAria")}">
+      </div>
+      <ul class="plain" id="searchResults"></ul>
+    </div>
     <div class="card" id="savedCard" hidden>
       <h2>${icon("star")} ${t("savedTripsTitle")}</h2>
       <div id="savedBody"></div>
@@ -4502,26 +4532,7 @@ function viewRoutes() {
       <h2>${icon("star")} ${t("favsTitle")}</h2>
       <div id="favBody"></div>
     </div>
-    <div class="card">
-      <h2>${icon("search")} ${t("searchTitle")}</h2>
-      <div class="row">
-        <input type="search" id="uniSearch" placeholder="${t("searchPlaceholder")}"
-               aria-label="${t("searchAria")}">
-        <button id="nearbyBtn" class="secondary" title="${t("nearBtnTitle")}">${icon("pin")} ${t("nearBtn")}</button>
-      </div>
-      <ul class="plain" id="searchResults"></ul>
-    </div>
-    <nav class="tool-grid" aria-label="${t("quickNavAria")}">
-      <a class="tool" href="#/kartta">${icon("map")}<span>${t("liveMapLink")}</span></a>
-      <a class="tool" href="#/linjasto">${icon("network")}<span>${t("netMapLink")}</span></a>
-      ${CONFIG.hubs ? `<a class="tool" href="#/laiturit">${icon("pin")}<span>${t("hubLink")}</span></a>` : ""}
-      <a class="tool" href="#/poikkeukset">${icon("calendar")}<span>${t("exLink")}</span></a>
-      ${CONFIG.fares ? `<a class="tool" href="#/liput">${icon("ticket")}<span>${t("faresLink")}</span></a>` : ""}
-      <a class="tool" href="#/tulosta">${icon("print")}<span>${t("printPageLink")}</span></a>
-      <a class="tool" href="#/tulosteet">${icon("monitor")}<span>${t("printHubLink")}</span></a>
-      <a class="tool" href="#/palaute">${icon("tools")}<span>${t("fbLink")}</span></a>
-      ${PROXY_URL ? `<a class="tool" href="#/sahkoposti">${icon("mail")}<span>${t("emailSubTitle")}</span></a>` : ""}
-    </nav>
+    ${homeToolGroupsHtml()}
     <div class="card">
       <h2>${icon("bus")} ${t("routesTitle")}</h2>
       <input type="search" id="routeFilter" placeholder="${t("routeFilterPlaceholder")}"
@@ -4544,7 +4555,6 @@ function viewRoutes() {
     ? nearbyLocate()
     : (document.getElementById("nearbyBody").innerHTML = `<p class="muted">${t("geoUnsupportedHint")}</p>`));
   bindUnifiedSearch(document.getElementById("uniSearch"), document.getElementById("searchResults"));
-  bindNearbyButton(document.getElementById("nearbyBtn"), document.getElementById("searchResults"));
 
   // Yhtenäinen reittihaku: Mistä/Minne ensisijaisina; Mistä-kenttä hyväksyy MYÖS koko lauseen
   // (luonnollinen kieli) ja sen sisäinen mic puhuttaa matkan — sama planConnection-haku.

@@ -48,12 +48,20 @@ const info = msg => console.log("INFO " + msg);
   (await page.$("#homeFromInput") && await page.$("#homeToInput") && await page.$("#heroSearch"))
     ? ok("etusivu: hero-reittihaku (Mistä/Minne/Hae yhteydet) latautuu")
     : fail("etusivu: hero-reittihaku puuttuu");
-  const tools = (await page.$$(".tool-grid a.tool")).length;
-  tools >= 4 ? ok(`etusivu: työkalurivi (${tools} työkalua)`)
-             : fail("etusivu: työkalurivin työkalut puuttuvat");
-  const svgIcons = await page.$$eval(".tool-grid a.tool svg.ic", els => els.length).catch(() => 0);
-  svgIcons > 0 ? ok(`etusivu: inline-SVG-ikonit työkaluissa (${svgIcons}, ei emoji-fonttia)`)
-               : fail("etusivu: SVG-ikonit puuttuvat");
+  // Pikavalinnat ryhmiteltyinä (otsikoitu .tool-group); EI tyhjää ryhmää (jokaisessa ≥1 nappi)
+  const groups = await page.evaluate(() => [...document.querySelectorAll(".tool-group")].map(g => ({
+    title: g.querySelector(".tool-group-h")?.textContent.trim() || "",
+    tools: g.querySelectorAll("a.tool").length,
+    svg: g.querySelectorAll("a.tool svg.ic").length,
+  })));
+  (groups.length >= 2 && groups.every(g => g.title && g.tools > 0 && g.svg === g.tools))
+    ? ok(`etusivu: pikavalinnat ryhmitelty, ei tyhjää ryhmää (${groups.map(g => g.title + ":" + g.tools).join(", ")})`)
+    : fail("etusivu: ryhmittely puuttuu / tyhjä ryhmä näkyvissä / ikoni puuttuu: " + JSON.stringify(groups));
+  // Yksi haku: kompakti .home-search (uniSearch) — ei erillistä isoa "Haku"-korttia eikä "Lähellä"-nappia
+  const oneSearch = await page.evaluate(() =>
+    !!document.querySelector(".home-search #uniSearch") && !document.querySelector("#nearbyBtn"));
+  oneSearch ? ok("etusivu: yksi kompakti haku (ei toista hakulaatikkoa / erillistä Lähellä-nappia)")
+            : fail("etusivu: kompakti haku puuttuu tai vanha Lähellä-nappi yhä olemassa");
   (await page.$("#appFooter .foot-cols .foot-col a"))
     ? ok("etusivu: jäsennelty footer linkkisarakkeineen")
     : fail("etusivu: jäsennelty footer puuttuu");
@@ -289,6 +297,21 @@ const info = msg => console.log("INFO " + msg);
   (await page.evaluate(() => document.body.classList.contains("desk-mode")))
     ? fail("palvelutiski: desk-mode ei purkaudu poistuttaessa")
     : ok("palvelutiski: desk-mode purkautuu poistuttaessa");
+
+  // Minimi-CONFIG-kaupungin (Vaasa) ETUSIVU: CONFIG-puuttuvat napit (hubs/fares) jäävät pois,
+  // mutta ryhmät renderöityvät silti ILMAN tyhjää otsikkoa (jokaisessa ≥1 nappi). Yksi haku.
+  await page.goto(BASE + "/?city=vaasa#/", { waitUntil: "networkidle2" });
+  const vHome = await page.evaluate(() => ({
+    groups: [...document.querySelectorAll(".tool-group")].map(g => ({
+      title: g.querySelector(".tool-group-h")?.textContent.trim() || "", tools: g.querySelectorAll("a.tool").length })),
+    hasFaresTool: !!document.querySelector('a.tool[href="#/liput"]'),
+    hasHubTool: !!document.querySelector('a.tool[href="#/laiturit"]'),
+    oneSearch: !!document.querySelector(".home-search #uniSearch") && !document.querySelector("#nearbyBtn"),
+  }));
+  (vHome.groups.length >= 2 && vHome.groups.every(g => g.title && g.tools > 0)
+    && !vHome.hasFaresTool && !vHome.hasHubTool && vHome.oneSearch)
+    ? ok(`etusivu (Vaasa, minimi-CONFIG): ryhmät ilman tyhjää otsikkoa, hubs/fares-napit pois (${vHome.groups.map(g => g.title + ":" + g.tools).join(", ")})`)
+    : fail("etusivu (Vaasa): tyhjä/puuttuva ryhmä / hubs|fares-nappi yhä / haku rikki: " + JSON.stringify(vHome));
 
   // Minimi-CONFIG-kaupunki (Vaasa: ei hubs/fares/cmsAlerts): palvelutiskin uusien lohkojen
   // (live-lähdöt, viimeinen bussi, aktiiviset häiriöt) on silti renderöidyttävä — vain
