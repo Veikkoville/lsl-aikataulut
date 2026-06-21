@@ -461,11 +461,24 @@ export function buildTrackEvent(body) {
   return { type, value, city };
 }
 
+// Vain kuntalaisliikenne kirjataan: suodatetaan botit (UA) ja ei-tuotanto-liikenne (origin/referer).
+// Tämä poistaa hakukonebotit + smoke-/kehitysajot (localhost), jotka inflatoivat laskureita.
+const PROD_ORIGINS = ["https://veikkoville.github.io"];
+const BOT_UA_RE = /bot|crawl|spider|slurp|googlebot|bingbot|baiduspider|yandex|duckduckbot|headless|phantomjs|puppeteer|playwright|curl\/|wget|python-requests|python-urllib|scrapy|facebookexternalhit|go-http-client|java\/|libwww|httpunit/i;
+export function isAnalyticsClient(ua, origin, referer) {
+  ua = String(ua || ""); origin = String(origin || ""); referer = String(referer || "");
+  if (!ua || BOT_UA_RE.test(ua)) return false;                       // botti/työkalu/tyhjä UA → ei kirjata
+  const prod = o => PROD_ORIGINS.some(p => o === p || o.startsWith(p + "/"));
+  return prod(origin) || prod(referer);                             // vain tuotanto-origin (ei localhost/dev)
+}
+
 function handleTrack(request, env, origin) {
   // fire-and-forget: ei koskaan virhettä clientille
   return request.json().then(body => {
     const ev = buildTrackEvent(body);
-    if (ev && env.AE) {
+    const ua = request.headers.get("User-Agent") || "";
+    const referer = request.headers.get("Referer") || "";
+    if (ev && env.AE && isAnalyticsClient(ua, origin, referer)) {
       try {
         env.AE.writeDataPoint({ indexes: [ev.type], blobs: [ev.type, ev.value, ev.city], doubles: [1] });
       } catch (e) { /* ohita */ }
@@ -497,6 +510,45 @@ async function aeQuery(env, sql) {
   return { rows: (json && json.data) || [] };
 }
 
+// Kaupunki → GTFS-feedin nimi (Waltti-feedit ovat isolla alkukirjaimella: Lahti, Vaasa, Kuopio…).
+function cityToFeed(city) {
+  const c = String(city || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return c ? c.charAt(0).toUpperCase() + c.slice(1) : "";
+}
+
+async function gqlQuery(env, query, variables) {
+  const res = await fetch(ROUTING_UPSTREAM, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "digitransit-subscription-key": env.DIGITRANSIT_KEY },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) throw new Error("gql " + res.status);
+  const j = await res.json();
+  return j && j.data;
+}
+
+// Resolvoi näyttöä varten: linja-id → shortName, pysäkki-id → nimi (Digitransit GTFS, näyttöhetkellä
+// → kattaa myös vanhan datan, ei muuta keräystä). Mutatoi rivit lisäämällä .name; epäonnistuminen
+// EI kaada (jää null → admin näyttää id:n siistinä fallbackina).
+async function resolveAnalyticsNames(env, feed, lines, stops) {
+  if (!feed || !env.DIGITRANSIT_KEY) return;
+  try {
+    const d = await gqlQuery(env, `query ($f: [String!]) { routes(feeds: $f) { gtfsId shortName } }`, { f: [feed] });
+    const m = new Map();
+    for (const r of (d?.routes || [])) { const id = (r.gtfsId || "").split(":")[1]; if (id && r.shortName) m.set(id, r.shortName); }
+    for (const row of lines) { const nm = m.get(String(row.value)); if (nm) row.name = nm; }
+  } catch (e) { /* fallback: id näytetään */ }
+  try {
+    const ids = stops.slice(0, 10).map(s => feed + ":" + s.value);
+    if (ids.length) {
+      const d = await gqlQuery(env, `query ($ids: [String]) { stops(ids: $ids) { gtfsId name } }`, { ids });
+      const m = new Map();
+      for (const s of (d?.stops || [])) { if (s && s.gtfsId) m.set(s.gtfsId.split(":")[1], s.name); }
+      for (const row of stops) { const nm = m.get(String(row.value)); if (nm) row.name = nm; }
+    }
+  } catch (e) { /* fallback: id näytetään */ }
+}
+
 async function handleAdminStats(request, env, url) {
   if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
   const dataset = env.AE_DATASET || "lsl_events";
@@ -507,12 +559,15 @@ async function handleAdminStats(request, env, url) {
   const num = v => Number(v) || 0;
   const byType = t => r.rows.filter(x => x.type === t).map(x => ({ value: x.value, n: num(x.n) }));
   const views = byType("view");
+  const lines = byType("line");
+  const stops = byType("stop");
+  await resolveAnalyticsNames(env, cityToFeed(city), lines, stops);  // id → ystävällinen nimi
   return adminJson({
     days: Math.min(90, Math.max(1, parseInt(days, 10) || 30)),
     totalViews: views.reduce((s, x) => s + x.n, 0),
     views,
-    lines: byType("line"),
-    stops: byType("stop"),
+    lines,
+    stops,
     failedSearches: byType("search_fail"),
   }, 200);
 }

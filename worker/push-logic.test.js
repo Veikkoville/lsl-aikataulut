@@ -3,7 +3,8 @@
 // Aja: node push-logic.test.js
 import worker, { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText, htmlToText, buildFeedbackRecord,
   constantTimeEqual, signSession, verifySession, buildAdminAlert, currentAdminAlerts, buildAdminFares, buildAdminA11y,
-  buildTrackEvent, buildStatsSql } from "./worker.js";
+  buildTrackEvent, buildStatsSql, isAnalyticsClient } from "./worker.js";
+import { readFileSync } from "node:fs";
 
 let fail = 0;
 const check = (cond, msg) => { console.log((cond ? "OK   " : "FAIL ") + msg); if (!cond) fail++; };
@@ -303,18 +304,45 @@ check(tev.type === "line" && tev.value === "3" && tev.city === "lahti", "track: 
 check(buildTrackEvent({ type: "search_fail", value: "a".repeat(200) }).value.length === 80, "track: arvo katkaistaan 80 merkkiin");
 check(buildStatsSql("lahti", "lsl_events", 30).includes("FROM lsl_events") && buildStatsSql("la'hti", "ds", 30).includes("blob3 = 'lahti'"), "statsSql: dataset + kaupunki siivottu (ei injektiota)");
 
-// --- Käyttöanalytiikka: /track kirjoittaa Analytics Engineen (mock) ---
+// --- Käyttöanalytiikka: /track kirjaa VAIN tuotantoliikennettä (ei botteja/dev) ---
 adminEnv.AE = { _p: [], writeDataPoint(p) { this._p.push(p); } };
-const trk = await worker.fetch(req("/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "view", value: "linja", city: "lahti" }) }), adminEnv);
-check(trk.status === 204 && adminEnv.AE._p.length === 1 && adminEnv.AE._p[0].blobs[0] === "view", "track: /track kirjaa tapahtuman AE:hen (204)");
-const trkBad = await worker.fetch(req("/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "outo" }) }), adminEnv);
+const prodHdr = { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (Windows NT 10.0) Chrome/120 Safari/537", "Origin": "https://veikkoville.github.io" };
+const trk = await worker.fetch(req("/track", { method: "POST", headers: prodHdr, body: JSON.stringify({ type: "view", value: "linja", city: "lahti" }) }), adminEnv);
+check(trk.status === 204 && adminEnv.AE._p.length === 1 && adminEnv.AE._p[0].blobs[0] === "view", "track: tuotanto-origin + selain-UA → kirjaa AE:hen (204)");
+const trkBad = await worker.fetch(req("/track", { method: "POST", headers: prodHdr, body: JSON.stringify({ type: "outo" }) }), adminEnv);
 check(trkBad.status === 204 && adminEnv.AE._p.length === 1, "track: tuntematon tyyppi ei kirjaa mitään (silti 204)");
+const trkBot = await worker.fetch(req("/track", { method: "POST", headers: { ...prodHdr, "User-Agent": "Googlebot/2.1 (+http://www.google.com/bot.html)" }, body: JSON.stringify({ type: "view", value: "home", city: "lahti" }) }), adminEnv);
+check(trkBot.status === 204 && adminEnv.AE._p.length === 1, "track: botti-UA EI kirjaa (silti 204)");
+const trkLocal = await worker.fetch(req("/track", { method: "POST", headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 Chrome/120", "Origin": "http://localhost:8000" }, body: JSON.stringify({ type: "view", value: "home", city: "lahti" }) }), adminEnv);
+check(trkLocal.status === 204 && adminEnv.AE._p.length === 1, "track: localhost/dev-origin EI kirjaa (silti 204)");
+
+// --- isAnalyticsClient: botit ja ei-tuotanto-liikenne suodatetaan ---
+check(isAnalyticsClient("Mozilla/5.0 Chrome/120", "https://veikkoville.github.io", "") === true, "client: selain-UA + tuotanto-origin → true");
+check(isAnalyticsClient("Mozilla/5.0 Chrome/120", "", "https://veikkoville.github.io/linja") === true, "client: tuotanto-referer → true");
+check(isAnalyticsClient("Googlebot/2.1", "https://veikkoville.github.io", "") === false, "client: bot-UA → false");
+check(isAnalyticsClient("HeadlessChrome/120", "https://veikkoville.github.io", "") === false, "client: headless-UA → false");
+check(isAnalyticsClient("curl/8.0", "https://veikkoville.github.io", "") === false, "client: curl-UA → false");
+check(isAnalyticsClient("Mozilla/5.0 Chrome/120", "http://localhost:8000", "") === false, "client: localhost-origin → false");
+check(isAnalyticsClient("", "https://veikkoville.github.io", "") === false, "client: tyhjä UA → false");
 
 // --- Käyttöanalytiikka: dashboard ilman lukutokenia → "unconfigured", ilman istuntoa → 403 ---
 const statsUnconf = await (await worker.fetch(req("/admin/api/stats?city=lahti", { headers: { Cookie: cookie } }), adminEnv)).json();
 check(statsUnconf.error === "unconfigured", "stats: ilman CF-tokenia → unconfigured (ei kaada)");
 const statsNoAuth = await worker.fetch(req("/admin/api/stats?city=lahti"), adminEnv);
 check(statsNoAuth.status === 403, "stats: ilman istuntoa → 403");
+
+// --- Em dash -guard (worker-tiedostot): ei em dashia (—) UI-stringeissä/koodiliteraaleissa;
+//     sallitaan kommentit ja tarkoituksellinen viiva-normalisoinnin merkkiluokka [–—−]. ---
+{
+  const strip = s => s
+    .replace(/<!--[\s\S]*?-->/g, " ").replace(/\/\*[\s\S]*?\*\//g, " ")  // kommentit
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1")                                  // rivikommentit (ei katkaise ://)
+    .replace(/\[[–—−-]+\]/g, "[]");                                        // viiva-normalisointi-merkkiluokka
+  for (const f of ["admin-page.js", "worker.js"]) {
+    const src = strip(readFileSync(new URL("./" + f, import.meta.url), "utf8"));
+    check((src.match(/—/g) || []).length === 0, "em dash -guard: " + f + " ei em dashia (—) koodiliteraaleissa");
+  }
+}
 
 console.log(fail ? `\n${fail} TARKISTUS EPÄONNISTUI` : "\nKAIKKI TARKISTUKSET OK");
 process.exit(fail ? 1 : 0);

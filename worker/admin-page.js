@@ -189,7 +189,7 @@ export const ADMIN_HTML = `<!doctype html>
 
     <div class="card">
       <h2>Käyttöanalytiikka</h2>
-      <p class="muted">Anonyymi ja evästeetön — mitä kuntalaiset etsivät ja katsovat viimeisen 30 vrk aikana. Erityisen arvokasta: epäonnistuneet haut (yhteyksiä joita ei löydy).</p>
+      <p class="muted">Anonyymi ja evästeetön: mitä kuntalaiset etsivät ja katsovat viimeisen 30 vrk aikana. Erityisen arvokasta: epäonnistuneet haut (yhteyksiä joita ei löydy).</p>
       <div id="statsBox"><p class="muted">Ladataan…</p></div>
     </div>
   </section>
@@ -418,7 +418,7 @@ $("a11yForm").addEventListener("submit", async e => {
 const PAGE_LABELS = { home:"Etusivu", linja:"Linja", pysakki:"Pysäkki", reitti:"Reittihaku", liput:"Liput ja hinnat", kartta:"Bussit kartalla", linjasto:"Linjasto", laiturit:"Keskustan pysäkit", tulosta:"Tulostus", poikkeukset:"Poikkeuspäivät", palaute:"Palaute", asetukset:"Asetukset", saavutettavuus:"Saavutettavuus", monitori:"Monitori" };
 function statList(title, rows, labelFn){
   if (!rows || !rows.length) return "<div style='flex:1;min-width:220px'><h3 class='sub'>"+esc(title)+"</h3><p class='muted'>Ei tietoja vielä.</p></div>";
-  const items = rows.slice(0,10).map(r=>"<tr><td>"+esc(labelFn?labelFn(r.value):r.value)+"</td><td style='text-align:right'>"+esc(String(r.n))+"</td></tr>").join("");
+  const items = rows.slice(0,10).map(r=>"<tr><td>"+esc(labelFn?labelFn(r):r.value)+"</td><td style='text-align:right'>"+esc(String(r.n))+"</td></tr>").join("");
   return "<div style='flex:1;min-width:220px'><h3 class='sub'>"+esc(title)+"</h3><table class='fedit'><tbody>"+items+"</tbody></table></div>";
 }
 async function loadStats(){
@@ -434,10 +434,10 @@ async function loadStats(){
   box.innerHTML =
     "<p><strong>"+esc(String(d.totalViews||0))+"</strong> sivunäyttöä viimeisen "+esc(String(d.days||30))+" vrk aikana.</p>"
     + "<div class='row'>"
-    + statList("Suosituimmat sivut", d.views, v=>PAGE_LABELS[v]||v)
-    + statList("Katsotuimmat linjat", d.lines, v=>"Linja "+v)
+    + statList("Suosituimmat sivut", d.views, r=>PAGE_LABELS[r.value]||r.value)
+    + statList("Katsotuimmat linjat", d.lines, r=>"Linja "+(r.name||r.value))
     + "</div><div class='row'>"
-    + statList("Katsotuimmat pysäkit", d.stops)
+    + statList("Katsotuimmat pysäkit", d.stops, r=>r.name||r.value)
     + statList("Epäonnistuneet haut", d.failedSearches)
     + "</div>";
 }
