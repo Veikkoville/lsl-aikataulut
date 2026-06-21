@@ -6736,16 +6736,23 @@ async function viewServiceDesk() {
   const stopList = document.getElementById("deskStopList");
   let stopTimer = null, stopSeq = 0, stopMatches = [];
   let curStop = null;
-  const renderDeskDeps = (stop) => {
-    const out = document.getElementById("deskStopResults");
-    if (!out) return;
-    const lines = dedupeRoutesByShort(stop.routes);
-    const linesHtml = `<p class="desk-deps-lines"><strong>${t("deskDepsLines")}</strong> ${
+  // Linjat-rivi pysäkin reiteistä — renderöidään SYNKRONISESTI hakuosuman datasta (s.routes),
+  // ei riipu live-lähtöjen haun onnistumisesta/nopeudesta (ei minimi-CONFIG- eikä verkko-flakya).
+  const stopLinesHtml = (routes) => {
+    const lines = dedupeRoutesByShort(routes);
+    return `<p class="desk-deps-lines"><strong>${t("deskDepsLines")}</strong> ${
       lines.length ? lines.map(r => `<span class="badge">${esc(r.shortName || "")}</span>`).join(" ")
         : `<span class="muted">${t("deskStopNoLines")}</span>`}</p>`;
+  };
+  const renderDeskDeps = (stop) => {
+    const dep = document.getElementById("deskDeps");
+    if (!dep) return;
     const deps = stopDepGroupHtml(stop, "") || `<p class="muted">${t("deskDepsNone")}</p>`;
-    out.innerHTML = linesHtml + deps
+    dep.innerHTML = deps
       + `<p class="muted desk-deps-upd"><span class="rt">●</span> ${t("rtLegend")} · ${t("deskUpdated", { time: fmtClock(new Date().toISOString()) })}</p>`;
+    // Päivitä linjat täydemmästä reittilistasta jos saatavilla (ei pakollinen, lines jo näkyvissä)
+    const ln = document.getElementById("deskLines");
+    if (ln && (stop.routes || []).length) ln.innerHTML = stopLinesHtml(stop.routes);
   };
   const loadDeskDeps = async (gtfsId) => {
     try {
@@ -6753,13 +6760,19 @@ async function viewServiceDesk() {
       if (!d.stop || curStop !== gtfsId) return;   // pysäkki vaihtui haun aikana → hylkää tulos
       dedupStopDuplicates(d.stop);
       renderDeskDeps(d.stop);
-    } catch (e) { /* verkkohikka: edellinen näkymä jää näkyviin */ }
+    } catch (e) {
+      const dep = document.getElementById("deskDeps");
+      if (dep && curStop === gtfsId) dep.innerHTML = `<p class="muted">${t("deskDepsNone")}</p>`;
+    }
   };
   const pickStop = (s) => {
     stopEl.value = s.name; stopList.hidden = true;
     curStop = s.gtfsId;
     clearDeskDepTimer();
-    document.getElementById("deskStopResults").innerHTML = `<p class="muted">${t("loadingStopDeps")}</p>`;
+    // Linjat näkyviin HETI (synkroninen); live-lähdöt latautuvat omaan lohkoonsa perään.
+    document.getElementById("deskStopResults").innerHTML =
+      `<div id="deskLines">${stopLinesHtml(s.routes)}</div>` +
+      `<div id="deskDeps"><p class="muted">${t("loadingStopDeps")}</p></div>`;
     loadDeskDeps(s.gtfsId);
     deskDepTimer = setInterval(() => { if (curStop) loadDeskDeps(curStop); }, 30000); // live-päivitys
   };

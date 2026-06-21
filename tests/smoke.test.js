@@ -247,21 +247,47 @@ const info = msg => console.log("INFO " + msg);
   nbPass ? ok("palvelutiski: 'seuraava bussi' -logiikka (kävely voittaa → bussi näkyy; ei bussia → selkeä viesti)")
          : fail("palvelutiski: 'seuraava bussi' -logiikka virheellinen: " + JSON.stringify(nb).slice(0, 300));
 
-  // Pysäkin linjat -pikahaku
+  // Pysäkin lähdöt nyt (live) + linjat -pikahaku
   await page.click("#deskStop");
   await page.type("#deskStop", "Matkakeskus", { delay: 25 });
   if (await expect("#deskStopList button[data-s]", "palvelutiski: pysäkkiehdotus (linjat)", 15000)) {
     await page.keyboard.press("Enter");
+    // Pysäkin valinta hakee live-lähdöt (DESK_DEPS_QUERY) ja näyttää linjat-rivin niiden seasta.
+    // Linjat tulevat stop.routes-kentästä → aikariippumaton ja vakaa assertio.
     const lines = await page.waitForFunction(
-      () => document.querySelectorAll(".desk-stop-lines .badge").length > 0,
+      () => document.querySelectorAll(".desk-deps-lines .badge").length > 0,
       { timeout: 12000 }).then(() => true).catch(() => false);
-    lines ? ok("palvelutiski: pysäkin linjat listautuvat") : fail("palvelutiski: pysäkin linjat eivät listaudu");
+    lines ? ok("palvelutiski: pysäkin live-lähdöt + linjat listautuvat") : fail("palvelutiski: pysäkin linjat eivät listaudu");
   }
   // Poistuminen purkaa koko ruudun tilan
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   (await page.evaluate(() => document.body.classList.contains("desk-mode")))
     ? fail("palvelutiski: desk-mode ei purkaudu poistuttaessa")
     : ok("palvelutiski: desk-mode purkautuu poistuttaessa");
+
+  // Minimi-CONFIG-kaupunki (Vaasa: ei hubs/fares/cmsAlerts): palvelutiskin uusien lohkojen
+  // (live-lähdöt, viimeinen bussi, aktiiviset häiriöt) on silti renderöidyttävä — vain
+  // hintalohko piiloon. Estää regression jossa lohkot riippuisivat kaupungin CONFIGista.
+  await page.goto(BASE + "/?city=vaasa#/palvelutiski", { waitUntil: "networkidle2" });
+  const vBlocks = await page.evaluate(() => ({
+    deps: !!document.getElementById("deskStop"), ab: !!document.getElementById("deskFrom"),
+    lastBus: !!document.getElementById("deskLastBusBtn"), alerts: !!document.getElementById("deskAlerts"),
+    fares: !!document.getElementById("deskFaresH"),
+  }));
+  (vBlocks.deps && vBlocks.ab && vBlocks.lastBus && vBlocks.alerts && !vBlocks.fares)
+    ? ok("palvelutiski (Vaasa, minimi-CONFIG): live-lähdöt + viimeinen bussi + häiriöt näkyvät, hinnat piilossa")
+    : fail("palvelutiski (Vaasa, minimi-CONFIG): uudet lohkot puuttuvat / hintalohko väärin: " + JSON.stringify(vBlocks));
+  await page.click("#deskStop");
+  await page.type("#deskStop", "Vöyrinkatu", { delay: 25 });
+  if (await expect("#deskStopList button[data-s]", "palvelutiski (Vaasa): pysäkkiehdotus", 15000)) {
+    await page.keyboard.press("Enter");
+    const vLines = await page.waitForFunction(
+      () => document.querySelectorAll(".desk-deps-lines .badge").length > 0,
+      { timeout: 12000 }).then(() => true).catch(() => false);
+    vLines ? ok("palvelutiski (Vaasa): pysäkin linjat listautuvat minimi-CONFIG-kaupungissa")
+           : fail("palvelutiski (Vaasa): pysäkin linjat eivät listaudu");
+  }
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" }); // palauta oletuskaupunki seuraaville testeille
 
   // --- Tallennetut matkat: tallenna nykyinen reitti ja näe se etusivulla ---
   if (await page.$("#saveTripBtn")) {
