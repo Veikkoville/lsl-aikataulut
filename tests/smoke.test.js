@@ -773,6 +773,21 @@ const info = msg => console.log("INFO " + msg);
       days >= 1 ? ok(`tulostusvihko: viikonpäivätyypit (${days} taulukkoa/linja)`)
                 : fail("tulostusvihko: päivätyyppejä ei löytynyt");
     }
+    // Isot pysäkit -rajaus (pickKeyStops): liikaa timepointteja → 10; ≤12 ennallaan; hub pakotettu; sananraja
+    const cap = await page.evaluate(() => {
+      const mk = (n, names = {}) => Array.from({ length: n }, (_, i) => ({ stop: { gtfsId: "s" + i, name: names[i] || ("Pysäkki " + i) }, idx: i }));
+      return {
+        big: pickKeyStops(mk(60)).length,
+        small: pickKeyStops(mk(8)).length,
+        edge12: pickKeyStops(mk(12)).length,
+        firstLast: (() => { const r = pickKeyStops(mk(60)); return r[0].gtfsId === "s0" && r[r.length - 1].gtfsId === "s59"; })(),
+        hub: pickKeyStops(mk(60, { 30: "Kauppatori E" })).some(s => s.name === "Kauppatori E"),
+        wb: stopMatchesHub("Kauppatorinkatu 5", [["kauppatori"]]),
+      };
+    });
+    (cap.big === 10 && cap.small === 8 && cap.edge12 === 12 && cap.firstLast && cap.hub === true && cap.wb === false)
+      ? ok(`isot pysäkit -rajaus: 60→${cap.big} (lähtö+pää aina), ≤12 ennallaan, hub pakotettu, sananraja ei false-match`)
+      : fail("isot pysäkit -rajaus pielessä: " + JSON.stringify(cap));
     // Vihko (A5, taitettava): mittaa-ja-jaa A5-sivutus + saddle-stitch imposition; A4-vakio säilyy
     if (await page.$("#bookletPrintA5")) {
       await page.evaluate(() => { window.__rp = window.print; window.print = () => {}; });

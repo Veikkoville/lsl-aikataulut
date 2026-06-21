@@ -7888,6 +7888,28 @@ async function mapLimit(items, limit, fn) {
   return out;
 }
 
+// Avainpysäkkien rajaus kun timepointeja on liikaa (esim. Vaasan feed merkitsee kaikki ~60
+// pysäkkiä timepointeiksi → 60 saraketta = käyttökelvoton). Kandidaateista (timepoint || 1. ||
+// viimeinen) valitaan ≤ raja → kaikki ennallaan; muuten 10: aina lähtö + pää, hubit (CONFIG.hubs
+// nimimätch sananrajalla) sekä tasaväli sekvenssipositioista. Koskee A4:ää ja vihkoa (jaettu).
+const KEY_STOP_LIMIT = 12, KEY_STOP_TARGET = 10;
+function normHubName(s) { return (s || "").toLowerCase().replace(/[^a-zåäö0-9]+/g, " ").trim(); }
+function stopMatchesHub(stopName, hubTokenLists) {
+  const tokens = normHubName(stopName).split(" ").filter(Boolean);
+  // sananrajamätch: hub esiintyy kokonaisena sana(jono)na ("Kauppatori E" ✓, "Kauppatorinkatu" ✗)
+  return hubTokenLists.some(hs =>
+    hs.length && tokens.some((_, i) => i + hs.length <= tokens.length && hs.every((w, j) => tokens[i + j] === w)));
+}
+function pickKeyStops(cand) {
+  if (cand.length <= KEY_STOP_LIMIT) return cand.map(c => c.stop);
+  const chosen = new Set([cand[0].idx, cand[cand.length - 1].idx]);          // aina lähtö + pää
+  for (let i = 0; i < KEY_STOP_TARGET; i++)                                   // tasaväli (sis. päätepisteet)
+    chosen.add(cand[Math.round(i * (cand.length - 1) / (KEY_STOP_TARGET - 1))].idx);
+  const hubTokens = (CONFIG.hubs || []).map(h => normHubName(h.name).split(" ").filter(Boolean)).filter(a => a.length);
+  if (hubTokens.length) for (const c of cand) if (stopMatchesHub(c.stop.name, hubTokens)) chosen.add(c.idx);
+  return cand.filter(c => chosen.has(c.idx)).map(c => c.stop);               // sekvenssijärjestyksessä
+}
+
 // Vihkotaulukko yhdelle suunnalle: sarakkeina isot pysäkit (timepoint +
 // aina lähtö & pääte), riveinä päivän lähdöt. Rivi = yksi vuoro avainpysäkkien
 // läpi (esim. Pilkekatu 13:05 · Matkakeskus 13:13 · …).
@@ -7896,9 +7918,10 @@ function bookletTableHtml(trips) {
   if (!valid.length) return `<p class="muted">${t("bookletNoData")}</p>`;
   const seq = valid[0].stoptimes;
   const last = seq.length - 1;
-  const keyStops = seq
-    .map((st, i) => (st.timepoint || i === 0 || i === last) ? st.stop : null)
+  const cand = seq
+    .map((st, i) => (st.timepoint || i === 0 || i === last) ? { stop: st.stop, idx: i } : null)
     .filter(Boolean);
+  const keyStops = pickKeyStops(cand);
   const rows = valid.map(tr => {
     const m = {};
     for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture;
