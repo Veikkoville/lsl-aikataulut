@@ -50,9 +50,10 @@
   applyText();
   window.applyTextSize = applyText;
 
-  // Korkea kontrasti (esteettömyys): high → html[data-contrast], ennen maalausta
+  // Korkea kontrasti (esteettömyys): OLETUKSENA päällä (tyhjä localStorage → high), ennen
+  // maalausta. Tallennettu valinta voittaa: "normal" säilyy poissa, "high" päällä.
   function applyContrast() {
-    if ((localStorage.getItem("contrast") || "normal") === "high")
+    if ((localStorage.getItem("contrast") || "high") === "high")
       document.documentElement.dataset.contrast = "high";
     else delete document.documentElement.dataset.contrast;
   }
@@ -3427,7 +3428,7 @@ function setContrast(v) {
   syncControls();
 }
 function toggleContrast() {
-  setContrast((localStorage.getItem("contrast") || "normal") === "high" ? "normal" : "high");
+  setContrast((localStorage.getItem("contrast") || "high") === "high" ? "normal" : "high");
 }
 function setLanguage(v) {
   if (!STRINGS[v]) return;
@@ -3443,7 +3444,7 @@ function setLanguage(v) {
 // Heijastaa nykyisen tilan kaikkiin kontrolleihin (header + Asetukset-paneeli).
 function syncControls() {
   const ts = localStorage.getItem("textSize") || "normal";
-  const ct = localStorage.getItem("contrast") || "normal";
+  const ct = localStorage.getItem("contrast") || "high";
   document.querySelectorAll("[data-text-opt]").forEach(b =>
     b.setAttribute("aria-pressed", String(b.dataset.textOpt === ts)));
   document.querySelectorAll("[data-contrast-opt]").forEach(b =>
@@ -3515,7 +3516,7 @@ function bindTextSizeSetting() {
 const CONTRAST_OPTIONS = [["normal", "contrastNormal"], ["high", "contrastHigh"]];
 
 function contrastSettingHtml() {
-  const cur = localStorage.getItem("contrast") || "normal";
+  const cur = localStorage.getItem("contrast") || "high";
   return `
     <div class="card">
       <h2>${t("contrastTitle")}</h2>

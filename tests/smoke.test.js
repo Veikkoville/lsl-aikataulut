@@ -717,19 +717,31 @@ const info = msg => console.log("INFO " + msg);
     await page.click('[data-text-opt="normal"]'); // palauta ettei vaikuta muihin
   }
 
-  // Korkea kontrasti: valinta asettaa html[data-contrast="high"] ja muuttaa taustaa
-  if (await page.$('[data-contrast-opt="high"]')) {
-    const bgBefore = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    await page.click('[data-contrast-opt="high"]');
-    await sleep(150);
-    const hc = await page.evaluate(() => ({
-      attr: document.documentElement.dataset.contrast,
-      bg: getComputedStyle(document.body).backgroundColor,
-    }));
-    hc.attr === "high" && hc.bg !== bgBefore
-      ? ok(`asetukset: suuri kontrasti käytössä (tausta ${bgBefore}→${hc.bg})`)
-      : fail("asetukset: suuri kontrasti ei aktivoitunut");
-    await page.click('[data-contrast-opt="normal"]'); // palauta
+  // Korkea kontrasti OLETUKSENA päällä (tyhjä localStorage → high); kytkin sammuttaa ja valinta persistoituu.
+  if (await page.$('[data-contrast-opt="normal"]')) {
+    // tyhjennä valinta → testaa aito oletus
+    await page.evaluate(() => localStorage.removeItem("contrast"));
+    await page.reload({ waitUntil: "networkidle2" }); await sleep(200);
+    const def = await page.evaluate(() => document.documentElement.dataset.contrast || "(none)");
+    def === "high"
+      ? ok("asetukset: korkea kontrasti OLETUKSENA päällä (tyhjä localStorage)")
+      : fail(`asetukset: kontrasti ei ollut oletuksena päällä (oli ${def})`);
+    const bgHigh = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    // sammuta (Normaali) → attribuutti pois + tausta muuttuu + muistetaan localStorageen
+    await page.click('[data-contrast-opt="normal"]'); await sleep(150);
+    const off = await page.evaluate(() => ({ attr: document.documentElement.dataset.contrast || "(none)",
+      bg: getComputedStyle(document.body).backgroundColor, ls: localStorage.getItem("contrast") }));
+    (off.attr === "(none)" && off.bg !== bgHigh && off.ls === "normal")
+      ? ok(`asetukset: kytkin sammuttaa kontrastin (tausta ${bgHigh}→${off.bg}, muistettu)`)
+      : fail("asetukset: kontrastin sammutus ei toiminut: " + JSON.stringify(off));
+    // persistoituu uudelleenlatauksen yli: tallennettu "normal" voittaa oletuksen
+    await page.reload({ waitUntil: "networkidle2" }); await sleep(200);
+    const after = await page.evaluate(() => document.documentElement.dataset.contrast || "(none)");
+    after === "(none)"
+      ? ok("asetukset: sammutettu kontrasti pysyy pois latauksen jälkeen")
+      : fail(`asetukset: kontrasti palasi päälle reloadin jälkeen (${after})`);
+    // kytke takaisin päälle (palauta oletustila muille testeille)
+    if (await page.$('[data-contrast-opt="high"]')) { await page.click('[data-contrast-opt="high"]'); await sleep(100); }
   } else {
     fail("asetukset: kontrastivalinta puuttuu");
   }
