@@ -3311,7 +3311,8 @@ async function startLiveMap(map, byNum, onCount) {
     if (!pos || pos.lat == null || pos.lon == null) return;
     const routeNum = seg[7] || "";
     const route = byNum.get(routeNum);
-    const label = route?.shortName || routeNum || "?";
+    if (!route) return;   // resolvoitumaton route_id → ei merkkiä lainkaan (EI näytetä raakaa id:tä)
+    const label = route.shortName;
     const vehId = seg[13] || topic;
     const headsign = seg[9] || "";
     let m = markers.get(vehId);
@@ -5798,9 +5799,19 @@ async function viewLiveMap() {
     await ensureLeaflet();
     if (mySeq !== viewSeq || !document.getElementById("liveMap")) return;
     const map = makeMap("liveMap", [AREA.focus.lat, AREA.focus.lon], 12);
-    const routes = await loadRoutes().catch(() => []);
+    // Täydellinen route_id -> reitti -kartta KAIKISTA bussireiteistä (kaikki suunnat + operaattori-
+    // duplikaatit), jotta jokaisen ajoneuvon route_id resolvoituu shortNameen. loadRoutesin ryhmitelty/
+    // dedupattu lista jättäisi ei-primäärit suunnat ja pudotetut dupet pois → raaka route_id näkyviin.
+    const feed = await findFeed().catch(() => null);
     if (mySeq !== viewSeq) return;
-    const byNum = new Map(routes.map(r => [r.gtfsId.split(":")[1], r]));
+    const byNum = new Map();
+    if (feed) {
+      try {
+        const { data } = await cachedGql("liveroutes:" + feed,
+          `query ($f: [String!]) { routes(feeds: $f) { gtfsId shortName color textColor mode } }`, { f: [feed] });
+        for (const r of (data.routes || [])) if (r.mode === "BUS" && r.shortName) byNum.set(r.gtfsId.split(":")[1], r);
+      } catch (e) { /* tyhjä kartta → resolvoitumattomat jätetään pois (ei raakaa id:tä) */ }
+    }
     startLiveMap(map, byNum, n => {
       const el = document.getElementById("liveCount");
       if (el) el.textContent = n ? t("liveCount", { n }) : t("liveNone");

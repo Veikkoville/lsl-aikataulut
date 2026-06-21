@@ -614,8 +614,14 @@ const info = msg => console.log("INFO " + msg);
     () => document.querySelectorAll("#liveMap .bus-live").length > 0,
     { timeout: 20000 }).then(() => true).catch(() => false);
   if (busesShown) {
-    const n = await page.evaluate(() => document.querySelectorAll("#liveMap .bus-live").length);
-    ok(`live-kartta: busseja kartalla (${n})`);
+    const labels = await page.evaluate(() => [...document.querySelectorAll("#liveMap .bus-live")].map(e => e.textContent.trim()));
+    ok(`live-kartta: busseja kartalla (${labels.length})`);
+    // Merkin label = reitin shortName, EI raaka route_id. Näissä feedeissä raaka id on 4+ numeroa
+    // (esim. Vaasa 1010, Lahti 6741230); aidot linjanumerot eivät koskaan ole 4+ pelkkää numeroa.
+    const raw = [...new Set(labels)].filter(l => /^\d{4,}$/.test(l));
+    raw.length === 0
+      ? ok("live-kartta: bussimerkit ystävällinen linjanumero (ei raakaa route_id:tä)")
+      : fail("live-kartta: raakoja route_id-labeleita merkeissä: " + raw.join(","));
   } else {
     info("live-kartta: ei busseja juuri nyt (ei reaaliaikadataa testihetkellä)");
   }
