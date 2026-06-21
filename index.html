@@ -4283,11 +4283,12 @@ function stopMatrixHtml(stops, trips, opts) {
   const valid = (trips || []).filter(tr => (tr.stoptimes || []).length);
   valid.sort((a, b) => a.stoptimes[0].scheduledDeparture - b.stoptimes[0].scheduledDeparture);
   if (!valid.length || !(stops || []).length) return `<p class="muted">${t("noDepsDay")}</p>`;
-  const tripTimes = valid.map(tr => {
-    const m = {};
-    for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture;
-    return m;
-  });
+  // Vuoron ajat indeksoidaan patternin KÄYNTIIN (sijaintiin stoptimes-listassa), ei stop_id:hen.
+  // Silmukka-/palvelureitillä sama pysäkki esiintyy patternissa monta kertaa (käynti 1 = lähtö,
+  // viimeinen käynti = paluu/saapuminen); stop_id-avaus törmäyttäisi käynnit (1. ylikirjoittaa tai
+  // jää voimaan) → väärä rivi. stops (pattern.stops) ja tr.stoptimes ovat samaa patternia → samassa
+  // järjestyksessä, joten rivi i ↔ stoptimes[i].
+  const tripTimes = valid.map(tr => (tr.stoptimes || []).map(st => st.scheduledDeparture));
   // Tulosteessa (opts.paginate): jos vuoroja enemmän kuin luettavuuslattialle (8pt)
   // mahtuu, pilko vuorot useammalle VAAKA-arkille fontin kutistamisen sijaan — max 30
   // saraketta/arkki (mitattu A4-vaakaan), pysäkkisarake toistuu ja numerointi jatkuu.
@@ -4302,7 +4303,7 @@ function stopMatrixHtml(stops, trips, opts) {
   // Sarakeotsikko = vuoron lähtöaika = sarakkeen varhaisin ei-tyhjä aika (robusti myös
   // jos vuoro ei lähde reitin alkupysäkiltä). HH:MM ≤ solun aika → leveys ei kasva.
   const colDep = c => {
-    const v = Object.values(tripTimes[c]);
+    const v = tripTimes[c].filter(x => x != null);
     return v.length ? Math.min(...v) : null;
   };
   const sheetHtml = (from, to, contClass) => {
@@ -4311,9 +4312,9 @@ function stopMatrixHtml(stops, trips, opts) {
       const d = colDep(from + i);
       return `<th scope="col">${d == null ? "" : fmtSec(d)}</th>`;
     }).join("");
-    const rows = stops.map(s => {
+    const rows = stops.map((s, rowIdx) => {
       const cells = Array.from({ length: n }, (_, i) => {
-        const v = tripTimes[from + i][s.gtfsId];
+        const v = tripTimes[from + i][rowIdx];
         return `<td>${v == null ? "·" : fmtSec(v)}</td>`;
       }).join("");
       return `<tr><th scope="row">${esc(s.name)}</th>${cells}</tr>`;
@@ -4694,7 +4695,10 @@ async function viewRoute(routeId, patternCode, date) {
     return null;
   };
   // Indeksoi hallitsevan patternin vuorot referenssipysäkin lähtöajalla → per-pysäkki-ajat.
-  // Avain = refStopin scheduledDeparture (sama kuin chipin data-dep) → Map(stop.gtfsId → aika).
+  // Avain = refStopin scheduledDeparture (sama kuin chipin data-dep) → Map(stop.gtfsId → [ajat]).
+  // Silmukka-/palvelureitillä sama pysäkki esiintyy patternissa monta kertaa (käynti 1 = lähtö,
+  // viimeinen käynti = paluu/saapuminen). Talletetaan KAIKKI käynnit listana käyntijärjestyksessä,
+  // ettei viimeinen käynti ylikirjoita ensimmäistä; paint poimii oikean käynnin järjestyksessä.
   const buildTripIndex = (trips, refStop) => {
     const idx = new Map();
     for (const tr of (trips || [])) {
@@ -4703,7 +4707,11 @@ async function viewRoute(routeId, patternCode, date) {
       if (!head) continue;
       if (!idx.has(head.scheduledDeparture)) {
         const byStop = new Map();
-        for (const s of stts) if (s.stop?.gtfsId) byStop.set(s.stop.gtfsId, s.scheduledDeparture);
+        for (const s of stts) if (s.stop?.gtfsId) {
+          const arr = byStop.get(s.stop.gtfsId) || [];
+          arr.push(s.scheduledDeparture);
+          byStop.set(s.stop.gtfsId, arr);
+        }
         idx.set(head.scheduledDeparture, byStop);
       }
     }
@@ -4778,8 +4786,15 @@ async function viewRoute(routeId, patternCode, date) {
       if (!tg || seq !== viewSeq) return;
       const paint = depSec => {
         const byStop = index.get(depSec);
+        // Sama pysäkki voi olla aikajanalla monta kertaa (silmukka): n. käynnin span saa
+        // n. käynnin ajan listasta → 1. rivi (lähtö) lähtöaika, viimeinen rivi (paluu) saapumisaika.
+        const seen = new Map();
         document.querySelectorAll("#stopTimeline .stl-time[data-stop]").forEach(span => {
-          const s = byStop && byStop.get(span.getAttribute("data-stop"));
+          const id = span.getAttribute("data-stop");
+          const arr = byStop && byStop.get(id);
+          const k = seen.get(id) || 0;
+          seen.set(id, k + 1);
+          const s = arr ? arr[k] : undefined;
           span.textContent = s != null ? fmtSec(s) : "";
         });
         if (selEl) selEl.textContent = t("timelineSelected", { time: fmtSec(depSec) });
