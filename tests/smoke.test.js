@@ -443,6 +443,38 @@ const info = msg => console.log("INFO " + msg);
     () => { const m = document.getElementById("stopMatrix"); return m && m.querySelector("table"); },
     { timeout: 15000 }).then(() => true).catch(() => false);
   matrixOk ? ok("linjasivu: koko aikataulu -matriisi näyttää vuoroja") : fail("linjasivu: matriisi tyhjä (ei lähtöjä)");
+  // "Koko aikataulu" -lohko: desktop-leveydellä näkyvissä (ei taittonappia); kapealla (390)
+  // oletuksena KIINNI ja avautuu napista. Oletusviewport 800 = desktop.
+  const ftDesktop = await page.evaluate(() => {
+    const w = document.querySelector(".ft-collapse"); if (!w) return null;
+    return { toggleHidden: getComputedStyle(w.querySelector(".ft-toggle")).display === "none",
+             bodyVisible: getComputedStyle(w.querySelector(".ft-body")).display !== "none" };
+  });
+  (ftDesktop && ftDesktop.toggleHidden && ftDesktop.bodyVisible)
+    ? ok("linjasivu: koko aikataulu -lohko näkyvissä desktop-leveydellä (ei taittonappia)")
+    : fail("linjasivu: koko aikataulu -lohko ei näy desktopilla: " + JSON.stringify(ftDesktop));
+  await page.setViewport({ width: 390, height: 800 });
+  await sleep(300);
+  const ftClosed = await page.evaluate(() => {
+    const w = document.querySelector(".ft-collapse");
+    return { open: w.classList.contains("ft-open"), aria: w.querySelector(".ft-toggle").getAttribute("aria-expanded"),
+             toggleVisible: getComputedStyle(w.querySelector(".ft-toggle")).display !== "none",
+             bodyHidden: getComputedStyle(w.querySelector(".ft-body")).display === "none" };
+  });
+  (!ftClosed.open && ftClosed.toggleVisible && ftClosed.bodyHidden && ftClosed.aria === "false")
+    ? ok("linjasivu (390px): koko aikataulu -lohko oletuksena KIINNI (taittonappi näkyy)")
+    : fail("linjasivu (390px): lohko ei ole kiinni: " + JSON.stringify(ftClosed));
+  await page.evaluate(() => document.querySelector(".ft-toggle").click());
+  await sleep(200);
+  const ftOpen = await page.evaluate(() => {
+    const w = document.querySelector(".ft-collapse");
+    return { open: w.classList.contains("ft-open"), aria: w.querySelector(".ft-toggle").getAttribute("aria-expanded"),
+             bodyVisible: getComputedStyle(w.querySelector(".ft-body")).display !== "none" };
+  });
+  (ftOpen.open && ftOpen.bodyVisible && ftOpen.aria === "true")
+    ? ok("linjasivu (390px): koko aikataulu avautuu napista")
+    : fail("linjasivu (390px): lohko ei avaudu: " + JSON.stringify(ftOpen));
+  await page.setViewport({ width: 800, height: 600 }); // palauta desktop seuraaville testeille
   // --- Klikattavat lähdöt → pysäkkiaikajana päivittyy + varianttivalikon siivous ---
   const depBtns = (await page.$$(".timegrid button[data-dep]")).length;
   depBtns > 0 ? ok(`linjasivu: lähdöt klikattavia nappeja (${depBtns})`) : fail("linjasivu: lähtönapit puuttuvat");

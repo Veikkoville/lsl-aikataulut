@@ -693,6 +693,22 @@
   }
   details.itin[open] summary::after { transform: rotate(180deg); }
   .itin-head { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; align-items: baseline; }
+  /* Linjasivun "Koko aikataulu" -lohko: kapealla näytöllä taitettava (oletus KIINNI), desktopilla
+     (>=700px) aina auki. Toteutus omalla luokalla (ei natiivi <details>, jonka taitto ei toiminut
+     tällä sivulla) → deterministinen näkyvyys CSS:llä. */
+  .ft-toggle {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+    width: 100%; background: transparent; border: 0; padding: 0.2rem 0;
+    font: inherit; font-weight: var(--wmed); font-size: 1.1rem; color: var(--blue); cursor: pointer;
+  }
+  .ft-toggle::after { content: "▾"; color: var(--muted); transition: transform 0.15s; }
+  .ft-toggle[aria-expanded="true"]::after { transform: rotate(180deg); }
+  .ft-collapse .ft-body { display: none; }
+  .ft-collapse.ft-open .ft-body { display: block; }
+  @media (min-width: 700px) {
+    .ft-toggle { display: none; }
+    .ft-collapse .ft-body { display: block; }
+  }
   .itin-head .times { font-weight: var(--wmed); font-variant-numeric: tabular-nums; font-size: 1.02rem; }
   .legchips { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-top: 0.25rem; }
   .legchips .sep { color: var(--muted); }
@@ -949,6 +965,8 @@
        sivulle 2 ja jättäisi tyhjän etusivun. */
     #linePrintOut .card, .lineprint-wrap { break-inside: auto; page-break-inside: auto; }
     .lineprint-wrap { padding: 0; }
+    /* Tulostettaessa "Koko aikataulu" -lohko näkyy, vaikka olisi mobiilissa taitettu kiinni */
+    .ft-collapse .ft-body { display: block; }
     /* Vihon otsikko+sisällys virtaa, ettei pitkä sisällysluettelo työnny sivulle 2
        (jättäen tyhjän etusivun). #bookletOut on print-mediassa ensimmäinen lohko. */
     .booklet-head { break-inside: auto; page-break-inside: auto; }
@@ -1526,6 +1544,7 @@ const STRINGS = {
     posterAllLinesNote: "Kaikki pysäkiltä lähtevät linjat. Lue: vasemmalla tunti, oikealla minuutit.",
     loadingDeps: "Haetaan lähtöjä…",
     fullTimetableTitle: "Koko aikataulu pysäkeittäin",
+    fullTimetableShow: "Näytä koko aikataulu",
     fullTimetableHint: "Lue saraketta ylhäältä alas: yksi sarake on yhden vuoron kellonajat jokaisella pysäkillä.",
     stopColHead: "Pysäkki",
     matrixContHead: "Linja {line} · {dir} · {day} · lähdöt klo {from}–{to}",
@@ -1931,6 +1950,7 @@ const STRINGS = {
     posterAllLinesNote: "All lines departing from this stop. Read: hour on the left, minutes on the right.",
     loadingDeps: "Loading departures…",
     fullTimetableTitle: "Full timetable by stop",
+    fullTimetableShow: "Show full timetable",
     fullTimetableHint: "Read a column top to bottom: each column is one trip's times at every stop.",
     stopColHead: "Stop",
     matrixContHead: "Line {line} · {dir} · {day} · departures {from}–{to}",
@@ -2334,6 +2354,7 @@ const STRINGS = {
     posterAllLinesNote: "Alla linjer som avgår från hållplatsen. Läs: timme till vänster, minuter till höger.",
     loadingDeps: "Hämtar avgångar…",
     fullTimetableTitle: "Hela tidtabellen per hållplats",
+    fullTimetableShow: "Visa hela tidtabellen",
     fullTimetableHint: "Läs en kolumn uppifrån och ned: varje kolumn är en turs tider vid varje hållplats.",
     stopColHead: "Hållplats",
     matrixContHead: "Linje {line} · {dir} · {day} · avgångar {from}–{to}",
@@ -4910,18 +4931,21 @@ async function viewRoute(routeId, patternCode, date) {
           </li>`).join("")}
       </ol>
     </div>
-    <div class="card lineprint-wrap">
-      <h2 class="no-print">${t("fullTimetableTitle")}</h2>
-      <p class="muted no-print">${t("fullTimetableHint")}</p>
-      <div class="row no-print" style="flex-wrap:wrap;gap:0.4rem">
-        <button id="printKeyBtn">${icon("print")} ${t("printKeyStopsPort")}</button>
-        <button id="printAllBtn">${icon("print")} ${t("printAllStopsLand")}</button>
-        <button id="lineQrBtn" class="secondary">${icon("qr")} ${t("qrButton")}</button>
-        <span id="linePrintStatus" class="muted" role="status"></span>
+    <div class="card lineprint-wrap ft-collapse">
+      <button type="button" class="ft-toggle no-print" aria-expanded="false" aria-controls="ftBody">${t("fullTimetableShow")}</button>
+      <div class="ft-body" id="ftBody">
+        <h2 class="no-print">${t("fullTimetableTitle")}</h2>
+        <p class="muted no-print">${t("fullTimetableHint")}</p>
+        <div class="row no-print" style="flex-wrap:wrap;gap:0.4rem">
+          <button id="printKeyBtn">${icon("print")} ${t("printKeyStopsPort")}</button>
+          <button id="printAllBtn">${icon("print")} ${t("printAllStopsLand")}</button>
+          <button id="lineQrBtn" class="secondary">${icon("qr")} ${t("qrButton")}</button>
+          <span id="linePrintStatus" class="muted" role="status"></span>
+        </div>
+        <div id="lineQr" class="qrbox no-print" hidden></div>
+        <div id="stopMatrix" class="no-print"><p class="muted">${t("loadingMatrix")}</p></div>
+        <div id="linePrintOut" class="print-only"></div>
       </div>
-      <div id="lineQr" class="qrbox no-print" hidden></div>
-      <div id="stopMatrix" class="no-print"><p class="muted">${t("loadingMatrix")}</p></div>
-      <div id="linePrintOut" class="print-only"></div>
     </div>`);
 
   bindFavButton({ type: "route", id: routeId, name: route.longName, shortName: route.shortName,
@@ -5246,6 +5270,12 @@ async function viewRoute(routeId, patternCode, date) {
     if (st) st.textContent = "";
     window.print();
   };
+  // "Koko aikataulu" -lohkon taitto mobiilissa (desktopilla CSS näyttää aina, nappi piilossa)
+  document.querySelector(".ft-toggle")?.addEventListener("click", e => {
+    const wrap = e.currentTarget.closest(".ft-collapse");
+    const open = wrap.classList.toggle("ft-open");
+    e.currentTarget.setAttribute("aria-expanded", String(open));
+  });
   document.getElementById("printKeyBtn")?.addEventListener("click", () => printLine("key"));
   document.getElementById("printAllBtn")?.addEventListener("click", () => printLine("all"));
   document.getElementById("lineQrBtn")?.addEventListener("click", () => {
