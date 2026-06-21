@@ -481,6 +481,8 @@
     font-size: 0.85rem;
   }
   .tabs button[aria-pressed="true"] { background: var(--btn-bg); color: #fff; }
+  /* Tulosteet-keskuksen päävälilehdet: hieman suuremmat kuin päivätyyppi-chipit */
+  .tabs .ptab { font-size: 0.95rem; padding: 0.5rem 0.9rem; min-height: 44px; }
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); }
   th { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
@@ -1440,6 +1442,12 @@ const STRINGS = {
     lineMapHint: "Linjan reitti ja bussit reaaliajassa. Klikkaa bussia nähdäksesi määränpään ja seuraavat pysäkit.",
     lineFullTimetable: "Koko aikataulu",
     printHubLink: "Näytöt ja tulosteet",
+    printCenterLink: "Tulosteet ja näytöt",
+    printCenterTitle: "Tulosteet ja näytöt",
+    printCenterIntro: "Aikatauluvihot, pysäkki- ja linjajulisteet sekä seinänäyttöjen kioski-osoitteet — kaikki yhdestä paikasta.",
+    tabBooklet: "Vihko",
+    tabPosters: "Pysäkki- ja linjatulosteet",
+    tabScreens: "Näyttöverkosto",
     screenNetTitle: "Näyttöverkosto",
     screenNetIntro: "Hae pysäkki ja kopioi sen kioski-osoite tai upotuskoodi näytölle (kirjasto, palvelutalo, terveysasema).",
     screenNetSearch: "Hae pysäkkiä nimellä",
@@ -1845,6 +1853,12 @@ const STRINGS = {
     lineMapHint: "The line's route and live buses. Tap a bus to see its destination and next stops.",
     lineFullTimetable: "Full timetable",
     printHubLink: "Displays & printing",
+    printCenterLink: "Printing & displays",
+    printCenterTitle: "Printing & displays",
+    printCenterIntro: "Timetable booklets, stop and line posters, and kiosk links for wall displays — all in one place.",
+    tabBooklet: "Booklet",
+    tabPosters: "Stop & line printouts",
+    tabScreens: "Display network",
     screenNetTitle: "Display network",
     screenNetIntro: "Find a stop and copy its kiosk URL or embed code for a screen (library, care home, health centre).",
     screenNetSearch: "Search stops by name",
@@ -2243,6 +2257,12 @@ const STRINGS = {
     lineMapHint: "Linjens rutt och bussar i realtid. Tryck på en buss för destination och kommande hållplatser.",
     lineFullTimetable: "Hela tidtabellen",
     printHubLink: "Skärmar och utskrifter",
+    printCenterLink: "Utskrifter & skärmar",
+    printCenterTitle: "Utskrifter & skärmar",
+    printCenterIntro: "Tidtabellshäften, hållplats- och linjeaffischer samt kiosklänkar för väggskärmar — allt på ett ställe.",
+    tabBooklet: "Häfte",
+    tabPosters: "Hållplats- och linjeutskrifter",
+    tabScreens: "Skärmnätverk",
     screenNetTitle: "Skärmnätverk",
     screenNetIntro: "Sök en hållplats och kopiera dess kiosk-URL eller inbäddningskod för en skärm (bibliotek, vårdhem, hälsostation).",
     screenNetSearch: "Sök hållplatser med namn",
@@ -4470,8 +4490,7 @@ function homeToolGroupsHtml() {
     CONFIG.hubs ? tool("#/laiturit", "pin", t("hubLink")) : "",
   ]) + group("groupSchedules", [
     tool("#/poikkeukset", "calendar", t("exLink")),
-    tool("#/tulosta", "print", t("printPageLink")),
-    tool("#/tulosteet", "monitor", t("printHubLink")),
+    tool("#/tulosteet/vihko", "print", t("printCenterLink")),
   ]) + group("groupTickets", [
     CONFIG.fares ? tool("#/liput", "ticket", t("faresLink")) : "",
     PROXY_URL ? tool("#/sahkoposti", "mail", t("emailSubTitle")) : "",
@@ -6054,36 +6073,16 @@ async function viewFares() {
     </div>`);
 }
 
-/* ---------- Näytöt ja tulosteet (#4): näyttöverkosto + linjan pysäkkijulisteet ----------
+/* ---------- Tulosteet ja näytöt -keskus: kolme välilehteä (vihko · julisteet · näyttöverkosto).
+   Markup on viewPrintCenterissä; tässä kunkin välilehden sidontalogiikka erikseen.
    Näyttöverkosto: hae pysäkki → valmis kioski-URL + upotuskoodi seinänäytölle.
-   Erätulostus: valitse linja + päivätyyppi → kaikkien linjan pysäkkien julisteet
-   yhteen tulosteeseen (client-puolella, ilmainen; eräajo edistymisnäytöllä). */
-async function viewPrintHub() {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
-  setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
-    <div class="card">
-      <h2>${icon("monitor")} ${t("screenNetTitle")}</h2>
-      <p class="muted">${t("screenNetIntro")}</p>
-      <input type="search" id="hubStopSearch" placeholder="${t("screenNetSearch")}" aria-label="${t("screenNetSearch")}" autocomplete="off">
-      <ul class="plain" id="hubStopResults"></ul>
-      <div id="hubEmbed" class="embedbox" hidden></div>
-    </div>
-    <div class="card no-print">
-      <h2>${icon("print")} ${t("batchPosterTitle")}</h2>
-      <p class="muted">${t("batchPosterIntro")}</p>
-      <label class="embed-field">${t("batchChooseLine")}
-        <select id="batchLine"><option value="">—</option></select></label>
-      <label class="embed-field">${t("batchChooseDay")}
-        <select id="batchDay"></select></label>
-      <p><button type="button" id="batchGo">${t("batchGenerate")}</button>
-        <span id="batchStatus" class="muted" role="status"></span></p>
-    </div>
-    <div id="batchOut"></div>`);
+   Julisteet (erätulostus): valitse linja + päivätyyppi → kaikkien linjan pysäkkien julisteet. */
 
-  // Näyttöverkosto: pysäkkihaku → kioski-URL + upotuskoodi (showEmbedInto)
+// Näyttöverkosto-välilehti: pysäkkihaku → kioski-URL + upotuskoodi (showEmbedInto)
+function bindScreenNetTab() {
   const si = document.getElementById("hubStopSearch");
   const sr = document.getElementById("hubStopResults");
+  if (!si || !sr) return;
   let stimer = null, sseq = 0;
   si.addEventListener("input", () => {
     clearTimeout(stimer);
@@ -6111,20 +6110,20 @@ async function viewPrintHub() {
       } catch (e) { if (my === sseq) sr.innerHTML = `<li><div class="error">${esc(e.message)}</div></li>`; }
     }, 250);
   });
+}
 
-  // Erätulostus: täytä päivätyyppi- ja linjavalinnat
+// Julisteet-välilehti (erätulostus): päivätyyppi- ja linjavalinnat + eräajo julisteiksi
+function bindPostersTab(routes, dts) {
   const daySel = document.getElementById("batchDay");
-  const dts = dayTypeDates(todayISO());
+  if (!daySel) return;
   daySel.innerHTML = dts.map((dt, i) => `<option value="${i}">${esc(dt.label)}</option>`).join("");
-  try {
-    const routes = await loadRoutes();
-    document.getElementById("batchLine").innerHTML = `<option value="">—</option>` + routes
-      .slice().sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }))
-      .map(r => `<option value="${esc(r.gtfsId)}">${esc(r.shortName || "")} ${esc(r.longName || "")}</option>`).join("");
-  } catch (e) { /* lista jää tyhjäksi */ }
+  document.getElementById("batchLine").innerHTML = `<option value="">—</option>` + routes
+    .slice().sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }))
+    .map(r => `<option value="${esc(r.gtfsId)}">${esc(r.shortName || "")} ${esc(r.longName || "")}</option>`).join("");
 
   document.getElementById("batchGo").addEventListener("click", async () => {
     const routeId = document.getElementById("batchLine").value;
+    const routeObj = routes.find(r => r.gtfsId === routeId);   // linjan tunnus julisteen alaotsikkoon
     const st = document.getElementById("batchStatus");
     const out = document.getElementById("batchOut");
     if (!routeId) { st.textContent = t("batchNoLine"); return; }
@@ -6151,7 +6150,7 @@ async function viewPrintHub() {
         return `<section class="card poster-day">
           <div class="poster-head"><div>
             <h2>${esc(s.name)} <span class="muted">${esc(s.code || "")}</span></h2>
-            <p class="poster-sub">${esc(route.shortName || "")} · ${esc(dt.label)} · ${esc(fmtDateLong(dt.date))}</p>
+            <p class="poster-sub">${esc(routeObj?.shortName || "")} · ${esc(dt.label)} · ${esc(fmtDateLong(dt.date))}</p>
           </div></div>
           ${stopPosterHtml(groups)}</section>`;
       });
@@ -7641,53 +7640,115 @@ function bookletTableHtml(trips) {
 }
 
 // Monen linjan tulostusvihko: valitse linjat → aikataulut isoilla pysäkillä
-async function viewPrint() {
+// Yhdistetty "Tulosteet ja näytöt" -keskus välilehdillä. Vanhat reitit #/tulosta ja #/tulosteet
+// ohjautuvat oikealle välilehdelle (route()); välilehdet ovat URL-osoitettavia (#/tulosteet/<tab>
+// tai ?tab=<tab>). Kaikki kolme paneelia ovat DOMissa → sidonnat toimivat tabista riippumatta;
+// välilehden vaihto ei piirrä näkymää uudelleen (history.replaceState → lomaketila säilyy).
+const PRINT_TABS = ["vihko", "julisteet", "naytot"];
+async function viewPrintCenter(tab) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  tab = PRINT_TABS.includes(tab) ? tab : "vihko";
   setView(`<p class="muted">${t("loadingRoutes")}</p>`);
   const routes = await loadRoutes();
   const today = todayISO();
+  const dts = dayTypeDates(today);
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("allRoutes")}</a></nav>
-    <div class="card no-print" id="printForm">
-      <h2>${icon("print")} ${t("printPageTitle")}</h2>
-      <p class="muted">${t("printPageIntro")}</p>
-      <div class="field">
-        <label for="bookletDate">${t("bookletDateLabel")}</label>
-        <input type="date" id="bookletDate" value="${esc(today)}" aria-describedby="bookletDateHint">
-        <p class="muted" id="bookletDateHint" style="margin:0.3rem 0 0;font-size:0.85em">${t("bookletDateHint")}</p>
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <div class="card no-print">
+      <h2>${icon("print")} ${t("printCenterTitle")}</h2>
+      <p class="muted">${t("printCenterIntro")}</p>
+      <div class="tabs" role="group" aria-label="${t("printCenterTitle")}">
+        <button type="button" class="ptab" data-ptab="vihko" aria-pressed="false">${t("tabBooklet")}</button>
+        <button type="button" class="ptab" data-ptab="julisteet" aria-pressed="false">${t("tabPosters")}</button>
+        <button type="button" class="ptab" data-ptab="naytot" aria-pressed="false">${t("tabScreens")}</button>
       </div>
-      <div class="field">
-        <label for="dirSel">${t("directionsLabel")}</label>
-        <select id="dirSel">
-          <option value="both">${t("dirsBoth")}</option>
-          <option value="0">${t("dirsOne1")}</option>
-          <option value="1">${t("dirsOne2")}</option>
-        </select>
-      </div>
-      <div class="field">
-        <span class="muted" id="dtLbl">${t("dayTypesLabel")}</span>
-        <div class="row" role="group" aria-labelledby="dtLbl" style="flex-wrap:wrap;gap:0.4rem 1rem">
-          <label class="dtopt"><input type="checkbox" class="dtCb" value="weekday" checked> ${t("dayWeekday")}</label>
-          <label class="dtopt"><input type="checkbox" class="dtCb" value="sat" checked> ${t("daySat")}</label>
-          <label class="dtopt"><input type="checkbox" class="dtCb" value="sun" checked> ${t("daySun")}</label>
-        </div>
-      </div>
-      <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
-        <input type="search" id="lineFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
-        <button type="button" id="selAll" class="linkish">${t("selectAllLines")}</button>
-        ${CONFIG.centerStopNames ? `<button type="button" id="selCenter" class="linkish">${t("centerLines")}</button>` : ""}
-        <button type="button" id="selNone" class="linkish">${t("clearLines")}</button>
-      </div>
-      <p class="buildbar"><button type="button" id="buildBtn">${t("generateBooklet")}</button>
-         <span id="buildStatus" class="muted" role="status"></span></p>
-      <ul class="plain" id="lineChecks">
-        ${routes.map(r => `<li><label class="item" style="cursor:pointer;align-items:center">
-            <input type="checkbox" class="lineCb" value="${esc(r.gtfsId)}"
-                   style="width:1.4rem;height:1.4rem;flex:none">
-            ${badgeHtml(r)} <span>${esc(r.longName)}</span></label></li>`).join("")}
-      </ul>
     </div>
-    <div id="bookletOut"></div>`);
+
+    <div class="ppanel" data-ppanel="vihko" hidden>
+      <div class="card no-print" id="printForm">
+        <h2>${icon("print")} ${t("printPageTitle")}</h2>
+        <p class="muted">${t("printPageIntro")}</p>
+        <div class="field">
+          <label for="bookletDate">${t("bookletDateLabel")}</label>
+          <input type="date" id="bookletDate" value="${esc(today)}" aria-describedby="bookletDateHint">
+          <p class="muted" id="bookletDateHint" style="margin:0.3rem 0 0;font-size:0.85em">${t("bookletDateHint")}</p>
+        </div>
+        <div class="field">
+          <label for="dirSel">${t("directionsLabel")}</label>
+          <select id="dirSel">
+            <option value="both">${t("dirsBoth")}</option>
+            <option value="0">${t("dirsOne1")}</option>
+            <option value="1">${t("dirsOne2")}</option>
+          </select>
+        </div>
+        <div class="field">
+          <span class="muted" id="dtLbl">${t("dayTypesLabel")}</span>
+          <div class="row" role="group" aria-labelledby="dtLbl" style="flex-wrap:wrap;gap:0.4rem 1rem">
+            <label class="dtopt"><input type="checkbox" class="dtCb" value="weekday" checked> ${t("dayWeekday")}</label>
+            <label class="dtopt"><input type="checkbox" class="dtCb" value="sat" checked> ${t("daySat")}</label>
+            <label class="dtopt"><input type="checkbox" class="dtCb" value="sun" checked> ${t("daySun")}</label>
+          </div>
+        </div>
+        <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
+          <input type="search" id="lineFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
+          <button type="button" id="selAll" class="linkish">${t("selectAllLines")}</button>
+          ${CONFIG.centerStopNames ? `<button type="button" id="selCenter" class="linkish">${t("centerLines")}</button>` : ""}
+          <button type="button" id="selNone" class="linkish">${t("clearLines")}</button>
+        </div>
+        <p class="buildbar"><button type="button" id="buildBtn">${t("generateBooklet")}</button>
+           <span id="buildStatus" class="muted" role="status"></span></p>
+        <ul class="plain" id="lineChecks">
+          ${routes.map(r => `<li><label class="item" style="cursor:pointer;align-items:center">
+              <input type="checkbox" class="lineCb" value="${esc(r.gtfsId)}"
+                     style="width:1.4rem;height:1.4rem;flex:none">
+              ${badgeHtml(r)} <span>${esc(r.longName)}</span></label></li>`).join("")}
+        </ul>
+      </div>
+      <div id="bookletOut"></div>
+    </div>
+
+    <div class="ppanel" data-ppanel="julisteet" hidden>
+      <div class="card no-print">
+        <h2>${icon("print")} ${t("batchPosterTitle")}</h2>
+        <p class="muted">${t("batchPosterIntro")}</p>
+        <label class="embed-field">${t("batchChooseLine")}
+          <select id="batchLine"><option value="">—</option></select></label>
+        <label class="embed-field">${t("batchChooseDay")}
+          <select id="batchDay"></select></label>
+        <p><button type="button" id="batchGo">${t("batchGenerate")}</button>
+          <span id="batchStatus" class="muted" role="status"></span></p>
+      </div>
+      <div id="batchOut"></div>
+    </div>
+
+    <div class="ppanel" data-ppanel="naytot" hidden>
+      <div class="card">
+        <h2>${icon("monitor")} ${t("screenNetTitle")}</h2>
+        <p class="muted">${t("screenNetIntro")}</p>
+        <input type="search" id="hubStopSearch" placeholder="${t("screenNetSearch")}" aria-label="${t("screenNetSearch")}" autocomplete="off">
+        <ul class="plain" id="hubStopResults"></ul>
+        <div id="hubEmbed" class="embedbox" hidden></div>
+      </div>
+    </div>`);
+
+  // Välilehden vaihto: näytä/piilota paneeli + päivitä URL ilman uudelleenpiirtoa (lomaketila säilyy)
+  const panels = [...document.querySelectorAll(".ppanel")];
+  const btns = [...document.querySelectorAll(".ptab")];
+  const showTab = (k) => {
+    if (!PRINT_TABS.includes(k)) k = "vihko";
+    panels.forEach(p => { p.hidden = p.dataset.ppanel !== k; });
+    btns.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.ptab === k)));
+    try { history.replaceState(null, "", "#/tulosteet/" + k); } catch (e) { /* osoiterivin päivitys ei kriittinen */ }
+  };
+  btns.forEach(b => b.addEventListener("click", () => showTab(b.dataset.ptab)));
+
+  bindBookletTab(routes, today);
+  bindPostersTab(routes, dts);
+  bindScreenNetTab();
+  showTab(tab);
+}
+
+function bindBookletTab(routes, today) {
 
   const cbs = () => [...document.querySelectorAll(".lineCb")];
   document.getElementById("lineFilter").addEventListener("input", e => {
@@ -7829,7 +7890,12 @@ async function viewPrint() {
 }
 
 async function route() {
-  const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
+  // Polkuosa "/"-jaettuna + valinnainen ?-kyselyosa (esim. #/tulosteet/vihko tai #/tulosteet?tab=vihko)
+  const rawHash = location.hash.replace(/^#\/?/, "");
+  const qi = rawHash.indexOf("?");
+  const pathStr = qi >= 0 ? rawHash.slice(0, qi) : rawHash;
+  const query = new URLSearchParams(qi >= 0 ? rawHash.slice(qi + 1) : "");
+  const parts = pathStr.split("/").map(decodeURIComponent);
   if (parts[0] !== "monitori") exitMonitorMode(); // poistuttaessa kioskista palauta normaali ulkoasu
   if (parts[0] !== "palvelutiski") exitDeskMode(); // poistuttaessa palvelutiskistä palauta normaali ulkoasu
   const stripFeed = s => String(s || "").replace(/^[^:]+:/, ""); // "Lahti:3" → "3"
@@ -7839,8 +7905,11 @@ async function route() {
     else if (parts[0] === "sahkoposti") viewEmailSub();
     else if (parts[0] === "palvelutiski") await viewServiceDesk();
     else if (parts[0] === "saavutettavuus") viewAccessibilityStatement();
-    else if (parts[0] === "tulosta") await viewPrint();
-    else if (parts[0] === "tulosteet") await viewPrintHub();
+    // Vanhat reitit ohjautuvat yhdistettyyn keskukseen oikealle välilehdelle (QR-yhteensopivuus):
+    // #/tulosta = vihko-välilehti; bare #/tulosteet = julisteet (entinen sisältö); välilehti
+    // myös polusta (#/tulosteet/<tab>) tai kyselystä (?tab=<tab>).
+    else if (parts[0] === "tulosta") await viewPrintCenter("vihko");
+    else if (parts[0] === "tulosteet") await viewPrintCenter(query.get("tab") || parts[1] || "julisteet");
     else if (parts[0] === "reitti") await viewPlan(parts);
     else if (parts[0] === "linja" && parts[1]) { track("line", stripFeed(parts[1])); await viewRoute(parts[1], parts[2], parts[3]); }
     else if (parts[0] === "linjakartta" && parts[1]) { track("line", stripFeed(parts[1])); await viewRouteMap(parts[1]); }

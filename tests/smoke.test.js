@@ -657,8 +657,19 @@ const info = msg => console.log("INFO " + msg);
     fail("asetukset: kontrastivalinta puuttuu");
   }
 
-  // --- Tulostusvihko (monta linjaa) ---
+  // --- Tulosteet ja näytöt -keskus: yhdistetty näkymä välilehdillä; vanhat reitit ohjautuvat ---
+  // Vanha #/tulosta -> ohjautuu keskukseen vihko-välilehdelle (QR-yhteensopivuus); 3 välilehteä,
+  // kaikki paneelit DOMissa (sidonnat toimivat tabista riippumatta).
   await page.goto(BASE + "/#/tulosta", { waitUntil: "networkidle2" });
+  await sleep(400);
+  const pc = await page.evaluate(() => ({
+    hash: location.hash, tabs: document.querySelectorAll(".ptab").length,
+    active: document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab,
+    booklet: !!document.getElementById("buildBtn"), batch: !!document.getElementById("batchGo"), hub: !!document.getElementById("hubStopSearch"),
+  }));
+  (pc.tabs === 3 && pc.active === "vihko" && /#\/tulosteet\/vihko/.test(pc.hash) && pc.booklet && pc.batch && pc.hub)
+    ? ok(`tulosteet-keskus: #/tulosta ohjautuu vihko-välilehdelle, 3 välilehteä (${pc.hash})`)
+    : fail("tulosteet-keskus: #/tulosta-ohjaus tai välilehdet pielessä: " + JSON.stringify(pc));
   if (await expect(".lineCb", "tulostusvihko: linjavalinta latautuu")) {
     await page.evaluate(() => { document.querySelector(".lineCb").checked = true; });
     await page.click("#buildBtn");
@@ -674,20 +685,46 @@ const info = msg => console.log("INFO " + msg);
                 : fail("tulostusvihko: päivätyyppejä ei löytynyt");
     }
   }
+  // Välilehden vaihto: klikkaa "Näyttöverkosto" -> naytot-paneeli näkyviin + URL päivittyy (replaceState)
+  await page.click('.ptab[data-ptab="naytot"]');
+  await sleep(200);
+  const sw = await page.evaluate(() => ({
+    active: document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab,
+    visible: [...document.querySelectorAll(".ppanel")].filter(p => !p.hidden).map(p => p.dataset.ppanel),
+    hash: location.hash,
+  }));
+  (sw.active === "naytot" && sw.visible.length === 1 && sw.visible[0] === "naytot" && /\/tulosteet\/naytot/.test(sw.hash))
+    ? ok("tulosteet-keskus: välilehden vaihto näyttää oikean paneelin + päivittää URL:n")
+    : fail("tulosteet-keskus: välilehden vaihto ei toimi: " + JSON.stringify(sw));
 
   // --- Saavutettavuusseloste ---
   await page.goto(BASE + "/#/saavutettavuus", { waitUntil: "networkidle2" });
   await expect(".card h2", "saavutettavuusseloste avautuu");
 
-  // --- Näytöt ja tulosteet (#4) ---
+  // --- Vanha #/tulosteet (bare) ohjautuu julisteet-välilehdelle; #/tulosteet/<tab> osoitteistettu ---
   await page.goto(BASE + "/#/tulosteet", { waitUntil: "networkidle2" });
-  await expect("#hubStopSearch", "näytöt ja tulosteet: näyttöverkosto-haku näkyy");
-  if (await expect("#batchLine", "näytöt ja tulosteet: linjan erätulostus näkyy")) {
+  await sleep(400);
+  const bare = await page.evaluate(() => ({ active: document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab, hash: location.hash }));
+  (bare.active === "julisteet" && /\/tulosteet\/julisteet/.test(bare.hash))
+    ? ok(`tulosteet-keskus: bare #/tulosteet ohjautuu julisteet-välilehdelle (${bare.hash})`)
+    : fail("tulosteet-keskus: bare #/tulosteet-ohjaus pielessä: " + JSON.stringify(bare));
+  await expect("#hubStopSearch", "tulosteet-keskus: näyttöverkosto-haku DOMissa");
+  if (await expect("#batchLine", "tulosteet-keskus: linjan erätulostus näkyy")) {
     await sleep(1800); // loadRoutes täyttää linjavalikon
     const opts = await page.evaluate(() => document.querySelectorAll("#batchLine option").length);
-    opts > 1 ? ok(`näytöt ja tulosteet: linjavalinta täyttyy (${opts - 1} linjaa)`)
-             : fail("näytöt ja tulosteet: linjavalinta jäi tyhjäksi");
+    opts > 1 ? ok(`tulosteet-keskus: linjavalinta täyttyy (${opts - 1} linjaa)`)
+             : fail("tulosteet-keskus: linjavalinta jäi tyhjäksi");
   }
+  // URL-osoitteistettu välilehti (?tab=) ja yksi etusivun nappi (ei enää kahta tulostenappia)
+  await page.goto(BASE + "/#/tulosteet?tab=naytot", { waitUntil: "networkidle2" });
+  await sleep(400);
+  const q = await page.evaluate(() => document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab);
+  q === "naytot" ? ok("tulosteet-keskus: ?tab=naytot avaa oikean välilehden")
+                 : fail("tulosteet-keskus: ?tab= ei toiminut (" + q + ")");
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  const printTools = await page.evaluate(() => document.querySelectorAll('a.tool[href^="#/tulost"]').length);
+  printTools === 1 ? ok("etusivu: yksi 'Tulosteet ja näytöt' -nappi (korvaa kaksi)")
+                   : fail(`etusivu: tulostenappeja ${printTools} (odotus 1)`);
 
   // --- Konsolivirheet ---
   const realErrors = consoleErrors.filter(e => !e.includes("favicon"));
