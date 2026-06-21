@@ -846,8 +846,11 @@
     border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);
     color: var(--text); text-decoration: none; font-size: 0.9rem; line-height: 1.2;
     transition: background 0.12s, border-color 0.12s; }
+  /* Tekstisarake on flex-lapsi → min-width:0, jotta se kutistuu kortin alle, ja pitkä
+     yhdyssana (esim. SV "Störningsmeddelanden") katkeaa riville eikä valu reunan yli. */
+  .tool span { min-width: 0; overflow-wrap: anywhere; }
   .tool:hover { background: var(--hover); border-color: var(--blue); }
-  .tool .ic { color: var(--blue); width: 1.35em; height: 1.35em; }
+  .tool .ic { color: var(--blue); width: 1.35em; height: 1.35em; flex-shrink: 0; }
   /* Luonnollisen kielen älykenttä + mikrofoni */
   .nl-field { margin: 0.2rem 0 0.3rem; }
   .nl-field label { display: block; font-weight: var(--wmed); margin-bottom: 0.3rem; }
