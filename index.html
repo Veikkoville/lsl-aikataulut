@@ -1258,7 +1258,7 @@ const STRINGS = {
     errFeedNotFound: "Kaupungin {city} syötettä ei löytynyt Waltti-rajapinnasta.",
     errLibLoad: "Kirjaston lataus epäonnistui: ",
     errGeocode: "Osoitehaku epäonnistui: HTTP ",
-    staleNote: "Ei yhteyttä — näytetään viimeksi päivitetty tieto ({when}).",
+    staleNote: "Ei yhteyttä. Näytetään viimeksi päivitetty tieto ({when}).",
     dateAt: "{date} klo {time}",
     depNow: "nyt", depMin: "{n} min",
     osmAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-tekijät',
@@ -1298,14 +1298,14 @@ const STRINGS = {
     exLink: "Poikkeuspäivät",
     exTitle: "Tulevat poikkeuspäivät",
     exIntro: "Pyhä- ja juhlapäivinä bussit liikennöivät tavallisesti sunnuntai- tai erillisen juhlapyhäaikataulun mukaan. Aattoina liikenne voi olla tavallista vähäisempää.",
-    exNote: "Tarkista aina linjasi oma aikataulu — linjasivulla voit vaihtaa päivää ja päivätyyppiä (Ma–Pe / La / Su).",
+    exNote: "Tarkista aina linjasi oma aikataulu. Linjasivulla voit vaihtaa päivää ja päivätyyppiä (Ma–Pe / La / Su).",
     exTagHoliday: "Pyhäpäivä",
     exTagEve: "Aatto",
     exNone: "Ei tulevia poikkeuspäiviä seuraavan vuoden aikana.",
     exCheckCta: "Selaa linjoja ja aikatauluja",
     fbLink: "Anna palautetta",
     fbTitle: "Palaute ja vikailmoitus",
-    fbIntro: "Huomasitko väärän aikataulun, rikkinäisen pysäkin tai virheen sovelluksessa? Kerro siitä — viesti auttaa palvelun kehittämisessä.",
+    fbIntro: "Huomasitko väärän aikataulun, rikkinäisen pysäkin tai virheen sovelluksessa? Kerro siitä. Viesti auttaa palvelun kehittämisessä.",
     fbDisclaimer: "Tämä on epävirallinen palvelu. Suoraan bussiliikennettä koskeva palaute kannattaa lähettää myös {op}:lle.",
     fbCategory: "Aihe",
     fbCatSchedule: "Väärä aikataulu",
@@ -1409,7 +1409,7 @@ const STRINGS = {
     deskStopNoLines: "Ei säännöllisiä linjoja.",
     deskNoStop: "Pysäkkiä ei löytynyt.",
     deskDepsTitle: "Seuraavat lähdöt pysäkiltä",
-    deskDepsHint: "Kirjoita pysäkki ja valitse listalta — näet lähdöt reaaliajassa.",
+    deskDepsHint: "Kirjoita pysäkki ja valitse listalta. Näet lähdöt reaaliajassa.",
     deskDepsNone: "Ei tulevia lähtöjä tältä pysäkiltä.",
     deskDepsLines: "Linjat:",
     deskUpdated: "Päivitetty klo {time}",
@@ -1426,7 +1426,6 @@ const STRINGS = {
     notifyDenied: "Ilmoituslupa evättiin selaimen asetuksissa.",
     notifyOn: "Ilmoitukset käytössä.",
     apiKeyTitle: "API-avain",
-    apiKeyNotNeeded: "API-avainta ei tarvita — palvelu hakee tiedot välityspalvelimen kautta.",
     apiKeyHelp: 'Hae ilmainen avain osoitteesta <a href="https://portal-api.digitransit.fi/" target="_blank" rel="noopener">portal-api.digitransit.fi</a> ja liitä se tähän. Avain tallentuu vain tämän selaimen muistiin.',
     // häiriöt
     alertsTitle: "Häiriötiedotteet", alertDefault: "Häiriötiedote",
@@ -1444,7 +1443,7 @@ const STRINGS = {
     printHubLink: "Näytöt ja tulosteet",
     printCenterLink: "Tulosteet ja näytöt",
     printCenterTitle: "Tulosteet ja näytöt",
-    printCenterIntro: "Aikatauluvihot, pysäkki- ja linjajulisteet sekä seinänäyttöjen kioski-osoitteet — kaikki yhdestä paikasta.",
+    printCenterIntro: "Aikatauluvihot, pysäkki- ja linjajulisteet sekä seinänäyttöjen kioski-osoitteet, kaikki yhdestä paikasta.",
     tabBooklet: "Vihko",
     tabPosters: "Pysäkki- ja linjatulosteet",
     tabScreens: "Näyttöverkosto",
@@ -1463,7 +1462,7 @@ const STRINGS = {
     noStopsFor: 'Ei pysäkkejä haulla "{q}".',
     noPlacesFor: 'Ei osumia haulla "{q}".',
     geoUnsupported: "Selaimesi ei tue paikannusta.",
-    geoUnsupportedHint: "Selaimesi ei tue paikannusta — käytä pysäkkihakua alla.",
+    geoUnsupportedHint: "Selaimesi ei tue paikannusta. Käytä pysäkkihakua alla.",
     gettingLocation: "Haetaan sijaintia…",
     geoFail: "Sijaintia ei saatu: ",
     searchByNameHint: "Voit etsiä pysäkkejä myös nimellä alta.",
@@ -1674,7 +1673,7 @@ const STRINGS = {
     errFeedNotFound: "The {city} feed was not found in the Waltti API.",
     errLibLoad: "Failed to load library: ",
     errGeocode: "Address search failed: HTTP ",
-    staleNote: "No connection — showing last updated data ({when}).",
+    staleNote: "No connection. Showing last updated data ({when}).",
     dateAt: "{date} at {time}",
     depNow: "now", depMin: "{n} min",
     osmAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -1712,14 +1711,14 @@ const STRINGS = {
     exLink: "Special days",
     exTitle: "Upcoming special days",
     exIntro: "On public holidays buses usually run a Sunday or separate holiday timetable. On holiday eves service may be lighter than usual.",
-    exNote: "Always check your own line's timetable — on the line page you can change the day and day type (Mon–Fri / Sat / Sun).",
+    exNote: "Always check your own line's timetable. On the line page you can change the day and day type (Mon–Fri / Sat / Sun).",
     exTagHoliday: "Holiday",
     exTagEve: "Eve",
     exNone: "No upcoming special days within the next year.",
     exCheckCta: "Browse lines and timetables",
     fbLink: "Send feedback",
     fbTitle: "Feedback & problem report",
-    fbIntro: "Spotted a wrong timetable, a broken stop or an app bug? Let us know — your message helps improve the service.",
+    fbIntro: "Spotted a wrong timetable, a broken stop or an app bug? Let us know. Your message helps improve the service.",
     fbDisclaimer: "This is an unofficial service. Feedback directly about bus operations should also be sent to {op}.",
     fbCategory: "Topic",
     fbCatSchedule: "Wrong timetable",
@@ -1821,7 +1820,7 @@ const STRINGS = {
     deskStopNoLines: "No regular lines.",
     deskNoStop: "Stop not found.",
     deskDepsTitle: "Next departures from stop",
-    deskDepsHint: "Type a stop and pick it — departures shown in real time.",
+    deskDepsHint: "Type a stop and pick it. Departures are shown in real time.",
     deskDepsNone: "No upcoming departures from this stop.",
     deskDepsLines: "Lines:",
     deskUpdated: "Updated {time}",
@@ -1838,7 +1837,6 @@ const STRINGS = {
     notifyDenied: "Notification permission was denied in browser settings.",
     notifyOn: "Notifications enabled.",
     apiKeyTitle: "API key",
-    apiKeyNotNeeded: "No API key is needed — data is fetched through a proxy.",
     apiKeyHelp: 'Get a free key at <a href="https://portal-api.digitransit.fi/" target="_blank" rel="noopener">portal-api.digitransit.fi</a> and paste it here. The key is stored only in this browser.',
     alertsTitle: "Disruptions", alertDefault: "Disruption notice",
     alertsCount1: "1 disruption", alertsCountN: "{n} disruptions",
@@ -1855,7 +1853,7 @@ const STRINGS = {
     printHubLink: "Displays & printing",
     printCenterLink: "Printing & displays",
     printCenterTitle: "Printing & displays",
-    printCenterIntro: "Timetable booklets, stop and line posters, and kiosk links for wall displays — all in one place.",
+    printCenterIntro: "Timetable booklets, stop and line posters, and kiosk links for wall displays, all in one place.",
     tabBooklet: "Booklet",
     tabPosters: "Stop & line printouts",
     tabScreens: "Display network",
@@ -1873,7 +1871,7 @@ const STRINGS = {
     noStopsFor: 'No stops found for "{q}".',
     noPlacesFor: 'No results for "{q}".',
     geoUnsupported: "Your browser does not support geolocation.",
-    geoUnsupportedHint: "Your browser does not support geolocation — use the stop search below.",
+    geoUnsupportedHint: "Your browser does not support geolocation. Use the stop search below.",
     gettingLocation: "Getting location…",
     geoFail: "Could not get location: ",
     searchByNameHint: "You can also search stops by name below.",
@@ -2078,7 +2076,7 @@ const STRINGS = {
     errFeedNotFound: "Flödet för {city} hittades inte i Waltti-gränssnittet.",
     errLibLoad: "Biblioteket kunde inte laddas: ",
     errGeocode: "Adresssökningen misslyckades: HTTP ",
-    staleNote: "Ingen anslutning — visar senast uppdaterad information ({when}).",
+    staleNote: "Ingen anslutning. Visar senast uppdaterad information ({when}).",
     dateAt: "{date} kl. {time}",
     depNow: "nu", depMin: "{n} min",
     osmAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-bidragsgivare',
@@ -2116,14 +2114,14 @@ const STRINGS = {
     exLink: "Avvikande dagar",
     exTitle: "Kommande avvikande dagar",
     exIntro: "På helg- och högtidsdagar kör bussarna vanligtvis enligt söndags- eller en separat helgtidtabell. På aftnar kan trafiken vara glesare än vanligt.",
-    exNote: "Kontrollera alltid din egen linjes tidtabell — på linjesidan kan du byta dag och dagtyp (Mån–Fre / Lör / Sön).",
+    exNote: "Kontrollera alltid din egen linjes tidtabell. På linjesidan kan du byta dag och dagtyp (Mån–Fre / Lör / Sön).",
     exTagHoliday: "Helgdag",
     exTagEve: "Afton",
     exNone: "Inga kommande avvikande dagar under det närmaste året.",
     exCheckCta: "Bläddra bland linjer och tidtabeller",
     fbLink: "Ge respons",
     fbTitle: "Respons och felanmälan",
-    fbIntro: "Märkte du en felaktig tidtabell, en trasig hållplats eller ett fel i appen? Berätta — ditt meddelande hjälper till att utveckla tjänsten.",
+    fbIntro: "Märkte du en felaktig tidtabell, en trasig hållplats eller ett fel i appen? Berätta. Ditt meddelande hjälper till att utveckla tjänsten.",
     fbDisclaimer: "Detta är en inofficiell tjänst. Respons som direkt gäller busstrafiken bör även skickas till {op}.",
     fbCategory: "Ämne",
     fbCatSchedule: "Felaktig tidtabell",
@@ -2225,7 +2223,7 @@ const STRINGS = {
     deskStopNoLines: "Inga reguljära linjer.",
     deskNoStop: "Hållplatsen hittades inte.",
     deskDepsTitle: "Nästa avgångar från hållplats",
-    deskDepsHint: "Skriv en hållplats och välj den — avgångar i realtid.",
+    deskDepsHint: "Skriv en hållplats och välj den. Avgångarna visas i realtid.",
     deskDepsNone: "Inga kommande avgångar från denna hållplats.",
     deskDepsLines: "Linjer:",
     deskUpdated: "Uppdaterad {time}",
@@ -2242,7 +2240,6 @@ const STRINGS = {
     notifyDenied: "Aviseringstillstånd nekades i webbläsarens inställningar.",
     notifyOn: "Aviseringar aktiverade.",
     apiKeyTitle: "API-nyckel",
-    apiKeyNotNeeded: "Ingen API-nyckel behövs — data hämtas via en proxy.",
     apiKeyHelp: 'Hämta en gratis nyckel på <a href="https://portal-api.digitransit.fi/" target="_blank" rel="noopener">portal-api.digitransit.fi</a> och klistra in den här. Nyckeln sparas endast i denna webbläsare.',
     alertsTitle: "Störningsmeddelanden", alertDefault: "Störningsmeddelande",
     alertsCount1: "1 störning", alertsCountN: "{n} störningar",
@@ -2259,7 +2256,7 @@ const STRINGS = {
     printHubLink: "Skärmar och utskrifter",
     printCenterLink: "Utskrifter & skärmar",
     printCenterTitle: "Utskrifter & skärmar",
-    printCenterIntro: "Tidtabellshäften, hållplats- och linjeaffischer samt kiosklänkar för väggskärmar — allt på ett ställe.",
+    printCenterIntro: "Tidtabellshäften, hållplats- och linjeaffischer samt kiosklänkar för väggskärmar, allt på ett ställe.",
     tabBooklet: "Häfte",
     tabPosters: "Hållplats- och linjeutskrifter",
     tabScreens: "Skärmnätverk",
@@ -2277,7 +2274,7 @@ const STRINGS = {
     noStopsFor: 'Inga hållplatser hittades för "{q}".',
     noPlacesFor: 'Inga resultat för "{q}".',
     geoUnsupported: "Din webbläsare stöder inte positionering.",
-    geoUnsupportedHint: "Din webbläsare stöder inte positionering — använd hållplatssökningen nedan.",
+    geoUnsupportedHint: "Din webbläsare stöder inte positionering. Använd hållplatssökningen nedan.",
     gettingLocation: "Hämtar position…",
     geoFail: "Positionen kunde inte hämtas: ",
     searchByNameHint: "Du kan också söka hållplatser med namn nedan.",
@@ -3616,11 +3613,7 @@ function viewSettings() {
       ${textSizeSettingHtml()}
       ${contrastSettingHtml()}
       ${notifySettingHtml()}
-      ${emailSubSettingHtml()}
-      <div class="card">
-        <h2>${t("apiKeyTitle")}</h2>
-        <p>${t("apiKeyNotNeeded")}</p>
-      </div>`);
+      ${emailSubSettingHtml()}`);
     bindLangSetting();
     bindThemeSetting();
     bindTextSizeSetting();
@@ -5861,7 +5854,7 @@ async function viewHubs(parts) {
       const icon = L.divIcon({ className: "plat-marker-wrap",
         html: `<span class="plat-marker">${esc(label)}</span>`, iconSize: [30, 30] });
       const marker = L.marker([s.lat, s.lon], { icon }).addTo(map).bindPopup(
-        `<strong>${esc(hub.name)} — ${esc(full)}</strong><br>${linesShort || t("hubNoLines")}<br><a href="${stopUrl}">${t("hubDepartures")}</a>`,
+        `<strong>${esc(hub.name)} · ${esc(full)}</strong><br>${linesShort || t("hubNoLines")}<br><a href="${stopUrl}">${t("hubDepartures")}</a>`,
         { maxWidth: 260 });
       bounds = bounds ? bounds.extend(marker.getLatLng()) : L.latLngBounds(marker.getLatLng(), marker.getLatLng());
       listHtml.push(
@@ -6117,7 +6110,7 @@ function bindPostersTab(routes, dts) {
   const daySel = document.getElementById("batchDay");
   if (!daySel) return;
   daySel.innerHTML = dts.map((dt, i) => `<option value="${i}">${esc(dt.label)}</option>`).join("");
-  document.getElementById("batchLine").innerHTML = `<option value="">—</option>` + routes
+  document.getElementById("batchLine").innerHTML = `<option value="">-</option>` + routes
     .slice().sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }))
     .map(r => `<option value="${esc(r.gtfsId)}">${esc(r.shortName || "")} ${esc(r.longName || "")}</option>`).join("");
 
@@ -6714,7 +6707,7 @@ function deskStopsListHtml(node) {
   node.legs.forEach(leg => {
     if (leg.mode === "WALK" || leg.mode === "BICYCLE") return;
     const plat = leg.from.stop?.platformCode ? " (" + esc(leg.from.stop.platformCode) + ")" : "";
-    items.push(`<li class="ds-board">▶ ${esc(leg.from.name)}${plat} — ${esc(leg.route?.shortName || "")}</li>`);
+    items.push(`<li class="ds-board">▶ ${esc(leg.from.name)}${plat} · ${esc(leg.route?.shortName || "")}</li>`);
     (leg.intermediateStops || []).forEach(s => items.push(`<li class="ds-mid">${esc(s.name)}</li>`));
     items.push(`<li class="ds-alight">■ ${esc(leg.to.name)} ${fmtClock(legTime(leg.end))}</li>`);
   });
@@ -7537,7 +7530,7 @@ async function viewAccessibilityStatement() {
       <h2>Saavutettavuuden tila</h2>
       <p>Tavoitetaso on WCAG 2.1 AA. Palvelu täyttää vaatimukset arvioiduilta osin.
         Arviointi on tehty itsearviona automaattisilla työkaluilla (axe-core,
-        Lighthouse — ei havaittuja rikkeitä vaaleassa eikä tummassa teemassa,
+        Lighthouse: ei havaittuja rikkeitä vaaleassa eikä tummassa teemassa,
         Lighthouse-saavutettavuuspisteet 100/100 kaikissa näkymissä) sekä
         näppäimistö- ja ruudunlukijatarkistuksin.</p>
       <h2>Tunnetut rajoitteet</h2>
@@ -7712,7 +7705,7 @@ async function viewPrintCenter(tab) {
         <h2>${icon("print")} ${t("batchPosterTitle")}</h2>
         <p class="muted">${t("batchPosterIntro")}</p>
         <label class="embed-field">${t("batchChooseLine")}
-          <select id="batchLine"><option value="">—</option></select></label>
+          <select id="batchLine"><option value="">-</option></select></label>
         <label class="embed-field">${t("batchChooseDay")}
           <select id="batchDay"></select></label>
         <p><button type="button" id="batchGo">${t("batchGenerate")}</button>
@@ -7872,7 +7865,7 @@ function bindBookletTab(routes, today) {
     const out = document.getElementById("bookletOut");
     out.innerHTML = `
       <div class="card booklet-head">
-        <h2>${esc(CONFIG.operator)} — ${t("printPageTitle")}</h2>
+        <h2>${esc(CONFIG.operator)} · ${t("printPageTitle")}</h2>
         <p>${dts.map(d => esc(d.label)).join(" · ")}. ${t("bookletKeyStopsNote")}</p>
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
         ${dayKeys.includes("weekday") ? `<p class="muted">${t("dayTypeNote")}</p>` : ""}

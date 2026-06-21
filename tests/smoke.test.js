@@ -7,6 +7,8 @@
 // Palvelin: python -m http.server 8000 repon juuressa.
 
 const puppeteer = require("puppeteer");
+const fs = require("fs");
+const path = require("path");
 
 const BASE = process.env.BASE || "http://localhost:8000";
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -18,6 +20,23 @@ const fail = msg => { failures++; console.log("FAIL " + msg); };
 const info = msg => console.log("INFO " + msg);
 
 (async () => {
+  // Lähdekoodi-tarkistus: em dash (—, U+2014) ei saa esiintyä UI-stringeissä eikä muissa
+  // koodiliteraaleissa. Sallitaan vain kommenteissa (kehittäjähuomiot) — ne riisutaan ennen
+  // tarkistusta. En dash (–, U+2013) aikaväleissä säilyy koskemattomana (ei tarkisteta).
+  {
+    let src = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+    const stripped = src
+      .replace(/<!--[\s\S]*?-->/g, " ")        // HTML-kommentit
+      .replace(/\/\*[\s\S]*?\*\//g, " ")        // lohkokommentit (CSS + JS)
+      .replace(/(^|[^:])\/\/[^\n]*/g, "$1");    // rivikommentit (ei katkaise ://-URLeja)
+    const em = (stripped.match(/—/g) || []).length;
+    if (em === 0) ok("lähdekoodi: ei em dashia (—) UI-stringeissä/literaaleissa");
+    else {
+      const lines = stripped.split("\n").map((l, i) => l.includes("—") ? (i + 1) + ": " + l.trim().slice(0, 80) : null).filter(Boolean);
+      fail(`lähdekoodi: em dash (—) ${em} kpl koodiliteraaleissa — käytä kaksoispistettä/pilkkua/lausejakoa: ` + lines.slice(0, 5).join(" | "));
+    }
+  }
+
   const browser = await puppeteer.launch({
     headless: "new",
     args: ["--no-sandbox", "--disable-dev-shm-usage"],
