@@ -555,6 +555,21 @@
   .booklet-toc h3 { font-size: 1rem; margin: 0 0 0.3rem; }
   .booklet-toc ul { margin: 0; padding-left: 1.2rem; columns: 2; column-gap: 1.5rem; }
   .booklet-toc li { break-inside: avoid; }
+  /* Vihko (A5, taitettava): kiinteät pt-fontit → mittaus ruudulla vastaa printtiä (mittaa-ja-jaa). */
+  #vihkoPrint { display: none; }
+  .vihko-page-content { font-size: 8.5pt; line-height: 1.25; color: #000; }
+  .vihko-page-content .vk-cover h2 { font-size: 13pt; margin: 0 0 2mm; }
+  .vihko-page-content .vk-cover p { font-size: 8pt; margin: 0 0 1mm; }
+  .vihko-page-content .vk-cover .booklet-toc { display: none; }
+  .vihko-page-content .vk-h2 { font-size: 11pt; font-weight: 700; color: #0a3d7a; margin: 2.5mm 0 1mm; }
+  .vihko-page-content .vk-h3 { font-size: 9.5pt; font-weight: 600; margin: 1.5mm 0 0.5mm; }
+  .vihko-page-content .vk-h4 { font-size: 8pt; color: #555; margin: 1mm 0 0.3mm; }
+  .vihko-page-content .vk-cont { font-size: 7pt; color: #888; margin: 0 0 0.5mm; font-style: italic; }
+  .vihko-page-content .vk-note { font-size: 8pt; color: #777; margin: 0 0 1mm; }
+  .vihko-page-content .vk-tbl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; margin: 0 0 1mm; }
+  .vihko-page-content .vk-tbl th, .vihko-page-content .vk-tbl td { border-bottom: 0.2mm solid #bbb; padding: 0.5mm 1mm; text-align: left; font-size: 8pt; }
+  .vihko-page-content .vk-tbl td { white-space: nowrap; }
+  .vihko-page-content .vk-tbl th { white-space: normal; font-size: 7pt; color: #444; vertical-align: bottom; }
   h4.daytype { font-size: 0.92rem; font-weight: 600; margin: 0.5rem 0 0.15rem; }
   /* Pysäkkijuliste: linjat tuntikaavioina, vierekkäin kun tilaa */
   .poster-sub { font-weight: var(--wmed); margin: 0.1rem 0 0.5rem; }
@@ -1049,6 +1064,15 @@
     .poster-day:first-of-type { break-before: avoid; }
     .poster-line { break-inside: avoid; }
     table.hourgrid, table.hourgrid th, table.hourgrid td { border: none; }
+    /* Vihko (A5, taitettava): #vihkoPrint näkyviin, muu piiloon; A4-VAAKA, 2× A5-puolikas/arkki. */
+    body.vihko-printing > *:not(#vihkoPrint) { display: none !important; }
+    body.vihko-printing #vihkoPrint { display: block !important; }
+    .vihko-sheet { width: 297mm; height: 210mm; display: flex; overflow: hidden;
+                   break-after: page; page-break-after: always; }
+    .vihko-sheet:last-child { break-after: auto; page-break-after: auto; }
+    .vihko-a5 { width: 148.5mm; height: 210mm; padding: 10mm; box-sizing: border-box;
+                overflow: hidden; border-right: 0.2mm dashed #ccc; }
+    .vihko-a5:last-child { border-right: 0; }
   }
   .print-only { display: none; }
 </style>
@@ -1587,7 +1611,10 @@ const STRINGS = {
     generateBooklet: "Kokoa ja tulosta",
     noLinesSelected: "Valitse vähintään yksi linja.",
     buildingBooklet: "Kootaan aikatauluja… {done}/{total}",
-    bookletPrintBtn: "Tulosta tai tallenna PDF",
+    bookletPrintBtn: "Tulosta tai tallenna PDF (A4)",
+    bookletPrintA5: "Vihkona (A5, taitettava)",
+    vihkoDuplexNote: "Tulosta kaksipuolisena (käännä lyhyeltä reunalta), taita keskeltä.",
+    vihkoContinued: "(jatkoa)",
     bookletDateLabel: "Voimassa päivänä",
     bookletDateHint: "Aikataulukausi (kesä/talvi) määräytyy tämän päivän mukaan. Jätä tämänpäiväiseksi nykyiselle aikataululle tai valitse tuleva päivä, jos haluat tulostaa seuraavan kauden aikataulun.",
     bookletPeriodNote: "Tuloste vastaa {date} voimassa olevaa aikataulua. Aikataulu päivittyy rajapinnasta automaattisesti, joten kausivaihdoksen jälkeen tulosta vihko uudelleen.",
@@ -2002,7 +2029,10 @@ const STRINGS = {
     generateBooklet: "Build and print",
     noLinesSelected: "Select at least one route.",
     buildingBooklet: "Building timetables… {done}/{total}",
-    bookletPrintBtn: "Print or save as PDF",
+    bookletPrintBtn: "Print or save as PDF (A4)",
+    bookletPrintA5: "As booklet (A5, foldable)",
+    vihkoDuplexNote: "Print double-sided (flip on short edge), fold in the middle.",
+    vihkoContinued: "(cont.)",
     bookletDateLabel: "Valid on",
     bookletDateHint: "The timetable season (summer/winter) is determined by this date. Keep it as today for the current timetable, or pick a future date to print the next season's timetable.",
     bookletPeriodNote: "This printout reflects the timetable in effect on {date}. The timetable updates automatically from the data source, so print the booklet again after a seasonal change.",
@@ -2415,7 +2445,10 @@ const STRINGS = {
     generateBooklet: "Sammanställ och skriv ut",
     noLinesSelected: "Välj minst en linje.",
     buildingBooklet: "Sammanställer tidtabeller… {done}/{total}",
-    bookletPrintBtn: "Skriv ut eller spara som PDF",
+    bookletPrintBtn: "Skriv ut eller spara som PDF (A4)",
+    bookletPrintA5: "Som häfte (A5, vikbar)",
+    vihkoDuplexNote: "Skriv ut dubbelsidigt (vänd på kortsidan), vik på mitten.",
+    vihkoContinued: "(forts.)",
     bookletDateLabel: "Gäller den",
     bookletDateHint: "Tidtabellsperioden (sommar/vinter) bestäms av detta datum. Lämna det som i dag för den aktuella tidtabellen, eller välj ett framtida datum för att skriva ut nästa periods tidtabell.",
     bookletPeriodNote: "Utskriften motsvarar tidtabellen som gäller {date}. Tidtabellen uppdateras automatiskt från datakällan, så skriv ut häftet på nytt efter ett periodbyte.",
@@ -7716,7 +7749,133 @@ function setPageOrientation(orient) {
   if (!s) { s = document.createElement("style"); s.id = "pageOrient"; document.head.appendChild(s); }
   s.textContent = orient === "landscape"
     ? "@page { size: A4 landscape; margin: 8mm; }"
+    : orient === "vihko"
+    ? "@page { size: A4 landscape; margin: 0; }"   // vihko: 2× A5/arkki, reunaan asti
     : "@page { size: A4 portrait; margin: 12mm; }";
+}
+
+/* ---------- Vihko (A5, taitettava): mittaa-ja-jaa sivutus + saddle-stitch imposition ----------
+   Jakaa saman kootun vihkosisällön (#bookletOut) diskreeteiksi A5-sivuiksi mittaamalla todelliset
+   korkeudet (pitkä linja/suunta jatkuu monelle A5:lle, ei leikkausta), ja asemoi ne A4-VAAKA-arkeille
+   saddle-stitch-järjestyksessä. A4-vakiotuloste/julisteet/matriisi pysyvät ennallaan. */
+const VK_PXMM = 96 / 25.4;                          // px per mm @96dpi
+const vkMm = v => v * VK_PXMM;
+const VK_A5_W = 148, VK_A5_H = 210, VK_PAD = 10;    // mm
+const VK_CONTENT_H = VK_A5_H - 2 * VK_PAD;          // 190mm
+const VK_CONTENT_W = VK_A5_W - 2 * VK_PAD;          // 128mm
+
+// Pilko #bookletOut atomeiksi: otsikot (pidä seuraavan kanssa) + taulukot rivilistana (jaettavissa).
+function vkCollectAtoms(out) {
+  const atoms = [];
+  const head = out.querySelector(".booklet-head");
+  if (head) {
+    const c = head.cloneNode(true);
+    c.querySelectorAll(".no-print").forEach(n => n.remove());
+    atoms.push({ html: `<div class="vk-cover">${c.innerHTML}</div>` });
+  }
+  for (const line of out.querySelectorAll(".booklet-line")) {
+    let lineLabel = "", dirLabel = "";
+    for (const node of line.children) {
+      const tag = node.tagName;
+      if (tag === "H2") { lineLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h2">${node.innerHTML}</div>`, keepWithNext: true }); }
+      else if (tag === "H3") { dirLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h3">${node.innerHTML}</div>`, keepWithNext: true }); }
+      else if (tag === "H4") atoms.push({ html: `<div class="vk-h4">${node.innerHTML}</div>`, keepWithNext: true });
+      else {
+        const table = tag === "TABLE" ? node : node.querySelector("table");
+        const rows = table ? [...table.querySelectorAll("tbody tr")].map(tr => tr.outerHTML) : [];
+        if (table && rows.length)
+          atoms.push({ table: true, thead: table.querySelector("thead")?.outerHTML || "", rows,
+                       cont: [lineLabel, dirLabel].filter(Boolean).join(" · ") });
+        else atoms.push({ html: `<div class="vk-note">${esc(node.textContent.trim())}</div>` });
+      }
+    }
+  }
+  return atoms;
+}
+
+// Pakkaa atomit A5-korkuisiksi sivuiksi mittaamalla SIVUN TODELLINEN kumulatiivinen korkeus joka
+// lisäyksen jälkeen (ei summata atomeja erikseen → ei marginaali-collapse-virhettä). Pitkä taulu
+// jaetaan rivi riviltä; jokainen jatko-A5 toistaa otsikkorivin + "(jatkoa)". Ei leikkausta/pakkausta.
+function vkPaginate(atoms) {
+  const m = document.createElement("div");
+  m.className = "vihko-page-content";
+  m.style.cssText = `position:fixed;left:-9999px;top:0;width:${VK_CONTENT_W}mm;visibility:hidden`;
+  document.body.appendChild(m);
+  const maxH = vkMm(VK_CONTENT_H) - vkMm(6);        // 6mm varmuusvara (ruutu- vs. print-media-ero)
+  const heightOf = html => { m.innerHTML = html; return m.getBoundingClientRect().height; };
+  const fits = html => heightOf(html) <= maxH;
+  const pages = [];
+  let cur = "";
+  const flush = () => { if (cur) { pages.push(cur); cur = ""; } };
+  const tableHtml = (a, rows, cont) =>
+    (cont ? `<div class="vk-cont">${esc(a.cont)} ${t("vihkoContinued")}</div>` : "")
+    + `<table class="vk-tbl">${a.thead}<tbody>${rows.join("")}</tbody></table>`;  // EI booklet/stoptable-luokkaa: @media print -säännöt eivät saa muuttaa mitattua kokoa
+  try {
+    for (const a of atoms) {
+      if (a.table) {
+        let i = 0, first = true;
+        while (i < a.rows.length) {
+          let chunk = [];
+          for (; i < a.rows.length; i++) {
+            if (!fits(cur + tableHtml(a, chunk.concat(a.rows[i]), !first)) && (chunk.length || cur)) break;
+            chunk.push(a.rows[i]);
+          }
+          if (!chunk.length) { flush(); continue; }   // ei mahtunut edes 1 riviä → uusi sivu, yritä uudelleen
+          cur += tableHtml(a, chunk, !first);
+          first = false;
+          if (i < a.rows.length) flush();              // rivejä jäljellä → jatko seuraavalle A5:lle
+        }
+      } else {
+        if (cur && !fits(cur + a.html)) flush();
+        // orpouden esto: jos otsikolle ei jää sivulle tilaa ~12mm vertaa → uudelle sivulle
+        else if (a.keepWithNext && cur && !fits(cur + a.html + `<div style="height:${vkMm(12)}px"></div>`)) flush();
+        cur += a.html;
+      }
+    }
+    flush();
+  } finally {
+    document.body.removeChild(m);
+  }
+  return pages;
+}
+
+// Saddle-stitch imposition (VAIHE 1:ssä todennettu): N→4:n monikerta, tyhjät loppuun;
+// arkki i ETU [N−2i | 1+2i], TAKA [2+2i | N−1−2i]. PDF-järjestys: ETU, TAKA per arkki.
+function vkImpose(pageHtmls) {
+  const N0 = pageHtmls.length;
+  const N = Math.max(4, Math.ceil(N0 / 4) * 4);
+  const S = N / 4;
+  const pg = k => (k >= 1 && k <= N0)
+    ? `<div class="vihko-a5"><div class="vihko-page-content">${pageHtmls[k - 1]}</div></div>`
+    : `<div class="vihko-a5 vihko-blank"></div>`;
+  let html = "";
+  for (let i = 0; i < S; i++) {
+    html += `<div class="vihko-sheet">${pg(N - 2 * i)}${pg(1 + 2 * i)}</div>`;       // ETU
+    html += `<div class="vihko-sheet">${pg(2 + 2 * i)}${pg(N - 1 - 2 * i)}</div>`;     // TAKA
+  }
+  return html;
+}
+
+function printVihko() {
+  const out = document.getElementById("bookletOut");
+  if (!out || !out.querySelector(".booklet-line")) return;
+  const pages = vkPaginate(vkCollectAtoms(out));
+  if (!pages.length) return;
+  document.getElementById("vihkoPrint")?.remove();
+  const wrap = document.createElement("div");
+  wrap.id = "vihkoPrint";
+  wrap.innerHTML = vkImpose(pages);
+  document.body.appendChild(wrap);
+  document.body.classList.add("vihko-printing");
+  setPageOrientation("vihko");
+  const cleanup = () => {
+    document.body.classList.remove("vihko-printing");
+    wrap.remove();
+    setPageOrientation("portrait");
+    window.removeEventListener("afterprint", cleanup);
+  };
+  window.addEventListener("afterprint", cleanup);
+  window.print();
 }
 
 // Rinnakkaisajo rajatulla samanaikaisuudella (proxyn ~10 req/s suoja)
@@ -7989,11 +8148,14 @@ function bindBookletTab(routes, today) {
         <p>${dts.map(d => esc(d.label)).join(" · ")}. ${t("bookletKeyStopsNote")}</p>
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
         ${dayKeys.includes("weekday") ? `<p class="muted">${t("dayTypeNote")}</p>` : ""}
-        <p class="no-print"><button type="button" id="bookletPrint">${icon("print")} ${t("bookletPrintBtn")}</button></p>
+        <p class="no-print buildbar"><button type="button" id="bookletPrint">${icon("print")} ${t("bookletPrintBtn")}</button>
+          <button type="button" id="bookletPrintA5">${icon("print")} ${t("bookletPrintA5")}</button></p>
+        <p class="no-print muted vihko-note">${t("vihkoDuplexNote")}</p>
         ${toc ? `<nav class="booklet-toc"><h3>${t("bookletToc")}</h3><ul>${toc}</ul></nav>` : ""}
       </div>
       ${ok.map(s => s.html).join("")}`;
     status.textContent = "";
+    document.getElementById("bookletPrintA5")?.addEventListener("click", printVihko);
     document.getElementById("bookletPrint")?.addEventListener("click", () => {
       setPageOrientation("portrait");
       window.print();
