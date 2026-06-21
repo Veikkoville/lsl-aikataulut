@@ -1147,6 +1147,9 @@ const CONFIGS = {
   vaasa: {
     city: "Vaasa",
     cityGenitive: "Vaasan",
+    // Kaksikielinen kaupunki: ruotsiksi "Vasa" (otsikot/title-tagi). EN = "Vaasa" (oletus).
+    cityNames: { sv: "Vasa" },
+    cityGenitives: { sv: "Vasa" },
     operator: "Vaasan paikallisliikenne",
     operatorShort: "Lifti",
     feedMatch: /vaasa/i,
@@ -2345,17 +2348,22 @@ if (!STRINGS[lang]) lang = "fi";
 // Kuntalaiselle näkyvä joukkoliikenneverkon ilmaus (esim. "Kajaanin joukkoliikenteessä").
 // Oletus johdetaan kaupungin genetiivistä/nimestä; CONFIG.network (per kieli) ylikirjoittaa
 // (Lahti käyttää "seudun"-muotoa). Käytetään {network}-placeholderissa, esim. homeIntro.
+// Kaupungin näyttönimi valitulla kielellä (Vaasa→"Vasa" SV). Oletus CONFIG.city;
+// CONFIG.cityNames[lang] / cityGenitives[lang] ylikirjoittaa kielikohtaisesti.
+function cityName() { return (CONFIG.cityNames && CONFIG.cityNames[lang]) || CONFIG.city; }
+function cityGenName() { return (CONFIG.cityGenitives && CONFIG.cityGenitives[lang]) || CONFIG.cityGenitive; }
+
 function networkPhrase() {
   if (CONFIG.network && CONFIG.network[lang]) return CONFIG.network[lang];
   if (CONFIG.network && CONFIG.network.fi) return CONFIG.network.fi;
-  if (lang === "en") return CONFIG.city + " public transport";
-  if (lang === "sv") return CONFIG.city + " kollektivtrafik";
-  return CONFIG.cityGenitive + " joukkoliikenteessä";
+  if (lang === "en") return cityName() + " public transport";
+  if (lang === "sv") return cityName() + " kollektivtrafik";
+  return cityGenName() + " joukkoliikenteessä";
 }
 
 function t(key, params) {
   let s = STRINGS[lang][key] ?? STRINGS.fi[key] ?? key;
-  const all = { city: CONFIG.city, cityGen: CONFIG.cityGenitive,
+  const all = { city: cityName(), cityGen: cityGenName(),
                 operator: CONFIG.operator, operatorShort: CONFIG.operatorShort,
                 network: networkPhrase(), ...params };
   return s.replace(/\{(\w+)\}/g, (_, k) => all[k] ?? "");
@@ -2416,13 +2424,23 @@ let refreshTimer = null;
 
 /* ---------- API ---------- */
 
+// Kielitietoinen data: @L-sentinel kyselyssä (esim. name@L, longName@L, headsign@L)
+// laajenee valitun kielen mukaan. FI = feedien natiivikieli → sentinel poistetaan
+// kokonaan (kysely identtinen vanhaan → FI-näkymä ja -välimuisti muuttumattomia).
+// SV/EN → (language: "sv"/"en"); OTP palauttaa FI-nimen jos käännöstä ei ole (fallback).
+// Vain @L-merkityt kentät lokalisoidaan → stops(name:$name)-argumentti ja publisher{name}
+// eivät muutu. Laajennus tehdään lähetyshetkellä → toimii myös moduulitason vakiokyselyille.
+function localizeQuery(query) {
+  return query.replace(/@L\b/g, lang === "fi" ? "" : `(language: "${lang}")`);
+}
+
 async function gql(query, variables) {
   const headers = { "Content-Type": "application/json" };
   if (!PROXY_URL) headers["digitransit-subscription-key"] = apiKey;
   const res = await fetch(API_URL, {
     method: "POST",
     headers,
-    body: JSON.stringify({ query, variables }),
+    body: JSON.stringify({ query: localizeQuery(query), variables }),
   });
   if (res.status === 401 || res.status === 403) {
     throw new Error(t("errApiKey"));
@@ -2459,12 +2477,16 @@ function cacheGet(key) {
 // Onnistunut haku tallennetaan; virheen sattuessa palautetaan viimeksi
 // nähty versio. cachedAt != null kertoo näkymälle, että data on vanhaa.
 async function cachedGql(key, query, variables) {
+  // Kieli mukaan avaimeen, ettei eri kielten data vuoda ristiin (SV-haku ei saa palauttaa
+  // FI-cachea). FI = natiivikieli + identtinen kysely → avain ennallaan (ei mitätöi vanhaa
+  // FI-välimuistia eikä muuta muiden kaupunkien FI-näkymää).
+  const k = lang === "fi" ? key : key + "@" + lang;
   try {
     const data = await gql(query, variables);
-    cachePut(key, data);
+    cachePut(k, data);
     return { data, cachedAt: null };
   } catch (err) {
-    const hit = cacheGet(key);
+    const hit = cacheGet(k);
     if (hit) return { data: hit.data, cachedAt: hit.ts };
     throw err;
   }
@@ -2522,10 +2544,14 @@ function activeProbeDates() {
   return out;
 }
 
+// Linjalista on kielitietoinen (longName lokalisoitu) → välimuistiavain per kieli,
+// ettei SV-lista palauta FI-longNameja. FI = oletus → avain ennallaan.
+function routesCacheKey() { return "routesCache4" + (lang === "fi" ? "" : ":" + lang); }
+
 async function loadRoutes() {
   if (routesCache) return routesCache;
   try {
-    const cached = JSON.parse(localStorage.getItem(ns("routesCache4")) || "null");
+    const cached = JSON.parse(localStorage.getItem(ns(routesCacheKey())) || "null");
     if (cached && Date.now() - cached.ts < 24 * 3600 * 1000 && cached.routes?.length) {
       routesCache = cached.routes;
       return routesCache;
@@ -2539,7 +2565,7 @@ async function loadRoutes() {
   const aliases = dates.map((d, i) => `d${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
   const data = await gql(
     `query ($feeds: [String]) {
-       routes(feeds: $feeds) { gtfsId shortName longName mode color textColor patterns { ${aliases} } }
+       routes(feeds: $feeds) { gtfsId shortName longName@L mode color textColor patterns { ${aliases} } }
      }`, { feeds: [feed] });
   const tripCount = r => (r.patterns || []).reduce((n, p) => n + dates.reduce((m, _, i) => m + (p["d" + i] || []).length, 0), 0);
   const isActive = r => tripCount(r) > 0;
@@ -2576,7 +2602,7 @@ async function loadRoutes() {
     })
     .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
   try {
-    localStorage.setItem(ns("routesCache4"), JSON.stringify({ ts: Date.now(), routes: routesCache }));
+    localStorage.setItem(ns(routesCacheKey()), JSON.stringify({ ts: Date.now(), routes: routesCache }));
   } catch (e) { /* täysi localStorage ei ole este */ }
   return routesCache;
 }
@@ -2992,10 +3018,10 @@ async function vehiclePopupHtml(tripId, nextStopId) {
   const data = await gql(
     `query ($id: String!, $date: String!) {
        trip(id: $id) {
-         tripHeadsign route { shortName }
+         tripHeadsign@L route { shortName }
          stoptimesForDate(serviceDate: $date) {
            scheduledDeparture realtimeDeparture realtime departureDelay serviceDay
-           stop { gtfsId name }
+           stop { gtfsId name@L }
          }
        }
      }`, { id: feedId + ":" + tripId, date: todayISO().replace(/-/g, "") });
@@ -3231,6 +3257,8 @@ function setLanguage(v) {
   if (!STRINGS[v]) return;
   lang = v;
   localStorage.setItem("lang", lang);
+  routesCache = null;   // muistissa olevat linjalistat ovat kielikohtaisia (longName) → tyhjennä
+  networkCache = null;
   updateChrome();       // päivittää ylätunnisteen + footerin + meta-tagit
   syncControls();       // header-kontrollien aria + kielisegmentti
   route();              // piirrä nykyinen näkymä uudella kielellä
@@ -3919,7 +3947,7 @@ function bindStopSearch(input, results) {
       const mySeq = ++seq;
       try {
         const data = await gql(
-          `query ($name: String) { stops(name: $name) { gtfsId name code } }`, { name: q });
+          `query ($name: String) { stops(name: $name) { gtfsId name@L code } }`, { name: q });
         if (mySeq !== seq) return;
         const hits = (data.stops || [])
           .filter(s => s.gtfsId.startsWith(feedId + ":"))
@@ -3959,7 +3987,7 @@ function bindUnifiedSearch(input, results) {
         let stopHits = [], placeHits = [];
         if (q.length >= 2) {
           const [stopsRes, geoRes] = await Promise.allSettled([
-            gql(`query ($name: String) { stops(name: $name) { gtfsId name code } }`, { name: q }),
+            gql(`query ($name: String) { stops(name: $name) { gtfsId name@L code } }`, { name: q }),
             geocode(q),
           ]);
           if (mySeq !== seq) return;
@@ -4019,7 +4047,7 @@ function bindNearbyButton(btn, results) {
         const data = await gql(
           `query ($lat: Float!, $lon: Float!) {
              stopsByRadius(lat: $lat, lon: $lon, radius: 800, first: 15) {
-               edges { node { distance stop { gtfsId name code } } }
+               edges { node { distance stop { gtfsId name@L code } } }
              }
            }`, { lat: pos.coords.latitude, lon: pos.coords.longitude });
         const nodes = (data.stopsByRadius?.edges || [])
@@ -4083,9 +4111,9 @@ function bindFavButton(item) {
 const FAV_STOPS_QUERY = `
   query ($ids: [String!]!) {
     stops(ids: $ids) {
-      gtfsId name code
+      gtfsId name@L code
       stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
-        scheduledDeparture realtimeDeparture realtime serviceDay headsign
+        scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
         trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } }
       }
     }
@@ -4129,9 +4157,9 @@ const NEARBY_QUERY = `
   query ($lat: Float!, $lon: Float!) {
     stopsByRadius(lat: $lat, lon: $lon, radius: 800, first: 25) {
       edges { node { distance stop {
-        gtfsId name code wheelchairBoarding
+        gtfsId name@L code wheelchairBoarding
         stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
-          scheduledDeparture realtimeDeparture realtime serviceDay headsign
+          scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
           trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } }
         }
       } } }
@@ -4538,8 +4566,8 @@ async function viewRouteMap(routeId) {
   const { data } = await cachedGql("routemap:" + ids.join(","),
     `query ($ids: [String]) {
        routes(ids: $ids) {
-         gtfsId shortName longName color textColor
-         patterns { directionId patternGeometry { length points } stops { gtfsId name lat lon } }
+         gtfsId shortName longName@L color textColor
+         patterns { directionId patternGeometry { length points } stops { gtfsId name@L lat lon } }
        }
      }`, { ids });
   const routesArr = (data.routes || []).filter(Boolean);
@@ -4608,11 +4636,11 @@ async function viewRoute(routeId, patternCode, date) {
   const { data, cachedAt: routeCachedAt } = await cachedGql("route:" + ids.join(","),
     `query ($ids: [String]) {
        routes(ids: $ids) {
-         gtfsId shortName longName color textColor
+         gtfsId shortName longName@L color textColor
          patterns {
            code name directionId
            ${probeAliases}
-           stops { gtfsId name lat lon }
+           stops { gtfsId name@L lat lon }
          }
        }
      }`, { ids });
@@ -4793,7 +4821,7 @@ async function viewRoute(routeId, patternCode, date) {
   // matriisissa ja tulostuksessa (yksittäinen pattern, ei aggregointi kuten listassa).
   const bestPatternForDate = async (iso) => {
     const aliases = dirPatterns.map((p, i) =>
-      `c${i}: pattern(id: "${p.code}") { tripsForDate(serviceDate: $date) { stoptimes { timepoint scheduledDeparture stop { gtfsId name } } } }`).join("\n");
+      `c${i}: pattern(id: "${p.code}") { tripsForDate(serviceDate: $date) { stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } } } }`).join("\n");
     const { data } = await cachedGql(`matrix:${routeId}:dir${curDir}:${iso}`,
       `query ($date: String!) { ${aliases} }`, { date: iso.replace(/-/g, "") });
     let pat = current, trips = [], allTrips = [];
@@ -5135,10 +5163,10 @@ async function viewStop(stopId) {
     const { data, cachedAt } = await cachedGql("stop:" + stopId,
       `query ($id: String!) {
          stop(id: $id) {
-           name code lat lon wheelchairBoarding
+           name@L code lat lon wheelchairBoarding
            routes { gtfsId shortName color textColor }
            stoptimesWithoutPatterns(numberOfDepartures: 30, omitNonPickups: true) {
-             scheduledDeparture realtimeDeparture realtime serviceDay headsign
+             scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
              trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } }
            }
          }
@@ -5294,8 +5322,8 @@ async function viewStop(stopId) {
         `query ($id: String!, $date: String!) {
            stop(id: $id) {
              stoptimesForServiceDate(date: $date, omitNonPickups: true) {
-               pattern { headsign route { shortName longName color textColor } }
-               stoptimes { scheduledDeparture headsign }
+               pattern { headsign route { shortName longName@L color textColor } }
+               stoptimes { scheduledDeparture headsign@L }
              }
            }
          }`, { id: stopId, date: dt.date.replace(/-/g, "") })
@@ -5398,9 +5426,9 @@ async function viewMonitor(stopId) {
     const { data } = await cachedGql("monitor:" + stopId,
       `query ($id: String!) {
          stop(id: $id) {
-           name code
+           name@L code
            stoptimesWithoutPatterns(numberOfDepartures: 12, omitNonPickups: true) {
-             scheduledDeparture realtimeDeparture realtime serviceDay headsign
+             scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
              trip { route { shortName color textColor } }
            }
          }
@@ -5507,7 +5535,7 @@ async function loadNetwork() {
   const data = await gql(
     `query ($feeds: [String]) {
        routes(feeds: $feeds) {
-         gtfsId shortName longName mode color
+         gtfsId shortName longName@L mode color
          patterns { patternGeometry { length points } }
        }
      }`, { feeds: [feed] });
@@ -5593,7 +5621,7 @@ async function loadHubStops(name) {
   const data = await gql(
     `query ($name: String!) {
        stops(name: $name) {
-         gtfsId code platformCode name lat lon
+         gtfsId code platformCode name@L lat lon
          routes { gtfsId shortName color textColor }
        }
      }`, { name });
@@ -5901,7 +5929,7 @@ async function viewPrintHub() {
       sr.innerHTML = `<li><p class="muted">${t("searching")}</p></li>`;
       try {
         await findFeed();
-        const res = await gql(`query ($name: String) { stops(name: $name) { gtfsId name code } }`, { name: q });
+        const res = await gql(`query ($name: String) { stops(name: $name) { gtfsId name@L code } }`, { name: q });
         if (my !== sseq) return;
         const stops = (res.stops || []).filter(s => s.gtfsId.startsWith(feedId + ":")).slice(0, 8);
         sr.innerHTML = stops.length
@@ -5940,7 +5968,7 @@ async function viewPrintHub() {
     try {
       const ids = await lineIds(routeId);
       const { data } = await cachedGql("routestops:" + ids.join(","),
-        `query ($ids: [String]) { routes(ids: $ids) { patterns { stops { gtfsId name code } } } }`, { ids });
+        `query ($ids: [String]) { routes(ids: $ids) { patterns { stops { gtfsId name@L code } } } }`, { ids });
       const seen = new Set(), stops = [];
       for (const r of (data.routes || [])) for (const p of (r?.patterns || [])) for (const s of (p.stops || []))
         if (!seen.has(s.gtfsId)) { seen.add(s.gtfsId); stops.push(s); }
@@ -5950,8 +5978,8 @@ async function viewPrintHub() {
         const r = await cachedGql(`poster:${s.gtfsId}:${dt.date}`,
           `query ($id: String!, $date: String!) {
              stop(id: $id) { stoptimesForServiceDate(date: $date, omitNonPickups: true) {
-               pattern { headsign route { shortName longName color textColor } }
-               stoptimes { scheduledDeparture headsign } } } }`,
+               pattern { headsign route { shortName longName@L color textColor } }
+               stoptimes { scheduledDeparture headsign@L } } } }`,
           { id: s.gtfsId, date: dt.date.replace(/-/g, "") }).catch(() => ({ data: null }));
         const groups = r.data?.stop?.stoptimesForServiceDate || [];
         st.textContent = t("batchProgress", { done: ++done, total: stops.length });
@@ -6000,7 +6028,7 @@ async function geocode(text) {
 async function searchPlaces(q) {
   await findFeed();
   const [stopsRes, geoRes] = await Promise.allSettled([
-    gql(`query ($name: String) { stops(name: $name) { gtfsId name code lat lon } }`, { name: q }),
+    gql(`query ($name: String) { stops(name: $name) { gtfsId name@L code lat lon } }`, { name: q }),
     geocode(q),
   ]);
   const stops = stopsRes.status === "fulfilled"
@@ -6331,7 +6359,7 @@ function exitDeskMode() { document.body.classList.remove("desk-mode"); }
 
 // Pysäkkihaku linjoineen (feed-rajattu): stops(name:) palauttaa pysäkit + linjat yhdellä kyselyllä.
 const DESK_STOP_QUERY = `query ($name: String!) {
-  stops(name: $name) { gtfsId name code routes { shortName longName } }
+  stops(name: $name) { gtfsId name@L code routes { shortName longName@L } }
 }`;
 
 function dedupeRoutesByShort(routes) {
@@ -6704,7 +6732,7 @@ const PLAN_QUERY = `
           from { name lat lon stop { code platformCode } }
           to { name lat lon stop { code } }
           route { gtfsId shortName color textColor }
-          trip { tripHeadsign occupancy { occupancyStatus } }
+          trip { tripHeadsign@L occupancy { occupancyStatus } }
           intermediateStops { name }
           legGeometry { points }
           alerts { alertHeaderText alertSeverityLevel }
@@ -7426,8 +7454,8 @@ async function viewPrint() {
         const { data } = await cachedGql("proute:" + ids.join(","),
           `query ($ids: [String]) {
              routes(ids: $ids) {
-               gtfsId shortName longName color textColor
-               patterns { code name directionId ${probeAliases} stops { gtfsId name } }
+               gtfsId shortName longName@L color textColor
+               patterns { code name directionId ${probeAliases} stops { gtfsId name@L } }
              }
            }`, { ids });
         const routesArr = (data.routes || []).filter(Boolean);
@@ -7454,7 +7482,7 @@ async function viewPrint() {
               `query ($code: String!, $date: String!) {
                  pattern(id: $code) {
                    tripsForDate(serviceDate: $date) {
-                     stoptimes { timepoint scheduledDeparture stop { gtfsId name } }
+                     stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } }
                    }
                  }
                }`, { code: p.code, date: dt.date.replace(/-/g, "") });
