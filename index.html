@@ -183,12 +183,20 @@
     top: 0;
     z-index: 600;
   }
+  .header-inner {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    flex-wrap: wrap;
+  }
   .brand {
     display: flex;
     gap: 0.75rem;
     align-items: center;
-    max-width: 760px;
-    margin: 0 auto;
+    flex: 1 1 auto;
+    min-width: 0;            /* salli otsikon kutistua, ettei se työnnä kontrolleja ulos */
   }
   a.brand { color: inherit; text-decoration: none; }
   a.brand:hover h1 { text-decoration: underline; }
@@ -200,6 +208,53 @@
   }
   header h1 { margin: 0; font-size: 1.25rem; font-weight: var(--wmed); letter-spacing: 0.01em; }
   header p { margin: 0.1rem 0 0; font-size: 0.78rem; opacity: 0.88; }
+  /* Globaalit kontrollit ylätunnisteessa (kieli / tekstikoko / kontrasti) */
+  .hdr-tools {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.4rem;
+    flex: 0 1 auto;       /* saa kutistua, ei pakota ylätunnistetta ylileveäksi */
+    min-width: 0;
+  }
+  .hdr-tools .seg {
+    display: inline-flex;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .hdr-tools .seg .hdr-btn { border: 0; border-radius: 0; }
+  .hdr-tools .seg .hdr-btn + .hdr-btn { border-left: 1px solid rgba(255, 255, 255, 0.55); }
+  .hdr-btn {
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: var(--radius);
+    min-width: 2.1rem;
+    min-height: 2.1rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .hdr-btn:hover { background: rgba(255, 255, 255, 0.15); }
+  .hdr-btn[aria-pressed="true"] { background: #fff; color: var(--header-bg); }
+  .hdr-btn:disabled { opacity: 0.4; cursor: default; }
+  .hdr-btn:disabled:hover { background: transparent; }
+  .hdr-contrast { font-size: 1rem; }
+  /* Tekstikoko-kytkimet eivät kasva 52px:ään suuressa tekstikoossa (chrome pysyy kompaktina) */
+  html[data-text="large"] .hdr-btn, html[data-text="larger"] .hdr-btn { min-height: 2.1rem; }
+  /* Suuri kontrasti: vahvempi reunus näkyvyyden takaamiseksi */
+  html[data-contrast="high"] .hdr-btn,
+  html[data-contrast="high"] .hdr-tools .seg { border-width: 2px; }
+  @media (max-width: 520px) {
+    header { padding: 0.7rem 0.8rem; }
+    .hdr-tools { width: 100%; justify-content: flex-end; }
+    .hdr-btn { min-width: 1.9rem; padding: 0.25rem 0.4rem; }
+    header h1 { font-size: 1.1rem; }
+  }
   /* min-height pitää footerin aina taitteen alapuolella, joten näkymän
      sisällön asynkroninen latautuminen ei työnnä sitä näkyvistä (CLS) */
   main { max-width: 760px; margin: 0 auto; padding: 1rem; min-height: 100vh; }
@@ -924,13 +979,26 @@
 </head>
 <body>
 <header>
-  <a class="brand" id="brandLink" href="#/" aria-label="Etusivulle">
-    <img class="logo" src="icon.svg" alt="" width="42" height="42">
-    <div>
-      <h1 id="appTitle">Lahden bussiaikataulut</h1>
-      <p id="appSub">Epävirallinen palvelu · data: Lahden seudun liikenne / Waltti (CC BY 4.0)</p>
+  <div class="header-inner">
+    <a class="brand" id="brandLink" href="#/" aria-label="Etusivulle">
+      <img class="logo" src="icon.svg" alt="" width="42" height="42">
+      <div>
+        <h1 id="appTitle">Lahden bussiaikataulut</h1>
+        <p id="appSub">Epävirallinen palvelu · data: Lahden seudun liikenne / Waltti (CC BY 4.0)</p>
+      </div>
+    </a>
+    <!-- Globaalit esteettömyys-/kielikontrollit: näkyvät joka sivulla ja sticky-headerissa.
+         Sama tila kuin Asetukset-paneelissa (data-*-opt + setTextSize/setContrast/setLanguage),
+         ei rinnakkaista totuutta. -->
+    <div class="hdr-tools" id="hdrTools" role="group">
+      <div class="seg lang-seg" role="group" id="hdrLang"></div>
+      <div class="seg size-seg" role="group" id="hdrSize">
+        <button type="button" class="hdr-btn" id="hdrTextDown" data-text-step="-1">A−</button>
+        <button type="button" class="hdr-btn" id="hdrTextUp" data-text-step="1">A+</button>
+      </div>
+      <button type="button" class="hdr-btn hdr-contrast" id="hdrContrast" aria-pressed="false">◑</button>
     </div>
-  </a>
+  </div>
 </header>
 
 <main id="app" aria-live="polite"></main>
@@ -1243,6 +1311,10 @@ const STRINGS = {
     textSizeTitle: "Tekstikoko",
     textSizeHint: "Suurenna tekstiä ja painikkeita koko palvelussa.",
     textSizeAria: "Tekstikoko",
+    hdrToolsAria: "Esteettömyys ja kieli",
+    hdrTextDecrease: "Pienennä tekstiä",
+    hdrTextIncrease: "Suurenna tekstiä",
+    hdrContrastToggle: "Suuri kontrasti päälle/pois",
     contrastTitle: "Kontrasti",
     contrastHint: "Suuri kontrasti parantaa luettavuutta heikkonäköisille.",
     contrastAria: "Kontrasti",
@@ -1628,6 +1700,10 @@ const STRINGS = {
     textSizeTitle: "Text size",
     textSizeHint: "Make text and buttons larger across the whole service.",
     textSizeAria: "Text size",
+    hdrToolsAria: "Accessibility and language",
+    hdrTextDecrease: "Decrease text size",
+    hdrTextIncrease: "Increase text size",
+    hdrContrastToggle: "Toggle high contrast",
     contrastTitle: "Contrast",
     contrastHint: "High contrast improves readability for low vision.",
     contrastAria: "Contrast",
@@ -2005,6 +2081,10 @@ const STRINGS = {
     textSizeTitle: "Textstorlek",
     textSizeHint: "Förstora text och knappar i hela tjänsten.",
     textSizeAria: "Textstorlek",
+    hdrToolsAria: "Tillgänglighet och språk",
+    hdrTextDecrease: "Förminska texten",
+    hdrTextIncrease: "Förstora texten",
+    hdrContrastToggle: "Hög kontrast på/av",
     contrastTitle: "Kontrast",
     contrastHint: "Hög kontrast förbättrar läsbarheten för synsvaga.",
     contrastAria: "Kontrast",
@@ -2285,6 +2365,7 @@ function t(key, params) {
 function updateChrome() {
   document.documentElement.lang = lang;
   document.title = t("appTitleTag");
+  if (typeof updateHeaderControlLabels === "function") updateHeaderControlLabels();
   // Ylätunnisteen brändiväri kaupungin mukaan (AA-varma valkoiselle tekstille); ylikirjoittaa
   // --header-bg-tokenin myös tummassa teemassa, jotta brändiväri näkyy aina.
   document.documentElement.style.setProperty("--header-bg", headerBgColor());
@@ -3120,6 +3201,94 @@ function bindThemeSetting() {
 }
 
 const TEXT_SIZE_OPTIONS = [["normal", "sizeNormal"], ["large", "sizeLarge"], ["larger", "sizeLarger"]];
+const TEXT_SIZE_ORDER = TEXT_SIZE_OPTIONS.map(o => o[0]); // normal → large → larger
+
+/* ---------- Globaalit esteettömyys-/kielikontrollit ----------
+   YKSI totuus: sekä ylätunnisteen kontrollit että Asetukset-paneeli kutsuvat näitä.
+   Tila on localStorage (textSize/contrast) + lang. syncControls päivittää aria-tilat
+   KAIKKIIN data-*-opt-painikkeisiin (header + paneeli) → ei rinnakkaista tilaa. */
+function setTextSize(size) {
+  localStorage.setItem("textSize", size);
+  window.applyTextSize();
+  syncControls();
+}
+function stepTextSize(dir) {
+  const cur = localStorage.getItem("textSize") || "normal";
+  let i = TEXT_SIZE_ORDER.indexOf(cur);
+  if (i < 0) i = 0;
+  i = Math.max(0, Math.min(TEXT_SIZE_ORDER.length - 1, i + dir));
+  setTextSize(TEXT_SIZE_ORDER[i]);
+}
+function setContrast(v) {
+  localStorage.setItem("contrast", v);
+  window.applyContrast();
+  syncControls();
+}
+function toggleContrast() {
+  setContrast((localStorage.getItem("contrast") || "normal") === "high" ? "normal" : "high");
+}
+function setLanguage(v) {
+  if (!STRINGS[v]) return;
+  lang = v;
+  localStorage.setItem("lang", lang);
+  updateChrome();       // päivittää ylätunnisteen + footerin + meta-tagit
+  syncControls();       // header-kontrollien aria + kielisegmentti
+  route();              // piirrä nykyinen näkymä uudella kielellä
+}
+
+// Heijastaa nykyisen tilan kaikkiin kontrolleihin (header + Asetukset-paneeli).
+function syncControls() {
+  const ts = localStorage.getItem("textSize") || "normal";
+  const ct = localStorage.getItem("contrast") || "normal";
+  document.querySelectorAll("[data-text-opt]").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.textOpt === ts)));
+  document.querySelectorAll("[data-contrast-opt]").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.contrastOpt === ct)));
+  document.querySelectorAll("[data-lang-opt]").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.langOpt === lang)));
+  // Header: tekstikoko-stepperin reuna-arvot disabloidaan, kontrastikytkimen painallustila
+  const i = TEXT_SIZE_ORDER.indexOf(ts);
+  const down = document.getElementById("hdrTextDown");
+  const up = document.getElementById("hdrTextUp");
+  if (down) down.disabled = i <= 0;
+  if (up) up.disabled = i >= TEXT_SIZE_ORDER.length - 1;
+  const hc = document.getElementById("hdrContrast");
+  if (hc) hc.setAttribute("aria-pressed", String(ct === "high"));
+}
+
+// Sitoo ylätunnisteen kontrollit kerran (header on staattinen, säilyy näkymien yli).
+function initHeaderControls() {
+  const langBox = document.getElementById("hdrLang");
+  if (langBox) {
+    langBox.setAttribute("aria-label", t("langTitle"));
+    langBox.innerHTML = LANG_OPTIONS.map(([v]) =>
+      `<button type="button" class="hdr-btn" data-lang-opt="${v}" lang="${v}" aria-pressed="${v === lang}">${v.toUpperCase()}</button>`).join("");
+    langBox.querySelectorAll("[data-lang-opt]").forEach(btn =>
+      btn.addEventListener("click", () => setLanguage(btn.dataset.langOpt)));
+  }
+  document.getElementById("hdrSize")?.setAttribute("aria-label", t("textSizeAria"));
+  document.getElementById("hdrTools")?.setAttribute("aria-label", t("hdrToolsAria"));
+  document.getElementById("hdrTextDown")?.addEventListener("click", () => stepTextSize(-1));
+  document.getElementById("hdrTextUp")?.addEventListener("click", () => stepTextSize(1));
+  document.getElementById("hdrContrast")?.addEventListener("click", toggleContrast);
+  // aria-labelit + titlet (päivitetään myös kielenvaihdossa initHeaderLabels kautta)
+  updateHeaderControlLabels();
+  syncControls();
+}
+
+// Kielisidonnaiset header-tekstit (aria/title) — kutsutaan myös updateChromessa.
+function updateHeaderControlLabels() {
+  const set = (id, label) => {
+    const el = document.getElementById(id);
+    if (el) { el.setAttribute("aria-label", label); el.setAttribute("title", label); }
+  };
+  set("hdrTextDown", t("hdrTextDecrease"));
+  set("hdrTextUp", t("hdrTextIncrease"));
+  set("hdrContrast", t("hdrContrastToggle"));
+  document.getElementById("hdrLang")?.setAttribute("aria-label", t("langTitle"));
+  document.getElementById("hdrSize")?.setAttribute("aria-label", t("textSizeAria"));
+  document.getElementById("hdrTools")?.setAttribute("aria-label", t("hdrToolsAria"));
+}
 
 function textSizeSettingHtml() {
   const cur = localStorage.getItem("textSize") || "normal";
@@ -3136,12 +3305,7 @@ function textSizeSettingHtml() {
 
 function bindTextSizeSetting() {
   document.querySelectorAll("[data-text-opt]").forEach(btn =>
-    btn.addEventListener("click", () => {
-      localStorage.setItem("textSize", btn.dataset.textOpt);
-      window.applyTextSize();
-      document.querySelectorAll("[data-text-opt]").forEach(b =>
-        b.setAttribute("aria-pressed", String(b === btn)));
-    }));
+    btn.addEventListener("click", () => setTextSize(btn.dataset.textOpt)));
 }
 
 const CONTRAST_OPTIONS = [["normal", "contrastNormal"], ["high", "contrastHigh"]];
@@ -3161,12 +3325,7 @@ function contrastSettingHtml() {
 
 function bindContrastSetting() {
   document.querySelectorAll("[data-contrast-opt]").forEach(btn =>
-    btn.addEventListener("click", () => {
-      localStorage.setItem("contrast", btn.dataset.contrastOpt);
-      window.applyContrast();
-      document.querySelectorAll("[data-contrast-opt]").forEach(b =>
-        b.setAttribute("aria-pressed", String(b === btn)));
-    }));
+    btn.addEventListener("click", () => setContrast(btn.dataset.contrastOpt)));
 }
 
 function notifySettingHtml() {
@@ -3291,7 +3450,7 @@ function viewEmailSub() {
   bindEmailSubSetting();
 }
 
-const LANG_OPTIONS = [["fi", "Suomi"], ["en", "English"], ["sv", "Svenska"]];
+const LANG_OPTIONS = [["fi", "Suomi"], ["sv", "Svenska"], ["en", "English"]];
 
 function langSettingHtml() {
   return `
@@ -3306,12 +3465,7 @@ function langSettingHtml() {
 
 function bindLangSetting() {
   document.querySelectorAll("[data-lang-opt]").forEach(btn =>
-    btn.addEventListener("click", () => {
-      lang = btn.dataset.langOpt;
-      localStorage.setItem("lang", lang);
-      updateChrome();
-      route(); // piirrä nykyinen näkymä uudella kielellä
-    }));
+    btn.addEventListener("click", () => setLanguage(btn.dataset.langOpt)));
 }
 
 function viewSettings() {
@@ -7377,6 +7531,7 @@ async function route() {
 
 window.addEventListener("hashchange", route);
 updateChrome();
+initHeaderControls();   // globaalit esteettömyys-/kielikontrollit ylätunnisteeseen (kerran)
 route();
 
 // Ilmoitukset käytössä: ensisijaisesti varmistetaan taustapush-tilaus (ja
