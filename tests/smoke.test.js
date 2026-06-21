@@ -351,6 +351,19 @@ const info = msg => console.log("INFO " + msg);
     && !vHome.hasFaresTool && !vHome.hasHubTool && vHome.oneSearch)
     ? ok(`etusivu (Vaasa, minimi-CONFIG): ryhmät ilman tyhjää otsikkoa, hubs/fares-napit pois (${vHome.groups.map(g => g.title + ":" + g.tools).join(", ")})`)
     : fail("etusivu (Vaasa): tyhjä/puuttuva ryhmä / hubs|fares-nappi yhä / haku rikki: " + JSON.stringify(vHome));
+  // Vaasan demo: Liftin pinkki brändiväri (per-kaupunki) — header + primary-napit magenta (R>B),
+  // kirkas #E6007E aksenttiraita. data-city="vaasa" gating → muut kaupungit (sininen) ennallaan.
+  const vTheme = await page.evaluate(() => {
+    const rgb = s => (s.match(/\d+/g) || []).map(Number);
+    const hdr = rgb(getComputedStyle(document.querySelector("header")).backgroundColor);
+    const btnEl = document.querySelector(".btn-primary");
+    const btn = btnEl ? rgb(getComputedStyle(btnEl).backgroundColor) : [0, 0, 0];
+    return { city: document.documentElement.dataset.city, hdrPink: hdr[0] > hdr[2] + 40, btnPink: btn[0] > btn[2] + 40,
+      accent: getComputedStyle(document.querySelector("header")).borderBottomColor };
+  });
+  (vTheme.city === "vaasa" && vTheme.hdrPink && vTheme.btnPink && /\b230,\s*0,\s*126\b/.test(vTheme.accent))
+    ? ok("teema (Vaasa): Lift-pinkki header + napit magenta + kirkas #E6007E aksentti")
+    : fail("teema (Vaasa): pinkki ei aktivoitunut: " + JSON.stringify(vTheme));
 
   // Minimi-CONFIG-kaupunki (Vaasa: ei hubs/fares/cmsAlerts): palvelutiskin uusien lohkojen
   // (live-lähdöt, viimeinen bussi, aktiiviset häiriöt) on silti renderöidyttävä — vain

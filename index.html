@@ -59,6 +59,11 @@
   }
   applyContrast();
   window.applyContrast = applyContrast;
+
+  // Per-kaupunki teemaväri (esim. Vaasan Lift-pinkki): aseta data-city ennen maalausta ?city-
+  // parametrista, ettei väri vilku. Pääskripti vahvistaa arvon CONFIGin mukaan (ks. cityKey).
+  var cityParam = (new URLSearchParams(location.search).get("city") || "").toLowerCase().replace(/[^a-z]/g, "");
+  if (cityParam) document.documentElement.dataset.city = cityParam;
 })();
 </script>
 <style>
@@ -135,6 +140,25 @@
     --sev-severe: #ff7060; --sev-warning: #ffc24d; --star: #ffcf52;
     --shadow: transparent;
   }
+  /* Vaasan demo: Lift-brändin pinkki/magenta (per-kaupunki, data-city="vaasa"). Vain Vaasa muuttuu.
+     Valkoisen tekstin alle (header/primary-napit) syvät AA-sävyt (mitattu ≥5:1), kirkas #E6007E
+     ei-tekstuaalisena aksenttina. Kaikki neljä kontekstia (vaalea/tumma × normaali/kontrasti);
+     yhdistelmäselektorit voittavat teemablokit specificityllä. */
+  html[data-city="vaasa"] {                                  /* vaalea, normaali */
+    --blue: #cc0077; --btn-bg: #cc0077; --btn-hover: #a8005e;
+  }
+  html[data-city="vaasa"][data-contrast="high"] {            /* vaalea, suuri kontrasti (OLETUS) */
+    --blue: #a30062; --btn-bg: #a30062; --btn-hover: #7d004a;
+  }
+  html[data-theme="dark"][data-city="vaasa"] {               /* tumma, normaali */
+    --blue: #ff8ac6; --btn-bg: #b81570; --btn-hover: #c41a7e;
+  }
+  html[data-theme="dark"][data-city="vaasa"][data-contrast="high"] {  /* tumma, suuri kontrasti */
+    --blue: #ff8fcf; --btn-bg: #c2007a; --btn-hover: #cc0080;
+  }
+  /* Header-tausta tulee CONFIG.brandColorista (headerBgColor() asettaa --header-bg inline,
+     auto-tummennus AA:han). Kirkas Lift-cerise -aksenttiraita headerin alle (ei-tekstuaalinen). */
+  html[data-city="vaasa"] header { border-bottom: 3px solid #e6007e; }
   html[data-contrast="high"] a { text-decoration: underline; }
   html[data-contrast="high"] .card,
   html[data-contrast="high"] button.secondary,
@@ -1252,8 +1276,9 @@ const CONFIGS = {
   // avoimesta Waltti/Digitransit-GTFS:stä. feedId "Vaasa" varmennettu feeds-kyselyllä
   // proxyn kautta 20.6.2026 (28 BUS-linjaa). Kaksikielinen alue (FI/SV): GTFS:n longNamet
   // sisältävät molempia, sovellus toimii FI/SV/EN. EI fares/hubs/cmsAlerts (Vaasan hintoja,
-  // keskuspysäkkejä eikä häiriö-CMS:ää varmennettu) eikä brändiväriä (GTFS:ssä ei värejä,
-  // Liftin hex varmentamatta → neutraali oletus). GTFS-RT-häiriöt toimivat silti.
+  // keskuspysäkkejä eikä häiriö-CMS:ää varmennettu). Brändiväri = Liftin pinkki/magenta
+  // (mitattu bussikuvasta #DB149A/#E6007E; käytetään syvää #bd0073 AA-headeria/nappeja varten,
+  // kirkas #E6007E aksenttina). GTFS-RT-häiriöt toimivat silti.
   vaasa: {
     city: "Vaasa",
     cityGenitive: "Vaasan",
@@ -1264,6 +1289,7 @@ const CONFIGS = {
     operatorShort: "Lifti",
     feedMatch: /vaasa/i,
     heroEmphasis: "layer",
+    brandColor: "#bd0073",          // Liftin pinkki (headerBgColor() pitää AA:n valkoiselle)
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       focus: { lat: 63.0951, lon: 21.6165 },
@@ -1275,6 +1301,8 @@ const CONFIGS = {
 
 const cityKey = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();
 const CONFIG = CONFIGS[cityKey] || CONFIGS.lahti;
+// Vahvista per-kaupunki teemaväri CONFIGin mukaan (tuntematon ?city → lahti → ei pinkkiä).
+document.documentElement.dataset.city = CONFIG === CONFIGS.lahti ? "lahti" : cityKey;
 // Demo-kaupungit saavat oman localStorage-nimiavaruuden, jotta suosikit,
 // välimuistit ja feedId eivät sekoitu oletuskaupungin dataan
 const NS = CONFIG === CONFIGS.lahti ? "" : cityKey + ":";
