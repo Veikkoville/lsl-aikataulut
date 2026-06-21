@@ -570,6 +570,14 @@
   .vihko-page-content .vk-tbl th, .vihko-page-content .vk-tbl td { border-bottom: 0.2mm solid #bbb; padding: 0.5mm 1mm; text-align: left; font-size: 8pt; }
   .vihko-page-content .vk-tbl td { white-space: nowrap; }
   .vihko-page-content .vk-tbl th { white-space: normal; font-size: 7pt; color: #444; vertical-align: bottom; }
+  /* Tulosteen valmistelu-indikaattori (UX): ei estä tulostusta, .no-print → ei näy printissä */
+  #printPrep { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.3); z-index: 2000; }
+  #printPrep[hidden] { display: none; }
+  .pp-box { background: var(--card); color: var(--text); padding: 0.9rem 1.4rem; border-radius: var(--radius);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25); border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.5rem; font-weight: var(--wmed); }
+  .pp-box .ic { color: var(--blue); }
   h4.daytype { font-size: 0.92rem; font-weight: 600; margin: 0.5rem 0 0.15rem; }
   /* Pysäkkijuliste: linjat tuntikaavioina, vierekkäin kun tilaa */
   .poster-sub { font-weight: var(--wmed); margin: 0.1rem 0 0.5rem; }
@@ -1611,6 +1619,8 @@ const STRINGS = {
     generateBooklet: "Kokoa ja tulosta",
     noLinesSelected: "Valitse vähintään yksi linja.",
     buildingBooklet: "Kootaan aikatauluja… {done}/{total}",
+    printPreparing: "Valmistellaan tulostetta…",
+    vihkoPreparing: "Kootaan vihkoa…",
     bookletPrintBtn: "Tulosta tai tallenna PDF (A4)",
     bookletPrintA5: "Vihkona (A5, taitettava)",
     vihkoDuplexNote: "Tulosta kaksipuolisena (käännä lyhyeltä reunalta), taita keskeltä.",
@@ -2029,6 +2039,8 @@ const STRINGS = {
     generateBooklet: "Build and print",
     noLinesSelected: "Select at least one route.",
     buildingBooklet: "Building timetables… {done}/{total}",
+    printPreparing: "Preparing print…",
+    vihkoPreparing: "Building booklet…",
     bookletPrintBtn: "Print or save as PDF (A4)",
     bookletPrintA5: "As booklet (A5, foldable)",
     vihkoDuplexNote: "Print double-sided (flip on short edge), fold in the middle.",
@@ -2445,6 +2457,8 @@ const STRINGS = {
     generateBooklet: "Sammanställ och skriv ut",
     noLinesSelected: "Välj minst en linje.",
     buildingBooklet: "Sammanställer tidtabeller… {done}/{total}",
+    printPreparing: "Förbereder utskrift…",
+    vihkoPreparing: "Sammanställer häfte…",
     bookletPrintBtn: "Skriv ut eller spara som PDF (A4)",
     bookletPrintA5: "Som häfte (A5, vikbar)",
     vihkoDuplexNote: "Skriv ut dubbelsidigt (vänd på kortsidan), vik på mitten.",
@@ -7856,26 +7870,55 @@ function vkImpose(pageHtmls) {
   return html;
 }
 
+// Tulosteen valmistelu-indikaattori (UX): ei estä tulostusta, piiloon printissä (.no-print) + afterprintissä.
+function showPrintPrep(msg) {
+  let el = document.getElementById("printPrep");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "printPrep"; el.className = "no-print";
+    el.setAttribute("role", "status"); el.setAttribute("aria-live", "polite");
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<div class="pp-box">${icon("print")} ${esc(msg)}</div>`;
+  el.hidden = false;
+}
+function hidePrintPrep() { const el = document.getElementById("printPrep"); if (el) el.hidden = true; }
+
+// Näytä indikaattori ja aja synkroninen valmistelu + window.print() VASTA maalauksen jälkeen
+// (2× requestAnimationFrame), jotta indikaattori ehtii näkyä ennen pääsäikeen lukitsevaa työtä.
+function runPrintJob(prepMsg, prepare) {
+  showPrintPrep(prepMsg);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    try {
+      if (prepare() === false) { hidePrintPrep(); return; }  // ei tulostettavaa
+    } catch (e) { hidePrintPrep(); return; }
+    hidePrintPrep();                                          // window.print() palasi (dialogi suljettu / ei tuettu)
+  }));
+}
+
 function printVihko() {
   const out = document.getElementById("bookletOut");
   if (!out || !out.querySelector(".booklet-line")) return;
-  const pages = vkPaginate(vkCollectAtoms(out));
-  if (!pages.length) return;
-  document.getElementById("vihkoPrint")?.remove();
-  const wrap = document.createElement("div");
-  wrap.id = "vihkoPrint";
-  wrap.innerHTML = vkImpose(pages);
-  document.body.appendChild(wrap);
-  document.body.classList.add("vihko-printing");
-  setPageOrientation("vihko");
-  const cleanup = () => {
-    document.body.classList.remove("vihko-printing");
-    wrap.remove();
-    setPageOrientation("portrait");
-    window.removeEventListener("afterprint", cleanup);
-  };
-  window.addEventListener("afterprint", cleanup);
-  window.print();
+  runPrintJob(t("vihkoPreparing"), () => {
+    const pages = vkPaginate(vkCollectAtoms(out));
+    if (!pages.length) return false;
+    document.getElementById("vihkoPrint")?.remove();
+    const wrap = document.createElement("div");
+    wrap.id = "vihkoPrint";
+    wrap.innerHTML = vkImpose(pages);
+    document.body.appendChild(wrap);
+    document.body.classList.add("vihko-printing");
+    setPageOrientation("vihko");
+    const cleanup = () => {
+      document.body.classList.remove("vihko-printing");
+      wrap.remove();
+      setPageOrientation("portrait");
+      hidePrintPrep();
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.print();
+  });
 }
 
 // Rinnakkaisajo rajatulla samanaikaisuudella (proxyn ~10 req/s suoja)
@@ -8180,8 +8223,12 @@ function bindBookletTab(routes, today) {
     status.textContent = "";
     document.getElementById("bookletPrintA5")?.addEventListener("click", printVihko);
     document.getElementById("bookletPrint")?.addEventListener("click", () => {
-      setPageOrientation("portrait");
-      window.print();
+      runPrintJob(t("printPreparing"), () => {
+        setPageOrientation("portrait");
+        const done = () => { hidePrintPrep(); window.removeEventListener("afterprint", done); };
+        window.addEventListener("afterprint", done);
+        window.print();
+      });
     });
     out.scrollIntoView({ behavior: "smooth", block: "start" });
   });

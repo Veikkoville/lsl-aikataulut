@@ -790,7 +790,9 @@ const info = msg => console.log("INFO " + msg);
       : fail("isot pysäkit -rajaus pielessä: " + JSON.stringify(cap));
     // Vihko (A5, taitettava): mittaa-ja-jaa A5-sivutus + saddle-stitch imposition; A4-vakio säilyy
     if (await page.$("#bookletPrintA5")) {
-      await page.evaluate(() => { window.__rp = window.print; window.print = () => {}; });
+      // stub-print kirjaa näkyikö valmistelu-indikaattori juuri tulostushetkellä (#16)
+      await page.evaluate(() => { window.__rp = window.print; window.__prepAtPrint = false;
+        window.print = () => { const e = document.getElementById("printPrep"); window.__prepAtPrint = !!(e && !e.hidden && /\S/.test(e.textContent)); }; });
       await page.click("#bookletPrintA5");
       await sleep(300);
       const vk = await page.evaluate(() => ({
@@ -798,11 +800,16 @@ const info = msg => console.log("INFO " + msg);
         pages: document.querySelectorAll("#vihkoPrint .vihko-a5:not(.vihko-blank)").length,
         slots: document.querySelectorAll("#vihkoPrint .vihko-a5").length,
         a4: !!document.getElementById("bookletPrint"),
+        prepAtPrint: window.__prepAtPrint,
+        prepHidden: document.getElementById("printPrep")?.hidden !== false,
       }));
       (vk.sheets >= 2 && vk.pages >= 1 && vk.slots % 4 === 0 && vk.a4)
         ? ok(`vihko: A5-imposition (${vk.pages} sivua → ${vk.slots} paikkaa, ${vk.sheets} arkkipuolta; A4-nappi ennallaan)`)
         : fail("vihko: imposition pielessä: " + JSON.stringify(vk));
-      await page.evaluate(() => { document.getElementById("vihkoPrint")?.remove(); document.body.classList.remove("vihko-printing"); window.print = window.__rp; });
+      (vk.prepAtPrint && vk.prepHidden)
+        ? ok("tulosteen valmistelu-indikaattori: näkyi tulostuksen aikana, piiloutui jälkeen")
+        : fail("valmistelu-indikaattori pielessä: " + JSON.stringify({ prepAtPrint: vk.prepAtPrint, prepHidden: vk.prepHidden }));
+      await page.evaluate(() => { document.getElementById("vihkoPrint")?.remove(); document.body.classList.remove("vihko-printing"); document.getElementById("printPrep")?.remove(); window.print = window.__rp; });
     }
   }
   // Välilehden vaihto: klikkaa "Näyttöverkosto" -> naytot-paneeli näkyviin + URL päivittyy (replaceState)
