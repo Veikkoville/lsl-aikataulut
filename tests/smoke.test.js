@@ -12,6 +12,7 @@ const BASE = process.env.BASE || "http://localhost:8000";
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 let failures = 0;
+let homeDisruptionCount = 0;   // etusivun häiriölohkon määrä → palvelutiskin vertailuun
 const ok = msg => console.log("OK   " + msg);
 const fail = msg => { failures++; console.log("FAIL " + msg); };
 const info = msg => console.log("INFO " + msg);
@@ -66,13 +67,27 @@ const info = msg => console.log("INFO " + msg);
     ? ok("esteettömyys: lähimmät-listan esteettömyyssuodatin näkyy")
     : fail("esteettömyys: esteettömyyssuodatin puuttuu");
 
-  // --- Häiriötiedotteet: banneri + lsl.fi-CMS-täydennys (vaatii workerin /cms-alerts) ---
-  await page.waitForSelector("#alertsBox details.alert", { timeout: 15000 }).catch(() => {});
-  const alertCount = (await page.$$("#alertsBox details.alert")).length;
-  alertCount > 0
-    ? ok(`etusivu: häiriöbanneri renderöityy (${alertCount} tiedotetta)`)
-    : info("etusivu: ei aktiivisia häiriötiedotteita (ei virhe)");
-  (await page.$("#alertsBox .alert-src"))
+  // --- Häiriöt vs. tiedotteet -erottelu: kiireelliset häiriöt korostettu/auki, informatiiviset
+  //     tiedotteet vaimennettu/kiinni (sääntö B). Lahdella on aina ≥1 kumpaakin (esim. Kytölä-
+  //     detour = häiriö; "Linja 81 palvelubussi" / "Linjasto uudistui" = tiedote). ---
+  await page.waitForSelector("#alertsBox details", { timeout: 15000 }).catch(() => {});
+  const banner = await page.evaluate(() => {
+    const dis = document.querySelector("#alertsBox details.alertsum");
+    const inf = document.querySelector("#alertsBox details.infosum");
+    return {
+      disCount: dis ? dis.querySelectorAll(".alert").length : 0, disOpen: dis ? dis.open : null,
+      infCount: inf ? inf.querySelectorAll(".alert").length : 0, infOpen: inf ? inf.open : null,
+      hasSrc: !!document.querySelector("#alertsBox .alert-src"),
+    };
+  });
+  homeDisruptionCount = banner.disCount;
+  (banner.disCount > 0 && banner.disOpen === true)
+    ? ok(`etusivu: kiireelliset häiriöt korostettu ja auki (${banner.disCount})`)
+    : fail("etusivu: häiriölohko (.alertsum) puuttuu tai ei oletuksena auki: " + JSON.stringify(banner));
+  (banner.infCount > 0 && banner.infOpen === false)
+    ? ok(`etusivu: informatiiviset tiedotteet vaimennettu ja kiinni (${banner.infCount})`)
+    : fail("etusivu: tiedotelohko (.infosum) puuttuu tai ei oletuksena kiinni: " + JSON.stringify(banner));
+  banner.hasSrc
     ? ok("etusivu: lsl.fi-CMS-tiedote mukana bannerissa")
     : info("etusivu: ei CMS-tiedotetta (worker /cms-alerts deployaamatta tai ei tuoreita) — ei virhe");
 
@@ -196,6 +211,16 @@ const info = msg => console.log("INFO " + msg);
     !!document.getElementById("deskFrom") && !!document.getElementById("deskTo") && !!document.getElementById("deskStop"));
   deskOk ? ok("palvelutiski: koko ruudun näkymä + kentät latautuvat")
          : fail("palvelutiski: näkymä/kentät puuttuvat");
+  // "Aktiiviset häiriöt" näyttää VAIN HÄIRIÖ-luokan (ei informatiivisia tiedotteita): määrän
+  // on täsmättävä etusivun häiriölohkoon (ei etusivun tiedotelohkoa).
+  await page.waitForFunction(() => {
+    const a = document.getElementById("deskAlerts");
+    return a && !/Haetaan|Loading|Hämtar/.test(a.textContent);   // lataus valmis
+  }, { timeout: 15000 }).catch(() => {});
+  const deskAlertCount = await page.evaluate(() => document.querySelectorAll("#deskAlerts .alert").length);
+  (deskAlertCount === homeDisruptionCount)
+    ? ok(`palvelutiski: 'Aktiiviset häiriöt' näyttää vain häiriöt (${deskAlertCount} = etusivun häiriöt, ei tiedotteita)`)
+    : fail(`palvelutiski: häiriömäärä ${deskAlertCount} ≠ etusivun häiriölohko ${homeDisruptionCount} (vuotaako tiedotteita?)`);
   // Näppäinflow: lähtö → Enter (valitsee ylimmän + siirtää määränpäähän) → Enter ajaa haun
   await page.click("#deskFrom");
   await page.type("#deskFrom", "Matkakeskus", { delay: 25 });
