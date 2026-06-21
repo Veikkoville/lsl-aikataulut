@@ -868,6 +868,22 @@
   h1 .ic, h2 .ic, h3 .ic { color: var(--blue); margin-right: 0.1rem; }
   /* Etusivun hero: reittihaku pääpainopisteenä */
   .hero h2 { display: flex; align-items: center; gap: 0.4rem; font-size: 1.3rem; }
+  /* Layer-hero: arvolupaus + nostot; A->B toissijaisena alaosassa */
+  .hero-layer h2 { font-size: 1.45rem; }
+  .hero-layer-sub { margin: 0.2rem 0 0.9rem; font-size: 0.95rem; }
+  .hero-highlights { display: grid; gap: 0.6rem; margin: 0 0 1.1rem; }
+  @media (min-width: 600px) { .hero-highlights { grid-template-columns: repeat(3, 1fr); } }
+  .hl { display: flex; flex-direction: column; gap: 0.15rem; text-align: left;
+    padding: 0.75rem 0.85rem; border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--card); color: var(--text); text-decoration: none; cursor: pointer; font: inherit; }
+  .hl:hover { border-color: var(--blue); background: var(--hover); }
+  .hl .ic { color: var(--blue); width: 1.4em; height: 1.4em; }
+  .hl-t { font-weight: var(--wmed); }
+  .hl-d { font-size: 0.85rem; color: var(--muted); }
+  .hero-journey { border-top: 1px solid var(--border); padding-top: 0.8rem; }
+  .hero-journey-h { display: flex; align-items: center; gap: 0.4rem; font-size: 1.05rem;
+    font-weight: var(--wmed); margin: 0 0 0.5rem; color: var(--muted); }
+  .hero-journey-h .ic { color: var(--blue); }
   .hero-fields { display: grid; gap: 0.65rem; margin: 0.5rem 0 0.85rem; }
   @media (min-width: 560px) { .hero-fields { grid-template-columns: 1fr 1fr; } }
   .btn-primary {
@@ -1085,6 +1101,7 @@ const CONFIGS = {
     // "[genetiivi] joukkoliikenteessä" johdetaan automaattisesti CONFIGista).
     network: { fi: "Lahden seudun joukkoliikenteessä", en: "the Lahti region public transport", sv: "Lahtisregionens kollektivtrafik" },
     feedMatch: /lahti/i,                  // GTFS-syötteen tunnistus feedId:stä tai julkaisijasta
+    heroEmphasis: "layer",                // on jo moderni reittiopas → korosta erottuvaa kerrosta
     // Ydinkeskustan solmupysäkit: "Keskustan linjat" -pikavalinta tulostusvihkossa
     centerStopNames: ["Kauppatori", "Matkakeskus"],
     // Keskusterminaalien pysäkit (#/laiturit). Pysäkit + linjat + sijainnit
@@ -1151,6 +1168,7 @@ const CONFIGS = {
     operator: "Kuopion seudun joukkoliikenne",
     operatorShort: "Vilkku",
     feedMatch: /kuopio/i,
+    heroEmphasis: "layer",
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       focus: { lat: 62.8924, lon: 27.6782 },
@@ -1212,6 +1230,7 @@ const CONFIGS = {
     operator: "Vaasan paikallisliikenne",
     operatorShort: "Lifti",
     feedMatch: /vaasa/i,
+    heroEmphasis: "layer",
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       focus: { lat: 63.0951, lon: 21.6165 },
@@ -1249,6 +1268,15 @@ const STRINGS = {
     metaDesc: "{cityGen} bussien aikataulut, reaaliaikaiset lähdöt, reittiopas, häiriötiedotteet, liput ja kartat selaimessa. Epävirallinen palvelu avoimen Waltti-/Digitransit-datan päälle.",
     headerSub: "Aikataulut ja reitit selkeästi, avoimesta datasta",
     heroTitle: "Mihin matka?",
+    heroLayerTitle: "Aikataulut selkeästi, ja vähän enemmän",
+    heroLayerSub: "Kaksikielisenä, tulostettavina vihkoina ja seinänäyttöinä sekä häiriötiedotteina sähköpostiin.",
+    heroJourneyHeading: "Reittihaku",
+    heroHlBilingual: "Myös ruotsiksi",
+    heroHlBilingualDesc: "Vaihda kieli yhdellä napautuksella",
+    heroHlPrint: "Tulosteet ja näytöt",
+    heroHlPrintDesc: "Vihot, julisteet ja seinänäytöt",
+    heroHlEmail: "Häiriöt sähköpostiin",
+    heroHlEmailDesc: "Tilaa linjojesi tiedotteet",
     heroSearch: "Hae yhteydet",
     heroNeedBoth: "Valitse lähtö ja määränpää ehdotuslistasta.",
     nlLabel: "Sano tai kirjoita, mihin haluat mennä",
@@ -1666,6 +1694,15 @@ const STRINGS = {
     metaDesc: "{city} bus timetables, real-time departures, journey planner, disruption alerts, tickets and maps in your browser. Unofficial service built on open Waltti/Digitransit data.",
     headerSub: "Timetables and routes made clear, from open data",
     heroTitle: "Where to?",
+    heroLayerTitle: "Timetables made clear, and a bit more",
+    heroLayerSub: "Bilingual, as printable booklets and wall displays, and disruption alerts by email.",
+    heroJourneyHeading: "Journey search",
+    heroHlBilingual: "Also in Swedish",
+    heroHlBilingualDesc: "Switch language with one tap",
+    heroHlPrint: "Printing & displays",
+    heroHlPrintDesc: "Booklets, posters and wall displays",
+    heroHlEmail: "Alerts by email",
+    heroHlEmailDesc: "Subscribe to your lines' alerts",
     heroSearch: "Find connections",
     heroNeedBoth: "Choose origin and destination from the suggestions.",
     nlLabel: "Say or type where you want to go",
@@ -2070,6 +2107,15 @@ const STRINGS = {
     metaDesc: "Busstidtabeller i {city}, avgångar i realtid, reseplanerare, störningsmeddelanden, biljetter och kartor i webbläsaren. Inofficiell tjänst byggd på öppna Waltti-/Digitransit-data.",
     headerSub: "Tidtabeller och rutter tydligt, från öppna data",
     heroTitle: "Vart vill du?",
+    heroLayerTitle: "Tidtabeller tydligt, och lite mer",
+    heroLayerSub: "Tvåspråkigt, som utskrivbara häften och väggskärmar, och störningar via e-post.",
+    heroJourneyHeading: "Reseökning",
+    heroHlBilingual: "Också på finska",
+    heroHlBilingualDesc: "Byt språk med en knapptryckning",
+    heroHlPrint: "Utskrifter & skärmar",
+    heroHlPrintDesc: "Häften, affischer och väggskärmar",
+    heroHlEmail: "Störningar via e-post",
+    heroHlEmailDesc: "Prenumerera på dina linjers meddelanden",
     heroSearch: "Sök förbindelser",
     heroNeedBoth: "Välj startplats och destination från förslagen.",
     nlLabel: "Säg eller skriv vart du vill åka",
@@ -4512,12 +4558,9 @@ function homeToolGroupsHtml() {
   ]);
 }
 
-function viewRoutes() {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
-  setView(`
-    <div id="alertsBox" class="alerts-banner"></div>
-    <section class="card hero">
-      <h2>${icon("route")} ${t("heroTitle")}</h2>
+// Jaettu A->B-haun runko (samat ID:t kummassakin hero-variantissa → sidonnat ennallaan)
+function heroFieldsHtml() {
+  return `
       <div class="hero-fields">
         <div class="field">
           <label for="homeFromInput">${t("from")}</label>
@@ -4545,8 +4588,41 @@ function viewRoutes() {
       <div id="heroMsg" role="status"></div>
       <div id="homeNlMsg" role="status"></div>
       <div id="nearbyBody"></div>
-      <div id="lastPlanRow"></div>
-    </section>
+      <div id="lastPlanRow"></div>`;
+}
+
+// Journey-hero (greenfield: A->B ensisijaisena) — nykyinen ilme.
+function heroJourneyHtml() {
+  return `<section class="card hero">
+      <h2>${icon("route")} ${t("heroTitle")}</h2>${heroFieldsHtml()}
+    </section>`;
+}
+
+// Layer-hero (reittiopaskaupungit): korostaa erottuvaa kerrosta (kaksikielisyys + tulosteet/näytöt
+// + häiriöt sähköpostiin); A->B-reittihaku säilyy toissijaisena alaosiona samoilla ID:illä.
+function heroLayerHtml() {
+  return `<section class="card hero hero-layer">
+      <h2>${t("heroLayerTitle")}</h2>
+      <p class="muted hero-layer-sub">${t("heroLayerSub")}</p>
+      <div class="hero-highlights">
+        <button type="button" class="hl" id="hlBilingual">
+          ${icon("info")}<span class="hl-t">${t("heroHlBilingual")}</span><span class="hl-d">${t("heroHlBilingualDesc")}</span></button>
+        <a class="hl" href="#/tulosteet/vihko">
+          ${icon("print")}<span class="hl-t">${t("heroHlPrint")}</span><span class="hl-d">${t("heroHlPrintDesc")}</span></a>
+        ${PROXY_URL ? `<a class="hl" href="#/sahkoposti">
+          ${icon("mail")}<span class="hl-t">${t("heroHlEmail")}</span><span class="hl-d">${t("heroHlEmailDesc")}</span></a>` : ""}
+      </div>
+      <div class="hero-journey">
+        <h3 class="hero-journey-h">${icon("route")} ${t("heroJourneyHeading")}</h3>${heroFieldsHtml()}
+      </div>
+    </section>`;
+}
+
+function viewRoutes() {
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  setView(`
+    <div id="alertsBox" class="alerts-banner"></div>
+    ${CONFIG.heroEmphasis === "layer" ? heroLayerHtml() : heroJourneyHtml()}
     <!-- Kompakti yhden rivin haku heron alle (linja/pysäkki/osoite) — ei toista isoa laatikkoa.
          "Lähellä" yhdistetty heron "Näytä lähimmät lähdöt" -toimintoon (yksi nappi). -->
     <div class="home-search">
@@ -4616,6 +4692,8 @@ function viewRoutes() {
     if (planState.from && planState.to) { location.hash = planHash(); }
     else { document.getElementById("heroMsg").innerHTML = `<p class="muted">${t("heroNeedBoth")}</p>`; }
   });
+  // Layer-heron kaksikielisyys-nosto: vaihtaa kielen FI↔SV yhdellä napautuksella (demonstroi suoraan)
+  document.getElementById("hlBilingual")?.addEventListener("click", () => setLanguage(lang === "sv" ? "fi" : "sv"));
 
   loadAlertsInto(document.getElementById("alertsBox"));
   renderFavorites();

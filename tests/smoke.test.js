@@ -67,6 +67,26 @@ const info = msg => console.log("INFO " + msg);
   (await page.$("#homeFromInput") && await page.$("#homeToInput") && await page.$("#heroSearch"))
     ? ok("etusivu: hero-reittihaku (Mistä/Minne/Hae yhteydet) latautuu")
     : fail("etusivu: hero-reittihaku puuttuu");
+  // Layer-hero reittiopaskaupungilla (Lahti = oletuskaupunki): arvolupaus + nostot (kielenvaihto +
+  // tulosteet) ja A->B SÄILYY toissijaisena alaosiona.
+  const layer = await page.evaluate(() => {
+    const h = document.querySelector(".hero.hero-layer"); if (!h) return null;
+    return { hls: h.querySelectorAll(".hero-highlights .hl").length, bilingual: !!document.getElementById("hlBilingual"),
+      print: !!document.querySelector('.hl[href="#/tulosteet/vihko"]'),
+      journeyFields: !!document.querySelector(".hero-journey #homeFromInput") };
+  });
+  (layer && layer.hls >= 2 && layer.bilingual && layer.print && layer.journeyFields)
+    ? ok(`etusivu (Lahti, layer): arvolupaus-hero + ${layer.hls} nostoa + A->B toissijaisena`)
+    : fail("etusivu (Lahti, layer): layer-hero puuttuu/vajaa: " + JSON.stringify(layer));
+  // Journey-hero greenfield-kaupungilla (Salo): ei layer-osiota, A->B ensisijaisena
+  await page.goto(BASE + "/?city=salo#/", { waitUntil: "networkidle2" });
+  const journey = await page.evaluate(() => ({
+    noLayer: !document.querySelector(".hero-layer"), hero: !!document.querySelector(".hero h2"),
+    fields: !!document.getElementById("homeFromInput") && !!document.getElementById("heroSearch") }));
+  (journey.noLayer && journey.hero && journey.fields)
+    ? ok("etusivu (Salo, journey): A->B-vetoinen hero ennallaan (ei layer-osiota)")
+    : fail("etusivu (Salo, journey): hero väärin: " + JSON.stringify(journey));
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" }); // palauta oletuskaupunki (Lahti)
   // Pikavalinnat ryhmiteltyinä (otsikoitu .tool-group); EI tyhjää ryhmää (jokaisessa ≥1 nappi)
   const groups = await page.evaluate(() => [...document.querySelectorAll(".tool-group")].map(g => ({
     title: g.querySelector(".tool-group-h")?.textContent.trim() || "",
