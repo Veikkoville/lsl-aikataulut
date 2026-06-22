@@ -2703,7 +2703,6 @@ function updateChrome() {
   document.getElementById("appFooter").innerHTML = `
     <div class="foot-cols">
       <div class="foot-brand">
-        <img src="icon.svg" alt="" width="30" height="30">
         <div><strong>${t("appTitle")}</strong><br><span class="muted">${t("headerSub")}</span></div>
       </div>
       <nav class="foot-col" aria-label="${t("footColService")}">
@@ -4799,8 +4798,7 @@ function viewRoutes() {
       <input type="search" id="routeFilter" placeholder="${t("routeFilterPlaceholder")}"
              aria-label="${t("routeFilterAria")}">
       <ul class="plain" id="routeList" style="min-height:70vh"><li><p class="muted">${t("loadingRoutes")}</p></li></ul>
-    </div>
-    <p class="muted"><a href="#/asetukset">${icon("settings")} ${t("settings")}</a></p>`);
+    </div>`);
 
   const mySeq = viewSeq;
   try {
