@@ -159,6 +159,24 @@
   /* Header-tausta tulee CONFIG.brandColorista (headerBgColor() asettaa --header-bg inline,
      auto-tummennus AA:han). Kirkas Lift-cerise -aksenttiraita headerin alle (ei-tekstuaalinen). */
   html[data-city="vaasa"] header { border-bottom: 3px solid #e6007e; }
+  /* Kotkan demo: Jonne ja Minne -brändin oranssi (per-kaupunki, data-city="kotka"). Sama
+     mekaniikka kuin Vaasalla. Valkoisen tekstin alle (header/primary-napit/aktiivitilat) syvät
+     oranssit (mitattu valkoiselle >=4.5:1 kaikissa neljassa kontekstissa), kirkas logo-oranssi
+     #dc7b38 ei-tekstuaalisena aksenttiraitana. Brandin vihrea #80bc54 (valkoiselle tekstille
+     #4e7a2e, AA 5.06:1) on toissijainen aksentti. Yhdistelmaselektorit voittavat teemablokit. */
+  html[data-city="kotka"] {                                  /* vaalea, normaali */
+    --blue: #a8500f; --btn-bg: #a8500f; --btn-hover: #8a4109;
+  }
+  html[data-city="kotka"][data-contrast="high"] {            /* vaalea, suuri kontrasti (OLETUS) */
+    --blue: #8a4109; --btn-bg: #8a4109; --btn-hover: #6e340b;
+  }
+  html[data-theme="dark"][data-city="kotka"] {               /* tumma, normaali */
+    --blue: #e89456; --btn-bg: #a8500f; --btn-hover: #b65b14;
+  }
+  html[data-theme="dark"][data-city="kotka"][data-contrast="high"] {  /* tumma, suuri kontrasti */
+    --blue: #f0a866; --btn-bg: #964810; --btn-hover: #a8500f;
+  }
+  html[data-city="kotka"] header { border-bottom: 3px solid #dc7b38; }
   html[data-contrast="high"] a { text-decoration: underline; }
   html[data-contrast="high"] .card,
   html[data-contrast="high"] button.secondary,
@@ -1304,9 +1322,8 @@ const CONFIGS = {
   // erilliseen "KotkaLautat"-lauttafeediin. EI fares/hubs/cmsAlerts (Kotkan hintoja,
   // virallista keskuspysäkkilistaa eikä häiriö-CMS:ää varmennettu) → lisää vasta
   // varmennetulla datalla jos diili etenee. GTFS-RT-häiriöt toimivat silti.
-  // TODO [KOTKA-BRANDCOLOR]: Jonne ja Minne -brändiväriä ei saatu mitattua (jonnejaminne.fi
-  // ei renderöi CSS:ää WebFetchille) → jätetty oletussiniseksi. Mittaa bussikuvasta kuten
-  // Vaasan Lift-pinkki (#bd0073) ja aseta brandColor; ei estä demoa.
+  // brandColor = Jonne ja Minne -logon oranssi syvennettynä (#a8500f, AA valkoiselle 5.5:1);
+  // per-kaupunki teemaylikirjoitus (oranssi+vihreä) on CSS:ssä html[data-city="kotka"].
   kotka: {
     city: "Kotka",
     cityGenitive: "Kotkan",
@@ -1314,6 +1331,7 @@ const CONFIGS = {
     operatorShort: "Jonne ja Minne",
     feedMatch: /^kotka$/i,
     heroEmphasis: "layer",
+    brandColor: "#a8500f",          // Jonne ja Minne -oranssi (headerBgColor() pitää AA:n valkoiselle)
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       // focus = Kauppatori (Kotkansaari); rect kattaa kaikki linjapysäkit
