@@ -5,3 +5,7 @@ CLAUDE.md
 
 # Väliaikaiset tuloste-preview-artefaktit (puppeteer-generoidut, ei repoon)
 preview-*.pdf
+_preview_*.pdf
+
+# Claude Design -mockupit (työartefaktit, ei julkiseen repoon)
+*.dc.html
