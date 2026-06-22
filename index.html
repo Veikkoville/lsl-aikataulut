@@ -1297,6 +1297,33 @@ const CONFIGS = {
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
   },
+  // Kotka-demo (?city=kotka). Layer-kaupunki kuten Vaasa: oma moderni reittiopas
+  // (kotka.digitransit.fi, brändi "Jonne ja Minne", jonnejaminne.fi) → heroEmphasis "layer".
+  // Kaikki sisältö avoimesta Waltti/Digitransit-GTFS:stä. feedId "Kotka" varmennettu
+  // feeds-kyselyllä proxyn kautta 22.6.2026 (68 BUS-linjaa: Kotkan + Karhulan paikallis-
+  // liikenne sekä seutu Hamina/Pyhtää). HUOM feedMatch ankkuroitu (/^kotka$/i) ettei osu
+  // erilliseen "KotkaLautat"-lauttafeediin. EI fares/hubs/cmsAlerts (Kotkan hintoja,
+  // virallista keskuspysäkkilistaa eikä häiriö-CMS:ää varmennettu) → lisää vasta
+  // varmennetulla datalla jos diili etenee. GTFS-RT-häiriöt toimivat silti.
+  // TODO [KOTKA-BRANDCOLOR]: Jonne ja Minne -brändiväriä ei saatu mitattua (jonnejaminne.fi
+  // ei renderöi CSS:ää WebFetchille) → jätetty oletussiniseksi. Mittaa bussikuvasta kuten
+  // Vaasan Lift-pinkki (#bd0073) ja aseta brandColor; ei estä demoa.
+  kotka: {
+    city: "Kotka",
+    cityGenitive: "Kotkan",
+    operator: "Kotkan seudun joukkoliikenne",
+    operatorShort: "Jonne ja Minne",
+    feedMatch: /^kotka$/i,
+    heroEmphasis: "layer",
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      // focus = Kauppatori (Kotkansaari); rect kattaa kaikki linjapysäkit
+      // (audit 22.6.2026: lat 60.436–60.752, lon 26.537–27.364) marginaalilla.
+      focus: { lat: 60.4678, lon: 26.9451 },
+      rect: { minLat: 60.30, maxLat: 60.85, minLon: 26.30, maxLon: 27.55 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
 };
 
 const cityKey = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();
