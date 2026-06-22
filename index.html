@@ -918,7 +918,6 @@
   .hero h2 { display: flex; align-items: center; gap: 0.4rem; font-size: 1.3rem; }
   /* Layer-hero: arvolupaus + nostot; A->B toissijaisena alaosassa */
   .hero-layer h2 { font-size: 1.45rem; }
-  .hero-layer-sub { margin: 0.2rem 0 0.9rem; font-size: 0.95rem; }
   .hero-highlights { display: grid; gap: 0.6rem; margin: 0 0 1.1rem; }
   @media (min-width: 600px) { .hero-highlights { grid-template-columns: repeat(3, 1fr); } }
   .hl { display: flex; flex-direction: column; gap: 0.15rem; text-align: left;
@@ -1357,7 +1356,6 @@ const STRINGS = {
     headerSub: "Aikataulut ja reitit selkeästi, avoimesta datasta",
     heroTitle: "Mihin matka?",
     heroLayerTitle: "Aikataulut selkeästi, ja vähän enemmän",
-    heroLayerSub: "Kaksikielisenä, tulostettavina vihkoina ja seinänäyttöinä sekä häiriötiedotteina sähköpostiin.",
     heroJourneyHeading: "Reittihaku",
     heroHlBilingual: "Myös ruotsiksi",
     heroHlBilingualDesc: "Vaihda kieli yhdellä napautuksella",
@@ -1788,7 +1786,6 @@ const STRINGS = {
     headerSub: "Timetables and routes made clear, from open data",
     heroTitle: "Where to?",
     heroLayerTitle: "Timetables made clear, and a bit more",
-    heroLayerSub: "Bilingual, as printable booklets and wall displays, and disruption alerts by email.",
     heroJourneyHeading: "Journey search",
     heroHlBilingual: "Also in Swedish",
     heroHlBilingualDesc: "Switch language with one tap",
@@ -2206,7 +2203,6 @@ const STRINGS = {
     headerSub: "Tidtabeller och rutter tydligt, från öppna data",
     heroTitle: "Vart vill du?",
     heroLayerTitle: "Tidtabeller tydligt, och lite mer",
-    heroLayerSub: "Tvåspråkigt, som utskrivbara häften och väggskärmar, och störningar via e-post.",
     heroJourneyHeading: "Reseökning",
     heroHlBilingual: "Också på finska",
     heroHlBilingualDesc: "Byt språk med en knapptryckning",
@@ -4707,7 +4703,6 @@ function heroJourneyHtml() {
 function heroLayerHtml() {
   return `<section class="card hero hero-layer">
       <h2>${t("heroLayerTitle")}</h2>
-      <p class="muted hero-layer-sub">${t("heroLayerSub")}</p>
       <div class="hero-highlights">
         <button type="button" class="hl" id="hlBilingual">
           ${icon("info")}<span class="hl-t">${t("heroHlBilingual")}</span><span class="hl-d">${t("heroHlBilingualDesc")}</span></button>
