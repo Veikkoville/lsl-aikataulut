@@ -316,19 +316,28 @@
   }
   .route-tile {
     display: flex; align-items: center; gap: 0.6rem;
-    padding: 0.5rem 0.6rem; min-height: 52px;
+    padding: 0.5rem 0.6rem; min-height: 62px;
     border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);
     text-decoration: none; color: var(--text);
     transition: background 0.1s, border-color 0.1s;
   }
-  /* Kevyt linjaruudukko: vaalea neutraali kortti, värillinen vain numerorondelli */
+  /* Hierarkiapassi: normaalilinjan rondelli on neutraali (kortti-pohja + ink-reuna +
+     brändivärinen numero) → ei "sinistä seinää". Numero ja reuna käyttävät teemamuuttujia
+     → toimii kaikissa neljässä kontekstissa ja kaikilla kaupunkiväreillä (--blue). */
   .route-tile:hover { background: var(--hover); border-color: var(--blue); }
   .rt-badge {
-    flex: 0 0 auto; min-width: 2.4rem; padding: 0.3rem 0.6rem; border-radius: 999px;
-    text-align: center; font-weight: 600; font-size: 1.02rem; letter-spacing: 0.01em;
-    background: var(--rc, var(--chip)); color: var(--rt, var(--text));
+    flex: 0 0 auto; box-sizing: border-box;
+    min-width: 44px; height: 44px; padding: 0 0.55rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 999px; text-align: center; font-weight: 700; font-size: 1.02rem; letter-spacing: 0.01em;
+    background: var(--card); border: 2px solid var(--text); color: var(--blue);
   }
-  .rt-name { font-size: 0.82rem; line-height: 1.2; color: var(--muted);
+  /* Erikoisreitit (esim. 81B punainen, 81C amber, Kotkan vihreät P-linjat) säilyttävät
+     täytetyn brändivärinsä: --rc = täyttö/reuna, --rt = numero. Voittaa normaalitreatmentin. */
+  .rt-badge.special {
+    background: var(--rc); border-color: var(--rc); color: var(--rt);
+  }
+  .rt-name { font-size: 0.82rem; line-height: 1.25; color: var(--muted);
     overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     overflow-wrap: anywhere; }
   /* Vuorokuormitus: värillinen piste emojin tilalle (aria-label säilyttää merkityksen) */
@@ -416,7 +425,7 @@
   a.btnlink:hover { background: var(--btn-hover); }
   /* Toissijainen (outline) painike: erottaa avustavat toiminnot ensisijaisesta */
   button.secondary, a.btnlink.secondary {
-    background: transparent; color: var(--text); border: 1.5px solid var(--border);
+    background: transparent; color: var(--text); border: 2px solid var(--text);
   }
   button.secondary:hover, a.btnlink.secondary:hover {
     background: var(--hover); border-color: var(--blue);
@@ -942,13 +951,26 @@
     padding: 0.75rem 0.85rem; border: 1px solid var(--border); border-radius: var(--radius);
     background: var(--card); color: var(--text); text-decoration: none; cursor: pointer; font: inherit; }
   .hl:hover { border-color: var(--blue); background: var(--hover); }
-  .hl .ic { color: var(--blue); width: 1.4em; height: 1.4em; }
-  .hl-t { font-weight: var(--wmed); }
+  /* Hierarkiapassi: nosto-otsikot ink-väriin, ikonit neutraaliin harmaaseen
+     → vahva brändiväri jää headeriin + primäärinappiin (ei kilpailevaa sinistä). */
+  .hl .ic { color: var(--muted); width: 1.4em; height: 1.4em; }
+  .hl-t { font-weight: var(--wmed); color: var(--text); }
   .hl-d { font-size: 0.85rem; color: var(--muted); }
   .hero-journey { border-top: 1px solid var(--border); padding-top: 0.8rem; }
   .hero-journey-h { display: flex; align-items: center; gap: 0.4rem; font-size: 1.05rem;
     font-weight: var(--wmed); margin: 0 0 0.5rem; color: var(--muted); }
-  .hero-journey-h .ic { color: var(--blue); }
+  .hero-journey-h .ic { color: var(--muted); }
+  /* A->B-merkki reittihaun otsikon vieressä (erottaa A->B-haun universaalihausta) */
+  .ab-badge { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; line-height: 1;
+    padding: 0.18rem 0.42rem; border-radius: 999px; background: var(--chip); color: var(--muted);
+    border: 1px solid var(--border); white-space: nowrap; }
+  /* Erillinen universaalihaku-lohko: kevyt neutraali tausta erottaa sen A->B-herosta */
+  .search-section { background: var(--hover); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 0.85rem 0.9rem; margin: 0 0 1.1rem; }
+  .search-section-h { display: flex; align-items: center; gap: 0.4rem; font-size: 1.05rem;
+    font-weight: var(--wmed); margin: 0 0 0.5rem; color: var(--text); }
+  .search-section-h .ic { color: var(--muted); }
+  .search-section .home-search { margin: 0; }
   .hero-fields { display: grid; gap: 0.65rem; margin: 0.5rem 0 0.85rem; }
   @media (min-width: 560px) { .hero-fields { grid-template-columns: 1fr 1fr; } }
   .btn-primary {
@@ -1655,6 +1677,7 @@ const STRINGS = {
     stopSearchPlaceholder: "Hae pysäkkiä nimellä (esim. Matkakeskus)…",
     stopSearchAria: "Hae pysäkkiä nimellä",
     searchTitle: "Haku",
+    searchSectionTitle: "Etsi linja tai pysäkki",
     searchPlaceholder: "Linja, pysäkki tai osoite…",
     searchAria: "Hae linjaa, pysäkkiä tai osoitetta",
     catLines: "Linjat", catStops: "Pysäkit", catPlaces: "Osoitteet",
@@ -2075,6 +2098,7 @@ const STRINGS = {
     stopSearchPlaceholder: "Search stops by name (e.g. Matkakeskus)…",
     stopSearchAria: "Search stops by name",
     searchTitle: "Search",
+    searchSectionTitle: "Find a line or stop",
     searchPlaceholder: "Route, stop or address…",
     searchAria: "Search for a route, stop or address",
     catLines: "Routes", catStops: "Stops", catPlaces: "Addresses",
@@ -2492,6 +2516,7 @@ const STRINGS = {
     stopSearchPlaceholder: "Sök hållplats med namn (t.ex. Matkakeskus)…",
     stopSearchAria: "Sök hållplats med namn",
     searchTitle: "Sök",
+    searchSectionTitle: "Sök linje eller hållplats",
     searchPlaceholder: "Linje, hållplats eller adress…",
     searchAria: "Sök linje, hållplats eller adress",
     catLines: "Linjer", catStops: "Hållplatser", catPlaces: "Adresser",
@@ -4545,6 +4570,20 @@ function badgeText(bgHex, prefHex) {
   return ratio(1) >= ratio(0) ? "#ffffff" : "#10141c";
 }
 
+// Feedin geneerinen oletusväri linjalistaa varten: jos yksi väri esiintyy vähintään puolella
+// linjoista, se on "sininen seinä" (esim. Lahti #005EBB 101/105) → ne saavat neutraalin
+// rondellin. Aidosti erottuva vähemmistöväri (erikoisreitit, esim. 81B/81C, Kotkan vihreät
+// P-linjat) ei ylitä kynnystä → säilyttää täytetyn värinsä. Värittömät linjat ovat aina neutraaleja.
+function dominantRouteColor(routes) {
+  const counts = {};
+  for (const r of routes) if (r.color) {
+    const c = r.color.toUpperCase(); counts[c] = (counts[c] || 0) + 1;
+  }
+  let top = null, topN = 0;
+  for (const c in counts) if (counts[c] > topN) { topN = counts[c]; top = c; }
+  return (top && topN >= routes.length * 0.5) ? top : null;
+}
+
 // Linjan virallinen brändiväri badgessa, kun syöte sen kertoo
 function badgeHtml(route, fallback) {
   const style = route?.color
@@ -4730,7 +4769,7 @@ function heroLayerHtml() {
           ${icon("mail")}<span class="hl-t">${t("heroHlEmail")}</span><span class="hl-d">${t("heroHlEmailDesc")}</span></a>` : ""}
       </div>
       <div class="hero-journey">
-        <h3 class="hero-journey-h">${icon("route")} ${t("heroJourneyHeading")}</h3>${heroFieldsHtml()}
+        <h3 class="hero-journey-h">${icon("route")} ${t("heroJourneyHeading")} <span class="ab-badge">A → B</span></h3>${heroFieldsHtml()}
       </div>
     </section>`;
 }
@@ -4740,16 +4779,19 @@ function viewRoutes() {
   setView(`
     <div id="alertsBox" class="alerts-banner"></div>
     ${CONFIG.heroEmphasis === "layer" ? heroLayerHtml() : heroJourneyHtml()}
-    <!-- Kompakti yhden rivin haku heron alle (linja/pysäkki/osoite) — ei toista isoa laatikkoa.
-         "Lähellä" yhdistetty heron "Näytä lähimmät lähdöt" -toimintoon (yksi nappi). -->
-    <div class="home-search">
-      <div class="hs-field">
-        ${icon("search")}
-        <input type="search" id="uniSearch" placeholder="${t("searchPlaceholder")}"
-               aria-label="${t("searchAria")}">
+    <!-- Universaalihaku omana lohkonaan (linja/pysäkki/osoite), erotettu A->B-herosta neutraalilla
+         taustalla. "Lähellä" yhdistetty heron "Näytä lähimmät lähdöt" -toimintoon (yksi nappi). -->
+    <section class="search-section" aria-label="${t("searchSectionTitle")}">
+      <h2 class="search-section-h">${icon("search")} ${t("searchSectionTitle")}</h2>
+      <div class="home-search">
+        <div class="hs-field">
+          ${icon("search")}
+          <input type="search" id="uniSearch" placeholder="${t("searchPlaceholder")}"
+                 aria-label="${t("searchAria")}">
+        </div>
+        <ul class="plain" id="searchResults"></ul>
       </div>
-      <ul class="plain" id="searchResults"></ul>
-    </div>
+    </section>
     <div class="card" id="savedCard" hidden>
       <h2>${icon("star")} ${t("savedTripsTitle")}</h2>
       <div id="savedBody"></div>
@@ -4827,17 +4869,19 @@ function viewRoutes() {
     if (!list) return;
     list.style.minHeight = "";
     list.className = "route-grid";
+    const generic = dominantRouteColor(routes); // feedin oletusväri → normalisoidaan
     const render = filter => {
       const f = filter.toLowerCase();
       list.innerHTML = routes
         .filter(r => !f || (r.shortName || "").toLowerCase().includes(f)
                         || (r.longName || "").toLowerCase().includes(f))
         .map(r => {
-          const style = r.color
+          const special = r.color && r.color.toUpperCase() !== generic;
+          const style = special
             ? ` style="--rc:#${r.color};--rt:${badgeText(r.color, r.textColor)}"` : "";
           return `<li><a class="route-tile" href="#/linja/${encodeURIComponent(r.gtfsId)}"${style}
               title="${esc(r.longName || "")}" aria-label="${esc((r.shortName || "") + " " + (r.longName || ""))}">
-              <span class="rt-badge">${esc(r.shortName || "")}</span>
+              <span class="rt-badge${special ? " special" : ""}">${esc(r.shortName || "")}</span>
               <span class="rt-name">${esc(r.longName || "")}</span></a></li>`;
         })
         .join("") || `<li style="grid-column:1/-1"><p class="muted">${t("noMatches")}</p></li>`;
