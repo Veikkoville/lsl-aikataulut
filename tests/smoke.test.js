@@ -356,7 +356,7 @@ const info = msg => console.log("INFO " + msg);
   const vTheme = await page.evaluate(() => {
     const rgb = s => (s.match(/\d+/g) || []).map(Number);
     const hdr = rgb(getComputedStyle(document.querySelector("header")).backgroundColor);
-    const btnEl = document.querySelector(".btn-primary");
+    const btnEl = document.querySelector(".sc-cta, .btn-primary");
     const btn = btnEl ? rgb(getComputedStyle(btnEl).backgroundColor) : [0, 0, 0];
     return { city: document.documentElement.dataset.city, hdrPink: hdr[0] > hdr[2] + 40, btnPink: btn[0] > btn[2] + 40,
       accent: getComputedStyle(document.querySelector("header")).borderBottomColor };

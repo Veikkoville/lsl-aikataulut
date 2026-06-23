@@ -1153,6 +1153,158 @@
   .alerts-banner .alertsum { padding: 0.5rem 0.85rem; margin-bottom: 0; }
   .alerts-banner .infosum { padding: 0.5rem 0.85rem; margin-bottom: 0; }
   .alerts-banner .alertsum summary, .alerts-banner .infosum summary { font-size: 0.95rem; }
+
+  /* ============================================================
+     REILA F2 — reittihaun visuaalinen layout (hakukortti + A->B-tuloskortit
+     + karttasivupalkki). Kuluttaa F1-tokeneita (--accent/-soft/-dark, --surface,
+     --ink, --line, --field-bg, --radius-card/-control/-segment, --shadow-*, coral).
+     KAIKKI värit --accent-ketjun kautta → per-kaupunki brändiväri seuraa.
+     Ei kosketa per-kaupunki html[data-city] -selektoreihin. ============ */
+  :root { --bus: #26332C; --bus-text: #ffffff; }          /* bussimerkki (neutraali tumma) */
+  html[data-theme="dark"] { --bus: #3a4a42; --bus-text: #ffffff; }   /* tummassa vaaleampi, erottuu kortista */
+  html[data-contrast="high"] { --bus: #000000; }
+  html[data-theme="dark"][data-contrast="high"] { --bus: #ffffff; --bus-text: #000000; }
+
+  /* ---- Reila-hero (greenfield: A->B-hakukortti heroksi) ---- */
+  .reila-hero { background: var(--accent-soft); border-radius: var(--radius-card);
+    padding: 1.6rem 1.4rem 2.4rem; margin: 0 0 -1.6rem; }
+  .reila-hero h1 { margin: 0; font-size: var(--fs-h1); font-weight: var(--fw-h1);
+    letter-spacing: -1px; line-height: var(--lh-tight); color: var(--ink); }
+  .reila-hero .reila-hero-sub { margin: 0.7rem 0 0; font-size: 1.06rem; color: var(--ink-muted);
+    max-width: 36rem; }
+
+  /* ---- Hakukortti (jaettu: etusivu + reitti) ---- */
+  .searchcard { background: var(--surface); border-radius: var(--radius-card);
+    box-shadow: var(--shadow-3); padding: 16px; }
+  .searchcard .sc-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .sc-field { flex: 1 1 200px; min-width: 170px; }
+  .sc-label { display: block; font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase;
+    letter-spacing: .6px; color: var(--ink-muted); margin: 0 0 6px 4px; }
+  .sc-box { position: relative; display: flex; align-items: center; gap: 10px;
+    background: var(--field-bg); border: 1px solid var(--line); border-radius: var(--radius-control);
+    padding: 0 14px; min-height: 52px; }
+  .sc-box:focus-within { border-color: var(--accent); }
+  .sc-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .sc-dot.from { background: var(--accent); }
+  .sc-dot.to { background: var(--coral); }
+  .sc-box input { border: none; background: transparent; outline: none; font-size: 16px;
+    font-weight: 600; width: 100%; min-height: 44px; color: var(--ink); padding: 0; }
+  /* mikrofoni kentän oikeaan reunaan (säilyttää #homeNlMic/.field-mic) */
+  .sc-box .field-mic { position: static; height: auto; width: 2.6rem; min-height: 44px;
+    background: transparent; border: none; color: var(--ink-muted); flex: none; }
+  .sc-box .field-mic:hover { color: var(--accent-dark); background: transparent; }
+  .sc-box .suggest-list { left: -1px; right: -1px; }
+  .sc-swap { flex: none; width: 46px; min-height: 52px; border: 1px solid var(--line);
+    background: var(--surface); border-radius: var(--radius-control); font-size: 19px;
+    color: var(--ink-muted); display: flex; align-items: center; justify-content: center; padding: 0; }
+  .sc-swap:hover { border-color: var(--accent); color: var(--accent-dark); background: var(--surface); }
+  .sc-time { display: flex; align-items: center; gap: 6px; background: var(--field-bg);
+    border: 1px solid var(--line); border-radius: var(--radius-control); padding: 6px; min-height: 52px;
+    flex-wrap: wrap; }
+  .sc-seg { border: none; background: transparent; color: var(--ink-muted); font-size: 13.5px;
+    font-weight: 700; border-radius: var(--radius-segment); padding: 8px 13px; min-height: 40px; }
+  .sc-seg[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-dark); }
+  .sc-time input[type="datetime-local"] { border: none; background: transparent; min-height: 40px;
+    font-weight: 600; color: var(--ink); width: auto; }
+  .sc-cta { flex: 0 0 auto; min-height: 52px; background: var(--accent); color: #fff; border: none;
+    border-radius: var(--radius-control); padding: 0 26px; font-size: 16px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 8px; }
+  .sc-cta:hover { background: var(--accent-dark); }
+  .sc-extra { display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; margin-top: 12px; }
+  .sc-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600;
+    color: var(--ink); cursor: pointer; min-height: 44px; }
+  .sc-chip input { width: 1.15rem; height: 1.15rem; accent-color: var(--accent); }
+
+  /* ---- Tulosten yläpalkki + lajittelusegmentit ---- */
+  .plan-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap; margin: 0 0 14px; }
+  .plan-count { font-size: 15px; color: var(--ink-muted); }
+  .plan-count strong { color: var(--ink); font-weight: 700; }
+  .plan-sort { display: flex; align-items: center; gap: 6px; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 11px; padding: 5px; flex-wrap: wrap; }
+  .plan-sort button { border: none; background: transparent; color: var(--ink-muted); font-size: 13.5px;
+    font-weight: 600; border-radius: 8px; padding: 8px 14px; min-height: 40px; }
+  .plan-sort button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+  /* ---- Kaksisarakelayout (desktop >=1000px): tulokset + karttasivupalkki ---- */
+  /* oletus: sivupalkki piilossa (mobiili/kapea); desktop-sääntö alla nostaa spesifisyyttä
+     (body.plan-mode .plan-aside) jotta se voittaa tämän riippumatta lähdekoodijärjestyksestä */
+  .plan-aside { display: none; }
+  @media (min-width: 1000px) {
+    body.plan-mode main { max-width: var(--container-max); }
+    body.plan-mode .plan-grid { display: flex; gap: 24px; align-items: flex-start; }
+    body.plan-mode .plan-grid .plan-results { flex: 1 1 auto; min-width: 0; }
+    body.plan-mode .plan-aside { flex: 0 0 360px; position: sticky; top: 90px; display: block; }
+    /* desktopilla reitin kartta näkyy sivupalkissa → kortin sisäinen kartta piiloon */
+    body.plan-mode details.itin .map { display: none; }
+  }
+  .plan-aside .aside-card { background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-1); }
+  #planAsideMap { height: 360px; width: 100%; background:
+    repeating-linear-gradient(135deg, var(--field-bg) 0 14px, var(--surface) 14px 28px); }
+  .plan-aside .aside-empty { display: flex; align-items: center; justify-content: center; height: 100%;
+    color: var(--ink-muted-2); font-size: 14px; padding: 1rem; text-align: center; }
+
+  /* ---- A->B-tuloskortti (handoff): restyle olemassa oleva details.itin ---- */
+  details.itin { border-radius: var(--radius-card); border: 1px solid var(--line);
+    box-shadow: var(--shadow-1); margin: 0 0 14px; transition: box-shadow .15s, border-color .15s; }
+  details.itin[open] { border: 2px solid var(--accent); box-shadow: var(--shadow-3); }
+  details.itin > summary { padding: 16px 18px; }
+  details.itin > summary::after { right: 16px; top: 18px; font-size: 20px; color: var(--ink-muted-2); }
+  .itin-head { display: grid; grid-template-columns: minmax(96px,auto) 1fr minmax(120px,max-content);
+    align-items: center; gap: 18px; }
+  .ih-time { display: flex; flex-direction: column; gap: 3px; }
+  .ih-time .times { font-size: 19px; font-weight: 800; letter-spacing: -.3px;
+    font-variant-numeric: tabular-nums; color: var(--ink); }
+  .ih-dur { font-size: 14px; font-weight: 600; color: var(--ink-muted); }
+  .ih-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; text-align: right; }
+  .ih-transfers { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .ih-walk { font-size: 13px; font-weight: 600; color: var(--ink-muted-2); }
+  .live-pill { display: inline-flex; align-items: center; gap: 7px; background: var(--coral-soft);
+    border-radius: var(--pill); padding: 4px 11px 4px 9px; }
+  .live-pill .live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--coral); flex: none; }
+  .live-pill.pulse .live-dot { animation: reilaPulse 1.8s infinite; }
+  .live-pill span.live-text { font-size: 13px; font-weight: 700; color: var(--coral-text); }
+  @keyframes reilaPulse {
+    0% { box-shadow: 0 0 0 0 rgba(240,115,78,.55); }
+    70% { box-shadow: 0 0 0 8px rgba(240,115,78,0); }
+    100% { box-shadow: 0 0 0 0 rgba(240,115,78,0); }
+  }
+
+  /* ---- Matka-aikajana (legbar): bussi = täytetty --bus-palkki, kävely = katkoviiva+min ---- */
+  .legbar { display: flex; align-items: center; gap: 5px; height: 27px; margin: 0; overflow: visible;
+    border-radius: 0; opacity: 1; }
+  .legbar .seg { flex-basis: 0; min-width: 46px; height: 27px; border-radius: 8px; background: var(--bus);
+    color: var(--bus-text); font-size: 13.5px; font-weight: 700; letter-spacing: .3px;
+    display: flex; align-items: center; justify-content: center; }
+  .legbar .seg.walk { position: relative; background: transparent; min-width: 26px; color: var(--ink-muted-2); }
+  .legbar .seg.walk::before { content: ""; position: absolute; left: 2px; right: 2px; top: 50%;
+    border-top: 2px dotted var(--line); }
+  .legbar .seg.walk .walk-min { position: relative; background: var(--surface); padding: 0 4px;
+    font-size: 11.5px; font-weight: 700; color: var(--ink-muted-2); font-variant-numeric: tabular-nums; }
+
+  /* ---- Laajennettu pysäkkiaikajana (tl): handoff-tyyli ---- */
+  details.itin .tl { background: var(--surface); border-top: 1px solid var(--line-divider);
+    margin: 0; padding: 16px 18px 18px; border-radius: 0 0 var(--radius-card) var(--radius-card); }
+  details.itin .tl-row.pt .tl-mid::after { border-color: var(--bus); }
+  details.itin .tl-row.pt.start .tl-mid::after { border-color: var(--accent); }
+  details.itin .tl-row.pt.end .tl-mid::after { background: var(--coral); border-color: #fff;
+    box-shadow: 0 0 0 2px var(--coral); }
+  details.itin .tl-body strong { font-size: 15.5px; font-weight: 700; color: var(--ink); }
+
+  /* ---- Mobiili (<700px): kentät pinoutuvat, CTA/⇅ täysleveiksi, aikajana luettava ---- */
+  @media (max-width: 699px) {
+    .searchcard .sc-row { gap: 10px; }
+    .sc-field { flex: 1 1 100%; }
+    .sc-swap { width: 100%; }
+    .sc-time { width: 100%; }
+    .sc-cta { width: 100%; justify-content: center; }
+    .itin-head { grid-template-columns: 1fr; gap: 10px; }
+    .ih-meta { align-items: flex-start; text-align: left; }
+    .legbar { flex-wrap: wrap; height: auto; gap: 4px; }
+    .legbar .seg { min-width: 40px; }
+    details.itin > summary::after { top: 14px; }
+  }
   @media print {
     /* Tulosteet aina normaalikokoisina, vaikka näytöllä olisi suuri teksti
        (rem-pohjaiset juliste-/vihkofontit mitoitettu A4:lle) */
@@ -1881,6 +2033,7 @@ const STRINGS = {
     timeModeAria: "Ajan tulkinta", timeAria: "Aika",
     departAt: "Lähtöaika", arriveBy: "Saapumisaika",
     searchRoutes: "Hae reitit",
+    planNResults: "{n} reittiä", sortFast: "Nopein", sortArrive: "Perillä aiemmin", sortWalk: "Vähiten kävelyä",
     wheelchairRoute: "Esteetön reitti", lessWalk: "Vähemmän kävelyä",
     itinerariesTitle: "Reittiehdotukset",
     co2Saved: "Säästät n. {kg} CO₂ verrattuna henkilöautoon",
@@ -2299,6 +2452,7 @@ const STRINGS = {
     timeModeAria: "Time interpretation", timeAria: "Time",
     departAt: "Depart at", arriveBy: "Arrive by",
     searchRoutes: "Search",
+    planNResults: "{n} routes", sortFast: "Fastest", sortArrive: "Arrives earliest", sortWalk: "Least walking",
     wheelchairRoute: "Accessible journey", lessWalk: "Less walking",
     itinerariesTitle: "Suggested journeys",
     co2Saved: "Saves approx. {kg} CO₂ compared to a car",
@@ -2717,6 +2871,7 @@ const STRINGS = {
     timeModeAria: "Tidens tolkning", timeAria: "Tid",
     departAt: "Avgångstid", arriveBy: "Ankomsttid",
     searchRoutes: "Sök resor",
+    planNResults: "{n} rutter", sortFast: "Snabbast", sortArrive: "Anländer först", sortWalk: "Minst gång",
     wheelchairRoute: "Tillgänglig resa", lessWalk: "Mindre promenad",
     itinerariesTitle: "Reseförslag",
     co2Saved: "Sparar ca {kg} CO₂ jämfört med bil",
@@ -3616,6 +3771,7 @@ function setView(html) {
   viewSeq++;
   stopRefresh();
   if (window.speechSynthesis) window.speechSynthesis.cancel(); // lopeta ääneenluku
+  document.body.classList.remove("plan-mode"); // REILA F2: reitti-näkymän leveä layout pois muista näkymistä
   app.innerHTML = html;
 }
 
@@ -4821,37 +4977,44 @@ function homeToolGroupsHtml() {
   ]);
 }
 
-// Jaettu A->B-haun runko (samat ID:t kummassakin hero-variantissa → sidonnat ennallaan)
+// Jaettu A->B-haun runko (samat ID:t kummassakin hero-variantissa → sidonnat ennallaan).
+// REILA F2: Reila-hakukortti — accent-piste Mistä, coral-piste Mihin, ⇅-vaihto, accent-CTA.
+// Mikrofoni/NL-syöte ja osoite-autocomplete säilyvät (mic kentän oikeassa reunassa).
 function heroFieldsHtml() {
   return `
-      <div class="hero-fields">
-        <div class="field">
-          <label for="homeFromInput">${t("from")}</label>
-          <div class="suggest with-mic">
-            <input type="text" id="homeFromInput" autocomplete="off" placeholder="${t("placePlaceholder")}"
-                   value="${esc(planState.from?.name || "")}">
-            <button type="button" id="homeNlMic" class="field-mic" aria-label="${t("nlMicStart")}" title="${t("nlMicStart")}">${icon("mic")}</button>
-            <ul class="plain suggest-list" id="homeFromList" hidden></ul>
+      <div class="searchcard">
+        <div class="sc-row">
+          <div class="sc-field">
+            <label class="sc-label" for="homeFromInput">${t("from")}</label>
+            <div class="sc-box suggest with-mic">
+              <span class="sc-dot from" aria-hidden="true"></span>
+              <input type="text" id="homeFromInput" autocomplete="off" placeholder="${t("placePlaceholder")}"
+                     value="${esc(planState.from?.name || "")}">
+              <button type="button" id="homeNlMic" class="field-mic" aria-label="${t("nlMicStart")}" title="${t("nlMicStart")}">${icon("mic")}</button>
+              <ul class="plain suggest-list" id="homeFromList" hidden></ul>
+            </div>
           </div>
-        </div>
-        <div class="field">
-          <label for="homeToInput">${t("to")}</label>
-          <div class="suggest">
-            <input type="text" id="homeToInput" autocomplete="off" placeholder="${t("placePlaceholder")}"
-                   value="${esc(planState.to?.name || "")}">
-            <ul class="plain suggest-list" id="homeToList" hidden></ul>
+          <button type="button" id="homeSwapBtn" class="sc-swap" title="${t("swap")}" aria-label="${t("swap")}">⇅</button>
+          <div class="sc-field">
+            <label class="sc-label" for="homeToInput">${t("to")}</label>
+            <div class="sc-box suggest">
+              <span class="sc-dot to" aria-hidden="true"></span>
+              <input type="text" id="homeToInput" autocomplete="off" placeholder="${t("placePlaceholder")}"
+                     value="${esc(planState.to?.name || "")}">
+              <ul class="plain suggest-list" id="homeToList" hidden></ul>
+            </div>
           </div>
+          <button type="button" id="heroSearch" class="sc-cta">${t("heroSearch")} <span aria-hidden="true">→</span></button>
         </div>
-      </div>
-      <div class="hero-actions">
-        <button type="button" id="heroSearch" class="btn-primary">${icon("search")} ${t("heroSearch")}</button>
-        <button type="button" id="nearbyBtn2" class="secondary">${icon("pin")} ${t("showNearby")}</button>
-      </div>
-      <p class="muted nl-hint">${t("nlHint")}</p>
-      <div id="heroMsg" role="status"></div>
-      <div id="homeNlMsg" role="status"></div>
-      <div id="nearbyBody"></div>
-      <div id="lastPlanRow"></div>`;
+        <div class="sc-extra">
+          <button type="button" id="nearbyBtn2" class="secondary">${icon("pin")} ${t("showNearby")}</button>
+          <span class="muted nl-hint">${t("nlHint")}</span>
+        </div>
+        <div id="heroMsg" role="status"></div>
+        <div id="homeNlMsg" role="status"></div>
+        <div id="nearbyBody"></div>
+        <div id="lastPlanRow"></div>
+      </div>`;
 }
 
 // Journey-hero (greenfield: A->B ensisijaisena) — nykyinen ilme.
@@ -4955,6 +5118,12 @@ function viewRoutes() {
   document.getElementById("heroSearch").addEventListener("click", () => {
     if (planState.from && planState.to) { location.hash = planHash(); }
     else { document.getElementById("heroMsg").innerHTML = `<p class="muted">${t("heroNeedBoth")}</p>`; }
+  });
+  // REILA F2: ⇅ vaihtaa Mistä/Mihin (kentät + planState). Vain UI, ei reititysmuutosta.
+  document.getElementById("homeSwapBtn")?.addEventListener("click", () => {
+    [planState.from, planState.to] = [planState.to, planState.from];
+    homeFrom.value = planState.from?.name || "";
+    homeTo.value = planState.to?.name || "";
   });
   // Layer-heron kaksikielisyys-nosto: vaihtaa kielen FI↔SV yhdellä napautuksella (demonstroi suoraan)
   document.getElementById("hlBilingual")?.addEventListener("click", () => setLanguage(lang === "sv" ? "fi" : "sv"));
@@ -7462,18 +7631,17 @@ function fmtKm(m) {
 
 function legTime(lt) { return lt.estimated?.time || lt.scheduledTime; }
 
-// Yhteenvedon osuuspalkki: segmentin leveys = legin kesto, väri = linjan väri
+// Yhteenvedon matka-aikajana (handoff): leveys = legin kesto (flex-grow). Bussiosuus = täytetty
+// --bus-palkki linjanumerolla; kävely = katkoviiva + minuuttileima. Linjan oma väri näkyy
+// laajennetussa pysäkkiaikajanassa (--rail), ei tässä neutraalissa yleiskatsauspalkissa.
 function legBarHtml(node) {
   const total = node.legs.reduce((s, l) => s + l.duration, 0) || 1;
   return `<span class="legbar" aria-hidden="true">${node.legs.map(leg => {
     const grow = Math.max(leg.duration / total, 0.04);
     if (leg.mode === "WALK" || leg.mode === "BICYCLE") {
-      return `<span class="seg walk" style="flex-grow:${grow.toFixed(3)}">${MODE_ICONS[leg.mode] ? icon(MODE_ICONS[leg.mode]) : ""}</span>`;
+      return `<span class="seg walk" style="flex-grow:${grow.toFixed(3)}"><span class="walk-min">${Math.round(leg.duration / 60)}′</span></span>`;
     }
-    const bg = leg.route?.color ? "#" + leg.route.color : "var(--btn-bg)";
-    const fg = leg.route?.color ? badgeText(leg.route.color, leg.route.textColor) : "#fff";
-    return `<span class="seg" style="flex-grow:${grow.toFixed(3)};background:${bg};color:${fg}">
-      ${esc(leg.route?.shortName || "")}</span>`;
+    return `<span class="seg" style="flex-grow:${grow.toFixed(3)}">${esc(leg.route?.shortName || "")}</span>`;
   }).join("")}</span>`;
 }
 
@@ -7558,21 +7726,30 @@ function itinSummaryHtml(node) {
   const durSec = (new Date(node.end) - new Date(node.start)) / 1000;
   // ensimmäisen bussin lähtölaskenta tuo tärkeimmän tiedon heti otsikkoriviin
   const firstTransit = node.legs.find(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
-  let departs = "";
+  let departs = null;
   if (firstTransit) {
     const mins = Math.round((new Date(legTime(firstTransit.start)) - Date.now()) / 60000);
     if (mins >= 0 && mins <= 90) {
-      departs = `<span class="rt">${mins === 0 ? t("departsNow") : t("departsIn", { n: mins })}</span>`;
+      departs = { label: mins === 0 ? t("departsNow") : t("departsIn", { n: mins }), soon: mins <= 5 };
     }
   }
+  // REILA F2: handoff-tuloskortti — aikasarake | matka-aikajana | meta (live-pilleri/vaihdot/kävely)
+  const live = departs
+    ? `<span class="live-pill${departs.soon ? " pulse" : ""}"><span class="live-dot"></span><span class="live-text">${departs.label}</span></span>`
+    : "";
   return `
     <span class="itin-head">
-      <span class="times">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
-      <span>${fmtDur(durSec)}</span>
-      <span class="muted">${transfers} · ${t("walkAmount", { n: walk })}</span>
-      ${departs}
-    </span>
-    ${legBarHtml(node)}`;
+      <span class="ih-time">
+        <span class="times">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
+        <span class="ih-dur">${fmtDur(durSec)}</span>
+      </span>
+      ${legBarHtml(node)}
+      <span class="ih-meta">
+        ${live}
+        <span class="ih-transfers">${transfers}</span>
+        <span class="ih-walk">${t("walkAmount", { n: walk })}</span>
+      </span>
+    </span>`;
 }
 
 // CO₂-säästöarvio: bussissa ajettu matka × (auton − bussin päästökerroin).
@@ -7660,53 +7837,65 @@ async function drawItineraryMap(elId, node) {
 async function viewPlan(parts) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   const fromUrl = parts && parts[1] ? parsePlanParams(parts) : false;
+  const tmDep = planState.timeMode !== "arr";
   setView(`
     <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
-    <div class="card">
-      <h2>${t("planTitle")}</h2>
-      <form id="planForm">
-        <div class="field">
-          <label for="fromInput">${t("from")}</label>
-          <div class="suggest">
-            <input type="text" id="fromInput" placeholder="${t("placePlaceholder")}"
-                   autocomplete="off" value="${esc(planState.from?.name || "")}">
-            <ul class="plain suggest-list" id="fromList" hidden></ul>
+    <h1 style="font-size:var(--fs-h2);font-weight:var(--fw-h1);margin:0 0 0.7rem">${t("planTitle")}</h1>
+    <form id="planForm">
+      <div class="searchcard">
+        <div class="sc-row">
+          <div class="sc-field">
+            <label class="sc-label" for="fromInput">${t("from")}</label>
+            <div class="sc-box suggest">
+              <span class="sc-dot from" aria-hidden="true"></span>
+              <input type="text" id="fromInput" placeholder="${t("placePlaceholder")}"
+                     autocomplete="off" value="${esc(planState.from?.name || "")}">
+              <ul class="plain suggest-list" id="fromList" hidden></ul>
+            </div>
           </div>
+          <button type="button" id="swapBtn" class="sc-swap" title="${t("swap")}" aria-label="${t("swap")}">⇅</button>
+          <div class="sc-field">
+            <label class="sc-label" for="toInput">${t("to")}</label>
+            <div class="sc-box suggest">
+              <span class="sc-dot to" aria-hidden="true"></span>
+              <input type="text" id="toInput" placeholder="${t("placePlaceholder")}"
+                     autocomplete="off" value="${esc(planState.to?.name || "")}">
+              <ul class="plain suggest-list" id="toList" hidden></ul>
+            </div>
+          </div>
+          <div class="sc-field" style="flex:0 1 auto">
+            <label class="sc-label">${t("timeAria")}</label>
+            <div class="sc-time">
+              <button type="button" class="sc-seg" id="tmDep" data-tm="dep" aria-pressed="${tmDep}">${t("departAt")}</button>
+              <button type="button" class="sc-seg" id="tmArr" data-tm="arr" aria-pressed="${!tmDep}">${t("arriveBy")}</button>
+              <input type="hidden" id="timeMode" value="${tmDep ? "dep" : "arr"}">
+              <input type="datetime-local" id="timeInput" aria-label="${t("timeAria")}"
+                     value="${esc(planState.time || nowLocalInput())}">
+              <button type="button" id="nowBtn" class="sc-seg">${t("now")}</button>
+            </div>
+          </div>
+          <button type="submit" class="sc-cta">${t("searchRoutes")} <span aria-hidden="true">→</span></button>
+        </div>
+        <div class="sc-extra">
           <button type="button" id="fromGeo" class="linkish">${icon("pin")} ${t("useMyLocation")}</button>
-          <button type="button" id="swapBtn" class="linkish" title="${t("swap")}"
-                  aria-label="${t("swap")}">⇅ ${t("swap")}</button>
-        </div>
-        <div class="field">
-          <label for="toInput">${t("to")}</label>
-          <div class="suggest">
-            <input type="text" id="toInput" placeholder="${t("placePlaceholder")}"
-                   autocomplete="off" value="${esc(planState.to?.name || "")}">
-            <ul class="plain suggest-list" id="toList" hidden></ul>
-          </div>
-        </div>
-        <div class="row" style="flex-wrap:wrap">
-          <select id="timeMode" aria-label="${t("timeModeAria")}">
-            <option value="dep"${planState.timeMode === "dep" ? " selected" : ""}>${t("departAt")}</option>
-            <option value="arr"${planState.timeMode === "arr" ? " selected" : ""}>${t("arriveBy")}</option>
-          </select>
-          <input type="datetime-local" id="timeInput" aria-label="${t("timeAria")}"
-                 value="${esc(planState.time || nowLocalInput())}">
-          <button type="button" id="nowBtn" class="linkish">${t("now")}</button>
-          <button type="submit">${t("searchRoutes")}</button>
-        </div>
-        <div class="row" style="flex-wrap:wrap; margin-top:0.4rem">
-          <label><input type="checkbox" id="wheelchairBox"${planState.wheelchair ? " checked" : ""}>
+          <label class="sc-chip"><input type="checkbox" id="wheelchairBox"${planState.wheelchair ? " checked" : ""}>
             ${icon("wheelchair")} ${t("wheelchairRoute")}</label>
-          <label><input type="checkbox" id="lessWalkBox"${planState.lessWalk ? " checked" : ""}>
+          <label class="sc-chip"><input type="checkbox" id="lessWalkBox"${planState.lessWalk ? " checked" : ""}>
             ${t("lessWalk")}</label>
-        </div>
-        <p class="row" style="margin-top:0.4rem">
           <button type="button" id="saveTripBtn" class="linkish">${icon("star")} <span id="saveTripLabel">${t("saveTrip")}</span></button>
-        </p>
-      </form>
+        </div>
+      </div>
       <div id="planMsg" role="status"></div>
-    </div>
-    <div id="planResults"></div>`);
+    </form>
+    <div class="plan-grid">
+      <div class="plan-results"><div id="planResults"></div></div>
+      <aside class="plan-aside" id="planAside">
+        <div class="aside-card"><div id="planAsideMap"><div class="aside-empty">${t("mapAria")}</div></div></div>
+      </aside>
+    </div>`);
+  // REILA F2: leveä kaksisarakelayout (tulokset + karttasivupalkki) desktopilla.
+  // setView() poistaa plan-moden → lisätään VASTA sen jälkeen. Poistuu muihin näkymiin siirryttäessä.
+  document.body.classList.add("plan-mode");
 
   const fromInput = document.getElementById("fromInput");
   const toInput = document.getElementById("toInput");
@@ -7741,9 +7930,21 @@ async function viewPlan(parts) {
     updateSaveBtn();
     if (planState.from && planState.to) search(false);
   });
+  // REILA F2: aikasegmentti (Lähtee/Perillä) ohjaa piilotettua #timeMode-arvoa (search() lukee sen)
+  const setTimeMode = m => {
+    document.getElementById("timeMode").value = m;
+    document.getElementById("tmDep").setAttribute("aria-pressed", String(m === "dep"));
+    document.getElementById("tmArr").setAttribute("aria-pressed", String(m === "arr"));
+  };
+  document.getElementById("tmDep").addEventListener("click", () => {
+    setTimeMode("dep"); if (planState.from && planState.to) search(false);
+  });
+  document.getElementById("tmArr").addEventListener("click", () => {
+    setTimeMode("arr"); if (planState.from && planState.to) search(false);
+  });
   document.getElementById("nowBtn").addEventListener("click", () => {
     document.getElementById("timeInput").value = nowLocalInput();
-    document.getElementById("timeMode").value = "dep";
+    setTimeMode("dep");
     if (planState.from && planState.to) search(false);
   });
 
@@ -7764,30 +7965,90 @@ async function viewPlan(parts) {
   const results = document.getElementById("planResults");
   let nodes = [], cursor = null, prevCursor = null, directNodes = {};
   let lastHasNext = false, lastHasPrev = false, mainDone = false;
+  let planSort = "fast";          // REILA F2: lajittelusegmentti (Nopein/Perillä aiemmin/Vähiten kävelyä)
+  let asideMap = null;            // sivupalkkikartan Leaflet-instanssi (desktop)
+
+  // REILA F2: desktopilla (>=1000px) reitin kartta piirtyy sivupalkkiin; uudelleenpiirrettävä
+  // (poistaa edellisen instanssin). Kapealla näytöllä käytetään kortin sisäistä karttaa.
+  const asideActive = () => window.matchMedia("(min-width: 1000px)").matches;
+  const drawAside = async node => {
+    if (!asideActive()) return;
+    const el = document.getElementById("planAsideMap");
+    if (!el) return;
+    await ensureLeaflet();
+    if (asideMap) { try { asideMap.remove(); } catch (e) {} asideMap = null; }
+    el.innerHTML = "";
+    const map = makeMap("planAsideMap");
+    asideMap = map;
+    let bounds = null;
+    for (const leg of node.legs) {
+      const pts = decodePolyline(leg.legGeometry?.points || "");
+      if (!pts.length) continue;
+      const style = leg.mode === "WALK"
+        ? { color: "#5a6478", weight: 4, dashArray: "2 8" }
+        : leg.mode === "BICYCLE"
+          ? { color: "#1a7f4b", weight: 5, dashArray: "8 6", opacity: 0.9 }
+          : { color: leg.route?.color ? "#" + leg.route.color : "#0a4ea3", weight: 5, opacity: 0.85 };
+      const line = L.polyline(pts, style).addTo(map);
+      bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
+    }
+    const first = node.legs[0], last = node.legs[node.legs.length - 1];
+    L.circleMarker([first.from.lat, first.from.lon], { ...STOP_MARKER, fillColor: "#1a7f4b" }).addTo(map).bindPopup(t("origin"));
+    L.circleMarker([last.to.lat, last.to.lon], { ...STOP_MARKER, fillColor: "#c0392b" }).addTo(map).bindPopup(t("destination"));
+    if (bounds) map.fitBounds(bounds, { padding: [20, 20] });
+    const transitRoutes = [...new Map(node.legs.filter(l => l.route?.gtfsId)
+      .map(l => [l.route.gtfsId, { gtfsId: l.route.gtfsId, shortName: l.route.shortName }])).values()];
+    if (transitRoutes.length) startVehicles(map, transitRoutes);
+  };
+  const sortNodes = arr => {
+    const c = arr.slice();
+    if (planSort === "fast") c.sort((a, b) => (new Date(a.end) - new Date(a.start)) - (new Date(b.end) - new Date(b.start)));
+    else if (planSort === "arrive") c.sort((a, b) => new Date(a.end) - new Date(b.end));
+    else if (planSort === "walk") c.sort((a, b) => (a.walkDistance || 0) - (b.walkDistance || 0));
+    return c;
+  };
 
   const renderResults = () => {
     const directRow = ["walk", "bike"]
       .filter(k => directNodes[k])
       .map(k => directHtml(directNodes[k], k))
       .join("");
+    const view = sortNodes(nodes);   // näyttöjärjestys (data-itin viittaa tähän)
+    const topbar = nodes.length || directRow
+      ? `<div class="plan-topbar">
+           <div class="plan-count"><strong>${t("planNResults", { n: nodes.length })}</strong></div>
+           <div class="plan-sort" role="group" aria-label="${t("sortFast")}">
+             <button type="button" data-sort="fast" aria-pressed="${planSort === "fast"}">${t("sortFast")}</button>
+             <button type="button" data-sort="arrive" aria-pressed="${planSort === "arrive"}">${t("sortArrive")}</button>
+             <button type="button" data-sort="walk" aria-pressed="${planSort === "walk"}">${t("sortWalk")}</button>
+           </div>
+         </div>` : "";
     results.innerHTML = nodes.length || directRow
-      ? `<div class="card">
-           <h2>${t("itinerariesTitle")}
-             <button id="shareBtn" class="linkish no-print" style="float:right">${icon("link")} ${t("share")}</button></h2>
+      ? `${topbar}
+         <div class="card">
+           <h2 class="no-print" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${t("itinerariesTitle")}
+             <button id="shareBtn" class="linkish no-print">${icon("link")} ${t("share")}</button></h2>
            ${directRow}
            ${lastHasPrev && nodes.length ? `<button id="earlierBtn" class="linkish no-print">↑ ${t("showEarlier")}</button>` : ""}
-           ${nodes.map((n, i) => itinHtml(n, i)).join("")}
+           ${view.map((n, i) => itinHtml(n, i)).join("")}
            ${lastHasNext ? `<button id="moreBtn" class="no-print">${t("showLater")}</button>` : ""}
          </div>`
       : `<div class="card"><p class="muted">${t("noItineraries")}</p></div>`;
     results.querySelectorAll("details.itin[data-itin]").forEach(d =>
       d.addEventListener("toggle", () => {
-        if (d.open) drawItineraryMap("itinMap" + d.dataset.itin, nodes[Number(d.dataset.itin)]).catch(() => {});
+        if (!d.open) return;
+        // handoff: vain yksi kortti auki kerrallaan
+        results.querySelectorAll("details.itin[open]").forEach(o => { if (o !== d) o.open = false; });
+        const node = view[Number(d.dataset.itin)];
+        if (asideActive()) drawAside(node).catch(() => {});
+        else drawItineraryMap("itinMap" + d.dataset.itin, node).catch(() => {});
       }));
     results.querySelectorAll("details.itin[data-direct]").forEach(d =>
       d.addEventListener("toggle", () => {
         if (d.open) drawItineraryMap("directMap" + d.dataset.direct, directNodes[d.dataset.direct]).catch(() => {});
       }));
+    results.querySelectorAll(".plan-sort button[data-sort]").forEach(b =>
+      b.addEventListener("click", () => { planSort = b.dataset.sort; renderResults(); }));
     document.getElementById("moreBtn")?.addEventListener("click", () => search("more"));
     document.getElementById("earlierBtn")?.addEventListener("click", () => search("earlier"));
     document.getElementById("shareBtn")?.addEventListener("click", async e => {

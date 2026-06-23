@@ -9,3 +9,6 @@ _preview_*.pdf
 
 # Claude Design -mockupit (työartefaktit, ei julkiseen repoon)
 *.dc.html
+
+# Redesign-inventaario (sisäinen kartoitusdokumentti, ei julkiseen repoon)
+REDESIGN-INVENTAARIO.md
