@@ -26,6 +26,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
+<!-- REILA F1: esilataa kriittinen latin-fontti (LCP-otsikko); crossorigin pakollinen myös samalle originille (fontit haetaan CORS-tilassa) -->
+<link rel="preload" href="fonts/hanken-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script>
 // Teema ratkaistaan ennen ensimmäistä maalausta välähdyksen välttämiseksi
 (function () {
@@ -67,6 +69,31 @@
 })();
 </script>
 <style>
+  /* ============================================================
+     REILA-ILME F1 — brändifontti (SELF-HOST, GDPR: ei Google CDN).
+     Kuntalais-/julkissektorikäyttö → fonttitiedostot tarjotaan samasta
+     originista (GitHub Pages), EI fonts.gstatic.com → loppukäyttäjän IP
+     ei vuoda Googlelle. Hanken Grotesk on VARIABLE font (wght-akseli
+     100–900) → yksi woff2 per subset kattaa kaikki painot 400/500/600/
+     700/800. Skandit ä ö å Ä Ö Å ovat latin-subsetissa (U+0000–00FF);
+     numerot ovat tabular (560u) oletuksena → kellot/hinnat linjautuvat
+     ilman erillistä tnum-featurea (jota fontissa ei ole). */
+  @font-face {
+    font-family: 'Hanken Grotesk';
+    font-style: normal;
+    font-weight: 100 900;          /* variable: kattaa 400/500/600/700/800 */
+    font-display: swap;
+    src: url('fonts/hanken-grotesk-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Hanken Grotesk';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('fonts/hanken-grotesk-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
   :root {
     /* Transit-grade design-tokenit. Yksi vahva sininen primääri + neutraalit harmaat.
        Semanttiset värit VAIN merkitykseen: --green = ok/nopein, --sev-warning = häiriö,
@@ -98,6 +125,64 @@
     --pill: 999px;             /* pilleri-/etäisyysmerkit */
     --pad-card: 1.05rem 1.15rem;
     --wmed: 500;               /* ainoa korostuspaino (perus 400) */
+
+    /* ===== REILA-token-kerros F1 (RINNAKKAINEN — ei kuluteta vielä komponenteissa;
+       F2/F3 alkavat käyttää). Vanhat muuttujat yllä pysyvät ennallaan ja toimivina.
+       Aksentti peritään per-kaupunki --blue:stä → seuraa Vaasa-pinkki/Kotka-oranssi
+       -ohitukset automaattisesti ILMAN että data-city-selektoreihin kosketaan. ===== */
+    --font-sans: 'Hanken Grotesk', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    /* Aksentti — koko jutun ydin: --accent = per-kaupunki brändiväri (--blue) */
+    --accent: var(--blue);
+    --accent-dark: var(--btn-hover);   /* fallback ennen color-mixiä (per-kaupunki hover) */
+    --accent-dark: color-mix(in srgb, var(--accent) 78%, #000);
+    --accent-soft: var(--hover);       /* fallback ennen color-mixiä (per-kaupunki vaalea tint) */
+    --accent-soft: color-mix(in srgb, var(--accent) 12%, #fff);   /* vaalea: hero/aktiivi */
+
+    /* Neutraalit/pinnat (vaalea — handoffin arvot). Teemakohtaiset: tumma + 2× kontrasti alla. */
+    --surface-page: #F1F4F3;     /* sivun tausta */
+    --surface: #FFFFFF;          /* pinta/kortti */
+    --field-bg: #F2F5F4;         /* kentän tausta */
+    --ink: #16201C;              /* päätekstiväri (AA 16.7:1 valkoisella) */
+    --ink-muted: #5C6B66;        /* muted (AA 5.6:1 valkoisella) */
+    --ink-muted-2: #6B7872;      /* muted-2: AA 4.61:1 valkoisella pinnalla; off-white page/field 4.17-4.20 → suosi surface-pintaa */
+    --line: #E6EBE8;             /* reuna oletus */
+    --line-header: #E3E8E5;      /* reuna header */
+    --line-divider: #ECEFED;     /* reuna jakaja */
+
+    /* Sekundääri — live-siru/määränpää. Globaali toistaiseksi (Kotka/Vaasa-konflikti → F4). */
+    --coral: #F0734E;            /* ei-tekstuaalinen aksentti (sirun tausta) */
+    --coral-text: #C2451F;       /* AA 5.04:1 valkoisella — käytä tätä tekstinä, EI valkoista coralin päällä */
+    --coral-soft: #FDE7DF;       /* fallback ennen color-mixiä */
+    --coral-soft: color-mix(in srgb, var(--coral) 14%, #fff);
+
+    /* Typo-skaala (handoff: H1 38/800). Variable-painot 400–800. */
+    --fs-h1: 2.375rem;  --fw-h1: 800;
+    --fs-h2: 1.75rem;
+    --fs-h3: 1.375rem;
+    --fs-h4: 1.125rem;
+    --fs-body: 1rem;
+    --fs-sm: 0.875rem;
+    --fs-xs: 0.75rem;
+    --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700; --fw-black: 800;
+    --lh-tight: 1.1; --lh-snug: 1.3; --lh-base: 1.5;
+
+    /* Radius (handoff): kortti 16, kenttä/nappi 13, segmentti 9. (vanhat --radius/-sm/-pill ennallaan) */
+    --radius-card: 16px;
+    --radius-control: 13px;
+    --radius-segment: 9px;
+
+    /* Varjot — 3 tasoa (Reila: hienovarainen kohotus; vanha --shadow:transparent ennallaan). */
+    --shadow-1: 0 1px 2px rgba(16, 32, 28, 0.06);
+    --shadow-2: 0 2px 8px rgba(16, 32, 28, 0.08);
+    --shadow-3: 0 8px 24px rgba(16, 32, 28, 0.12);
+
+    /* Spacing-asteikko (4px-perusta). */
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+    --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+
+    /* Kontaineri (handoff). */
+    --container-max: 1180px;
   }
   html[data-theme="dark"] {
     --blue: #7db3f0;
@@ -121,6 +206,24 @@
     --star: #e0b13e;
     --sev-severe: #e06050;
     --sev-warning: #e8a33d;
+    /* REILA F1 — tumman teeman peilaus (mitattu AA): accent-soft ei voi olla
+       valkopohjainen tummassa → mix mustaan. Neutraalit ja varjot tummalle. */
+    --accent-soft: var(--hover);       /* fallback ennen color-mixiä */
+    --accent-soft: color-mix(in srgb, var(--accent) 22%, #000);
+    --surface-page: #0D1311;     /* ink/page 15.9:1 */
+    --surface: #161F1B;          /* ink/surface 14.2:1 */
+    --field-bg: #1B2622;
+    --ink: #E8EDEA;
+    --ink-muted: #9DABA5;        /* /surface 7.1:1 */
+    --ink-muted-2: #7E8C86;      /* /surface 4.8:1 (AA normaali OK tummassa) */
+    --line: #2A352F;
+    --line-header: #243029;
+    --line-divider: #202B26;
+    --coral-soft: #2A1812;       /* fallback ennen color-mixiä (tumma, ei valkopohja) */
+    --coral-soft: color-mix(in srgb, var(--coral) 22%, #000);
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.40);
+    --shadow-2: 0 2px 10px rgba(0, 0, 0, 0.50);
+    --shadow-3: 0 10px 30px rgba(0, 0, 0, 0.60);
   }
   /* Korkea kontrasti (esteettömyys): maksimoi tekstin ja reunojen erottuvuus.
      Vaalea ja tumma erikseen; tumma+kontrasti voittaa specificityllä. */
@@ -131,6 +234,11 @@
     --rt-bg: #d4f0d4; --rt-text: #005800; --error-text: #990000;
     --sev-severe: #a00000; --sev-warning: #8a5200; --star: #6e5200;
     --shadow: transparent;
+    /* REILA F1 — vaalea suuri kontrasti: neutraalit puhtaiksi (sama intentio kuin --bg/--text yllä) */
+    --surface-page: #ffffff; --surface: #ffffff; --field-bg: #ffffff;
+    --ink: #000000; --ink-muted: #1a1a1a; --ink-muted-2: #1a1a1a;
+    --line: #000000; --line-header: #000000; --line-divider: #000000;
+    --accent-soft: #ffffff; --coral-soft: #ffffff;
   }
   html[data-theme="dark"][data-contrast="high"] {
     --bg: #000000; --card: #000000; --text: #ffffff; --muted: #e8e8e8;
@@ -139,6 +247,11 @@
     --rt-bg: #0a2a0a; --rt-text: #82ff82; --error-text: #ff8c8c;
     --sev-severe: #ff7060; --sev-warning: #ffc24d; --star: #ffcf52;
     --shadow: transparent;
+    /* REILA F1 — tumma suuri kontrasti: neutraalit puhtaiksi (sama intentio kuin --bg/--text yllä) */
+    --surface-page: #000000; --surface: #000000; --field-bg: #000000;
+    --ink: #ffffff; --ink-muted: #e8e8e8; --ink-muted-2: #e8e8e8;
+    --line: #ffffff; --line-header: #ffffff; --line-divider: #ffffff;
+    --accent-soft: #000000; --coral-soft: #000000;
   }
   /* Vaasan demo: Lift-brändin pinkki/magenta (per-kaupunki, data-city="vaasa"). Vain Vaasa muuttuu.
      Valkoisen tekstin alle (header/primary-napit) syvät AA-sävyt (mitattu ≥5:1), kirkas #E6007E
@@ -207,7 +320,7 @@
   }
   body {
     margin: 0;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-sans);   /* REILA F1: Hanken Grotesk + system-ui-fallback */
     background: var(--bg);
     color: var(--text);
     line-height: 1.5;
@@ -482,6 +595,7 @@
     font-weight: var(--wmed);
     font-size: 0.95rem;
     flex-shrink: 0;
+    font-variant-numeric: tabular-nums;   /* REILA F1: linjanumerot tasalevyisinä */
   }
   .muted { color: var(--muted); font-size: 0.9rem; }
   a.badge { text-decoration: none; }
@@ -705,7 +819,7 @@
   .plat-item .plat-head > a { margin-left: auto; }
   .plat-tag { display: inline-flex; min-width: 1.8rem; height: 1.8rem; padding: 0 0.45rem;
     align-items: center; justify-content: center; background: var(--blue); color: #fff;
-    border-radius: var(--radius-sm); font-weight: var(--wmed); }
+    border-radius: var(--radius-sm); font-weight: var(--wmed); font-variant-numeric: tabular-nums; }
   .plat-lines { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
   .plat-tabs { flex-wrap: wrap; }
   /* Liput ja hinnat */
