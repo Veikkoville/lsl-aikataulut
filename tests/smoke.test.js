@@ -714,47 +714,62 @@ const info = msg => console.log("INFO " + msg);
                      : fail("asetukset: lang-attribuutti ei vaihtunut (" + langNow + ")");
     await page.click('[data-lang-opt="fi"]');
   }
-  // Tekstikoko (esteettömyys): suurenna ja tarkista että root-fontti kasvaa
+  // Tuore settings-DOM ennen tekstikokotestiä (kielenvaihto yllä re-renderöi näkymän).
+  await page.goto(BASE + "/#/asetukset", { waitUntil: "networkidle2" }); await sleep(200);
+  // Tekstikoko (esteettömyys): suurenna ja tarkista että root-fontti kasvaa. Klikataan SIVUN
+  // sisällä (querySelector?.click) jotta puppeteerin elementtikahva ei vanhene jos näkymä
+  // re-renderöityy (ei HARNESS-virhettä), ja uusitaan muutaman kerran handler-kiinnitysikkunan yli.
   if (await page.$('[data-text-opt="large"]')) {
-    const before = await page.evaluate(() =>
-      parseFloat(getComputedStyle(document.documentElement).fontSize));
-    await page.click('[data-text-opt="large"]');
-    await sleep(200);
-    const res = await page.evaluate(() => ({
-      attr: document.documentElement.dataset.text,
-      size: parseFloat(getComputedStyle(document.documentElement).fontSize),
-    }));
-    res.attr === "large" && res.size > before
+    let before = 0, res = { attr: null, size: 0 }, grew = false;
+    for (let attempt = 0; attempt < 6 && !grew; attempt++) {
+      before = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+      await page.evaluate(() => document.querySelector('[data-text-opt="large"]')?.click());
+      await sleep(250);
+      res = await page.evaluate(() => ({
+        attr: document.documentElement.dataset.text,
+        size: parseFloat(getComputedStyle(document.documentElement).fontSize),
+      }));
+      grew = res.attr === "large" && res.size > before;
+    }
+    grew
       ? ok(`asetukset: suuri teksti kasvattaa fonttia (${before}→${res.size}px)`)
       : fail("asetukset: tekstikoko ei kasvanut");
-    await page.click('[data-text-opt="normal"]'); // palauta ettei vaikuta muihin
+    await page.evaluate(() => document.querySelector('[data-text-opt="normal"]')?.click()); // palauta
+    await sleep(120);
+    await page.evaluate(() => { localStorage.removeItem("textSize"); window.applyTextSize?.(); });
   }
 
-  // Korkea kontrasti OLETUKSENA päällä (tyhjä localStorage → high); kytkin sammuttaa ja valinta persistoituu.
-  if (await page.$('[data-contrast-opt="normal"]')) {
-    // tyhjennä valinta → testaa aito oletus
+  // F6: Suuri kontrasti EI aktivoidu automaattisesti — OLETUS = Normaali.
+  // Manuaalivalinta aktivoi + persistoituu; takaisin Normaaliin tuo sävyn takaisin.
+  if (await page.$('[data-contrast-opt="high"]')) {
+    // tuore lataus ILMAN localStoragea → silti Normaali (ei auto-laukaisua laitteen asetuksesta)
     await page.evaluate(() => localStorage.removeItem("contrast"));
     await page.reload({ waitUntil: "networkidle2" }); await sleep(200);
     const def = await page.evaluate(() => document.documentElement.dataset.contrast || "(none)");
-    def === "high"
-      ? ok("asetukset: korkea kontrasti OLETUKSENA päällä (tyhjä localStorage)")
-      : fail(`asetukset: kontrasti ei ollut oletuksena päällä (oli ${def})`);
-    const bgHigh = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    // sammuta (Normaali) → attribuutti pois + tausta muuttuu + muistetaan localStorageen
-    await page.click('[data-contrast-opt="normal"]'); await sleep(150);
-    const off = await page.evaluate(() => ({ attr: document.documentElement.dataset.contrast || "(none)",
+    def === "(none)"
+      ? ok("asetukset: kontrasti OLETUKSENA Normaali (ei auto-laukaisua)")
+      : fail(`asetukset: kontrasti laukesi automaattisesti (oli ${def})`);
+    const bgNormal = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    // manuaalinen Suuri kontrasti → aktivoituu + tausta muuttuu + muistetaan localStorageen
+    await page.click('[data-contrast-opt="high"]'); await sleep(150);
+    const on = await page.evaluate(() => ({ attr: document.documentElement.dataset.contrast || "(none)",
       bg: getComputedStyle(document.body).backgroundColor, ls: localStorage.getItem("contrast") }));
-    (off.attr === "(none)" && off.bg !== bgHigh && off.ls === "normal")
-      ? ok(`asetukset: kytkin sammuttaa kontrastin (tausta ${bgHigh}→${off.bg}, muistettu)`)
-      : fail("asetukset: kontrastin sammutus ei toiminut: " + JSON.stringify(off));
-    // persistoituu uudelleenlatauksen yli: tallennettu "normal" voittaa oletuksen
+    (on.attr === "high" && on.bg !== bgNormal && on.ls === "high")
+      ? ok(`asetukset: manuaalinen suuri kontrasti aktivoituu (tausta ${bgNormal}→${on.bg}, muistettu)`)
+      : fail("asetukset: manuaalinen suuri kontrasti ei toiminut: " + JSON.stringify(on));
+    // persistoituu uudelleenlatauksen yli: tallennettu "high" voittaa oletuksen
     await page.reload({ waitUntil: "networkidle2" }); await sleep(200);
     const after = await page.evaluate(() => document.documentElement.dataset.contrast || "(none)");
-    after === "(none)"
-      ? ok("asetukset: sammutettu kontrasti pysyy pois latauksen jälkeen")
-      : fail(`asetukset: kontrasti palasi päälle reloadin jälkeen (${after})`);
-    // kytke takaisin päälle (palauta oletustila muille testeille)
-    if (await page.$('[data-contrast-opt="high"]')) { await page.click('[data-contrast-opt="high"]'); await sleep(100); }
+    after === "high"
+      ? ok("asetukset: manuaalinen suuri kontrasti pysyy latauksen jälkeen")
+      : fail(`asetukset: suuri kontrasti ei säilynyt reloadin jälkeen (${after})`);
+    // takaisin Normaaliin → sävy palaa; palauta puhdas oletustila muille testeille
+    await page.click('[data-contrast-opt="normal"]'); await sleep(150);
+    const back = await page.evaluate(() => document.documentElement.dataset.contrast || "(none)");
+    back === "(none)"
+      ? ok("asetukset: takaisin Normaaliin (sävy palaa)")
+      : fail(`asetukset: Normaaliin paluu ei toiminut (${back})`);
+    await page.evaluate(() => localStorage.removeItem("contrast"));
   } else {
     fail("asetukset: kontrastivalinta puuttuu");
   }

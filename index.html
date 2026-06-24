@@ -52,10 +52,11 @@
   applyText();
   window.applyTextSize = applyText;
 
-  // Korkea kontrasti (esteettömyys): OLETUKSENA päällä (tyhjä localStorage → high), ennen
-  // maalausta. Tallennettu valinta voittaa: "normal" säilyy poissa, "high" päällä.
+  // Korkea kontrasti (esteettömyys): OLETUS = Normaali — ei auto-laukaisua laitteen
+  // asetuksesta (normaalitila on jo WCAG 2.1 AA). "Suuri kontrasti" vain käyttäjän omasta
+  // Asetukset-valinnasta, joka persistoituu localStorageen ("high"). Ennen maalausta.
   function applyContrast() {
-    if ((localStorage.getItem("contrast") || "high") === "high")
+    if ((localStorage.getItem("contrast") || "normal") === "high")
       document.documentElement.dataset.contrast = "high";
     else delete document.documentElement.dataset.contrast;
   }
@@ -277,7 +278,7 @@
   html[data-city="vaasa"] {                                  /* vaalea, normaali */
     --blue: #cc0077; --btn-bg: #cc0077; --btn-hover: #a8005e;
   }
-  html[data-city="vaasa"][data-contrast="high"] {            /* vaalea, suuri kontrasti (OLETUS) */
+  html[data-city="vaasa"][data-contrast="high"] {            /* vaalea, suuri kontrasti (manuaalinen) */
     --blue: #a30062; --btn-bg: #a30062; --btn-hover: #7d004a;
   }
   html[data-theme="dark"][data-city="vaasa"] {               /* tumma, normaali */
@@ -297,7 +298,7 @@
   html[data-city="kotka"] {                                  /* vaalea, normaali */
     --blue: #a8500f; --btn-bg: #a8500f; --btn-hover: #8a4109;
   }
-  html[data-city="kotka"][data-contrast="high"] {            /* vaalea, suuri kontrasti (OLETUS) */
+  html[data-city="kotka"][data-contrast="high"] {            /* vaalea, suuri kontrasti (manuaalinen) */
     --blue: #8a4109; --btn-bg: #8a4109; --btn-hover: #6e340b;
   }
   html[data-theme="dark"][data-city="kotka"] {               /* tumma, normaali */
@@ -3913,7 +3914,7 @@ function setContrast(v) {
   syncControls();
 }
 function toggleContrast() {
-  setContrast((localStorage.getItem("contrast") || "high") === "high" ? "normal" : "high");
+  setContrast((localStorage.getItem("contrast") || "normal") === "high" ? "normal" : "high");
 }
 function setLanguage(v) {
   if (!STRINGS[v]) return;
@@ -3929,7 +3930,7 @@ function setLanguage(v) {
 // Heijastaa nykyisen tilan kaikkiin kontrolleihin (header + Asetukset-paneeli).
 function syncControls() {
   const ts = localStorage.getItem("textSize") || "normal";
-  const ct = localStorage.getItem("contrast") || "high";
+  const ct = localStorage.getItem("contrast") || "normal";
   document.querySelectorAll("[data-text-opt]").forEach(b =>
     b.setAttribute("aria-pressed", String(b.dataset.textOpt === ts)));
   document.querySelectorAll("[data-contrast-opt]").forEach(b =>
@@ -4001,7 +4002,7 @@ function bindTextSizeSetting() {
 const CONTRAST_OPTIONS = [["normal", "contrastNormal"], ["high", "contrastHigh"]];
 
 function contrastSettingHtml() {
-  const cur = localStorage.getItem("contrast") || "high";
+  const cur = localStorage.getItem("contrast") || "normal";
   return `
     <div class="card">
       <h2>${t("contrastTitle")}</h2>
