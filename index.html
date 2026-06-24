@@ -1310,8 +1310,10 @@
   }
   .plan-aside .aside-card { background: var(--surface); border: 1px solid var(--line);
     border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-1); }
-  #planAsideMap { height: 360px; width: 100%; background:
-    repeating-linear-gradient(135deg, var(--field-bg) 0 14px, var(--surface) 14px 28px); }
+  /* Sivupalkkikartta: kaupungin kartta näkyy heti (initAsideCity) → neutraali latauspohja
+     (raidoitettu placeholder poistettu). Leaflet-tiilet peittävät pohjan kun kartta latautuu. */
+  #planAsideMap { height: 360px; width: 100%; background: var(--field-bg); }
+  /* .aside-empty = pre-JS-fallback (initAsideCity tyhjentää sen); ei näy normaalitilassa */
   .plan-aside .aside-empty { display: flex; align-items: center; justify-content: center; height: 100%;
     color: var(--ink-muted-2); font-size: 14px; padding: 1rem; text-align: center; }
 
@@ -8107,6 +8109,35 @@ async function viewPlan(parts) {
       .map(l => [l.route.gtfsId, { gtfsId: l.route.gtfsId, shortName: l.route.shortName }])).values()];
     if (transitRoutes.length) startVehicles(map, transitRoutes);
   };
+  // Sivupalkkikartan ALKUTILA (desktop): näytä kaupungin kartta heti, ei placeholderia. Sama
+  // Leaflet/tile-pohja kuin muualla; keskitä CONFIG:n kaupunkikeskipisteeseen (AREA.focus, sama
+  // lähde kuin linjasivun kartta). Jos lähtö/määränpää tiedossa → accent/dest-merkit + rajaus
+  // näihin. Reitin valinta (drawAside) korvaa tämän ennallaan → ei kosketa reittikäytökseen.
+  const initAsideCity = async () => {
+    if (!asideActive() || asideMap) return;        // vain desktop-sivupalkki; ei ylikirjoiteta reittikarttaa
+    const el = document.getElementById("planAsideMap");
+    if (!el) return;
+    await ensureLeaflet();
+    if (asideMap) return;                          // reitti ehti valituksi awaitin aikana → älä piirrä päälle
+    el.innerHTML = "";                             // poista raidoitettu placeholder
+    const map = makeMap("planAsideMap", [AREA.focus.lat, AREA.focus.lon], 13);
+    asideMap = map;
+    try { map.invalidateSize(false); } catch (e) {}
+    const cs = getComputedStyle(document.documentElement);
+    const from = planState.from, to = planState.to;
+    let b = null;
+    if (from && Number.isFinite(from.lat) && Number.isFinite(from.lon)) {
+      L.circleMarker([from.lat, from.lon], { ...STOP_MARKER, fillColor: cs.getPropertyValue("--accent").trim() || "#0a4ea3" })
+        .addTo(map).bindPopup(t("origin"));
+      b = L.latLngBounds([[from.lat, from.lon]]);
+    }
+    if (to && Number.isFinite(to.lat) && Number.isFinite(to.lon)) {
+      L.circleMarker([to.lat, to.lon], { ...STOP_MARKER, fillColor: cs.getPropertyValue("--dest").trim() || "#F0734E" })
+        .addTo(map).bindPopup(t("destination"));
+      b = b ? b.extend([to.lat, to.lon]) : L.latLngBounds([[to.lat, to.lon]]);
+    }
+    if (b && b.isValid()) map.fitBounds(b, { padding: [40, 40], maxZoom: 15 });
+  };
   const sortNodes = arr => {
     const c = arr.slice();
     if (planSort === "fast") c.sort((a, b) => (new Date(a.end) - new Date(a.start)) - (new Date(b.end) - new Date(b.start)));
@@ -8260,6 +8291,8 @@ async function viewPlan(parts) {
   };
 
   document.getElementById("planForm").addEventListener("submit", e => { e.preventDefault(); search(false); });
+  // Sivupalkkikartan alkutila: kaupungin kartta heti (desktop) — ennen mahdollista hakua.
+  initAsideCity().catch(() => {});
   // URL:sta tultaessa (jaettu linkki) tai paluunavigoinnissa haku käynnistyy heti
   if (planState.from && planState.to) search(false);
 }
