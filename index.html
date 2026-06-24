@@ -26,6 +26,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
+<!-- REILA F1: esilataa kriittinen latin-fontti (LCP-otsikko); crossorigin pakollinen myös samalle originille (fontit haetaan CORS-tilassa) -->
+<link rel="preload" href="fonts/hanken-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script>
 // Teema ratkaistaan ennen ensimmäistä maalausta välähdyksen välttämiseksi
 (function () {
@@ -50,10 +52,11 @@
   applyText();
   window.applyTextSize = applyText;
 
-  // Korkea kontrasti (esteettömyys): OLETUKSENA päällä (tyhjä localStorage → high), ennen
-  // maalausta. Tallennettu valinta voittaa: "normal" säilyy poissa, "high" päällä.
+  // Korkea kontrasti (esteettömyys): OLETUS = Normaali — ei auto-laukaisua laitteen
+  // asetuksesta (normaalitila on jo WCAG 2.1 AA). "Suuri kontrasti" vain käyttäjän omasta
+  // Asetukset-valinnasta, joka persistoituu localStorageen ("high"). Ennen maalausta.
   function applyContrast() {
-    if ((localStorage.getItem("contrast") || "high") === "high")
+    if ((localStorage.getItem("contrast") || "normal") === "high")
       document.documentElement.dataset.contrast = "high";
     else delete document.documentElement.dataset.contrast;
   }
@@ -67,6 +70,31 @@
 })();
 </script>
 <style>
+  /* ============================================================
+     REILA-ILME F1 — brändifontti (SELF-HOST, GDPR: ei Google CDN).
+     Kuntalais-/julkissektorikäyttö → fonttitiedostot tarjotaan samasta
+     originista (GitHub Pages), EI fonts.gstatic.com → loppukäyttäjän IP
+     ei vuoda Googlelle. Hanken Grotesk on VARIABLE font (wght-akseli
+     100–900) → yksi woff2 per subset kattaa kaikki painot 400/500/600/
+     700/800. Skandit ä ö å Ä Ö Å ovat latin-subsetissa (U+0000–00FF);
+     numerot ovat tabular (560u) oletuksena → kellot/hinnat linjautuvat
+     ilman erillistä tnum-featurea (jota fontissa ei ole). */
+  @font-face {
+    font-family: 'Hanken Grotesk';
+    font-style: normal;
+    font-weight: 100 900;          /* variable: kattaa 400/500/600/700/800 */
+    font-display: swap;
+    src: url('fonts/hanken-grotesk-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Hanken Grotesk';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('fonts/hanken-grotesk-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
   :root {
     /* Transit-grade design-tokenit. Yksi vahva sininen primääri + neutraalit harmaat.
        Semanttiset värit VAIN merkitykseen: --green = ok/nopein, --sev-warning = häiriö,
@@ -98,6 +126,78 @@
     --pill: 999px;             /* pilleri-/etäisyysmerkit */
     --pad-card: 1.05rem 1.15rem;
     --wmed: 500;               /* ainoa korostuspaino (perus 400) */
+
+    /* ===== REILA-token-kerros F1 (RINNAKKAINEN — ei kuluteta vielä komponenteissa;
+       F2/F3 alkavat käyttää). Vanhat muuttujat yllä pysyvät ennallaan ja toimivina.
+       Aksentti peritään per-kaupunki --blue:stä → seuraa Vaasa-pinkki/Kotka-oranssi
+       -ohitukset automaattisesti ILMAN että data-city-selektoreihin kosketaan. ===== */
+    --font-sans: 'Hanken Grotesk', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    /* Aksentti — koko jutun ydin: --accent = per-kaupunki brändiväri (--blue) */
+    --accent: var(--blue);
+    --accent-dark: var(--btn-hover);   /* fallback ennen color-mixiä (per-kaupunki hover) */
+    --accent-dark: color-mix(in srgb, var(--accent) 78%, #000);
+    --accent-soft: var(--hover);       /* fallback ennen color-mixiä (per-kaupunki vaalea tint) */
+    --accent-soft: color-mix(in srgb, var(--accent) 12%, #fff);   /* vaalea: hero/aktiivi */
+
+    /* Neutraalit/pinnat (vaalea — handoffin arvot). Teemakohtaiset: tumma + 2× kontrasti alla. */
+    --surface-page: #F1F4F3;     /* sivun tausta */
+    --surface: #FFFFFF;          /* pinta/kortti */
+    --field-bg: #F2F5F4;         /* kentän tausta */
+    --ink: #16201C;              /* päätekstiväri (AA 16.7:1 valkoisella) */
+    --ink-muted: #5C6B66;        /* muted (AA 5.6:1 valkoisella) */
+    --ink-muted-2: #6B7872;      /* muted-2: AA 4.61:1 valkoisella pinnalla; off-white page/field 4.17-4.20 → suosi surface-pintaa */
+    --line: #E6EBE8;             /* reuna oletus */
+    --line-header: #E3E8E5;      /* reuna header */
+    --line-divider: #ECEFED;     /* reuna jakaja */
+
+    /* F4: coralin kaksi semanttista käyttöä eriytetty omiin tokeneihinsa.
+       --coral = LIVE / kiireellisyys (PYSYY GLOBAALINA #F0734E kaikilla kaupungeilla:
+       "Lähtee X min" -pillerit, punainen/lämmin = kiireellisyys on universaali konventio). */
+    --coral: #F0734E;            /* ei-tekstuaalinen aksentti (sirun tausta) */
+    --coral-text: #C2451F;       /* AA 5.04:1 valkoisella — käytä tätä tekstinä, EI valkoista coralin päällä */
+    --coral-soft: #FDE7DF;       /* fallback ennen color-mixiä */
+    --coral-soft: color-mix(in srgb, var(--coral) 14%, #fff);
+    /* F4: live-pillerin TEKSTI ≥4.5:1 coral-soft-pohjalla. Vaalea = syvennetty coral
+       #A8330F (5.79:1 #fdebe6:lla, 6.68:1 valkoisella). Tumma-pari html[data-theme=dark]:ssa.
+       Piste + pulssi + --coral pysyvät ennallaan (live-semantiikka). */
+    --live-text: #A8330F;
+
+    /* --dest = MÄÄRÄNPÄÄ / spatiaalinen merkki (Minne-piste hakukortissa, kartan
+       määränpää-pin, laajennetun detaljin viimeinen solmu). Oletus = coral; Kotka
+       ylikirjoittaa brändivihreäksi (oranssi accent + vihreä dest → ei warm-on-warm).
+       Pari: lähtö = --accent, määränpää = --dest kaikkialla. */
+    --dest: #F0734E;             /* oletus = coral (Lahti/Salo/Kajaani/Vaasa) */
+    --dest-edge: #C2451F;        /* dest-pisteen reuna: WCAG 1.4.11 — coral/valkoinen 2.89<3:1
+                                    → 1px reuna (#C2451F 5.04:1 valkoisella) nostaa rajan yli */
+
+    /* Typo-skaala (handoff: H1 38/800). Variable-painot 400–800. */
+    --fs-h1: 2.375rem;  --fw-h1: 800;
+    --fs-h2: 1.75rem;
+    --fs-h3: 1.375rem;
+    --fs-h4: 1.125rem;
+    --fs-body: 1rem;
+    --fs-sm: 0.875rem;
+    --fs-xs: 0.75rem;
+    --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700; --fw-black: 800;
+    --lh-tight: 1.1; --lh-snug: 1.3; --lh-base: 1.5;
+
+    /* Radius (handoff): kortti 16, kenttä/nappi 13, segmentti 9. (vanhat --radius/-sm/-pill ennallaan) */
+    --radius-card: 16px;
+    --radius-control: 13px;
+    --radius-segment: 9px;
+
+    /* Varjot — 3 tasoa (Reila: hienovarainen kohotus; vanha --shadow:transparent ennallaan). */
+    --shadow-1: 0 1px 2px rgba(16, 32, 28, 0.06);
+    --shadow-2: 0 2px 8px rgba(16, 32, 28, 0.08);
+    --shadow-3: 0 8px 24px rgba(16, 32, 28, 0.12);
+
+    /* Spacing-asteikko (4px-perusta). */
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+    --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+
+    /* Kontaineri (handoff). */
+    --container-max: 1180px;
   }
   html[data-theme="dark"] {
     --blue: #7db3f0;
@@ -121,6 +221,27 @@
     --star: #e0b13e;
     --sev-severe: #e06050;
     --sev-warning: #e8a33d;
+    /* REILA F1 — tumman teeman peilaus (mitattu AA): accent-soft ei voi olla
+       valkopohjainen tummassa → mix mustaan. Neutraalit ja varjot tummalle. */
+    --accent-soft: var(--hover);       /* fallback ennen color-mixiä */
+    --accent-soft: color-mix(in srgb, var(--accent) 22%, #000);
+    --surface-page: #0D1311;     /* ink/page 15.9:1 */
+    --surface: #161F1B;          /* ink/surface 14.2:1 */
+    --field-bg: #1B2622;
+    --ink: #E8EDEA;
+    --ink-muted: #9DABA5;        /* /surface 7.1:1 */
+    --ink-muted-2: #7E8C86;      /* /surface 4.8:1 (AA normaali OK tummassa) */
+    --line: #2A352F;
+    --line-header: #243029;
+    --line-divider: #202B26;
+    --coral-soft: #2A1812;       /* fallback ennen color-mixiä (tumma, ei valkopohja) */
+    --coral-soft: color-mix(in srgb, var(--coral) 22%, #000);
+    /* F4: tummassa live-pillerin teksti vaaleaksi coraliksi tummalle coral-soft-pohjalle
+       (#351911): #F0A085 = 7.76:1 (norm) / 10.07:1 (high #000). Piste/pulssi ennallaan. */
+    --live-text: #F0A085;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.40);
+    --shadow-2: 0 2px 10px rgba(0, 0, 0, 0.50);
+    --shadow-3: 0 10px 30px rgba(0, 0, 0, 0.60);
   }
   /* Korkea kontrasti (esteettömyys): maksimoi tekstin ja reunojen erottuvuus.
      Vaalea ja tumma erikseen; tumma+kontrasti voittaa specificityllä. */
@@ -131,6 +252,11 @@
     --rt-bg: #d4f0d4; --rt-text: #005800; --error-text: #990000;
     --sev-severe: #a00000; --sev-warning: #8a5200; --star: #6e5200;
     --shadow: transparent;
+    /* REILA F1 — vaalea suuri kontrasti: neutraalit puhtaiksi (sama intentio kuin --bg/--text yllä) */
+    --surface-page: #ffffff; --surface: #ffffff; --field-bg: #ffffff;
+    --ink: #000000; --ink-muted: #1a1a1a; --ink-muted-2: #1a1a1a;
+    --line: #000000; --line-header: #000000; --line-divider: #000000;
+    --accent-soft: #ffffff; --coral-soft: #ffffff;
   }
   html[data-theme="dark"][data-contrast="high"] {
     --bg: #000000; --card: #000000; --text: #ffffff; --muted: #e8e8e8;
@@ -139,6 +265,11 @@
     --rt-bg: #0a2a0a; --rt-text: #82ff82; --error-text: #ff8c8c;
     --sev-severe: #ff7060; --sev-warning: #ffc24d; --star: #ffcf52;
     --shadow: transparent;
+    /* REILA F1 — tumma suuri kontrasti: neutraalit puhtaiksi (sama intentio kuin --bg/--text yllä) */
+    --surface-page: #000000; --surface: #000000; --field-bg: #000000;
+    --ink: #ffffff; --ink-muted: #e8e8e8; --ink-muted-2: #e8e8e8;
+    --line: #ffffff; --line-header: #ffffff; --line-divider: #ffffff;
+    --accent-soft: #000000; --coral-soft: #000000;
   }
   /* Vaasan demo: Lift-brändin pinkki/magenta (per-kaupunki, data-city="vaasa"). Vain Vaasa muuttuu.
      Valkoisen tekstin alle (header/primary-napit) syvät AA-sävyt (mitattu ≥5:1), kirkas #E6007E
@@ -147,7 +278,7 @@
   html[data-city="vaasa"] {                                  /* vaalea, normaali */
     --blue: #cc0077; --btn-bg: #cc0077; --btn-hover: #a8005e;
   }
-  html[data-city="vaasa"][data-contrast="high"] {            /* vaalea, suuri kontrasti (OLETUS) */
+  html[data-city="vaasa"][data-contrast="high"] {            /* vaalea, suuri kontrasti (manuaalinen) */
     --blue: #a30062; --btn-bg: #a30062; --btn-hover: #7d004a;
   }
   html[data-theme="dark"][data-city="vaasa"] {               /* tumma, normaali */
@@ -167,7 +298,7 @@
   html[data-city="kotka"] {                                  /* vaalea, normaali */
     --blue: #a8500f; --btn-bg: #a8500f; --btn-hover: #8a4109;
   }
-  html[data-city="kotka"][data-contrast="high"] {            /* vaalea, suuri kontrasti (OLETUS) */
+  html[data-city="kotka"][data-contrast="high"] {            /* vaalea, suuri kontrasti (manuaalinen) */
     --blue: #8a4109; --btn-bg: #8a4109; --btn-hover: #6e340b;
   }
   html[data-theme="dark"][data-city="kotka"] {               /* tumma, normaali */
@@ -177,6 +308,12 @@
     --blue: #f0a866; --btn-bg: #964810; --btn-hover: #a8500f;
   }
   html[data-city="kotka"] header { border-bottom: 3px solid #dc7b38; }
+  /* F4: Kotkan määränpää = brändivihreä (Jonne ja Minne -logon vihreä, syvennetty AA:han)
+     → lähtö = oranssi (accent), määränpää = vihreä → selvä spatiaalinen erottuvuus, on-brand.
+     Vaalea/kontrasti: #4e7a2e (5.06:1 valkoisella). Tumma: nostettu #6aa840 (5.85:1 tummalla
+     pinnalla, #4e7a2e jäisi 3.33:1). Reuna syvävihreä. EI kirkasta #80bc54 (pisteenä <2:1). */
+  html[data-city="kotka"] { --dest: #4e7a2e; --dest-edge: #355420; }
+  html[data-theme="dark"][data-city="kotka"] { --dest: #6aa840; --dest-edge: #2f4a1c; }
   html[data-contrast="high"] a { text-decoration: underline; }
   html[data-contrast="high"] .card,
   html[data-contrast="high"] button.secondary,
@@ -207,7 +344,7 @@
   }
   body {
     margin: 0;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-sans);   /* REILA F1: Hanken Grotesk + system-ui-fallback */
     background: var(--bg);
     color: var(--text);
     line-height: 1.5;
@@ -295,10 +432,14 @@
   /* min-height pitää footerin aina taitteen alapuolella, joten näkymän
      sisällön asynkroninen latautuminen ei työnnä sitä näkyvistä (CLS) */
   main { max-width: 760px; margin: 0 auto; padding: 1rem; min-height: 100vh; }
+  /* REILA F3: peruskortti saa Reila-signaalin — suurempi pyöristys + hienovarainen
+     kohotus. Tokenit (--card/--border) pysyvät, joten print/dark/kontrasti/per-kaupunki
+     -mekaniikka ei muutu; print nollaa varjon erikseen (ks. @media print). */
   .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-2);
     padding: var(--pad-card);
     margin-bottom: 1rem;
   }
@@ -346,7 +487,7 @@
     font-size: 0.92rem; cursor: pointer; }
   .acc-toggle input { width: auto; min-height: auto; margin: 0; }
   /* Lähestyvä bussi -hälytys */
-  .approach-banner { margin: 0.2rem 0 0.6rem; padding: 0.6rem 0.8rem; border-radius: 10px;
+  .approach-banner { margin: 0.2rem 0 0.6rem; padding: 0.6rem 0.8rem; border-radius: var(--radius-control);
     background: var(--rt-bg); color: var(--rt-text); border: 1px solid var(--rt-text); font-size: 0.95rem; }
   button.secondary.armed { border-color: var(--blue); color: var(--blue);
     background: var(--hover); font-weight: 600; }
@@ -366,16 +507,23 @@
     .foot-cols { grid-template-columns: 1fr 1fr; }
     .foot-brand { grid-column: 1 / -1; }
   }
+  /* REILA F3: kentät saavat pehmeän harmaan pohjan + 13px pyöristyksen + accent-fokuksen.
+     --field-bg/--line ovat teemakohtaisia (tumma/kontrasti/print määritelty) → toimii
+     kaikissa konteksteissa; per-kaupunki seuraa accentia fokusreunassa. */
   input[type="search"], input[type="password"], input[type="date"],
   input[type="datetime-local"], input[type="text"], select {
     font: inherit;
-    padding: 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-control);
     width: 100%;
     min-height: 44px;
-    background: var(--card);
+    background: var(--field-bg);
     color: var(--text);
+  }
+  input[type="search"]:focus, input[type="password"]:focus, input[type="date"]:focus,
+  input[type="datetime-local"]:focus, input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
   }
   select, input[type="datetime-local"] { width: auto; }
   .field { margin: 0.5rem 0; }
@@ -385,8 +533,9 @@
     position: absolute;
     left: 0; right: 0; top: 100%;
     background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    border: 1px solid var(--line);
+    border-radius: 0 0 var(--radius-control) var(--radius-control);
+    box-shadow: var(--shadow-2);
     max-height: 15rem;
     overflow: auto;
     z-index: 500;
@@ -397,7 +546,7 @@
     padding: 0.5rem 0.95rem;
     min-height: 44px;            /* riittävä kosketuskohde (myös ikäihmisille) */
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-control);   /* REILA F3: 13px kentät/napit */
     background: var(--btn-bg);
     color: #fff;
     cursor: pointer;
@@ -414,7 +563,7 @@
   a.btnlink {
     display: inline-flex; align-items: center; gap: 0.4rem; font: inherit; font-weight: var(--wmed);
     padding: 0.5rem 0.95rem; min-height: 44px; box-sizing: border-box;
-    border-radius: var(--radius-sm); background: var(--btn-bg); color: #fff; text-decoration: none;
+    border-radius: var(--radius-control); background: var(--btn-bg); color: #fff; text-decoration: none;
   }
   a.btnlink:hover { background: var(--btn-hover); }
   /* Toissijainen (outline) painike: erottaa avustavat toiminnot ensisijaisesta */
@@ -482,6 +631,7 @@
     font-weight: var(--wmed);
     font-size: 0.95rem;
     flex-shrink: 0;
+    font-variant-numeric: tabular-nums;   /* REILA F1: linjanumerot tasalevyisinä */
   }
   .muted { color: var(--muted); font-size: 0.9rem; }
   a.badge { text-decoration: none; }
@@ -521,12 +671,19 @@
   details.infosum summary strong { font-weight: var(--wmed); }
   details.infosum[open] summary { margin-bottom: 0.3rem; }
   .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
+  /* REILA F3: segmentoidut valitsimet (päivätyyppi/kieli/teema/tekstikoko/kontrasti/
+     tulostevälilehdet). Inaktiivi = neutraali kenttäpohja + reuna, aktiivi = accent-täyttö.
+     Segmenttipyöristys 9px. Accent = per-kaupunki brändiväri (Lahti/Salo/Kajaani sininen,
+     Kotka oranssi, Vaasa pinkki) → seuraa automaattisesti. */
   .tabs button {
-    background: var(--chip);
+    background: var(--field-bg);
     color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-segment);
     font-size: 0.85rem;
   }
-  .tabs button[aria-pressed="true"] { background: var(--btn-bg); color: #fff; }
+  .tabs button:hover { border-color: var(--accent); }
+  .tabs button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
   /* Tulosteet-keskuksen päävälilehdet: hieman suuremmat kuin päivätyyppi-chipit */
   .tabs .ptab { font-size: 0.95rem; padding: 0.5rem 0.9rem; min-height: 44px; }
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -545,7 +702,7 @@
   .timegrid { display: flex; flex-wrap: wrap; gap: 0.35rem; }
   .timegrid span {
     background: var(--chip);
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     padding: 0.28rem 0.6rem;
     font-size: 1.05rem;
     font-variant-numeric: tabular-nums;
@@ -554,7 +711,7 @@
   .timegrid span.rt { background: var(--rt-bg); color: var(--rt-text); font-weight: 600; }
   /* Klikattavat lähdöt: napit peilaavat chip-ulkoasun; valittu vuoro korostettu */
   .timegrid button { font: inherit; cursor: pointer; min-height: 0;
-    background: var(--chip); border: 1px solid transparent; border-radius: 5px;
+    background: var(--chip); border: 1px solid transparent; border-radius: var(--radius-sm);
     padding: 0.28rem 0.6rem; font-size: 1.05rem; font-variant-numeric: tabular-nums; color: var(--text); }
   .timegrid button.past { background: none; color: var(--muted); border-color: var(--border); }
   .timegrid button.rt { background: var(--rt-bg); color: var(--rt-text); font-weight: 600; }
@@ -636,8 +793,8 @@
   /* QR-koodit (näyttö + juliste) */
   .embedbox { margin: 0.5rem 0; display: flex; flex-direction: column; gap: 0.5rem; }
   .embed-field { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
-  .embed-field input, .embed-field textarea { font: inherit; font-size: 0.85rem; padding: 0.4rem;
-    border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text);
+  .embed-field input, .embed-field textarea { font: inherit; font-size: 0.85rem; padding: 0.45rem 0.55rem;
+    border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--field-bg); color: var(--text);
     width: 100%; box-sizing: border-box; resize: vertical; }
   .qrbox { margin: 0.6rem 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; }
   canvas.qrimg { width: 200px; height: 200px; image-rendering: pixelated;
@@ -655,12 +812,12 @@
     margin: 0; padding: 0.5rem 0;
     background: var(--card); border-bottom: 1px solid var(--border);
   }
-  .error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); padding: 0.6rem; border-radius: 6px; }
+  .error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); padding: 0.6rem 0.8rem; border-radius: var(--radius-control); }
   details.alert {
     border-left: 4px solid var(--blue);
     background: var(--card);
-    border-radius: 4px;
-    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.7rem;
     margin: 0.4rem 0;
   }
   details.alert summary { cursor: pointer; font-weight: var(--wmed); }
@@ -679,8 +836,10 @@
   html[data-theme="dark"] p.co2 { color: #5fd07f; }
   #fbForm label { display: block; font-size: 0.85rem; color: var(--muted); margin: 0.6rem 0 0.15rem; }
   #fbForm select { width: 100%; }
-  #fbForm textarea { font: inherit; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px;
-    width: 100%; background: var(--card); color: var(--text); resize: vertical; }
+  #fbForm textarea { font: inherit; padding: 0.55rem 0.7rem; border: 1px solid var(--line);
+    border-radius: var(--radius-control);
+    width: 100%; background: var(--field-bg); color: var(--text); resize: vertical; }
+  #fbForm textarea:focus { border-color: var(--accent); }
   #fbForm button[type="submit"] { margin-top: 0.8rem; }
   #fbStatus { margin: 0.6rem 0 0; }
   #fbStatus.ok-msg { color: #1e7d3a; font-weight: 600; }
@@ -699,18 +858,19 @@
     justify-content: center; background: var(--blue); color: #fff; border: 2px solid #fff;
     border-radius: var(--radius-sm); font-weight: var(--wmed); font-size: 0.85rem; box-sizing: border-box; }
   .plat-list { list-style: none; padding: 0; margin: 0.5rem 0 0; display: grid; gap: 0.5rem; }
-  .plat-item { border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.75rem; }
+  .plat-item { border: 1px solid var(--line); border-radius: var(--radius-card);
+    box-shadow: var(--shadow-1); padding: 0.7rem 0.85rem; }
   .plat-item .plat-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
   .plat-name { font-weight: var(--wmed); }
   .plat-item .plat-head > a { margin-left: auto; }
   .plat-tag { display: inline-flex; min-width: 1.8rem; height: 1.8rem; padding: 0 0.45rem;
     align-items: center; justify-content: center; background: var(--blue); color: #fff;
-    border-radius: var(--radius-sm); font-weight: var(--wmed); }
+    border-radius: var(--radius-sm); font-weight: var(--wmed); font-variant-numeric: tabular-nums; }
   .plat-lines { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
   .plat-tabs { flex-wrap: wrap; }
   /* Liput ja hinnat */
-  .notice { background: var(--rt-bg); border-left: 4px solid var(--green); border-radius: 6px;
-    padding: 0.6rem 0.8rem; margin: 0.4rem 0 0.9rem; }
+  .notice { background: var(--rt-bg); border-left: 4px solid var(--green); border-radius: var(--radius-control);
+    padding: 0.7rem 0.9rem; margin: 0.4rem 0 0.9rem; }
   .notice p { margin: 0.3rem 0 0; }
   .fare-wrap { overflow-x: auto; margin: 0.3rem 0 0.5rem; }
   table.fare { width: 100%; border-collapse: collapse; }
@@ -870,6 +1030,12 @@
     --border: #1a1a1a; --hover: #eaf0fb; --chip: #e7edf6;
     --blue: #0033cc; --btn-bg: #0033cc; --btn-hover: #001f99;
     --rt-bg: #d6f0d6; --rt-text: #00540f;
+    /* REILA F3: tiski on tahallaan pakotettu kirkas korkea kontrasti riippumatta teemasta.
+       F3 alkoi kuluttaa Reila-neutraaleja (--field-bg/--line/--accent/--ink) kentissä/napeissa,
+       joten ne on pakotettava tässä myös → tumma teema ei vuoda tiskin valkoiselle pinnalle. */
+    --field-bg: #ffffff; --line: #1a1a1a; --surface: #ffffff;
+    --ink: #111111; --ink-muted: #2f2f2f; --ink-muted-2: #2f2f2f;
+    --accent: #0033cc; --accent-dark: #001f99;
     background: #ffffff; color: #111111; min-height: 100vh; box-sizing: border-box;
     padding: clamp(1rem, 2.2vw, 2.2rem);
     font-size: clamp(1.05rem, 1.35vw, 1.3rem);
@@ -948,8 +1114,10 @@
   /* Hierarkiapassi: nosto-otsikot ink-väriin, ikonit neutraaliin harmaaseen
      → vahva brändiväri jää headeriin + primäärinappiin (ei kilpailevaa sinistä). */
   .hl .ic { color: var(--muted); width: 1.4em; height: 1.4em; }
-  .hl-t { font-weight: var(--wmed); color: var(--text); }
-  .hl-d { font-size: 0.85rem; color: var(--muted); }
+  /* SV-ylivuotosuoja: pitkä yhdyssana (esim. "Störningsmeddelanden") katkeaa riville
+     eikä valu kortin reunan yli — myös sarakkeen ollessa kapea (flex/grid-lapsi). */
+  .hl-t { font-weight: var(--wmed); color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+  .hl-d { font-size: 0.85rem; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
   .hero-journey { border-top: 1px solid var(--border); padding-top: 0.8rem; }
   .hero-journey-h { display: flex; align-items: center; gap: 0.4rem; font-size: 1.05rem;
     font-weight: var(--wmed); margin: 0 0 0.5rem; color: var(--muted); }
@@ -1039,6 +1207,176 @@
   .alerts-banner .alertsum { padding: 0.5rem 0.85rem; margin-bottom: 0; }
   .alerts-banner .infosum { padding: 0.5rem 0.85rem; margin-bottom: 0; }
   .alerts-banner .alertsum summary, .alerts-banner .infosum summary { font-size: 0.95rem; }
+
+  /* ============================================================
+     REILA F2 — reittihaun visuaalinen layout (hakukortti + A->B-tuloskortit
+     + karttasivupalkki). Kuluttaa F1-tokeneita (--accent/-soft/-dark, --surface,
+     --ink, --line, --field-bg, --radius-card/-control/-segment, --shadow-*, coral).
+     KAIKKI värit --accent-ketjun kautta → per-kaupunki brändiväri seuraa.
+     Ei kosketa per-kaupunki html[data-city] -selektoreihin. ============ */
+  :root { --bus: #26332C; --bus-text: #ffffff; }          /* bussimerkki (neutraali tumma) */
+  html[data-theme="dark"] { --bus: #3a4a42; --bus-text: #ffffff; }   /* tummassa vaaleampi, erottuu kortista */
+  html[data-contrast="high"] { --bus: #000000; }
+  html[data-theme="dark"][data-contrast="high"] { --bus: #ffffff; --bus-text: #000000; }
+
+  /* ---- REILA F5: hero-kaista (ilmava, tuotemainen). Tausta = --accent-soft → seuraa
+     per-kaupunki-väriä (Lahti/Salo/Kajaani sininen-soft, Kotka oranssi-soft, Vaasa pinkki-soft)
+     ja teemaa automaattisesti. Suuri padding-bottom → seuraava .searchcard.sc-hero limittyy.
+     H1 = --ink (≥12.7:1 softilla kaikissa kaupungeissa), alaotsikko = --ink-muted (≥4.52:1). ---- */
+  .reila-hero { background: var(--accent-soft); border-radius: var(--radius-card);
+    padding: 2.75rem 1.5rem 4rem; margin: 0 0 1rem; }
+  .reila-hero h1, .reila-hero-h1 { margin: 0; font-size: var(--fs-h1); font-weight: var(--fw-h1);
+    letter-spacing: -1px; line-height: var(--lh-tight); color: var(--ink); overflow-wrap: anywhere; }
+  .reila-hero .reila-hero-sub { margin: 0.7rem 0 0; font-size: 1.06rem; color: var(--ink-muted);
+    max-width: 38rem; overflow-wrap: anywhere; }
+  /* layer-hero: nostot + A->B-journey soft-kaistalla (säilyttää .hl-ruudut + hero-journeyn) */
+  .reila-hero .hero-highlights { margin-top: 1.1rem; }
+  .reila-hero .hero-journey { border-top-color: var(--line); }
+  /* mobiili: tiiviimpi kaista, ettei iso H1 vie koko ruutua kapealla */
+  @media (max-width: 560px) {
+    .reila-hero { padding: 1.6rem 1.05rem 3rem; }
+    .reila-hero h1, .reila-hero-h1 { font-size: 1.9rem; letter-spacing: -0.5px; }
+  }
+
+  /* ---- Hakukortti (jaettu: etusivu + reitti) ---- */
+  .searchcard { background: var(--surface); border-radius: var(--radius-card);
+    box-shadow: var(--shadow-3); padding: 16px; }
+  /* sc-hero: hakukortti limittyy hero-kaistan päälle (referenssin margin-top:-32px) */
+  .searchcard.sc-hero { margin-top: -2rem; position: relative; z-index: 1; }
+  @media (max-width: 560px) { .searchcard.sc-hero { margin-top: -1.6rem; } }
+  .searchcard .sc-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .sc-field { flex: 1 1 200px; min-width: 170px; }
+  .sc-label { display: block; font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase;
+    letter-spacing: .6px; color: var(--ink-muted); margin: 0 0 6px 4px; }
+  .sc-box { position: relative; display: flex; align-items: center; gap: 10px;
+    background: var(--field-bg); border: 1px solid var(--line); border-radius: var(--radius-control);
+    padding: 0 14px; min-height: 52px; }
+  .sc-box:focus-within { border-color: var(--accent); }
+  .sc-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .sc-dot.from { background: var(--accent); }
+  /* F4: Minne-piste = --dest (Kotka vihreä, muut coral). 1px --dest-edge -reuna takaa
+     ei-tekstikontrastin ≥3:1 viereistä pintaa vasten (coral/valkoinen olisi 2.89). */
+  .sc-dot.to { background: var(--dest); box-shadow: 0 0 0 1px var(--dest-edge); }
+  .sc-box input { border: none; background: transparent; outline: none; font-size: 16px;
+    font-weight: 600; width: 100%; min-height: 44px; color: var(--ink); padding: 0; }
+  /* mikrofoni kentän oikeaan reunaan (säilyttää #homeNlMic/.field-mic) */
+  .sc-box .field-mic { position: static; height: auto; width: 2.6rem; min-height: 44px;
+    background: transparent; border: none; color: var(--ink-muted); flex: none; }
+  .sc-box .field-mic:hover { color: var(--accent-dark); background: transparent; }
+  .sc-box .suggest-list { left: -1px; right: -1px; }
+  .sc-swap { flex: none; width: 46px; min-height: 52px; border: 1px solid var(--line);
+    background: var(--surface); border-radius: var(--radius-control); font-size: 19px;
+    color: var(--ink-muted); display: flex; align-items: center; justify-content: center; padding: 0; }
+  .sc-swap:hover { border-color: var(--accent); color: var(--accent-dark); background: var(--surface); }
+  .sc-time { display: flex; align-items: center; gap: 6px; background: var(--field-bg);
+    border: 1px solid var(--line); border-radius: var(--radius-control); padding: 6px; min-height: 52px;
+    flex-wrap: wrap; }
+  .sc-seg { border: none; background: transparent; color: var(--ink-muted); font-size: 13.5px;
+    font-weight: 700; border-radius: var(--radius-segment); padding: 8px 13px; min-height: 40px; }
+  .sc-seg[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-dark); }
+  .sc-time input[type="datetime-local"] { border: none; background: transparent; min-height: 40px;
+    font-weight: 600; color: var(--ink); width: auto; }
+  .sc-cta { flex: 0 0 auto; min-height: 52px; background: var(--accent); color: #fff; border: none;
+    border-radius: var(--radius-control); padding: 0 26px; font-size: 16px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 8px; }
+  .sc-cta:hover { background: var(--accent-dark); }
+  .sc-extra { display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; margin-top: 12px; }
+  .sc-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600;
+    color: var(--ink); cursor: pointer; min-height: 44px; }
+  .sc-chip input { width: 1.15rem; height: 1.15rem; accent-color: var(--accent); }
+
+  /* ---- Tulosten yläpalkki + lajittelusegmentit ---- */
+  .plan-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap; margin: 0 0 14px; }
+  .plan-count { font-size: 15px; color: var(--ink-muted); }
+  .plan-count strong { color: var(--ink); font-weight: 700; }
+  .plan-sort { display: flex; align-items: center; gap: 6px; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 11px; padding: 5px; flex-wrap: wrap; }
+  .plan-sort button { border: none; background: transparent; color: var(--ink-muted); font-size: 13.5px;
+    font-weight: 600; border-radius: 8px; padding: 8px 14px; min-height: 40px; }
+  .plan-sort button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+  /* ---- Kaksisarakelayout (desktop >=1000px): tulokset + karttasivupalkki ---- */
+  /* oletus: sivupalkki piilossa (mobiili/kapea); desktop-sääntö alla nostaa spesifisyyttä
+     (body.plan-mode .plan-aside) jotta se voittaa tämän riippumatta lähdekoodijärjestyksestä */
+  .plan-aside { display: none; }
+  @media (min-width: 1000px) {
+    body.plan-mode main { max-width: var(--container-max); }
+    body.plan-mode .plan-grid { display: flex; gap: 24px; align-items: flex-start; }
+    body.plan-mode .plan-grid .plan-results { flex: 1 1 auto; min-width: 0; }
+    body.plan-mode .plan-aside { flex: 0 0 360px; position: sticky; top: 90px; display: block; }
+    /* desktopilla reitin kartta näkyy sivupalkissa → kortin sisäinen kartta piiloon */
+    body.plan-mode details.itin .map { display: none; }
+  }
+  .plan-aside .aside-card { background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-1); }
+  #planAsideMap { height: 360px; width: 100%; background:
+    repeating-linear-gradient(135deg, var(--field-bg) 0 14px, var(--surface) 14px 28px); }
+  .plan-aside .aside-empty { display: flex; align-items: center; justify-content: center; height: 100%;
+    color: var(--ink-muted-2); font-size: 14px; padding: 1rem; text-align: center; }
+
+  /* ---- A->B-tuloskortti (handoff): restyle olemassa oleva details.itin ---- */
+  details.itin { border-radius: var(--radius-card); border: 1px solid var(--line);
+    box-shadow: var(--shadow-1); margin: 0 0 14px; transition: box-shadow .15s, border-color .15s; }
+  details.itin[open] { border: 2px solid var(--accent); box-shadow: var(--shadow-3); }
+  details.itin > summary { padding: 16px 18px; }
+  details.itin > summary::after { right: 16px; top: 18px; font-size: 20px; color: var(--ink-muted-2); }
+  .itin-head { display: grid; grid-template-columns: minmax(96px,auto) 1fr minmax(120px,max-content);
+    align-items: center; gap: 18px; }
+  .ih-time { display: flex; flex-direction: column; gap: 3px; }
+  .ih-time .times { font-size: 19px; font-weight: 800; letter-spacing: -.3px;
+    font-variant-numeric: tabular-nums; color: var(--ink); }
+  .ih-dur { font-size: 14px; font-weight: 600; color: var(--ink-muted); }
+  .ih-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; text-align: right; }
+  .ih-transfers { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .ih-walk { font-size: 13px; font-weight: 600; color: var(--ink-muted-2); }
+  .live-pill { display: inline-flex; align-items: center; gap: 7px; background: var(--coral-soft);
+    border-radius: var(--pill); padding: 4px 11px 4px 9px; }
+  .live-pill .live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--coral); flex: none; }
+  .live-pill.pulse .live-dot { animation: reilaPulse 1.8s infinite; }
+  .live-pill span.live-text { font-size: 13px; font-weight: 700; color: var(--live-text); }
+  @keyframes reilaPulse {
+    0% { box-shadow: 0 0 0 0 rgba(240,115,78,.55); }
+    70% { box-shadow: 0 0 0 8px rgba(240,115,78,0); }
+    100% { box-shadow: 0 0 0 0 rgba(240,115,78,0); }
+  }
+
+  /* ---- Matka-aikajana (legbar): bussi = täytetty --bus-palkki, kävely = katkoviiva+min ---- */
+  .legbar { display: flex; align-items: center; gap: 5px; height: 27px; margin: 0; overflow: visible;
+    border-radius: 0; opacity: 1; }
+  .legbar .seg { flex-basis: 0; min-width: 46px; height: 27px; border-radius: 8px; background: var(--bus);
+    color: var(--bus-text); font-size: 13.5px; font-weight: 700; letter-spacing: .3px;
+    display: flex; align-items: center; justify-content: center; }
+  .legbar .seg.walk { position: relative; background: transparent; min-width: 26px; color: var(--ink-muted-2); }
+  .legbar .seg.walk::before { content: ""; position: absolute; left: 2px; right: 2px; top: 50%;
+    border-top: 2px dotted var(--line); }
+  .legbar .seg.walk .walk-min { position: relative; background: var(--surface); padding: 0 4px;
+    font-size: 11.5px; font-weight: 700; color: var(--ink-muted-2); font-variant-numeric: tabular-nums; }
+
+  /* ---- Laajennettu pysäkkiaikajana (tl): handoff-tyyli ---- */
+  details.itin .tl { background: var(--surface); border-top: 1px solid var(--line-divider);
+    margin: 0; padding: 16px 18px 18px; border-radius: 0 0 var(--radius-card) var(--radius-card); }
+  details.itin .tl-row.pt .tl-mid::after { border-color: var(--bus); }
+  details.itin .tl-row.pt.start .tl-mid::after { border-color: var(--accent); }
+  /* F4: viimeinen solmu = määränpää = --dest (Kotka vihreä). Ulkorengas --dest-edge:
+     valkoinen reuna + --dest-edge -kehä → kehän/pinnan kontrasti ≥3:1 (WCAG 1.4.11). */
+  details.itin .tl-row.pt.end .tl-mid::after { background: var(--dest); border-color: #fff;
+    box-shadow: 0 0 0 2px var(--dest-edge); }
+  details.itin .tl-body strong { font-size: 15.5px; font-weight: 700; color: var(--ink); }
+
+  /* ---- Mobiili (<700px): kentät pinoutuvat, CTA/⇅ täysleveiksi, aikajana luettava ---- */
+  @media (max-width: 699px) {
+    .searchcard .sc-row { gap: 10px; }
+    .sc-field { flex: 1 1 100%; }
+    .sc-swap { width: 100%; }
+    .sc-time { width: 100%; }
+    .sc-cta { width: 100%; justify-content: center; }
+    .itin-head { grid-template-columns: 1fr; gap: 10px; }
+    .ih-meta { align-items: flex-start; text-align: left; }
+    .legbar { flex-wrap: wrap; height: auto; gap: 4px; }
+    .legbar .seg { min-width: 40px; }
+    details.itin > summary::after { top: 14px; }
+  }
   @media print {
     /* Tulosteet aina normaalikokoisina, vaikka näytöllä olisi suuri teksti
        (rem-pohjaiset juliste-/vihkofontit mitoitettu A4:lle) */
@@ -1048,8 +1386,16 @@
       --bg: #fff; --card: #fff; --text: #000; --muted: #444;
       --border: #ccc; --chip: #fff; --hover: #fff;
       --rt-bg: #fff; --rt-text: #000;
+      /* REILA F3: pakota myös Reila-neutraalit mustavalkoturvallisiksi, ettei tumma
+         teema vuoda tulosteeseen kun komponentit kuluttavat --surface/--line/--ink jne. */
+      --surface: #fff; --surface-page: #fff; --field-bg: #fff;
+      --ink: #000; --ink-muted: #444; --ink-muted-2: #444;
+      --line: #ccc; --line-header: #ccc; --line-divider: #ccc;
+      --accent-soft: #fff; --coral-soft: #fff;
     }
     body { background: #fff; }
+    /* REILA F3: pehmeät kohotukset pois tulosteesta (kortit/kentät/itinerary/laiturit) */
+    * { box-shadow: none !important; }
     /* tulosteessa sisältö saa käyttää koko arkin leveyden (myös vaaka) */
     main { max-width: none; min-height: 0; padding: 0; }
     /* Globaali sovellusotsikko (sis. h1 "…aikataulut") on ruutukehystä — pois
@@ -1388,6 +1734,7 @@ const STRINGS = {
     metaDesc: "{cityGen} bussien aikataulut, reaaliaikaiset lähdöt, reittiopas, häiriötiedotteet, liput ja kartat selaimessa. Epävirallinen palvelu avoimen Waltti-/Digitransit-datan päälle.",
     headerSub: "Aikataulut ja reitit selkeästi, avoimesta datasta",
     heroTitle: "Mihin matka?",
+    heroTagline: "Hae nopein bussireitti perille reaaliaikaisilla lähtöajoilla.",
     heroLayerTitle: "Aikataulut selkeästi, ja vähän enemmän",
     heroJourneyHeading: "Reittihaku",
     heroHlBilingual: "Myös ruotsiksi",
@@ -1767,6 +2114,7 @@ const STRINGS = {
     timeModeAria: "Ajan tulkinta", timeAria: "Aika",
     departAt: "Lähtöaika", arriveBy: "Saapumisaika",
     searchRoutes: "Hae reitit",
+    planNResults: "{n} reittiä", sortFast: "Nopein", sortArrive: "Perillä aiemmin", sortWalk: "Vähiten kävelyä",
     wheelchairRoute: "Esteetön reitti", lessWalk: "Vähemmän kävelyä",
     itinerariesTitle: "Reittiehdotukset",
     co2Saved: "Säästät n. {kg} CO₂ verrattuna henkilöautoon",
@@ -1819,6 +2167,7 @@ const STRINGS = {
     metaDesc: "{city} bus timetables, real-time departures, journey planner, disruption alerts, tickets and maps in your browser. Unofficial service built on open Waltti/Digitransit data.",
     headerSub: "Timetables and routes made clear, from open data",
     heroTitle: "Where to?",
+    heroTagline: "Find the fastest bus route with real-time departures.",
     heroLayerTitle: "Timetables made clear, and a bit more",
     heroJourneyHeading: "Journey search",
     heroHlBilingual: "Also in Swedish",
@@ -2185,6 +2534,7 @@ const STRINGS = {
     timeModeAria: "Time interpretation", timeAria: "Time",
     departAt: "Depart at", arriveBy: "Arrive by",
     searchRoutes: "Search",
+    planNResults: "{n} routes", sortFast: "Fastest", sortArrive: "Arrives earliest", sortWalk: "Least walking",
     wheelchairRoute: "Accessible journey", lessWalk: "Less walking",
     itinerariesTitle: "Suggested journeys",
     co2Saved: "Saves approx. {kg} CO₂ compared to a car",
@@ -2237,6 +2587,7 @@ const STRINGS = {
     metaDesc: "Busstidtabeller i {city}, avgångar i realtid, reseplanerare, störningsmeddelanden, biljetter och kartor i webbläsaren. Inofficiell tjänst byggd på öppna Waltti-/Digitransit-data.",
     headerSub: "Tidtabeller och rutter tydligt, från öppna data",
     heroTitle: "Vart vill du?",
+    heroTagline: "Hitta den snabbaste bussrutten med avgångar i realtid.",
     heroLayerTitle: "Tidtabeller tydligt, och lite mer",
     heroJourneyHeading: "Reseökning",
     heroHlBilingual: "Också på finska",
@@ -2603,6 +2954,7 @@ const STRINGS = {
     timeModeAria: "Tidens tolkning", timeAria: "Tid",
     departAt: "Avgångstid", arriveBy: "Ankomsttid",
     searchRoutes: "Sök resor",
+    planNResults: "{n} rutter", sortFast: "Snabbast", sortArrive: "Anländer först", sortWalk: "Minst gång",
     wheelchairRoute: "Tillgänglig resa", lessWalk: "Mindre promenad",
     itinerariesTitle: "Reseförslag",
     co2Saved: "Sparar ca {kg} CO₂ jämfört med bil",
@@ -3502,6 +3854,7 @@ function setView(html) {
   viewSeq++;
   stopRefresh();
   if (window.speechSynthesis) window.speechSynthesis.cancel(); // lopeta ääneenluku
+  document.body.classList.remove("plan-mode"); // REILA F2: reitti-näkymän leveä layout pois muista näkymistä
   app.innerHTML = html;
 }
 
@@ -3561,7 +3914,7 @@ function setContrast(v) {
   syncControls();
 }
 function toggleContrast() {
-  setContrast((localStorage.getItem("contrast") || "high") === "high" ? "normal" : "high");
+  setContrast((localStorage.getItem("contrast") || "normal") === "high" ? "normal" : "high");
 }
 function setLanguage(v) {
   if (!STRINGS[v]) return;
@@ -3577,7 +3930,7 @@ function setLanguage(v) {
 // Heijastaa nykyisen tilan kaikkiin kontrolleihin (header + Asetukset-paneeli).
 function syncControls() {
   const ts = localStorage.getItem("textSize") || "normal";
-  const ct = localStorage.getItem("contrast") || "high";
+  const ct = localStorage.getItem("contrast") || "normal";
   document.querySelectorAll("[data-text-opt]").forEach(b =>
     b.setAttribute("aria-pressed", String(b.dataset.textOpt === ts)));
   document.querySelectorAll("[data-contrast-opt]").forEach(b =>
@@ -3649,7 +4002,7 @@ function bindTextSizeSetting() {
 const CONTRAST_OPTIONS = [["normal", "contrastNormal"], ["high", "contrastHigh"]];
 
 function contrastSettingHtml() {
-  const cur = localStorage.getItem("contrast") || "high";
+  const cur = localStorage.getItem("contrast") || "normal";
   return `
     <div class="card">
       <h2>${t("contrastTitle")}</h2>
@@ -4716,51 +5069,61 @@ function homeToolGroupsHtml() {
   ]);
 }
 
-// Jaettu A->B-haun runko (samat ID:t kummassakin hero-variantissa → sidonnat ennallaan)
-function heroFieldsHtml() {
+// Jaettu A->B-haun runko (samat ID:t kummassakin hero-variantissa → sidonnat ennallaan).
+// REILA F2: Reila-hakukortti — accent-piste Mistä, coral-piste Mihin, ⇅-vaihto, accent-CTA.
+// Mikrofoni/NL-syöte ja osoite-autocomplete säilyvät (mic kentän oikeassa reunassa).
+function heroFieldsHtml(extraClass = "") {
   return `
-      <div class="hero-fields">
-        <div class="field">
-          <label for="homeFromInput">${t("from")}</label>
-          <div class="suggest with-mic">
-            <input type="text" id="homeFromInput" autocomplete="off" placeholder="${t("placePlaceholder")}"
-                   value="${esc(planState.from?.name || "")}">
-            <button type="button" id="homeNlMic" class="field-mic" aria-label="${t("nlMicStart")}" title="${t("nlMicStart")}">${icon("mic")}</button>
-            <ul class="plain suggest-list" id="homeFromList" hidden></ul>
+      <div class="searchcard${extraClass ? " " + extraClass : ""}">
+        <div class="sc-row">
+          <div class="sc-field">
+            <label class="sc-label" for="homeFromInput">${t("from")}</label>
+            <div class="sc-box suggest with-mic">
+              <span class="sc-dot from" aria-hidden="true"></span>
+              <input type="text" id="homeFromInput" autocomplete="off" placeholder="${t("placePlaceholder")}"
+                     value="${esc(planState.from?.name || "")}">
+              <button type="button" id="homeNlMic" class="field-mic" aria-label="${t("nlMicStart")}" title="${t("nlMicStart")}">${icon("mic")}</button>
+              <ul class="plain suggest-list" id="homeFromList" hidden></ul>
+            </div>
           </div>
-        </div>
-        <div class="field">
-          <label for="homeToInput">${t("to")}</label>
-          <div class="suggest">
-            <input type="text" id="homeToInput" autocomplete="off" placeholder="${t("placePlaceholder")}"
-                   value="${esc(planState.to?.name || "")}">
-            <ul class="plain suggest-list" id="homeToList" hidden></ul>
+          <button type="button" id="homeSwapBtn" class="sc-swap" title="${t("swap")}" aria-label="${t("swap")}">⇅</button>
+          <div class="sc-field">
+            <label class="sc-label" for="homeToInput">${t("to")}</label>
+            <div class="sc-box suggest">
+              <span class="sc-dot to" aria-hidden="true"></span>
+              <input type="text" id="homeToInput" autocomplete="off" placeholder="${t("placePlaceholder")}"
+                     value="${esc(planState.to?.name || "")}">
+              <ul class="plain suggest-list" id="homeToList" hidden></ul>
+            </div>
           </div>
+          <button type="button" id="heroSearch" class="sc-cta">${t("heroSearch")} <span aria-hidden="true">→</span></button>
         </div>
-      </div>
-      <div class="hero-actions">
-        <button type="button" id="heroSearch" class="btn-primary">${icon("search")} ${t("heroSearch")}</button>
-        <button type="button" id="nearbyBtn2" class="secondary">${icon("pin")} ${t("showNearby")}</button>
-      </div>
-      <p class="muted nl-hint">${t("nlHint")}</p>
-      <div id="heroMsg" role="status"></div>
-      <div id="homeNlMsg" role="status"></div>
-      <div id="nearbyBody"></div>
-      <div id="lastPlanRow"></div>`;
+        <div class="sc-extra">
+          <button type="button" id="nearbyBtn2" class="secondary">${icon("pin")} ${t("showNearby")}</button>
+          <span class="muted nl-hint">${t("nlHint")}</span>
+        </div>
+        <div id="heroMsg" role="status"></div>
+        <div id="homeNlMsg" role="status"></div>
+        <div id="nearbyBody"></div>
+        <div id="lastPlanRow"></div>
+      </div>`;
 }
 
-// Journey-hero (greenfield: A->B ensisijaisena) — nykyinen ilme.
+// Journey-hero (greenfield: A->B ensisijaisena). REILA F5: ilmava soft-accent-hero-kaista
+// (H1 + alaotsikko) + hakukortti limittyy kaistaan (sc-hero). Kentät/ID:t ennallaan.
 function heroJourneyHtml() {
-  return `<section class="card hero">
-      <h2>${icon("route")} ${t("heroTitle")}</h2>${heroFieldsHtml()}
-    </section>`;
+  return `<section class="reila-hero no-print">
+      <h1 class="reila-hero-h1">${t("heroTitle")}</h1>
+      <p class="reila-hero-sub">${t("heroTagline")}</p>
+    </section>${heroFieldsHtml("sc-hero")}`;
 }
 
 // Layer-hero (reittiopaskaupungit): korostaa erottuvaa kerrosta (kaksikielisyys + tulosteet/näytöt
 // + häiriöt sähköpostiin); A->B-reittihaku säilyy toissijaisena alaosiona samoilla ID:illä.
 function heroLayerHtml() {
-  return `<section class="card hero hero-layer">
-      <h2>${t("heroLayerTitle")}</h2>
+  return `<section class="reila-hero hero-layer no-print">
+      <h1 class="reila-hero-h1">${t("heroLayerTitle")}</h1>
+      <p class="reila-hero-sub">${t("heroTagline")}</p>
       <div class="hero-highlights">
         <button type="button" class="hl" id="hlBilingual">
           ${icon("info")}<span class="hl-t">${t("heroHlBilingual")}</span><span class="hl-d">${t("heroHlBilingualDesc")}</span></button>
@@ -4850,6 +5213,12 @@ function viewRoutes() {
   document.getElementById("heroSearch").addEventListener("click", () => {
     if (planState.from && planState.to) { location.hash = planHash(); }
     else { document.getElementById("heroMsg").innerHTML = `<p class="muted">${t("heroNeedBoth")}</p>`; }
+  });
+  // REILA F2: ⇅ vaihtaa Mistä/Mihin (kentät + planState). Vain UI, ei reititysmuutosta.
+  document.getElementById("homeSwapBtn")?.addEventListener("click", () => {
+    [planState.from, planState.to] = [planState.to, planState.from];
+    homeFrom.value = planState.from?.name || "";
+    homeTo.value = planState.to?.name || "";
   });
   // Layer-heron kaksikielisyys-nosto: vaihtaa kielen FI↔SV yhdellä napautuksella (demonstroi suoraan)
   document.getElementById("hlBilingual")?.addEventListener("click", () => setLanguage(lang === "sv" ? "fi" : "sv"));
@@ -7357,18 +7726,17 @@ function fmtKm(m) {
 
 function legTime(lt) { return lt.estimated?.time || lt.scheduledTime; }
 
-// Yhteenvedon osuuspalkki: segmentin leveys = legin kesto, väri = linjan väri
+// Yhteenvedon matka-aikajana (handoff): leveys = legin kesto (flex-grow). Bussiosuus = täytetty
+// --bus-palkki linjanumerolla; kävely = katkoviiva + minuuttileima. Linjan oma väri näkyy
+// laajennetussa pysäkkiaikajanassa (--rail), ei tässä neutraalissa yleiskatsauspalkissa.
 function legBarHtml(node) {
   const total = node.legs.reduce((s, l) => s + l.duration, 0) || 1;
   return `<span class="legbar" aria-hidden="true">${node.legs.map(leg => {
     const grow = Math.max(leg.duration / total, 0.04);
     if (leg.mode === "WALK" || leg.mode === "BICYCLE") {
-      return `<span class="seg walk" style="flex-grow:${grow.toFixed(3)}">${MODE_ICONS[leg.mode] ? icon(MODE_ICONS[leg.mode]) : ""}</span>`;
+      return `<span class="seg walk" style="flex-grow:${grow.toFixed(3)}"><span class="walk-min">${Math.round(leg.duration / 60)}′</span></span>`;
     }
-    const bg = leg.route?.color ? "#" + leg.route.color : "var(--btn-bg)";
-    const fg = leg.route?.color ? badgeText(leg.route.color, leg.route.textColor) : "#fff";
-    return `<span class="seg" style="flex-grow:${grow.toFixed(3)};background:${bg};color:${fg}">
-      ${esc(leg.route?.shortName || "")}</span>`;
+    return `<span class="seg" style="flex-grow:${grow.toFixed(3)}">${esc(leg.route?.shortName || "")}</span>`;
   }).join("")}</span>`;
 }
 
@@ -7453,21 +7821,30 @@ function itinSummaryHtml(node) {
   const durSec = (new Date(node.end) - new Date(node.start)) / 1000;
   // ensimmäisen bussin lähtölaskenta tuo tärkeimmän tiedon heti otsikkoriviin
   const firstTransit = node.legs.find(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
-  let departs = "";
+  let departs = null;
   if (firstTransit) {
     const mins = Math.round((new Date(legTime(firstTransit.start)) - Date.now()) / 60000);
     if (mins >= 0 && mins <= 90) {
-      departs = `<span class="rt">${mins === 0 ? t("departsNow") : t("departsIn", { n: mins })}</span>`;
+      departs = { label: mins === 0 ? t("departsNow") : t("departsIn", { n: mins }), soon: mins <= 5 };
     }
   }
+  // REILA F2: handoff-tuloskortti — aikasarake | matka-aikajana | meta (live-pilleri/vaihdot/kävely)
+  const live = departs
+    ? `<span class="live-pill${departs.soon ? " pulse" : ""}"><span class="live-dot"></span><span class="live-text">${departs.label}</span></span>`
+    : "";
   return `
     <span class="itin-head">
-      <span class="times">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
-      <span>${fmtDur(durSec)}</span>
-      <span class="muted">${transfers} · ${t("walkAmount", { n: walk })}</span>
-      ${departs}
-    </span>
-    ${legBarHtml(node)}`;
+      <span class="ih-time">
+        <span class="times">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
+        <span class="ih-dur">${fmtDur(durSec)}</span>
+      </span>
+      ${legBarHtml(node)}
+      <span class="ih-meta">
+        ${live}
+        <span class="ih-transfers">${transfers}</span>
+        <span class="ih-walk">${t("walkAmount", { n: walk })}</span>
+      </span>
+    </span>`;
 }
 
 // CO₂-säästöarvio: bussissa ajettu matka × (auton − bussin päästökerroin).
@@ -7540,9 +7917,14 @@ async function drawItineraryMap(elId, node) {
     }
   }
   const first = node.legs[0], last = node.legs[node.legs.length - 1];
-  L.circleMarker([first.from.lat, first.from.lon], { ...STOP_MARKER, fillColor: "#1a7f4b" })
+  // F4: lähtö = accent, määränpää = --dest (Kotka vihreä) → sama spatiaalipari kuin
+  // hakukortin pisteissä. getComputedStyle resolvoi var-ketjun hexiksi (canvas-väri).
+  const mapCS = getComputedStyle(document.documentElement);
+  const originCol = mapCS.getPropertyValue("--accent").trim() || "#0a4ea3";
+  const destCol = mapCS.getPropertyValue("--dest").trim() || "#F0734E";
+  L.circleMarker([first.from.lat, first.from.lon], { ...STOP_MARKER, fillColor: originCol })
     .addTo(map).bindPopup(t("origin"));
-  L.circleMarker([last.to.lat, last.to.lon], { ...STOP_MARKER, fillColor: "#c0392b" })
+  L.circleMarker([last.to.lat, last.to.lon], { ...STOP_MARKER, fillColor: destCol })
     .addTo(map).bindPopup(t("destination"));
   if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
   // reitin linjojen bussit liikkuvat kartalla reaaliajassa
@@ -7555,53 +7937,68 @@ async function drawItineraryMap(elId, node) {
 async function viewPlan(parts) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   const fromUrl = parts && parts[1] ? parsePlanParams(parts) : false;
+  const tmDep = planState.timeMode !== "arr";
   setView(`
     <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
-    <div class="card">
-      <h2>${t("planTitle")}</h2>
-      <form id="planForm">
-        <div class="field">
-          <label for="fromInput">${t("from")}</label>
-          <div class="suggest">
-            <input type="text" id="fromInput" placeholder="${t("placePlaceholder")}"
-                   autocomplete="off" value="${esc(planState.from?.name || "")}">
-            <ul class="plain suggest-list" id="fromList" hidden></ul>
+    <section class="reila-hero no-print">
+      <h1 class="reila-hero-h1">${t("planTitle")}</h1>
+      <p class="reila-hero-sub">${t("heroTagline")}</p>
+    </section>
+    <form id="planForm">
+      <div class="searchcard sc-hero">
+        <div class="sc-row">
+          <div class="sc-field">
+            <label class="sc-label" for="fromInput">${t("from")}</label>
+            <div class="sc-box suggest">
+              <span class="sc-dot from" aria-hidden="true"></span>
+              <input type="text" id="fromInput" placeholder="${t("placePlaceholder")}"
+                     autocomplete="off" value="${esc(planState.from?.name || "")}">
+              <ul class="plain suggest-list" id="fromList" hidden></ul>
+            </div>
           </div>
+          <button type="button" id="swapBtn" class="sc-swap" title="${t("swap")}" aria-label="${t("swap")}">⇅</button>
+          <div class="sc-field">
+            <label class="sc-label" for="toInput">${t("to")}</label>
+            <div class="sc-box suggest">
+              <span class="sc-dot to" aria-hidden="true"></span>
+              <input type="text" id="toInput" placeholder="${t("placePlaceholder")}"
+                     autocomplete="off" value="${esc(planState.to?.name || "")}">
+              <ul class="plain suggest-list" id="toList" hidden></ul>
+            </div>
+          </div>
+          <div class="sc-field" style="flex:0 1 auto">
+            <label class="sc-label">${t("timeAria")}</label>
+            <div class="sc-time">
+              <button type="button" class="sc-seg" id="tmDep" data-tm="dep" aria-pressed="${tmDep}">${t("departAt")}</button>
+              <button type="button" class="sc-seg" id="tmArr" data-tm="arr" aria-pressed="${!tmDep}">${t("arriveBy")}</button>
+              <input type="hidden" id="timeMode" value="${tmDep ? "dep" : "arr"}">
+              <input type="datetime-local" id="timeInput" aria-label="${t("timeAria")}"
+                     value="${esc(planState.time || nowLocalInput())}">
+              <button type="button" id="nowBtn" class="sc-seg">${t("now")}</button>
+            </div>
+          </div>
+          <button type="submit" class="sc-cta">${t("searchRoutes")} <span aria-hidden="true">→</span></button>
+        </div>
+        <div class="sc-extra">
           <button type="button" id="fromGeo" class="linkish">${icon("pin")} ${t("useMyLocation")}</button>
-          <button type="button" id="swapBtn" class="linkish" title="${t("swap")}"
-                  aria-label="${t("swap")}">⇅ ${t("swap")}</button>
-        </div>
-        <div class="field">
-          <label for="toInput">${t("to")}</label>
-          <div class="suggest">
-            <input type="text" id="toInput" placeholder="${t("placePlaceholder")}"
-                   autocomplete="off" value="${esc(planState.to?.name || "")}">
-            <ul class="plain suggest-list" id="toList" hidden></ul>
-          </div>
-        </div>
-        <div class="row" style="flex-wrap:wrap">
-          <select id="timeMode" aria-label="${t("timeModeAria")}">
-            <option value="dep"${planState.timeMode === "dep" ? " selected" : ""}>${t("departAt")}</option>
-            <option value="arr"${planState.timeMode === "arr" ? " selected" : ""}>${t("arriveBy")}</option>
-          </select>
-          <input type="datetime-local" id="timeInput" aria-label="${t("timeAria")}"
-                 value="${esc(planState.time || nowLocalInput())}">
-          <button type="button" id="nowBtn" class="linkish">${t("now")}</button>
-          <button type="submit">${t("searchRoutes")}</button>
-        </div>
-        <div class="row" style="flex-wrap:wrap; margin-top:0.4rem">
-          <label><input type="checkbox" id="wheelchairBox"${planState.wheelchair ? " checked" : ""}>
+          <label class="sc-chip"><input type="checkbox" id="wheelchairBox"${planState.wheelchair ? " checked" : ""}>
             ${icon("wheelchair")} ${t("wheelchairRoute")}</label>
-          <label><input type="checkbox" id="lessWalkBox"${planState.lessWalk ? " checked" : ""}>
+          <label class="sc-chip"><input type="checkbox" id="lessWalkBox"${planState.lessWalk ? " checked" : ""}>
             ${t("lessWalk")}</label>
-        </div>
-        <p class="row" style="margin-top:0.4rem">
           <button type="button" id="saveTripBtn" class="linkish">${icon("star")} <span id="saveTripLabel">${t("saveTrip")}</span></button>
-        </p>
-      </form>
+        </div>
+      </div>
       <div id="planMsg" role="status"></div>
-    </div>
-    <div id="planResults"></div>`);
+    </form>
+    <div class="plan-grid">
+      <div class="plan-results"><div id="planResults"></div></div>
+      <aside class="plan-aside" id="planAside">
+        <div class="aside-card"><div id="planAsideMap"><div class="aside-empty">${t("mapAria")}</div></div></div>
+      </aside>
+    </div>`);
+  // REILA F2: leveä kaksisarakelayout (tulokset + karttasivupalkki) desktopilla.
+  // setView() poistaa plan-moden → lisätään VASTA sen jälkeen. Poistuu muihin näkymiin siirryttäessä.
+  document.body.classList.add("plan-mode");
 
   const fromInput = document.getElementById("fromInput");
   const toInput = document.getElementById("toInput");
@@ -7636,9 +8033,21 @@ async function viewPlan(parts) {
     updateSaveBtn();
     if (planState.from && planState.to) search(false);
   });
+  // REILA F2: aikasegmentti (Lähtee/Perillä) ohjaa piilotettua #timeMode-arvoa (search() lukee sen)
+  const setTimeMode = m => {
+    document.getElementById("timeMode").value = m;
+    document.getElementById("tmDep").setAttribute("aria-pressed", String(m === "dep"));
+    document.getElementById("tmArr").setAttribute("aria-pressed", String(m === "arr"));
+  };
+  document.getElementById("tmDep").addEventListener("click", () => {
+    setTimeMode("dep"); if (planState.from && planState.to) search(false);
+  });
+  document.getElementById("tmArr").addEventListener("click", () => {
+    setTimeMode("arr"); if (planState.from && planState.to) search(false);
+  });
   document.getElementById("nowBtn").addEventListener("click", () => {
     document.getElementById("timeInput").value = nowLocalInput();
-    document.getElementById("timeMode").value = "dep";
+    setTimeMode("dep");
     if (planState.from && planState.to) search(false);
   });
 
@@ -7659,30 +8068,94 @@ async function viewPlan(parts) {
   const results = document.getElementById("planResults");
   let nodes = [], cursor = null, prevCursor = null, directNodes = {};
   let lastHasNext = false, lastHasPrev = false, mainDone = false;
+  let planSort = "fast";          // REILA F2: lajittelusegmentti (Nopein/Perillä aiemmin/Vähiten kävelyä)
+  let asideMap = null;            // sivupalkkikartan Leaflet-instanssi (desktop)
+
+  // REILA F2: desktopilla (>=1000px) reitin kartta piirtyy sivupalkkiin; uudelleenpiirrettävä
+  // (poistaa edellisen instanssin). Kapealla näytöllä käytetään kortin sisäistä karttaa.
+  const asideActive = () => window.matchMedia("(min-width: 1000px)").matches;
+  const drawAside = async node => {
+    if (!asideActive()) return;
+    const el = document.getElementById("planAsideMap");
+    if (!el) return;
+    await ensureLeaflet();
+    if (asideMap) { try { asideMap.remove(); } catch (e) {} asideMap = null; }
+    el.innerHTML = "";
+    const map = makeMap("planAsideMap");
+    asideMap = map;
+    let bounds = null;
+    for (const leg of node.legs) {
+      const pts = decodePolyline(leg.legGeometry?.points || "");
+      if (!pts.length) continue;
+      const style = leg.mode === "WALK"
+        ? { color: "#5a6478", weight: 4, dashArray: "2 8" }
+        : leg.mode === "BICYCLE"
+          ? { color: "#1a7f4b", weight: 5, dashArray: "8 6", opacity: 0.9 }
+          : { color: leg.route?.color ? "#" + leg.route.color : "#0a4ea3", weight: 5, opacity: 0.85 };
+      const line = L.polyline(pts, style).addTo(map);
+      bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
+    }
+    const first = node.legs[0], last = node.legs[node.legs.length - 1];
+    // F4: lähtö = accent, määränpää = --dest (Kotka vihreä) — sama pari kuin hakukortissa
+    const asideCS = getComputedStyle(document.documentElement);
+    const originCol = asideCS.getPropertyValue("--accent").trim() || "#0a4ea3";
+    const destCol = asideCS.getPropertyValue("--dest").trim() || "#F0734E";
+    L.circleMarker([first.from.lat, first.from.lon], { ...STOP_MARKER, fillColor: originCol }).addTo(map).bindPopup(t("origin"));
+    L.circleMarker([last.to.lat, last.to.lon], { ...STOP_MARKER, fillColor: destCol }).addTo(map).bindPopup(t("destination"));
+    if (bounds) map.fitBounds(bounds, { padding: [20, 20] });
+    const transitRoutes = [...new Map(node.legs.filter(l => l.route?.gtfsId)
+      .map(l => [l.route.gtfsId, { gtfsId: l.route.gtfsId, shortName: l.route.shortName }])).values()];
+    if (transitRoutes.length) startVehicles(map, transitRoutes);
+  };
+  const sortNodes = arr => {
+    const c = arr.slice();
+    if (planSort === "fast") c.sort((a, b) => (new Date(a.end) - new Date(a.start)) - (new Date(b.end) - new Date(b.start)));
+    else if (planSort === "arrive") c.sort((a, b) => new Date(a.end) - new Date(b.end));
+    else if (planSort === "walk") c.sort((a, b) => (a.walkDistance || 0) - (b.walkDistance || 0));
+    return c;
+  };
 
   const renderResults = () => {
     const directRow = ["walk", "bike"]
       .filter(k => directNodes[k])
       .map(k => directHtml(directNodes[k], k))
       .join("");
+    const view = sortNodes(nodes);   // näyttöjärjestys (data-itin viittaa tähän)
+    const topbar = nodes.length || directRow
+      ? `<div class="plan-topbar">
+           <div class="plan-count"><strong>${t("planNResults", { n: nodes.length })}</strong></div>
+           <div class="plan-sort" role="group" aria-label="${t("sortFast")}">
+             <button type="button" data-sort="fast" aria-pressed="${planSort === "fast"}">${t("sortFast")}</button>
+             <button type="button" data-sort="arrive" aria-pressed="${planSort === "arrive"}">${t("sortArrive")}</button>
+             <button type="button" data-sort="walk" aria-pressed="${planSort === "walk"}">${t("sortWalk")}</button>
+           </div>
+         </div>` : "";
     results.innerHTML = nodes.length || directRow
-      ? `<div class="card">
-           <h2>${t("itinerariesTitle")}
-             <button id="shareBtn" class="linkish no-print" style="float:right">${icon("link")} ${t("share")}</button></h2>
+      ? `${topbar}
+         <div class="card">
+           <h2 class="no-print" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${t("itinerariesTitle")}
+             <button id="shareBtn" class="linkish no-print">${icon("link")} ${t("share")}</button></h2>
            ${directRow}
            ${lastHasPrev && nodes.length ? `<button id="earlierBtn" class="linkish no-print">↑ ${t("showEarlier")}</button>` : ""}
-           ${nodes.map((n, i) => itinHtml(n, i)).join("")}
+           ${view.map((n, i) => itinHtml(n, i)).join("")}
            ${lastHasNext ? `<button id="moreBtn" class="no-print">${t("showLater")}</button>` : ""}
          </div>`
       : `<div class="card"><p class="muted">${t("noItineraries")}</p></div>`;
     results.querySelectorAll("details.itin[data-itin]").forEach(d =>
       d.addEventListener("toggle", () => {
-        if (d.open) drawItineraryMap("itinMap" + d.dataset.itin, nodes[Number(d.dataset.itin)]).catch(() => {});
+        if (!d.open) return;
+        // handoff: vain yksi kortti auki kerrallaan
+        results.querySelectorAll("details.itin[open]").forEach(o => { if (o !== d) o.open = false; });
+        const node = view[Number(d.dataset.itin)];
+        if (asideActive()) drawAside(node).catch(() => {});
+        else drawItineraryMap("itinMap" + d.dataset.itin, node).catch(() => {});
       }));
     results.querySelectorAll("details.itin[data-direct]").forEach(d =>
       d.addEventListener("toggle", () => {
         if (d.open) drawItineraryMap("directMap" + d.dataset.direct, directNodes[d.dataset.direct]).catch(() => {});
       }));
+    results.querySelectorAll(".plan-sort button[data-sort]").forEach(b =>
+      b.addEventListener("click", () => { planSort = b.dataset.sort; renderResults(); }));
     document.getElementById("moreBtn")?.addEventListener("click", () => search("more"));
     document.getElementById("earlierBtn")?.addEventListener("click", () => search("earlier"));
     document.getElementById("shareBtn")?.addEventListener("click", async e => {
