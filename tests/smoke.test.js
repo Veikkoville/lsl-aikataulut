@@ -714,20 +714,30 @@ const info = msg => console.log("INFO " + msg);
                      : fail("asetukset: lang-attribuutti ei vaihtunut (" + langNow + ")");
     await page.click('[data-lang-opt="fi"]');
   }
-  // Tekstikoko (esteettömyys): suurenna ja tarkista että root-fontti kasvaa
+  // Tuore settings-DOM ennen tekstikokotestiä (kielenvaihto yllä re-renderöi näkymän).
+  await page.goto(BASE + "/#/asetukset", { waitUntil: "networkidle2" }); await sleep(200);
+  // Tekstikoko (esteettömyys): suurenna ja tarkista että root-fontti kasvaa. Klikataan SIVUN
+  // sisällä (querySelector?.click) jotta puppeteerin elementtikahva ei vanhene jos näkymä
+  // re-renderöityy (ei HARNESS-virhettä), ja uusitaan muutaman kerran handler-kiinnitysikkunan yli.
+  // (Testin luotettavuuskorjaus — ei liity alert-line-matching-bugiin.)
   if (await page.$('[data-text-opt="large"]')) {
-    const before = await page.evaluate(() =>
-      parseFloat(getComputedStyle(document.documentElement).fontSize));
-    await page.click('[data-text-opt="large"]');
-    await sleep(200);
-    const res = await page.evaluate(() => ({
-      attr: document.documentElement.dataset.text,
-      size: parseFloat(getComputedStyle(document.documentElement).fontSize),
-    }));
-    res.attr === "large" && res.size > before
+    let before = 0, res = { attr: null, size: 0 }, grew = false;
+    for (let attempt = 0; attempt < 6 && !grew; attempt++) {
+      before = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+      await page.evaluate(() => document.querySelector('[data-text-opt="large"]')?.click());
+      await sleep(250);
+      res = await page.evaluate(() => ({
+        attr: document.documentElement.dataset.text,
+        size: parseFloat(getComputedStyle(document.documentElement).fontSize),
+      }));
+      grew = res.attr === "large" && res.size > before;
+    }
+    grew
       ? ok(`asetukset: suuri teksti kasvattaa fonttia (${before}→${res.size}px)`)
       : fail("asetukset: tekstikoko ei kasvanut");
-    await page.click('[data-text-opt="normal"]'); // palauta ettei vaikuta muihin
+    await page.evaluate(() => document.querySelector('[data-text-opt="normal"]')?.click()); // palauta
+    await sleep(120);
+    await page.evaluate(() => { localStorage.removeItem("textSize"); window.applyTextSize?.(); });
   }
 
   // Korkea kontrasti OLETUKSENA päällä (tyhjä localStorage → high); kytkin sammuttaa ja valinta persistoituu.
