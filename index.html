@@ -1218,17 +1218,31 @@
   html[data-contrast="high"] { --bus: #000000; }
   html[data-theme="dark"][data-contrast="high"] { --bus: #ffffff; --bus-text: #000000; }
 
-  /* ---- Reila-hero (greenfield: A->B-hakukortti heroksi) ---- */
+  /* ---- REILA F5: hero-kaista (ilmava, tuotemainen). Tausta = --accent-soft → seuraa
+     per-kaupunki-väriä (Lahti/Salo/Kajaani sininen-soft, Kotka oranssi-soft, Vaasa pinkki-soft)
+     ja teemaa automaattisesti. Suuri padding-bottom → seuraava .searchcard.sc-hero limittyy.
+     H1 = --ink (≥12.7:1 softilla kaikissa kaupungeissa), alaotsikko = --ink-muted (≥4.52:1). ---- */
   .reila-hero { background: var(--accent-soft); border-radius: var(--radius-card);
-    padding: 1.6rem 1.4rem 2.4rem; margin: 0 0 -1.6rem; }
-  .reila-hero h1 { margin: 0; font-size: var(--fs-h1); font-weight: var(--fw-h1);
-    letter-spacing: -1px; line-height: var(--lh-tight); color: var(--ink); }
+    padding: 2.75rem 1.5rem 4rem; margin: 0 0 1rem; }
+  .reila-hero h1, .reila-hero-h1 { margin: 0; font-size: var(--fs-h1); font-weight: var(--fw-h1);
+    letter-spacing: -1px; line-height: var(--lh-tight); color: var(--ink); overflow-wrap: anywhere; }
   .reila-hero .reila-hero-sub { margin: 0.7rem 0 0; font-size: 1.06rem; color: var(--ink-muted);
-    max-width: 36rem; }
+    max-width: 38rem; overflow-wrap: anywhere; }
+  /* layer-hero: nostot + A->B-journey soft-kaistalla (säilyttää .hl-ruudut + hero-journeyn) */
+  .reila-hero .hero-highlights { margin-top: 1.1rem; }
+  .reila-hero .hero-journey { border-top-color: var(--line); }
+  /* mobiili: tiiviimpi kaista, ettei iso H1 vie koko ruutua kapealla */
+  @media (max-width: 560px) {
+    .reila-hero { padding: 1.6rem 1.05rem 3rem; }
+    .reila-hero h1, .reila-hero-h1 { font-size: 1.9rem; letter-spacing: -0.5px; }
+  }
 
   /* ---- Hakukortti (jaettu: etusivu + reitti) ---- */
   .searchcard { background: var(--surface); border-radius: var(--radius-card);
     box-shadow: var(--shadow-3); padding: 16px; }
+  /* sc-hero: hakukortti limittyy hero-kaistan päälle (referenssin margin-top:-32px) */
+  .searchcard.sc-hero { margin-top: -2rem; position: relative; z-index: 1; }
+  @media (max-width: 560px) { .searchcard.sc-hero { margin-top: -1.6rem; } }
   .searchcard .sc-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
   .sc-field { flex: 1 1 200px; min-width: 170px; }
   .sc-label { display: block; font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase;
@@ -1719,6 +1733,7 @@ const STRINGS = {
     metaDesc: "{cityGen} bussien aikataulut, reaaliaikaiset lähdöt, reittiopas, häiriötiedotteet, liput ja kartat selaimessa. Epävirallinen palvelu avoimen Waltti-/Digitransit-datan päälle.",
     headerSub: "Aikataulut ja reitit selkeästi, avoimesta datasta",
     heroTitle: "Mihin matka?",
+    heroTagline: "Hae nopein bussireitti perille reaaliaikaisilla lähtöajoilla.",
     heroLayerTitle: "Aikataulut selkeästi, ja vähän enemmän",
     heroJourneyHeading: "Reittihaku",
     heroHlBilingual: "Myös ruotsiksi",
@@ -2151,6 +2166,7 @@ const STRINGS = {
     metaDesc: "{city} bus timetables, real-time departures, journey planner, disruption alerts, tickets and maps in your browser. Unofficial service built on open Waltti/Digitransit data.",
     headerSub: "Timetables and routes made clear, from open data",
     heroTitle: "Where to?",
+    heroTagline: "Find the fastest bus route with real-time departures.",
     heroLayerTitle: "Timetables made clear, and a bit more",
     heroJourneyHeading: "Journey search",
     heroHlBilingual: "Also in Swedish",
@@ -2570,6 +2586,7 @@ const STRINGS = {
     metaDesc: "Busstidtabeller i {city}, avgångar i realtid, reseplanerare, störningsmeddelanden, biljetter och kartor i webbläsaren. Inofficiell tjänst byggd på öppna Waltti-/Digitransit-data.",
     headerSub: "Tidtabeller och rutter tydligt, från öppna data",
     heroTitle: "Vart vill du?",
+    heroTagline: "Hitta den snabbaste bussrutten med avgångar i realtid.",
     heroLayerTitle: "Tidtabeller tydligt, och lite mer",
     heroJourneyHeading: "Reseökning",
     heroHlBilingual: "Också på finska",
@@ -5045,9 +5062,9 @@ function homeToolGroupsHtml() {
 // Jaettu A->B-haun runko (samat ID:t kummassakin hero-variantissa → sidonnat ennallaan).
 // REILA F2: Reila-hakukortti — accent-piste Mistä, coral-piste Mihin, ⇅-vaihto, accent-CTA.
 // Mikrofoni/NL-syöte ja osoite-autocomplete säilyvät (mic kentän oikeassa reunassa).
-function heroFieldsHtml() {
+function heroFieldsHtml(extraClass = "") {
   return `
-      <div class="searchcard">
+      <div class="searchcard${extraClass ? " " + extraClass : ""}">
         <div class="sc-row">
           <div class="sc-field">
             <label class="sc-label" for="homeFromInput">${t("from")}</label>
@@ -5082,18 +5099,21 @@ function heroFieldsHtml() {
       </div>`;
 }
 
-// Journey-hero (greenfield: A->B ensisijaisena) — nykyinen ilme.
+// Journey-hero (greenfield: A->B ensisijaisena). REILA F5: ilmava soft-accent-hero-kaista
+// (H1 + alaotsikko) + hakukortti limittyy kaistaan (sc-hero). Kentät/ID:t ennallaan.
 function heroJourneyHtml() {
-  return `<section class="card hero">
-      <h2>${icon("route")} ${t("heroTitle")}</h2>${heroFieldsHtml()}
-    </section>`;
+  return `<section class="reila-hero no-print">
+      <h1 class="reila-hero-h1">${t("heroTitle")}</h1>
+      <p class="reila-hero-sub">${t("heroTagline")}</p>
+    </section>${heroFieldsHtml("sc-hero")}`;
 }
 
 // Layer-hero (reittiopaskaupungit): korostaa erottuvaa kerrosta (kaksikielisyys + tulosteet/näytöt
 // + häiriöt sähköpostiin); A->B-reittihaku säilyy toissijaisena alaosiona samoilla ID:illä.
 function heroLayerHtml() {
-  return `<section class="card hero hero-layer">
-      <h2>${t("heroLayerTitle")}</h2>
+  return `<section class="reila-hero hero-layer no-print">
+      <h1 class="reila-hero-h1">${t("heroLayerTitle")}</h1>
+      <p class="reila-hero-sub">${t("heroTagline")}</p>
       <div class="hero-highlights">
         <button type="button" class="hl" id="hlBilingual">
           ${icon("info")}<span class="hl-t">${t("heroHlBilingual")}</span><span class="hl-d">${t("heroHlBilingualDesc")}</span></button>
@@ -7910,9 +7930,12 @@ async function viewPlan(parts) {
   const tmDep = planState.timeMode !== "arr";
   setView(`
     <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
-    <h1 style="font-size:var(--fs-h2);font-weight:var(--fw-h1);margin:0 0 0.7rem">${t("planTitle")}</h1>
+    <section class="reila-hero no-print">
+      <h1 class="reila-hero-h1">${t("planTitle")}</h1>
+      <p class="reila-hero-sub">${t("heroTagline")}</p>
+    </section>
     <form id="planForm">
-      <div class="searchcard">
+      <div class="searchcard sc-hero">
         <div class="sc-row">
           <div class="sc-field">
             <label class="sc-label" for="fromInput">${t("from")}</label>

@@ -70,7 +70,7 @@ const info = msg => console.log("INFO " + msg);
   // Layer-hero reittiopaskaupungilla (Lahti = oletuskaupunki): arvolupaus + nostot (kielenvaihto +
   // tulosteet) ja A->B SÄILYY toissijaisena alaosiona.
   const layer = await page.evaluate(() => {
-    const h = document.querySelector(".hero.hero-layer"); if (!h) return null;
+    const h = document.querySelector(".reila-hero.hero-layer"); if (!h) return null;
     return { hls: h.querySelectorAll(".hero-highlights .hl").length, bilingual: !!document.getElementById("hlBilingual"),
       print: !!document.querySelector('.hl[href="#/tulosteet/vihko"]'),
       journeyFields: !!document.querySelector(".hero-journey #homeFromInput") };
@@ -81,7 +81,7 @@ const info = msg => console.log("INFO " + msg);
   // Journey-hero greenfield-kaupungilla (Salo): ei layer-osiota, A->B ensisijaisena
   await page.goto(BASE + "/?city=salo#/", { waitUntil: "networkidle2" });
   const journey = await page.evaluate(() => ({
-    noLayer: !document.querySelector(".hero-layer"), hero: !!document.querySelector(".hero h2"),
+    noLayer: !document.querySelector(".hero-layer"), hero: !!document.querySelector(".reila-hero .reila-hero-h1"),
     fields: !!document.getElementById("homeFromInput") && !!document.getElementById("heroSearch") }));
   (journey.noLayer && journey.hero && journey.fields)
     ? ok("etusivu (Salo, journey): A->B-vetoinen hero ennallaan (ei layer-osiota)")
