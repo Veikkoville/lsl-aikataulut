@@ -150,11 +150,25 @@
     --line-header: #E3E8E5;      /* reuna header */
     --line-divider: #ECEFED;     /* reuna jakaja */
 
-    /* Sekundääri — live-siru/määränpää. Globaali toistaiseksi (Kotka/Vaasa-konflikti → F4). */
+    /* F4: coralin kaksi semanttista käyttöä eriytetty omiin tokeneihinsa.
+       --coral = LIVE / kiireellisyys (PYSYY GLOBAALINA #F0734E kaikilla kaupungeilla:
+       "Lähtee X min" -pillerit, punainen/lämmin = kiireellisyys on universaali konventio). */
     --coral: #F0734E;            /* ei-tekstuaalinen aksentti (sirun tausta) */
     --coral-text: #C2451F;       /* AA 5.04:1 valkoisella — käytä tätä tekstinä, EI valkoista coralin päällä */
     --coral-soft: #FDE7DF;       /* fallback ennen color-mixiä */
     --coral-soft: color-mix(in srgb, var(--coral) 14%, #fff);
+    /* F4: live-pillerin TEKSTI ≥4.5:1 coral-soft-pohjalla. Vaalea = syvennetty coral
+       #A8330F (5.79:1 #fdebe6:lla, 6.68:1 valkoisella). Tumma-pari html[data-theme=dark]:ssa.
+       Piste + pulssi + --coral pysyvät ennallaan (live-semantiikka). */
+    --live-text: #A8330F;
+
+    /* --dest = MÄÄRÄNPÄÄ / spatiaalinen merkki (Minne-piste hakukortissa, kartan
+       määränpää-pin, laajennetun detaljin viimeinen solmu). Oletus = coral; Kotka
+       ylikirjoittaa brändivihreäksi (oranssi accent + vihreä dest → ei warm-on-warm).
+       Pari: lähtö = --accent, määränpää = --dest kaikkialla. */
+    --dest: #F0734E;             /* oletus = coral (Lahti/Salo/Kajaani/Vaasa) */
+    --dest-edge: #C2451F;        /* dest-pisteen reuna: WCAG 1.4.11 — coral/valkoinen 2.89<3:1
+                                    → 1px reuna (#C2451F 5.04:1 valkoisella) nostaa rajan yli */
 
     /* Typo-skaala (handoff: H1 38/800). Variable-painot 400–800. */
     --fs-h1: 2.375rem;  --fw-h1: 800;
@@ -221,6 +235,9 @@
     --line-divider: #202B26;
     --coral-soft: #2A1812;       /* fallback ennen color-mixiä (tumma, ei valkopohja) */
     --coral-soft: color-mix(in srgb, var(--coral) 22%, #000);
+    /* F4: tummassa live-pillerin teksti vaaleaksi coraliksi tummalle coral-soft-pohjalle
+       (#351911): #F0A085 = 7.76:1 (norm) / 10.07:1 (high #000). Piste/pulssi ennallaan. */
+    --live-text: #F0A085;
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.40);
     --shadow-2: 0 2px 10px rgba(0, 0, 0, 0.50);
     --shadow-3: 0 10px 30px rgba(0, 0, 0, 0.60);
@@ -290,6 +307,12 @@
     --blue: #f0a866; --btn-bg: #964810; --btn-hover: #a8500f;
   }
   html[data-city="kotka"] header { border-bottom: 3px solid #dc7b38; }
+  /* F4: Kotkan määränpää = brändivihreä (Jonne ja Minne -logon vihreä, syvennetty AA:han)
+     → lähtö = oranssi (accent), määränpää = vihreä → selvä spatiaalinen erottuvuus, on-brand.
+     Vaalea/kontrasti: #4e7a2e (5.06:1 valkoisella). Tumma: nostettu #6aa840 (5.85:1 tummalla
+     pinnalla, #4e7a2e jäisi 3.33:1). Reuna syvävihreä. EI kirkasta #80bc54 (pisteenä <2:1). */
+  html[data-city="kotka"] { --dest: #4e7a2e; --dest-edge: #355420; }
+  html[data-theme="dark"][data-city="kotka"] { --dest: #6aa840; --dest-edge: #2f4a1c; }
   html[data-contrast="high"] a { text-decoration: underline; }
   html[data-contrast="high"] .card,
   html[data-contrast="high"] button.secondary,
@@ -1216,7 +1239,9 @@
   .sc-box:focus-within { border-color: var(--accent); }
   .sc-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
   .sc-dot.from { background: var(--accent); }
-  .sc-dot.to { background: var(--coral); }
+  /* F4: Minne-piste = --dest (Kotka vihreä, muut coral). 1px --dest-edge -reuna takaa
+     ei-tekstikontrastin ≥3:1 viereistä pintaa vasten (coral/valkoinen olisi 2.89). */
+  .sc-dot.to { background: var(--dest); box-shadow: 0 0 0 1px var(--dest-edge); }
   .sc-box input { border: none; background: transparent; outline: none; font-size: 16px;
     font-weight: 600; width: 100%; min-height: 44px; color: var(--ink); padding: 0; }
   /* mikrofoni kentän oikeaan reunaan (säilyttää #homeNlMic/.field-mic) */
@@ -1294,7 +1319,7 @@
     border-radius: var(--pill); padding: 4px 11px 4px 9px; }
   .live-pill .live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--coral); flex: none; }
   .live-pill.pulse .live-dot { animation: reilaPulse 1.8s infinite; }
-  .live-pill span.live-text { font-size: 13px; font-weight: 700; color: var(--coral-text); }
+  .live-pill span.live-text { font-size: 13px; font-weight: 700; color: var(--live-text); }
   @keyframes reilaPulse {
     0% { box-shadow: 0 0 0 0 rgba(240,115,78,.55); }
     70% { box-shadow: 0 0 0 8px rgba(240,115,78,0); }
@@ -1318,8 +1343,10 @@
     margin: 0; padding: 16px 18px 18px; border-radius: 0 0 var(--radius-card) var(--radius-card); }
   details.itin .tl-row.pt .tl-mid::after { border-color: var(--bus); }
   details.itin .tl-row.pt.start .tl-mid::after { border-color: var(--accent); }
-  details.itin .tl-row.pt.end .tl-mid::after { background: var(--coral); border-color: #fff;
-    box-shadow: 0 0 0 2px var(--coral); }
+  /* F4: viimeinen solmu = määränpää = --dest (Kotka vihreä). Ulkorengas --dest-edge:
+     valkoinen reuna + --dest-edge -kehä → kehän/pinnan kontrasti ≥3:1 (WCAG 1.4.11). */
+  details.itin .tl-row.pt.end .tl-mid::after { background: var(--dest); border-color: #fff;
+    box-shadow: 0 0 0 2px var(--dest-edge); }
   details.itin .tl-body strong { font-size: 15.5px; font-weight: 700; color: var(--ink); }
 
   /* ---- Mobiili (<700px): kentät pinoutuvat, CTA/⇅ täysleveiksi, aikajana luettava ---- */
@@ -7860,9 +7887,14 @@ async function drawItineraryMap(elId, node) {
     }
   }
   const first = node.legs[0], last = node.legs[node.legs.length - 1];
-  L.circleMarker([first.from.lat, first.from.lon], { ...STOP_MARKER, fillColor: "#1a7f4b" })
+  // F4: lähtö = accent, määränpää = --dest (Kotka vihreä) → sama spatiaalipari kuin
+  // hakukortin pisteissä. getComputedStyle resolvoi var-ketjun hexiksi (canvas-väri).
+  const mapCS = getComputedStyle(document.documentElement);
+  const originCol = mapCS.getPropertyValue("--accent").trim() || "#0a4ea3";
+  const destCol = mapCS.getPropertyValue("--dest").trim() || "#F0734E";
+  L.circleMarker([first.from.lat, first.from.lon], { ...STOP_MARKER, fillColor: originCol })
     .addTo(map).bindPopup(t("origin"));
-  L.circleMarker([last.to.lat, last.to.lon], { ...STOP_MARKER, fillColor: "#c0392b" })
+  L.circleMarker([last.to.lat, last.to.lon], { ...STOP_MARKER, fillColor: destCol })
     .addTo(map).bindPopup(t("destination"));
   if (bounds) map.fitBounds(bounds, { padding: [15, 15] });
   // reitin linjojen bussit liikkuvat kartalla reaaliajassa
@@ -8031,8 +8063,12 @@ async function viewPlan(parts) {
       bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
     }
     const first = node.legs[0], last = node.legs[node.legs.length - 1];
-    L.circleMarker([first.from.lat, first.from.lon], { ...STOP_MARKER, fillColor: "#1a7f4b" }).addTo(map).bindPopup(t("origin"));
-    L.circleMarker([last.to.lat, last.to.lon], { ...STOP_MARKER, fillColor: "#c0392b" }).addTo(map).bindPopup(t("destination"));
+    // F4: lähtö = accent, määränpää = --dest (Kotka vihreä) — sama pari kuin hakukortissa
+    const asideCS = getComputedStyle(document.documentElement);
+    const originCol = asideCS.getPropertyValue("--accent").trim() || "#0a4ea3";
+    const destCol = asideCS.getPropertyValue("--dest").trim() || "#F0734E";
+    L.circleMarker([first.from.lat, first.from.lon], { ...STOP_MARKER, fillColor: originCol }).addTo(map).bindPopup(t("origin"));
+    L.circleMarker([last.to.lat, last.to.lon], { ...STOP_MARKER, fillColor: destCol }).addTo(map).bindPopup(t("destination"));
     if (bounds) map.fitBounds(bounds, { padding: [20, 20] });
     const transitRoutes = [...new Map(node.legs.filter(l => l.route?.gtfsId)
       .map(l => [l.route.gtfsId, { gtfsId: l.route.gtfsId, shortName: l.route.shortName }])).values()];
