@@ -4436,11 +4436,20 @@ function cmsToAlerts(items, gtfsAlerts) {
 // tiedotetekstin maininnoista: "linjoja 3, 6, 8(K)" -> 3, 6, 8, 8K
 function lineTokensFromText(text) {
   const out = new Set();
-  for (const seg of text.matchAll(/linj\w*\s+([0-9][0-9A-ZÅÄÖ()\s,.ja-]*)/gi)) {
-    for (const tok of seg[1].matchAll(/(\d+)\s*(?:\(([A-ZÅÄÖ,\s]+)\))?([A-ZÅÄÖ]?)/g)) {
+  // BUGIKORJAUS (alert-line-matching): poista paivamaara-/kellonaika-/vuosikuviot ENNEN poimintaa.
+  // Linja-kaappaus on i-lipun takia ahne (nielaisee lauseen loppuun), joten "1.6." / "29.6.-31.7.2026"
+  // / "9:40" tuottaisivat virheellisia linjatokeneita (esim. 1 ja 6). Linjasuffiksit (10K, 11B) sailyvat.
+  const cleaned = String(text || "")
+    .replace(/\d{1,2}[.:]\d{2}\b/g, " ")                // kellonaika 9:40 / 9.40
+    .replace(/\d{1,2}\.\d{1,2}\.(?:\d{2,4})?/g, " ")    // paivamaara 1.6. / 29.6.2026 / 31.7.
+    .replace(/\b\d{4}\b/g, " ");                        // irrallinen vuosiluku 2026
+  for (const seg of cleaned.matchAll(/linj\w*\s+([0-9][0-9A-ZÅÄÖ()\s,.ja-]*)/gi)) {
+    // suffiksikirjain (10K) sidotaan SUORAAN numeroon -> ei napata seuraavan ISON sanan
+    // alkukirjainta ("31 Hollola" -> 31, ei 31H). Sulkusuffiksi (10(K)) kasitellaan erikseen.
+    for (const tok of seg[1].matchAll(/(\d+)([A-ZÅÄÖ]?)\s*(?:\(([A-ZÅÄÖ,\s]+)\))?/g)) {
       out.add(tok[1]);
-      if (tok[3]) out.add(tok[1] + tok[3]);
-      if (tok[2]) for (const l of tok[2].split(/[,\s]+/)) if (l) out.add(tok[1] + l);
+      if (tok[2]) out.add(tok[1] + tok[2]);
+      if (tok[3]) for (const l of tok[3].split(/[,\s]+/)) if (l) out.add(tok[1] + l);
     }
   }
   return out;

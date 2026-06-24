@@ -25,6 +25,22 @@ check(buildFeedbackRecord({ message: "a".repeat(5000) }, "UA", 1).rec.message.le
 // --- Tekstipoiminta ---
 const tok = lineTokensFromText("Linjojen 3, 8(K) ja 12 reitti poikkeaa.");
 check(tok.has("3") && tok.has("8") && tok.has("8K") && tok.has("12"), "lineTokensFromText: '3, 8(K) ja 12'");
+// BUGIKORJAUS (alert-line-matching): päivämäärä "1.6." EI saa tuottaa linjoja 1 ja 6 (Kytölä-poikkeusreitti)
+const kyt = lineTokensFromText("Linjat 10(K) ja 11(B, V) ajavat poikkeusreittiä Kytölässä kesäkaudelle 1.6. alkaen.");
+check(["10", "10K", "11", "11B", "11V"].every(s => kyt.has(s)) && !kyt.has("1") && !kyt.has("6"),
+  "lineTokensFromText: päivämäärä 1.6. ei matchaa linjoihin 1/6 (Kytölä), suffiksit säilyvät");
+// päivämääräväli + vuosi: "29.6.–31.7.2026" ei saa tuottaa 6/29/31/2026; vain linja 7
+const holl = lineTokensFromText("Poikkeus Hollolassa 29.6.–31.7.2026, linja 7 poikkeusreitillä.");
+check(holl.has("7") && !holl.has("6") && !holl.has("29") && !holl.has("31") && !holl.has("2026"),
+  "lineTokensFromText: pvm-väli 29.6.–31.7.2026 ei matchaa (vain linja 7)");
+// kellonaika "9:40" ei tuota linjoja 9/40
+const klo = lineTokensFromText("Linja 6 ei aja klo 9:40 lähtöä.");
+check(klo.has("6") && !klo.has("9") && !klo.has("40"), "lineTokensFromText: kellonaika 9:40 ei matchaa");
+// pelkkä päivämäärä ilman linja-kontekstia → 0 linjaa
+check(lineTokensFromText("Tiedote 1.6. ilman linjaa.").size === 0, "lineTokensFromText: pvm-only ilman linjaa → 0 linjaa");
+// "31 Hollola" → 31, EI 31H (suffiksikirjain sidottu suoraan numeroon)
+const h31 = lineTokensFromText("Linja 31 Hollola aikataulumuutos.");
+check(h31.has("31") && !h31.has("31H"), "lineTokensFromText: '31 Hollola' → 31, ei 31H");
 
 // --- alertAffects ---
 const sub0 = { routes: ["8K"], gtfsRoutes: ["Lahti:8"] };
