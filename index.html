@@ -408,10 +408,14 @@
   /* min-height pitää footerin aina taitteen alapuolella, joten näkymän
      sisällön asynkroninen latautuminen ei työnnä sitä näkyvistä (CLS) */
   main { max-width: 760px; margin: 0 auto; padding: 1rem; min-height: 100vh; }
+  /* REILA F3: peruskortti saa Reila-signaalin — suurempi pyöristys + hienovarainen
+     kohotus. Tokenit (--card/--border) pysyvät, joten print/dark/kontrasti/per-kaupunki
+     -mekaniikka ei muutu; print nollaa varjon erikseen (ks. @media print). */
   .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-2);
     padding: var(--pad-card);
     margin-bottom: 1rem;
   }
@@ -459,7 +463,7 @@
     font-size: 0.92rem; cursor: pointer; }
   .acc-toggle input { width: auto; min-height: auto; margin: 0; }
   /* Lähestyvä bussi -hälytys */
-  .approach-banner { margin: 0.2rem 0 0.6rem; padding: 0.6rem 0.8rem; border-radius: 10px;
+  .approach-banner { margin: 0.2rem 0 0.6rem; padding: 0.6rem 0.8rem; border-radius: var(--radius-control);
     background: var(--rt-bg); color: var(--rt-text); border: 1px solid var(--rt-text); font-size: 0.95rem; }
   button.secondary.armed { border-color: var(--blue); color: var(--blue);
     background: var(--hover); font-weight: 600; }
@@ -479,16 +483,23 @@
     .foot-cols { grid-template-columns: 1fr 1fr; }
     .foot-brand { grid-column: 1 / -1; }
   }
+  /* REILA F3: kentät saavat pehmeän harmaan pohjan + 13px pyöristyksen + accent-fokuksen.
+     --field-bg/--line ovat teemakohtaisia (tumma/kontrasti/print määritelty) → toimii
+     kaikissa konteksteissa; per-kaupunki seuraa accentia fokusreunassa. */
   input[type="search"], input[type="password"], input[type="date"],
   input[type="datetime-local"], input[type="text"], select {
     font: inherit;
-    padding: 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-control);
     width: 100%;
     min-height: 44px;
-    background: var(--card);
+    background: var(--field-bg);
     color: var(--text);
+  }
+  input[type="search"]:focus, input[type="password"]:focus, input[type="date"]:focus,
+  input[type="datetime-local"]:focus, input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
   }
   select, input[type="datetime-local"] { width: auto; }
   .field { margin: 0.5rem 0; }
@@ -498,8 +509,9 @@
     position: absolute;
     left: 0; right: 0; top: 100%;
     background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    border: 1px solid var(--line);
+    border-radius: 0 0 var(--radius-control) var(--radius-control);
+    box-shadow: var(--shadow-2);
     max-height: 15rem;
     overflow: auto;
     z-index: 500;
@@ -510,7 +522,7 @@
     padding: 0.5rem 0.95rem;
     min-height: 44px;            /* riittävä kosketuskohde (myös ikäihmisille) */
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-control);   /* REILA F3: 13px kentät/napit */
     background: var(--btn-bg);
     color: #fff;
     cursor: pointer;
@@ -527,7 +539,7 @@
   a.btnlink {
     display: inline-flex; align-items: center; gap: 0.4rem; font: inherit; font-weight: var(--wmed);
     padding: 0.5rem 0.95rem; min-height: 44px; box-sizing: border-box;
-    border-radius: var(--radius-sm); background: var(--btn-bg); color: #fff; text-decoration: none;
+    border-radius: var(--radius-control); background: var(--btn-bg); color: #fff; text-decoration: none;
   }
   a.btnlink:hover { background: var(--btn-hover); }
   /* Toissijainen (outline) painike: erottaa avustavat toiminnot ensisijaisesta */
@@ -635,12 +647,19 @@
   details.infosum summary strong { font-weight: var(--wmed); }
   details.infosum[open] summary { margin-bottom: 0.3rem; }
   .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
+  /* REILA F3: segmentoidut valitsimet (päivätyyppi/kieli/teema/tekstikoko/kontrasti/
+     tulostevälilehdet). Inaktiivi = neutraali kenttäpohja + reuna, aktiivi = accent-täyttö.
+     Segmenttipyöristys 9px. Accent = per-kaupunki brändiväri (Lahti/Salo/Kajaani sininen,
+     Kotka oranssi, Vaasa pinkki) → seuraa automaattisesti. */
   .tabs button {
-    background: var(--chip);
+    background: var(--field-bg);
     color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-segment);
     font-size: 0.85rem;
   }
-  .tabs button[aria-pressed="true"] { background: var(--btn-bg); color: #fff; }
+  .tabs button:hover { border-color: var(--accent); }
+  .tabs button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
   /* Tulosteet-keskuksen päävälilehdet: hieman suuremmat kuin päivätyyppi-chipit */
   .tabs .ptab { font-size: 0.95rem; padding: 0.5rem 0.9rem; min-height: 44px; }
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -659,7 +678,7 @@
   .timegrid { display: flex; flex-wrap: wrap; gap: 0.35rem; }
   .timegrid span {
     background: var(--chip);
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     padding: 0.28rem 0.6rem;
     font-size: 1.05rem;
     font-variant-numeric: tabular-nums;
@@ -668,7 +687,7 @@
   .timegrid span.rt { background: var(--rt-bg); color: var(--rt-text); font-weight: 600; }
   /* Klikattavat lähdöt: napit peilaavat chip-ulkoasun; valittu vuoro korostettu */
   .timegrid button { font: inherit; cursor: pointer; min-height: 0;
-    background: var(--chip); border: 1px solid transparent; border-radius: 5px;
+    background: var(--chip); border: 1px solid transparent; border-radius: var(--radius-sm);
     padding: 0.28rem 0.6rem; font-size: 1.05rem; font-variant-numeric: tabular-nums; color: var(--text); }
   .timegrid button.past { background: none; color: var(--muted); border-color: var(--border); }
   .timegrid button.rt { background: var(--rt-bg); color: var(--rt-text); font-weight: 600; }
@@ -750,8 +769,8 @@
   /* QR-koodit (näyttö + juliste) */
   .embedbox { margin: 0.5rem 0; display: flex; flex-direction: column; gap: 0.5rem; }
   .embed-field { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
-  .embed-field input, .embed-field textarea { font: inherit; font-size: 0.85rem; padding: 0.4rem;
-    border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text);
+  .embed-field input, .embed-field textarea { font: inherit; font-size: 0.85rem; padding: 0.45rem 0.55rem;
+    border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--field-bg); color: var(--text);
     width: 100%; box-sizing: border-box; resize: vertical; }
   .qrbox { margin: 0.6rem 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; }
   canvas.qrimg { width: 200px; height: 200px; image-rendering: pixelated;
@@ -769,12 +788,12 @@
     margin: 0; padding: 0.5rem 0;
     background: var(--card); border-bottom: 1px solid var(--border);
   }
-  .error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); padding: 0.6rem; border-radius: 6px; }
+  .error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); padding: 0.6rem 0.8rem; border-radius: var(--radius-control); }
   details.alert {
     border-left: 4px solid var(--blue);
     background: var(--card);
-    border-radius: 4px;
-    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.7rem;
     margin: 0.4rem 0;
   }
   details.alert summary { cursor: pointer; font-weight: var(--wmed); }
@@ -793,8 +812,10 @@
   html[data-theme="dark"] p.co2 { color: #5fd07f; }
   #fbForm label { display: block; font-size: 0.85rem; color: var(--muted); margin: 0.6rem 0 0.15rem; }
   #fbForm select { width: 100%; }
-  #fbForm textarea { font: inherit; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px;
-    width: 100%; background: var(--card); color: var(--text); resize: vertical; }
+  #fbForm textarea { font: inherit; padding: 0.55rem 0.7rem; border: 1px solid var(--line);
+    border-radius: var(--radius-control);
+    width: 100%; background: var(--field-bg); color: var(--text); resize: vertical; }
+  #fbForm textarea:focus { border-color: var(--accent); }
   #fbForm button[type="submit"] { margin-top: 0.8rem; }
   #fbStatus { margin: 0.6rem 0 0; }
   #fbStatus.ok-msg { color: #1e7d3a; font-weight: 600; }
@@ -813,7 +834,8 @@
     justify-content: center; background: var(--blue); color: #fff; border: 2px solid #fff;
     border-radius: var(--radius-sm); font-weight: var(--wmed); font-size: 0.85rem; box-sizing: border-box; }
   .plat-list { list-style: none; padding: 0; margin: 0.5rem 0 0; display: grid; gap: 0.5rem; }
-  .plat-item { border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.75rem; }
+  .plat-item { border: 1px solid var(--line); border-radius: var(--radius-card);
+    box-shadow: var(--shadow-1); padding: 0.7rem 0.85rem; }
   .plat-item .plat-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
   .plat-name { font-weight: var(--wmed); }
   .plat-item .plat-head > a { margin-left: auto; }
@@ -823,8 +845,8 @@
   .plat-lines { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
   .plat-tabs { flex-wrap: wrap; }
   /* Liput ja hinnat */
-  .notice { background: var(--rt-bg); border-left: 4px solid var(--green); border-radius: 6px;
-    padding: 0.6rem 0.8rem; margin: 0.4rem 0 0.9rem; }
+  .notice { background: var(--rt-bg); border-left: 4px solid var(--green); border-radius: var(--radius-control);
+    padding: 0.7rem 0.9rem; margin: 0.4rem 0 0.9rem; }
   .notice p { margin: 0.3rem 0 0; }
   .fare-wrap { overflow-x: auto; margin: 0.3rem 0 0.5rem; }
   table.fare { width: 100%; border-collapse: collapse; }
@@ -984,6 +1006,12 @@
     --border: #1a1a1a; --hover: #eaf0fb; --chip: #e7edf6;
     --blue: #0033cc; --btn-bg: #0033cc; --btn-hover: #001f99;
     --rt-bg: #d6f0d6; --rt-text: #00540f;
+    /* REILA F3: tiski on tahallaan pakotettu kirkas korkea kontrasti riippumatta teemasta.
+       F3 alkoi kuluttaa Reila-neutraaleja (--field-bg/--line/--accent/--ink) kentissä/napeissa,
+       joten ne on pakotettava tässä myös → tumma teema ei vuoda tiskin valkoiselle pinnalle. */
+    --field-bg: #ffffff; --line: #1a1a1a; --surface: #ffffff;
+    --ink: #111111; --ink-muted: #2f2f2f; --ink-muted-2: #2f2f2f;
+    --accent: #0033cc; --accent-dark: #001f99;
     background: #ffffff; color: #111111; min-height: 100vh; box-sizing: border-box;
     padding: clamp(1rem, 2.2vw, 2.2rem);
     font-size: clamp(1.05rem, 1.35vw, 1.3rem);
@@ -1062,8 +1090,10 @@
   /* Hierarkiapassi: nosto-otsikot ink-väriin, ikonit neutraaliin harmaaseen
      → vahva brändiväri jää headeriin + primäärinappiin (ei kilpailevaa sinistä). */
   .hl .ic { color: var(--muted); width: 1.4em; height: 1.4em; }
-  .hl-t { font-weight: var(--wmed); color: var(--text); }
-  .hl-d { font-size: 0.85rem; color: var(--muted); }
+  /* SV-ylivuotosuoja: pitkä yhdyssana (esim. "Störningsmeddelanden") katkeaa riville
+     eikä valu kortin reunan yli — myös sarakkeen ollessa kapea (flex/grid-lapsi). */
+  .hl-t { font-weight: var(--wmed); color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+  .hl-d { font-size: 0.85rem; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
   .hero-journey { border-top: 1px solid var(--border); padding-top: 0.8rem; }
   .hero-journey-h { display: flex; align-items: center; gap: 0.4rem; font-size: 1.05rem;
     font-weight: var(--wmed); margin: 0 0 0.5rem; color: var(--muted); }
@@ -1314,8 +1344,16 @@
       --bg: #fff; --card: #fff; --text: #000; --muted: #444;
       --border: #ccc; --chip: #fff; --hover: #fff;
       --rt-bg: #fff; --rt-text: #000;
+      /* REILA F3: pakota myös Reila-neutraalit mustavalkoturvallisiksi, ettei tumma
+         teema vuoda tulosteeseen kun komponentit kuluttavat --surface/--line/--ink jne. */
+      --surface: #fff; --surface-page: #fff; --field-bg: #fff;
+      --ink: #000; --ink-muted: #444; --ink-muted-2: #444;
+      --line: #ccc; --line-header: #ccc; --line-divider: #ccc;
+      --accent-soft: #fff; --coral-soft: #fff;
     }
     body { background: #fff; }
+    /* REILA F3: pehmeät kohotukset pois tulosteesta (kortit/kentät/itinerary/laiturit) */
+    * { box-shadow: none !important; }
     /* tulosteessa sisältö saa käyttää koko arkin leveyden (myös vaaka) */
     main { max-width: none; min-height: 0; padding: 0; }
     /* Globaali sovellusotsikko (sis. h1 "…aikataulut") on ruutukehystä — pois
