@@ -1016,7 +1016,9 @@
   details.tl-stops { margin-top: 0.15rem; }
   details.tl-stops summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
   details.tl-stops ul { list-style: none; margin: 0.25rem 0 0; padding: 0 0 0 0.2rem; }
-  details.tl-stops li { font-size: 0.85rem; color: var(--muted); padding: 0.1rem 0; }
+  details.tl-stops li { font-size: 0.85rem; color: var(--muted); padding: 0.1rem 0; display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+  details.tl-stops li .tl-stop-name { min-width: 0; overflow-wrap: anywhere; }
+  details.tl-stops li .tl-stop-time { flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
   nav.crumb { margin-bottom: 0.75rem; font-size: 0.9rem; }
   nav.crumb a { color: var(--blue); }
   footer { margin-top: 2rem; padding: 1.6rem 1rem 2rem; font-size: 0.82rem; color: var(--muted);
@@ -7677,6 +7679,7 @@ const PLAN_QUERY = `
           route { gtfsId shortName color textColor }
           trip { tripHeadsign@L occupancy { occupancyStatus } }
           intermediateStops { name }
+          intermediatePlaces { name arrivalTime departureTime }
           legGeometry { points }
           alerts { alertHeaderText alertSeverityLevel }
         }
@@ -7770,7 +7773,9 @@ function timelineHtml(node) {
     } else {
       const rt = leg.realtimeState && leg.realtimeState !== "SCHEDULED";
       const rail = leg.route?.color ? "#" + leg.route.color : "var(--blue)";
-      const mids = leg.intermediateStops || [];
+      // intermediatePlaces tuo nimet + ajat samasta plan-kyselystä; intermediateStops (vain nimet)
+      // jää varalle, jos ajat puuttuisivat. Aika = lähtö pysäkiltä (departureTime), fallback arrivalTime.
+      const mids = leg.intermediatePlaces?.length ? leg.intermediatePlaces : (leg.intermediateStops || []);
       const midLabel = mids.length === 0 ? t("intermediate0")
         : mids.length === 1 ? t("intermediate1") : t("intermediateN", { n: mids.length });
       const alerts = (leg.alerts || []).map(a =>
@@ -7785,7 +7790,10 @@ function timelineHtml(node) {
             ${rt ? `<span class="rt"> ●</span>` : ""}
             <details class="tl-stops">
               <summary>${midLabel} · ${fmtDur(leg.duration)}</summary>
-              ${mids.length ? `<ul>${mids.map(s => `<li>${esc(s.name)}</li>`).join("")}</ul>` : ""}
+              ${mids.length ? `<ul>${mids.map(s => {
+                const ms = s.departureTime ?? s.arrivalTime ?? null;
+                return `<li><span class="tl-stop-name">${esc(s.name)}</span>${ms ? `<span class="tl-stop-time">${fmtClock(ms)}</span>` : ""}</li>`;
+              }).join("")}</ul>` : ""}
             </details>
             ${alerts}
           </div>
