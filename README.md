@@ -1,4 +1,4 @@
-# Lahden bussiaikataulut (epävirallinen prototyyppi)
+# Lahden bussiaikataulut
 
 Kevyt aikataulupalvelu Lahden seudun liikenteen (LSL) busseille. Yksi staattinen
 HTML-sivu ilman backendia ja build-vaihetta — kaikki data haetaan suoraan
@@ -75,32 +75,6 @@ tasalla ilman ylläpitoa.
 - Lahden GTFS-syöte tunnistetaan automaattisesti rajapinnan feed-listasta
 - Ei riippuvuuksia, ei buildia: yksi HTML-tiedosto
 
-## Käyttö toisessa Waltti-kaupungissa
-
-Sovellus ei ole sidottu Lahteen: kaikki kaupunkikohtainen on koottu
-`index.html`-tiedoston alun `CONFIGS`-esiasetuksiin, ja kaupungin voi vaihtaa
-jopa pelkällä URL-parametrilla. **Kokeile itse:**
-[sama sovellus Kuopion datalla](https://veikkoville.github.io/lsl-aikataulut/?city=kuopio)
-tai [Salon datalla](https://veikkoville.github.io/lsl-aikataulut/?city=salo)
-(`?city=kuopio` / `?city=salo` — suosikit ja välimuistit pysyvät
-kaupunkikohtaisina).
-
-Pysyvä käyttöönotto toiselle Waltti-kaupungille (esim. Jyväskylä, Joensuu):
-
-1. Lisää kaupunki `CONFIGS`-objektiin tai vaihda oletus: kaupungin nimi ja
-   suomen genetiivi, liikennöitsijän nimi, `feedMatch`-regex (esim.
-   `/jyvaskyla/i`), seudun `area`-rajaus (focus-piste ja bounding box
-   osoitehaulle) sekä `proxyUrl`.
-2. Muokkaa `manifest.webmanifest`-tiedoston `name`/`short_name` (PWA-nimi ei
-   tule CONFIG:sta).
-3. Välityspalvelin: ota worker käyttöön omalla originillasi (lisää se
-   `worker/worker.js`-tiedoston `ALLOWED_ORIGINS`-listaan) **tai** jätä
-   `proxyUrl` tyhjäksi, jolloin sivu kysyy käyttäjän oman Digitransit-avaimen.
-
-Huomio: häiriötiedotteiden linjapoiminta tiedoteteksteistä
-(`lineTokensFromText`) on suomenkielinen ("linjoja 3, 8K"), joten se toimii
-suomalaisissa Waltti-kaupungeissa sellaisenaan.
-
 ## Jatkokehitysideoita
 
 - Oikeat taustapush-ilmoitukset (vaatisi tilauksia säilövän palvelimen,
@@ -110,4 +84,6 @@ suomalaisissa Waltti-kaupungeissa sellaisenaan.
 
 Aikataulu- ja reaaliaikadata: Lahden seudun liikenne / Waltti avoin data,
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.fi), Digitransit-
-rajapinnan kautta. Koodi: MIT-lisenssi, ks. [LICENSE](LICENSE).
+rajapinnan kautta. Koodi: omistusoikeudellinen (proprietary), kaikki oikeudet
+pidätetään, ks. [LICENSE](LICENSE). Ei käyttö-/levitysoikeutta ilman kirjallista
+lupaa.
