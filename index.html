@@ -1488,6 +1488,34 @@
     .vihko-a5 { width: 148.5mm; height: 210mm; padding: 10mm; box-sizing: border-box;
                 overflow: hidden; border-right: 0.2mm dashed #ccc; }
     .vihko-a5:last-child { border-right: 0; }
+    /* Lehtiteline-tuloste: molemmat suunnat + 3 päivätyyppiä tiiviisti pystyarkille.
+       Päivätyyppitaulut sarakkeisiin (multicol); avainpysäkit rajattu (≤~4) + tabular-nums
+       → kapeat sarakkeet mahtuvat palstaan, mikään kellonaika ei leikkaudu. */
+    .rackprint { font-size: 11pt; color: #000; }
+    .rackprint .rack-head { display: flex; justify-content: space-between; align-items: flex-start;
+                            gap: 6mm; border-bottom: 1.5pt solid #000; padding-bottom: 2mm;
+                            margin-bottom: 3mm; break-after: avoid; page-break-after: avoid; }
+    .rackprint .rack-head h2 { font-size: 15pt; margin: 0 0 1mm; }
+    .rackprint .rack-sub { font-size: 11pt; font-weight: 700; margin: 0; white-space: pre-wrap; }
+    .rackprint .rack-period { font-size: 8.5pt; color: #333; margin: 1mm 0 0; }
+    .rackprint img.rack-qr { width: 22mm; height: 22mm; image-rendering: pixelated; flex: none; }
+    .rackprint .rack-dir { margin: 0 0 2.5mm; }
+    .rackprint .rack-dir > h3 { font-size: 11.5pt; margin: 2mm 0 1mm; break-after: avoid;
+                                page-break-after: avoid; border-left: 3pt solid #000; padding-left: 2mm; }
+    .rackprint .rack-days { columns: 2; column-gap: 6mm; }
+    /* EI break-inside:avoid → pitkä Ma–Pe-taulu saa jakautua palstoihin (rivit pysyvät
+       atomeina, otsikkorivi toistuu) → tiivis latonta ilman tyhjiä aukkoja (1–2 s). */
+    .rackprint .rack-day { margin: 0 0 3mm; }
+    .rackprint table.booklet thead { display: table-header-group; } /* pysäkkinimet toistuvat fragmenteissa */
+    .rackprint .rack-day h4.daytype { font-size: 10pt; margin: 0 0 0.6mm; break-after: avoid; page-break-after: avoid; }
+    .rackprint .matrix-wrap { overflow: visible; }
+    .rackprint table.booklet { font-size: 10pt; width: 100%; table-layout: fixed; line-height: 1.12; }
+    /* Pysäkkinimet (th) rivittyvät → kapeat sarakkeet mahtuvat palstaan; kellonajat (td)
+       eivät koskaan rivity/leikkaudu (nowrap + tabular-nums). Tämä takaa ei-leikkautumisen. */
+    .rackprint table.booklet th { white-space: normal; overflow-wrap: anywhere; vertical-align: top;
+        padding: 0.6pt 3pt; font-size: 8.5pt; line-height: 1.05; }
+    .rackprint table.booklet td {
+        padding: 0.5pt 3pt; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
   }
   .print-only { display: none; }
 </style>
@@ -2078,6 +2106,7 @@ const STRINGS = {
     dayTypesLabel: "Päivät", dayWeekday: "Ma–Pe", daySat: "La", daySun: "Su",
     dayTypeNote: "Ma–Pe perustuu edustavaan arkipäivään; juhlapyhät ja koulujen loma-ajat voivat poiketa.",
     printKeyStopsPort: "Isot pysäkit (pysty)", printAllStopsLand: "Kaikki pysäkit (vaaka)",
+    rackPrintBtn: "Tulosta lehtitelineeseen",
     preparingPrint: "Valmistellaan tulostetta…", toHomeAria: "Etusivulle",
     mapStopsTitle: "Reitti kartalla ja pysäkit",
     mapAria: "Reitti kartalla",
@@ -2500,6 +2529,7 @@ const STRINGS = {
     dayTypesLabel: "Days", dayWeekday: "Mon–Fri", daySat: "Sat", daySun: "Sun",
     dayTypeNote: "Mon–Fri is based on a representative weekday; public holidays and school holidays may differ.",
     printKeyStopsPort: "Major stops (portrait)", printAllStopsLand: "All stops (landscape)",
+    rackPrintBtn: "Print for leaflet rack",
     preparingPrint: "Preparing printout…", toHomeAria: "To home page",
     mapStopsTitle: "Route map and stops",
     mapAria: "Route on map",
@@ -2920,6 +2950,7 @@ const STRINGS = {
     dayTypesLabel: "Dagar", dayWeekday: "Mån–Fre", daySat: "Lör", daySun: "Sön",
     dayTypeNote: "Mån–Fre baseras på en representativ vardag; helgdagar och skollov kan avvika.",
     printKeyStopsPort: "Stora hållplatser (stående)", printAllStopsLand: "Alla hållplatser (liggande)",
+    rackPrintBtn: "Skriv ut för broschyrställ",
     preparingPrint: "Förbereder utskrift…", toHomeAria: "Till startsidan",
     mapStopsTitle: "Rutt på kartan och hållplatser",
     mapAria: "Rutt på kartan",
@@ -5549,6 +5580,7 @@ async function viewRoute(routeId, patternCode, date) {
         <h2 class="no-print">${t("fullTimetableTitle")}</h2>
         <p class="muted no-print">${t("fullTimetableHint")}</p>
         <div class="row no-print" style="flex-wrap:wrap;gap:0.4rem">
+          <button id="printRackBtn">${icon("print")} ${t("rackPrintBtn")}</button>
           <button id="printKeyBtn">${icon("print")} ${t("printKeyStopsPort")}</button>
           <button id="printAllBtn">${icon("print")} ${t("printAllStopsLand")}</button>
           <button id="lineQrBtn" class="secondary">${icon("qr")} ${t("qrButton")}</button>
@@ -5882,12 +5914,65 @@ async function viewRoute(routeId, patternCode, date) {
     if (st) st.textContent = "";
     window.print();
   };
+  // Lehtiteline-tuloste: MOLEMMAT suunnat + KAIKKI 3 päivätyyppiä (Ma–Pe/La/Su) tiiviisti
+  // yhdelle pystyarkille (tavoite 1–2 s). Ero printLine("key"):iin: tämä kattaa molemmat
+  // suunnat ja latoo päivätyypit sarakkeisiin (rack-CSS), avainpysäkit rajattu (≤~4) ettei
+  // mikään kellonaika leikkaudu. Aina livedataa (sama tripsForDate kuin muuallakin).
+  const printRack = async () => {
+    const st = document.getElementById("linePrintStatus");
+    const po = document.getElementById("linePrintOut");
+    if (!po) return;
+    printOwned = true; // estä matriisihaun oletustäytön ylikirjoitus
+    if (st) st.textContent = t("preparingPrint");
+    const dts = dayTypeDates(date);
+    const dirBlocks = await Promise.all(primaries.map(async p => {
+      const days = await Promise.all(dts.map(async dt => {
+        let table;
+        try {
+          const { data: md } = await cachedGql(`btt:${p.code}:${dt.date}`,
+            `query ($code: String!, $date: String!) {
+               pattern(id: $code) { tripsForDate(serviceDate: $date) {
+                 stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } } } }
+             }`, { code: p.code, date: dt.date.replace(/-/g, "") });
+          table = bookletTableHtml(md.pattern?.tripsForDate || [], { target: 4, limit: 5 });
+        } catch (e) { table = `<p class="muted">${t("bookletNoData")}</p>`; }
+        return `<div class="rack-day"><h4 class="daytype">${esc(dt.label)}</h4>${table}</div>`;
+      }));
+      return `<section class="rack-dir"><h3>${esc(patternLabel(p))}</h3>
+        <div class="rack-days">${days.join("")}</div></section>`;
+    }));
+    // Valinnainen QR linjan livenäkymään (PNG, jotta sarjallistuu innerHTML:ään)
+    let qrHtml = "";
+    try {
+      const cv = await qrCanvas(appUrl("#/linja/" + encodeURIComponent(routeId)), 200);
+      qrHtml = `<img class="rack-qr" alt="${esc(t("qrCaptionLine"))}" src="${cv.toDataURL("image/png")}">`;
+    } catch (e) { /* QR ei pakollinen */ }
+    po.innerHTML = `<div class="rackprint">
+      <div class="rack-head">
+        <div class="rack-head-main">
+          <h2>${badgeHtml(route)} ${esc(route.longName)}</h2>
+          <p class="rack-sub">${esc(primaries.map(patternLabel).join("    "))}</p>
+          <p class="rack-period">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
+        </div>
+        ${qrHtml}
+      </div>
+      ${dirBlocks.join("")}
+    </div>`;
+    if (st) st.textContent = "";
+    runPrintJob(t("preparingPrint"), () => {
+      setPageOrientation("rack");
+      const done = () => { setPageOrientation("portrait"); hidePrintPrep(); window.removeEventListener("afterprint", done); };
+      window.addEventListener("afterprint", done);
+      window.print();
+    });
+  };
   // "Koko aikataulu" -lohkon taitto mobiilissa (desktopilla CSS näyttää aina, nappi piilossa)
   document.querySelector(".ft-toggle")?.addEventListener("click", e => {
     const wrap = e.currentTarget.closest(".ft-collapse");
     const open = wrap.classList.toggle("ft-open");
     e.currentTarget.setAttribute("aria-expanded", String(open));
   });
+  document.getElementById("printRackBtn")?.addEventListener("click", printRack);
   document.getElementById("printKeyBtn")?.addEventListener("click", () => printLine("key"));
   document.getElementById("printAllBtn")?.addEventListener("click", () => printLine("all"));
   document.getElementById("lineQrBtn")?.addEventListener("click", () => {
@@ -8393,6 +8478,8 @@ function setPageOrientation(orient) {
     ? "@page { size: A4 landscape; margin: 8mm; }"
     : orient === "vihko"
     ? "@page { size: A4 landscape; margin: 0; }"   // vihko: 2× A5/arkki, reunaan asti
+    : orient === "rack"
+    ? "@page { size: A4 portrait; margin: 8mm; }"  // lehtiteline: tiukat marginaalit, max tila
     : "@page { size: A4 portrait; margin: 12mm; }";
 }
 
@@ -8571,11 +8658,11 @@ function stopMatchesHub(stopName, hubTokenLists) {
   return hubTokenLists.some(hs =>
     hs.length && tokens.some((_, i) => i + hs.length <= tokens.length && hs.every((w, j) => tokens[i + j] === w)));
 }
-function pickKeyStops(cand) {
-  if (cand.length <= KEY_STOP_LIMIT) return cand.map(c => c.stop);
+function pickKeyStops(cand, target = KEY_STOP_TARGET, limit = KEY_STOP_LIMIT) {
+  if (cand.length <= limit) return cand.map(c => c.stop);
   const chosen = new Set([cand[0].idx, cand[cand.length - 1].idx]);          // aina lähtö + pää
-  for (let i = 0; i < KEY_STOP_TARGET; i++)                                   // tasaväli (sis. päätepisteet)
-    chosen.add(cand[Math.round(i * (cand.length - 1) / (KEY_STOP_TARGET - 1))].idx);
+  for (let i = 0; i < target; i++)                                           // tasaväli (sis. päätepisteet)
+    chosen.add(cand[Math.round(i * (cand.length - 1) / (target - 1))].idx);
   const hubTokens = (CONFIG.hubs || []).map(h => normHubName(h.name).split(" ").filter(Boolean)).filter(a => a.length);
   if (hubTokens.length) for (const c of cand) if (stopMatchesHub(c.stop.name, hubTokens)) chosen.add(c.idx);
   return cand.filter(c => chosen.has(c.idx)).map(c => c.stop);               // sekvenssijärjestyksessä
@@ -8584,7 +8671,7 @@ function pickKeyStops(cand) {
 // Vihkotaulukko yhdelle suunnalle: sarakkeina isot pysäkit (timepoint +
 // aina lähtö & pääte), riveinä päivän lähdöt. Rivi = yksi vuoro avainpysäkkien
 // läpi (esim. Pilkekatu 13:05 · Matkakeskus 13:13 · …).
-function bookletTableHtml(trips) {
+function bookletTableHtml(trips, keyOpts) {
   const valid = (trips || []).filter(tr => (tr.stoptimes || []).length);
   if (!valid.length) return `<p class="muted">${t("bookletNoData")}</p>`;
   const seq = valid[0].stoptimes;
@@ -8592,7 +8679,7 @@ function bookletTableHtml(trips) {
   const cand = seq
     .map((st, i) => (st.timepoint || i === 0 || i === last) ? { stop: st.stop, idx: i } : null)
     .filter(Boolean);
-  const keyStops = pickKeyStops(cand);
+  const keyStops = pickKeyStops(cand, keyOpts?.target, keyOpts?.limit);
   const rows = valid.map(tr => {
     const m = {};
     for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture;
