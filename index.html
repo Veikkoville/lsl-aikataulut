@@ -2116,7 +2116,7 @@ const STRINGS = {
     timeModeAria: "Ajan tulkinta", timeAria: "Aika",
     departAt: "Lähtöaika", arriveBy: "Saapumisaika",
     searchRoutes: "Hae reitit",
-    planNResults: "{n} reittiä", sortFast: "Nopein", sortArrive: "Perillä aiemmin", sortWalk: "Vähiten kävelyä",
+    planNResults: "{n} reittiä", sortDepart: "Lähtöaika", sortFast: "Nopein", sortArrive: "Perillä aiemmin", sortWalk: "Vähiten kävelyä",
     wheelchairRoute: "Esteetön reitti", lessWalk: "Vähemmän kävelyä",
     itinerariesTitle: "Reittiehdotukset",
     co2Saved: "Säästät n. {kg} CO₂ verrattuna henkilöautoon",
@@ -2536,7 +2536,7 @@ const STRINGS = {
     timeModeAria: "Time interpretation", timeAria: "Time",
     departAt: "Depart at", arriveBy: "Arrive by",
     searchRoutes: "Search",
-    planNResults: "{n} routes", sortFast: "Fastest", sortArrive: "Arrives earliest", sortWalk: "Least walking",
+    planNResults: "{n} routes", sortDepart: "Departure time", sortFast: "Fastest", sortArrive: "Arrives earliest", sortWalk: "Least walking",
     wheelchairRoute: "Accessible journey", lessWalk: "Less walking",
     itinerariesTitle: "Suggested journeys",
     co2Saved: "Saves approx. {kg} CO₂ compared to a car",
@@ -2956,7 +2956,7 @@ const STRINGS = {
     timeModeAria: "Tidens tolkning", timeAria: "Tid",
     departAt: "Avgångstid", arriveBy: "Ankomsttid",
     searchRoutes: "Sök resor",
-    planNResults: "{n} rutter", sortFast: "Snabbast", sortArrive: "Anländer först", sortWalk: "Minst gång",
+    planNResults: "{n} rutter", sortDepart: "Avgångstid", sortFast: "Snabbast", sortArrive: "Anländer först", sortWalk: "Minst gång",
     wheelchairRoute: "Tillgänglig resa", lessWalk: "Mindre promenad",
     itinerariesTitle: "Reseförslag",
     co2Saved: "Sparar ca {kg} CO₂ jämfört med bil",
@@ -8070,7 +8070,7 @@ async function viewPlan(parts) {
   const results = document.getElementById("planResults");
   let nodes = [], cursor = null, prevCursor = null, directNodes = {};
   let lastHasNext = false, lastHasPrev = false, mainDone = false;
-  let planSort = "fast";          // REILA F2: lajittelusegmentti (Nopein/Perillä aiemmin/Vähiten kävelyä)
+  let planSort = "depart";        // REILA F2: lajittelusegmentti (Lähtöaika/Nopein/Perillä aiemmin/Vähiten kävelyä); oletus = lähtöaika nouseva
   let asideMap = null;            // sivupalkkikartan Leaflet-instanssi (desktop)
 
   // REILA F2: desktopilla (>=1000px) reitin kartta piirtyy sivupalkkiin; uudelleenpiirrettävä
@@ -8140,7 +8140,8 @@ async function viewPlan(parts) {
   };
   const sortNodes = arr => {
     const c = arr.slice();
-    if (planSort === "fast") c.sort((a, b) => (new Date(a.end) - new Date(a.start)) - (new Date(b.end) - new Date(b.start)));
+    if (planSort === "depart") c.sort((a, b) => (new Date(a.start) - new Date(b.start)) || ((new Date(a.end) - new Date(a.start)) - (new Date(b.end) - new Date(b.start))));
+    else if (planSort === "fast") c.sort((a, b) => (new Date(a.end) - new Date(a.start)) - (new Date(b.end) - new Date(b.start)));
     else if (planSort === "arrive") c.sort((a, b) => new Date(a.end) - new Date(b.end));
     else if (planSort === "walk") c.sort((a, b) => (a.walkDistance || 0) - (b.walkDistance || 0));
     return c;
@@ -8156,6 +8157,7 @@ async function viewPlan(parts) {
       ? `<div class="plan-topbar">
            <div class="plan-count"><strong>${t("planNResults", { n: nodes.length })}</strong></div>
            <div class="plan-sort" role="group" aria-label="${t("sortFast")}">
+             <button type="button" data-sort="depart" aria-pressed="${planSort === "depart"}">${t("sortDepart")}</button>
              <button type="button" data-sort="fast" aria-pressed="${planSort === "fast"}">${t("sortFast")}</button>
              <button type="button" data-sort="arrive" aria-pressed="${planSort === "arrive"}">${t("sortArrive")}</button>
              <button type="button" data-sort="walk" aria-pressed="${planSort === "walk"}">${t("sortWalk")}</button>
