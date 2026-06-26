@@ -11,6 +11,7 @@ const GEOCODING_UPSTREAM = "https://api.digitransit.fi/geocoding/v1";
 
 const ALLOWED_ORIGINS = new Set([
   "https://veikkoville.github.io",
+  "https://demo.reittari.fi",
   "http://localhost:8000",
   "http://127.0.0.1:8000",
 ]);
@@ -463,7 +464,7 @@ export function buildTrackEvent(body) {
 
 // Vain kuntalaisliikenne kirjataan: suodatetaan botit (UA) ja ei-tuotanto-liikenne (origin/referer).
 // Tämä poistaa hakukonebotit + smoke-/kehitysajot (localhost), jotka inflatoivat laskureita.
-const PROD_ORIGINS = ["https://veikkoville.github.io"];
+const PROD_ORIGINS = ["https://veikkoville.github.io", "https://demo.reittari.fi"];
 const BOT_UA_RE = /bot|crawl|spider|slurp|googlebot|bingbot|baiduspider|yandex|duckduckbot|headless|phantomjs|puppeteer|playwright|curl\/|wget|python-requests|python-urllib|scrapy|facebookexternalhit|go-http-client|java\/|libwww|httpunit/i;
 export function isAnalyticsClient(ua, origin, referer) {
   ua = String(ua || ""); origin = String(origin || ""); referer = String(referer || "");
