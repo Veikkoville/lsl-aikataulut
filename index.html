@@ -2105,6 +2105,8 @@ const STRINGS = {
     bookletToc: "Sisältö",
     dayTypesLabel: "Päivät", dayWeekday: "Ma–Pe", daySat: "La", daySun: "Su",
     dayTypeNote: "Ma–Pe perustuu edustavaan arkipäivään; juhlapyhät ja koulujen loma-ajat voivat poiketa.",
+    printDaysNote: "Ajopäivät luetaan suoraan aikataulusyötteestä; otsikko kertoo vuoron todelliset liikennöintipäivät. Juhlapyhät voivat poiketa.",
+    dayEveryDay: "Joka päivä", schoolTerm: "koulupäivinä", schoolBreak: "loma-aikoina",
     printKeyStopsPort: "Isot pysäkit (pysty)", printAllStopsLand: "Kaikki pysäkit (vaaka)",
     rackPrintBtn: "Tulosta lehtitelineeseen",
     preparingPrint: "Valmistellaan tulostetta…", toHomeAria: "Etusivulle",
@@ -2528,6 +2530,8 @@ const STRINGS = {
     bookletToc: "Contents",
     dayTypesLabel: "Days", dayWeekday: "Mon–Fri", daySat: "Sat", daySun: "Sun",
     dayTypeNote: "Mon–Fri is based on a representative weekday; public holidays and school holidays may differ.",
+    printDaysNote: "Operating days are read straight from the schedule feed; each heading shows the trip's actual days of operation. Public holidays may differ.",
+    dayEveryDay: "Daily", schoolTerm: "school days", schoolBreak: "school holidays",
     printKeyStopsPort: "Major stops (portrait)", printAllStopsLand: "All stops (landscape)",
     rackPrintBtn: "Print for leaflet rack",
     preparingPrint: "Preparing printout…", toHomeAria: "To home page",
@@ -2949,6 +2953,8 @@ const STRINGS = {
     bookletToc: "Innehåll",
     dayTypesLabel: "Dagar", dayWeekday: "Mån–Fre", daySat: "Lör", daySun: "Sön",
     dayTypeNote: "Mån–Fre baseras på en representativ vardag; helgdagar och skollov kan avvika.",
+    printDaysNote: "Trafikdagarna läses direkt från tidtabellsflödet; rubriken visar turens verkliga trafikdagar. Helgdagar kan avvika.",
+    dayEveryDay: "Varje dag", schoolTerm: "skoldagar", schoolBreak: "skollov",
     printKeyStopsPort: "Stora hållplatser (stående)", printAllStopsLand: "Alla hållplatser (liggande)",
     rackPrintBtn: "Skriv ut för broschyrställ",
     preparingPrint: "Förbereder utskrift…", toHomeAria: "Till startsidan",
@@ -3426,6 +3432,117 @@ function lineDayTabs(currentISO) {
     date: key === todayType ? today : normalDateForType(today, key),
     active: key === cur,
   }));
+}
+
+// --- Tulosteiden PÄIVÄTYYPPI-RYHMITTELY (todelliset ajopäivät GTFS:stä) -------
+// Aiemmin tulosteet pakottivat vuorot karkeisiin Ma–Pe/La/Su-kaistoihin + yhteen
+// "edustavaan arkipäivään" → (A) vain ti–to ajava vuoro leimattiin "Ma–Pe" ja
+// (B) vain perjantaisin ajavat (esim. pe-yövuorot) katosivat kokonaan. Korjaus:
+// johda vuoron TODELLISET viikonpäivät trip.activeDates-kentästä (OTP2) ja
+// ryhmittele sen mukaan. Ruutunäkymä (linjasivun taulu) käyttää yhä yhtä päivää.
+
+// Viikonpäivälyhenteet per kieli, indeksi 0=Ma..6=Su. Otsikoihin (Ma–To/Pe/...).
+const DOW_ABBR = {
+  fi: ["Ma", "Ti", "Ke", "To", "Pe", "La", "Su"],
+  en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  sv: ["Mån", "Tis", "Ons", "Tors", "Fre", "Lör", "Sön"],
+};
+function dowAbbr() { return DOW_ABBR[lang] || DOW_ABBR.fi; }
+
+// "yyyyMMdd" (activeDates-muoto) -> viikonpäiväindeksi 0=Ma..6=Su (paikallinen)
+function dowOfCompact(s) {
+  return (new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8)).getDay() + 6) % 7;
+}
+
+// Viikonpäiväjoukko (Set<0..6>) -> luettava otsikko: yhtenäinen jakso "Ma–To",
+// yksittäinen "Pe", hajanainen "Ma, Ke, Pe", koko viikko "Joka päivä".
+function dowLabel(dowSet) {
+  const a = dowAbbr();
+  const days = [...dowSet].sort((x, y) => x - y);
+  if (!days.length) return "";
+  if (days.length === 7) return t("dayEveryDay");
+  const contiguous = days.every((d, i) => i === 0 || d === days[i - 1] + 1);
+  if (contiguous && days.length > 1) return `${a[days[0]]}–${a[days[days.length - 1]]}`;
+  return days.map(d => a[d]).join(", ");
+}
+
+// Kausi-ikkuna: kuinka monta päivää viitepäivästä eteenpäin katsotaan "nykyistä
+// aikataulua". Vuoro joka toistuu viikoittain tässä ikkunassa on kausivuoro;
+// kertaluontoiset festivaalilisät (occ < 2 samana viikonpäivänä) jätetään pois.
+const PRINT_HORIZON_DAYS = 42;
+
+// Ryhmittele patternin vuorot TODELLISEN ajopäivä-patternin mukaan (activeDates).
+// Palauttaa lohkot { dows:Set, school:"koul"|"loma"|"", trips:[], label } otsikko-
+// järjestyksessä. KOUL/LOMA erottuvat omiksi lohkoiksi kun serviceId ne koodaa.
+// EI koskaan pudota toistuvaa vuoroa (pe-yövuorot mukaan); kertaluontoiset festi-
+// vaalilisät suodattuvat (ne eivät kuulu kausitauluun väärään päivään toistettuna).
+function groupTripsByDays(trips, refISO) {
+  const start = new Date((refISO || todayISO()) + "T12:00:00");
+  const startNum = +isoOf(start).replace(/-/g, "");
+  const end = new Date(start); end.setDate(start.getDate() + PRINT_HORIZON_DAYS);
+  const endNum = +isoOf(end).replace(/-/g, "");
+  const groups = new Map();
+  for (const tr of (trips || [])) {
+    if (!(tr.stoptimes || []).length) continue;
+    const perDow = {};
+    for (const x of (tr.activeDates || [])) {
+      const n = +x;
+      if (n < startNum || n > endNum) continue;
+      const w = dowOfCompact(x); perDow[w] = (perDow[w] || 0) + 1;
+    }
+    // vain viikonpäivät joina vuoro TOISTUU ikkunassa → kertaluontoiset pois
+    const dows = Object.keys(perDow).map(Number).filter(w => perDow[w] >= 2).sort((a, b) => a - b);
+    if (!dows.length) continue;
+    const sid = tr.serviceId || "";
+    const school = /koul/i.test(sid) ? "koul" : /loma/i.test(sid) ? "loma" : "";
+    const key = dows.join(",") + "|" + school;
+    if (!groups.has(key)) groups.set(key, { dows: new Set(dows), school, trips: [] });
+    groups.get(key).trips.push(tr);
+  }
+  const arr = [...groups.values()].map(g => {
+    // dedup: sama aikataulurivi toistuu monena päivänä → yksi edustava per aikataulu
+    const seen = new Set(), uniq = [];
+    for (const tr of g.trips) {
+      const sig = (tr.stoptimes || []).map(s => s.scheduledDeparture).join(",");
+      if (seen.has(sig)) continue;
+      seen.add(sig); uniq.push(tr);
+    }
+    g.trips = uniq;
+    g.label = dowLabel(g.dows) + (g.school ? ` · ${t(g.school === "koul" ? "schoolTerm" : "schoolBreak")}` : "");
+    return g;
+  });
+  // järjestä: viikonpäiväspan alku nousevasti, sitten laajempi (Ma–Pe) ennen kapeampaa (Pe)
+  arr.sort((a, b) => {
+    const am = Math.min(...a.dows), bm = Math.min(...b.dows);
+    return am !== bm ? am - bm : b.dows.size - a.dows.size;
+  });
+  return arr;
+}
+
+// Patternin vuorot + todelliset ajopäivät yhdellä haulla (ei per-päivä-hakua).
+// activeDates listaa KAIKKI ajopäivät; stoptimes ilman serviceDatea = aikatauluajat.
+async function patternTripsWithDays(code) {
+  const { data } = await cachedGql(`ptd:${code}`,
+    `query ($code: String!) {
+       pattern(id: $code) {
+         trips { serviceId activeDates
+           stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } } }
+       }
+     }`, { code });
+  return data.pattern?.trips || [];
+}
+
+// Vuorot suunnan KAIKISTA patterneista (variantit) yhteen → ei pudoteta service-
+// id:tä joka on eri pattern-koodissa (esim. 23S: MA,KE&PE oma kuvionsa, jota
+// tuleva-vuoro-probe ei valitse). Jokaiseen vuoroon lähdepatternin stops (matriisi).
+async function dirTripsWithDays(patterns) {
+  const lists = await Promise.all((patterns || []).map(async p => {
+    try {
+      const trips = await patternTripsWithDays(p.code);
+      return trips.map(tr => ({ ...tr, _stops: p.stops || [] }));
+    } catch (e) { return []; }
+  }));
+  return lists.flat();
 }
 
 function esc(s) {
@@ -5897,19 +6014,22 @@ async function viewRoute(routeId, patternCode, date) {
     if (!po) return;
     printOwned = true; // estä matriisihaun oletustäytön ylikirjoitus
     if (st) st.textContent = t("preparingPrint");
-    const dts = dayTypeDates(date);
-    const sets = await Promise.all(dts.map(async dt => {
-      try { const { pat, trips } = await bestPatternForDate(dt.date); return { dt, pat, trips }; }
-      catch (e) { return { dt, pat: current, trips: [] }; }
-    }));
-    const tables = sets.map(({ dt, pat, trips }) =>
-      `<h3 class="daytype">${esc(dt.label)}</h3>` +
-      (mode === "all"
-        ? stopMatrixHtml(pat.stops, trips, { paginate: true, line: route.shortName, dir: patternLabel(pat), daytype: dt.label })
-        : bookletTableHtml(trips))).join("");
+    // Ryhmittele nykyisen suunnan vuorot todellisten ajopäivien mukaan (activeDates),
+    // ei pakotettuun Ma–Pe/La/Su-kaistaan → oikea otsikko + pe-yövuorot mukana.
+    // Kaikki suunnan patternit unioniin (monivarianttilinjat, esim. 23S).
+    let groups = [];
+    try { groups = groupTripsByDays(await dirTripsWithDays(curDirPatterns), date); }
+    catch (e) { groups = []; }
+    const tables = groups.length
+      ? groups.map(g =>
+          `<h3 class="daytype">${esc(g.label)}</h3>` +
+          (mode === "all"
+            ? stopMatrixHtml(g.trips[0]?._stops || current.stops, g.trips, { paginate: true, line: route.shortName, dir: patternLabel(current), daytype: g.label })
+            : bookletTableHtml(g.trips))).join("")
+      : `<p class="muted">${t("bookletNoData")}</p>`;
     po.innerHTML = `<div class="card">
         <h2>${esc(route.shortName || "")} ${esc(patternLabel(current))}</h2>
-        <p class="muted">${t("dayTypeNote")}</p>${tables}</div>`;
+        <p class="muted">${t("printDaysNote")}</p>${tables}</div>`;
     setPageOrientation(mode === "all" ? "landscape" : "portrait");
     if (st) st.textContent = "";
     window.print();
@@ -5924,22 +6044,18 @@ async function viewRoute(routeId, patternCode, date) {
     if (!po) return;
     printOwned = true; // estä matriisihaun oletustäytön ylikirjoitus
     if (st) st.textContent = t("preparingPrint");
-    const dts = dayTypeDates(date);
+    // Molemmat suunnat; kummankin vuorot ryhmiteltynä todellisten ajopäivien mukaan.
     const dirBlocks = await Promise.all(primaries.map(async p => {
-      const days = await Promise.all(dts.map(async dt => {
-        let table;
-        try {
-          const { data: md } = await cachedGql(`btt:${p.code}:${dt.date}`,
-            `query ($code: String!, $date: String!) {
-               pattern(id: $code) { tripsForDate(serviceDate: $date) {
-                 stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } } } }
-             }`, { code: p.code, date: dt.date.replace(/-/g, "") });
-          table = bookletTableHtml(md.pattern?.tripsForDate || [], { target: 4, limit: 5 });
-        } catch (e) { table = `<p class="muted">${t("bookletNoData")}</p>`; }
-        return `<div class="rack-day"><h4 class="daytype">${esc(dt.label)}</h4>${table}</div>`;
-      }));
+      const dirPats = byDir.get(p.directionId ?? 0) || [p];  // suunnan kaikki variantit
+      let groups = [];
+      try { groups = groupTripsByDays(await dirTripsWithDays(dirPats), date); }
+      catch (e) { groups = []; }
+      const days = groups.length
+        ? groups.map(g =>
+            `<div class="rack-day"><h4 class="daytype">${esc(g.label)}</h4>${bookletTableHtml(g.trips, { target: 4, limit: 5 })}</div>`).join("")
+        : `<p class="muted">${t("bookletNoData")}</p>`;
       return `<section class="rack-dir"><h3>${esc(patternLabel(p))}</h3>
-        <div class="rack-days">${days.join("")}</div></section>`;
+        <div class="rack-days">${days}</div></section>`;
     }));
     // Valinnainen QR linjan livenäkymään (PNG, jotta sarjallistuu innerHTML:ään)
     let qrHtml = "";
@@ -8852,7 +8968,10 @@ function bindBookletTab(routes, today) {
     const dirChoice = document.getElementById("dirSel").value;
     let dayKeys = [...document.querySelectorAll(".dtCb:checked")].map(c => c.value);
     if (!dayKeys.length) dayKeys = ["weekday"];
-    const dts = dayTypeDates(date).filter(d => dayKeys.includes(d.key));
+    const dts = dayTypeDates(date).filter(d => dayKeys.includes(d.key)); // vain otsikkoyhteenvetoon
+    // Kuuluuko ajopäivä-lohko (dows) valittuihin ämpäreihin? weekday=Ma–Pe, sat=La, sun=Su.
+    const bucketMatch = (dows) => dayKeys.some(k =>
+      k === "weekday" ? [...dows].some(d => d <= 4) : k === "sat" ? dows.has(5) : dows.has(6));
     let done = 0;
     const setStatus = () => { status.textContent = t("buildingBooklet", { done, total: selected.length }); };
     setStatus();
@@ -8892,18 +9011,18 @@ function bindBookletTab(routes, today) {
           const stops = p.stops || [];
           const label = stops.length
             ? `${stops[0].name} → ${stops[stops.length - 1].name}` : (p.name || "");
-          const dayTables = await Promise.all(dts.map(async dt => {
-            const { data: md } = await cachedGql(`btt:${p.code}:${dt.date}`,
-              `query ($code: String!, $date: String!) {
-                 pattern(id: $code) {
-                   tripsForDate(serviceDate: $date) {
-                     stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } }
-                   }
-                 }
-               }`, { code: p.code, date: dt.date.replace(/-/g, "") });
-            return `<h4 class="daytype">${esc(dt.label)}</h4>${bookletTableHtml(md.pattern?.tripsForDate || [])}`;
-          }));
-          return `<h3>${esc(label)}</h3>${dayTables.join("")}`;
+          // Vuorot ryhmiteltynä todellisten ajopäivien mukaan; suodata valittuihin
+          // päivätyyppi-ämpäreihin (weekday=Ma–Pe, sat=La, sun=Su).
+          // Suunnan kaikki variantit unioniin (monivarianttilinjat).
+          const dirPats = byDir.get(p.directionId ?? 0) || [p];
+          let groups = [];
+          try { groups = groupTripsByDays(await dirTripsWithDays(dirPats), date); }
+          catch (e) { groups = []; }
+          groups = groups.filter(g => bucketMatch(g.dows));
+          const dayTables = groups.length
+            ? groups.map(g => `<h4 class="daytype">${esc(g.label)}</h4>${bookletTableHtml(g.trips)}`).join("")
+            : `<p class="muted">${t("bookletNoData")}</p>`;
+          return `<h3>${esc(label)}</h3>${dayTables}`;
         }));
         return {
           label: `${route.shortName || ""} ${route.longName}`.trim(),
@@ -8928,7 +9047,7 @@ function bindBookletTab(routes, today) {
         <h2>${esc(CONFIG.operator)} · ${t("printPageTitle")}</h2>
         <p>${dts.map(d => esc(d.label)).join(" · ")}. ${t("bookletKeyStopsNote")}</p>
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
-        ${dayKeys.includes("weekday") ? `<p class="muted">${t("dayTypeNote")}</p>` : ""}
+        <p class="muted">${t("printDaysNote")}</p>
         <p class="no-print buildbar"><button type="button" id="bookletPrint">${icon("print")} ${t("bookletPrintBtn")}</button>
           <button type="button" id="bookletPrintA5">${icon("print")} ${t("bookletPrintA5")}</button></p>
         <p class="no-print muted vihko-note">${t("vihkoDuplexNote")}</p>
