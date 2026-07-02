@@ -3,26 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lahden bussiaikataulut (epävirallinen)</title>
+<title>Reittari: bussiaikataulut ja reittiopas</title>
 <meta name="theme-color" content="#0a4ea3">
-<meta name="description" content="Lahden seudun bussien aikataulut, reaaliaikaiset lähdöt, reittiopas, häiriötiedotteet, liput ja kartat selaimessa. Epävirallinen palvelu avoimen Waltti-/Digitransit-datan päälle.">
-<link rel="canonical" href="https://veikkoville.github.io/lsl-aikataulut/">
-<!-- Jakolinkin esikatselu (Open Graph + Twitter Card). Staattiset, oletuskaupunki
-     Lahti; some-/viestisovellukset eivät lue JS:llä lisättyjä metoja. -->
+<meta name="description" content="Reaaliaikaiset lähdöt, reittihaku, pysäkkiaikataulut ja painettavat aikataulut. Aina ajan tasalla avoimesta datasta.">
+<link rel="canonical" href="https://demo.reittari.fi/">
+<!-- Jakolinkin esikatselu (Open Graph + Twitter Card). KAUPUNKINEUTRAALI: some-/viesti-
+     sovellusten botit eivät aja JS:ää, joten ?city=-parametri ei voi vaikuttaa esikatseluun —
+     neutraalit tagit eivät näytä väärää kaupunkia millekään linkille. JS päivittää tagit
+     per-kaupunki selaimessa (updateChrome). Ei og:imagea: vanha kuva oli Lahti-brändätty. -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Lahden bussiaikataulut">
+<meta property="og:site_name" content="Reittari">
 <meta property="og:locale" content="fi_FI">
-<meta property="og:title" content="Lahden bussiaikataulut">
-<meta property="og:description" content="Reitit, aikataulut, reaaliaikaiset lähdöt, reittiopas, häiriötiedotteet ja liput. Epävirallinen palvelu avoimen datan päälle.">
-<meta property="og:url" content="https://veikkoville.github.io/lsl-aikataulut/">
-<meta property="og:image" content="https://veikkoville.github.io/lsl-aikataulut/og-image.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Lahden bussiaikataulut – reitit, aikataulut, reaaliaika, reittiopas">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Lahden bussiaikataulut">
-<meta name="twitter:description" content="Reitit, aikataulut, reaaliaikaiset lähdöt, reittiopas, häiriötiedotteet ja liput. Epävirallinen palvelu avoimen datan päälle.">
-<meta name="twitter:image" content="https://veikkoville.github.io/lsl-aikataulut/og-image.png">
+<meta property="og:title" content="Reittari: kaupungin bussiaikataulut ja reittiopas">
+<meta property="og:description" content="Reaaliaikaiset lähdöt, reittihaku, pysäkkiaikataulut ja painettavat aikataulut. Aina ajan tasalla avoimesta datasta.">
+<meta property="og:url" content="https://demo.reittari.fi/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Reittari: kaupungin bussiaikataulut ja reittiopas">
+<meta name="twitter:description" content="Reaaliaikaiset lähdöt, reittihaku, pysäkkiaikataulut ja painettavat aikataulut. Aina ajan tasalla avoimesta datasta.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -3080,14 +3077,13 @@ function updateChrome() {
   // --header-bg-tokenin myös tummassa teemassa, jotta brändiväri näkyy aina.
   document.documentElement.style.setProperty("--header-bg", headerBgColor());
   // Some-/hakukoneiden meta-tagit kaupungin mukaan (staattiset <head>-oletukset ovat
-  // Lahti; some-skraprit eivät aja JS:ää, mutta selain + JS:ää ajavat hakukoneet saavat
-  // oikean kaupungin). og-kuva pysyy Lahti-brändättynä (per-kaupunki-kuvat erikseen).
+  // kaupunkineutraaleja; some-skraprit eivät aja JS:ää, mutta selain + JS:ää ajavat
+  // hakukoneet saavat oikean kaupungin).
   const setMeta = (sel, val) => { const el = document.querySelector(sel); if (el) el.setAttribute("content", val); };
   setMeta('meta[name="description"]', t("metaDesc"));
   setMeta('meta[property="og:title"]', t("appTitle"));
   setMeta('meta[property="og:site_name"]', t("appTitle"));
   setMeta('meta[property="og:description"]', t("metaDesc"));
-  setMeta('meta[property="og:image:alt"]', t("appTitle"));
   setMeta('meta[name="twitter:title"]', t("appTitle"));
   setMeta('meta[name="twitter:description"]', t("metaDesc"));
   document.getElementById("appTitle").textContent = t("appTitle");
