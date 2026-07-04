@@ -567,9 +567,11 @@ const info = msg => console.log("INFO " + msg);
         { timeout: 20000 }).then(() => true).catch(() => false);
       const days = await page.evaluate(() =>
         document.querySelectorAll("#stopPrintOut .poster-day").length);
-      posterOk && days === 3
-        ? ok(`pysäkkijuliste: tuntikaavio kootaan (${days} päivätyyppiä)`)
-        : fail(`pysäkkijuliste: tuntikaaviota ei muodostunut (päivätyyppejä ${days})`);
+      // Osioiden määrä on datavetoinen (todelliset ajopäiväblokit, esim. Ma–Pe/Pe/La/Su)
+      // → vaaditaan ≥1 osio JA vähintään yksi oikea tuntikaaviorivi (ei tyhjä fallback).
+      posterOk && days >= 1
+        ? ok(`pysäkkijuliste: tuntikaavio kootaan (${days} päiväblokkia)`)
+        : fail(`pysäkkijuliste: tuntikaaviota ei muodostunut (päiväblokkeja ${days})`);
     }
     // QR-koodi: laiska kirjastolataus + canvas + lataus-linkki
     if (await page.$("#stopQrBtn")) {
