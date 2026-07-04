@@ -1378,6 +1378,63 @@
     .legbar .seg { min-width: 40px; }
     details.itin > summary::after { top: 14px; }
   }
+  /* --- Mobiili-tap-targetit (4.7.): kosketuskohteet min. 44x44 px + riittävä
+     välistys pienillä näytöillä ja kosketuslaitteilla. Vain kokoja/välejä —
+     ei väri- tai ominaisuusmuutoksia (per-kaupunki-värit + WCAG AA ennallaan).
+     Leaflet-attribuutiolinkit jätetty ennalleen (WCAG 2.5.8 -poikkeus:
+     toissijainen pientekstilinkki, ei ensisijainen toiminto). */
+  @media (max-width: 640px), (pointer: coarse) {
+    /* Ylätunnisteen kieli-/tekstikoko-/kontrastikontrollit */
+    .hdr-btn,
+    html[data-text="large"] .hdr-btn, html[data-text="larger"] .hdr-btn {
+      min-width: 44px; min-height: 44px; padding: 0.25rem 0.45rem;
+    }
+    /* Lähtöchipit (linjasivu): korkeus 44 + isompi väli = ei vahinkoklikkejä */
+    .timegrid { gap: 0.5rem; }
+    .timegrid button { min-height: 44px; }
+    /* Segmenttinapit (Lähtöaika/Saapumisaika/Nyt) + chipit */
+    .sc-seg { min-height: 44px; }
+    /* Linkkimäiset napit (Koko kartta, Käytä omaa sijaintia, Tallenna matka) */
+    button.linkish, a.linkish {
+      min-height: 44px; display: inline-flex; align-items: center;
+    }
+    /* Suosikkitähti linjasivulla */
+    button.star { min-width: 44px; min-height: 44px; }
+    /* Murupolku (← Etusivu) ja footerin linkkilistat: korkeampi osuma-alue */
+    nav.crumb a { display: inline-flex; align-items: center; min-height: 44px; padding-right: 0.2rem; }
+    .foot-col a { min-height: 44px; display: flex; align-items: center; }
+    /* Pikatoimintokortit + aikakenttä: eksplisiittinen 44 (padding-laskenta jäi 43.5:een) */
+    a.tool { min-height: 44px; }
+    .sc-time input[type="datetime-local"] { min-height: 44px; }
+    /* Välilehtirivit (tulostuskeskus, asetusten teemat): rivien väli */
+    .tabs { gap: 0.5rem; }
+    /* Valintaruudut: isompi ruutu + labelrivi täydeksi kosketusalueeksi */
+    main input[type="checkbox"], main input[type="radio"] { width: 1.4rem; height: 1.4rem; }
+    label.sc-chip, label.acc-toggle, label.dtopt { min-height: 44px; }
+    /* Kapeat checkbox-labelit (esim. linjavalinta "1"): koko rivi 44 leveäksi */
+    main label:has(> input[type="checkbox"]) { min-width: 44px; min-height: 44px; }
+    /* Häiriö-/infotiivistelmät (details/summary) + kappalelinkit (Lue lisää) */
+    details.alertsum summary, details.infosum summary, details.alert summary {
+      min-height: 44px; box-sizing: border-box; padding: 0.6rem 0;
+    }
+    main p > a { display: inline-flex; align-items: center; min-height: 44px; }
+    /* Linjasuodatinbadget (pysäkkisivu) + legchipit: leveys + väli */
+    .legchips { gap: 0.5rem; }
+    .legchips button.badge { min-width: 44px; min-height: 44px; }
+    /* Haun mikrofoninappi */
+    .field-mic, .sc-box .field-mic { min-width: 44px; }
+    /* Reittihaun aikarivin väli (sc-seg vs. kellokenttä) */
+    .sc-time { gap: 8px; }
+    /* Leaflet-zoomikontrollit: !important koska leaflet.css ladataan tämän
+       tyylin JÄLKEEN (dynaaminen lataus) ja voittaisi muuten kaskadissa */
+    .leaflet-control-zoom a,
+    .leaflet-touch .leaflet-bar a {
+      width: 44px !important; height: 44px !important; line-height: 44px !important;
+    }
+    /* Tietoisesti ennallaan (WCAG 2.5.8 -poikkeukset): Leaflet/OSM-attribuutio-
+       linkit (toissijainen pienteksti) ja kartan bussimarkerit (sijainnin
+       esitys vääristyisi isompana). */
+  }
   @media print {
     /* Tulosteet aina normaalikokoisina, vaikka näytöllä olisi suuri teksti
        (rem-pohjaiset juliste-/vihkofontit mitoitettu A4:lle) */
