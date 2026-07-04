@@ -1992,9 +1992,8 @@ const STRINGS = {
     screenNetIntro: "Hae pysäkki ja kopioi sen kioski-osoite tai upotuskoodi näytölle (kirjasto, palvelutalo, terveysasema).",
     screenNetSearch: "Hae pysäkkiä nimellä",
     batchPosterTitle: "Linjan pysäkkijulisteet",
-    batchPosterIntro: "Valitse linja ja päivätyyppi → kaikkien linjan pysäkkien julisteet yhteen tulosteeseen kausittaista postausta varten.",
+    batchPosterIntro: "Valitse linja → kaikkien linjan pysäkkien julisteet yhteen tulosteeseen kausittaista postausta varten. Jokainen pysäkki saa kaikki päivätyypit todellisten ajopäivien mukaan.",
     batchChooseLine: "Linja",
-    batchChooseDay: "Päivätyyppi",
     batchGenerate: "Kokoa ja tulosta",
     batchProgress: "Kootaan pysäkkejä {done}/{total}…",
     batchNoLine: "Valitse linja ensin.",
@@ -2422,9 +2421,8 @@ const STRINGS = {
     screenNetIntro: "Find a stop and copy its kiosk URL or embed code for a screen (library, care home, health centre).",
     screenNetSearch: "Search stops by name",
     batchPosterTitle: "All stop posters for a line",
-    batchPosterIntro: "Choose a line and day type → all the line's stop posters in one printout for seasonal posting.",
+    batchPosterIntro: "Choose a line → all the line's stop posters in one printout for seasonal posting. Every stop gets all day types based on actual days of operation.",
     batchChooseLine: "Line",
-    batchChooseDay: "Day type",
     batchGenerate: "Build and print",
     batchProgress: "Collecting stops {done}/{total}…",
     batchNoLine: "Choose a line first.",
@@ -2845,9 +2843,8 @@ const STRINGS = {
     screenNetIntro: "Sök en hållplats och kopiera dess kiosk-URL eller inbäddningskod för en skärm (bibliotek, vårdhem, hälsostation).",
     screenNetSearch: "Sök hållplatser med namn",
     batchPosterTitle: "Alla hållplatsaffischer för en linje",
-    batchPosterIntro: "Välj linje och dagtyp → alla linjens hållplatsaffischer i en utskrift.",
+    batchPosterIntro: "Välj linje → alla linjens hållplatsaffischer i en utskrift. Varje hållplats får alla dagtyper enligt faktiska trafikeringsdagar.",
     batchChooseLine: "Linje",
-    batchChooseDay: "Dagtyp",
     batchGenerate: "Sammanställ och skriv ut",
     batchProgress: "Samlar hållplatser {done}/{total}…",
     batchNoLine: "Välj en linje först.",
@@ -3517,12 +3514,15 @@ function groupTripsByDays(trips, refISO) {
 
 // Patternin vuorot + todelliset ajopäivät yhdellä haulla (ei per-päivä-hakua).
 // activeDates listaa KAIKKI ajopäivät; stoptimes ilman serviceDatea = aikatauluajat.
+// tripHeadsign + pickupType: pysäkkijuliste tarvitsee määränpään ja tiedon siitä,
+// saako käynniltä nousta kyytiin (pelkkä jättöpysäkki ei ole lähtö). Muut kutsujat
+// (linjatuloste/lehtiteline/vihko) eivät lue kenttiä → ei vaikutusta niihin.
 async function patternTripsWithDays(code) {
   const { data } = await cachedGql(`ptd:${code}`,
     `query ($code: String!) {
        pattern(id: $code) {
-         trips { serviceId activeDates
-           stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } } }
+         trips { serviceId tripHeadsign@L activeDates
+           stoptimes { timepoint scheduledDeparture pickupType headsign@L stop { gtfsId name@L } } }
        }
      }`, { code });
   return data.pattern?.trips || [];
@@ -5478,22 +5478,12 @@ function stopMatrixHtml(stops, trips, opts) {
 
 // Pysäkkijuliste: yhdeltä pysäkiltä lähtevät linjat tuntikaaviona
 // (vasen sarake tunti, oikea minuutit) — kuten katoksen seinällä oleva
-// painettu aikataulu. groups = stoptimesForServiceDate-tulos.
-function stopPosterHtml(groups) {
-  const byLine = new Map();
-  for (const g of groups || []) {
-    const r = g.pattern?.route || {};
-    for (const st of g.stoptimes || []) {
-      const headsign = st.headsign || g.pattern?.headsign || r.longName || "";
-      const key = (r.shortName || "") + " " + headsign;
-      if (!byLine.has(key)) byLine.set(key, { route: r, headsign, times: [] });
-      byLine.get(key).times.push(st.scheduledDeparture);
-    }
-  }
-  const lines = [...byLine.values()].sort((a, b) =>
+// painettu aikataulu. lines = stopPosterBlocks-blokin linjat ({route, headsign, times}).
+function stopPosterHtml(lines) {
+  const sorted = [...(lines || [])].sort((a, b) =>
     (a.route.shortName || "").localeCompare(b.route.shortName || "", "fi", { numeric: true }));
-  if (!lines.length) return `<p class="muted">${t("bookletNoData")}</p>`;
-  return `<div class="poster-lines">${lines.map(L => {
+  if (!sorted.length) return `<p class="muted">${t("bookletNoData")}</p>`;
+  return `<div class="poster-lines">${sorted.map(L => {
     const times = [...new Set(L.times)].sort((a, b) => a - b);
     const byHour = new Map();
     for (const sec of times) {
@@ -5508,6 +5498,86 @@ function stopPosterHtml(groups) {
         <table class="hourgrid"><tbody>${rows}</tbody></table>
       </div>`;
   }).join("")}</div>`;
+}
+
+// Pysäkkijulisteen päiväblokit TODELLISTEN ajopäivien mukaan (activeDates) —
+// sama moottori kuin linjatulosteessa/lehtitelineessä/vihossa (groupTripsByDays).
+// Korjaa julisteen päivätyyppibugin: aiempi 1 edustava päivä / karkea tyyppi
+// (A) leimasi osan viikosta ajavat vuorot "Ma–Pe":ksi, (B) pudotti vain-pe-yönä
+// ajettavat vuorot ja (C) tuotti eri julisteen eri tulostuspäivinä.
+// ptdMemo (Map) jakaa pattern-haut eräajon pysäkkien kesken. conc = pattern-hakujen
+// rinnakkaisuus: yksittäisjuliste 4 (talon normi, vrt. vihko), eräajo 2 per pysäkki
+// (ulompi mapLimit 2 pysäkkiä → yhteensä ~4 samanaikaista, upstream ~10 req/s).
+async function stopPosterBlocks(stopId, refISO, ptdMemo, conc) {
+  const { data } = await cachedGql(`posterpat:${stopId}`,
+    `query ($id: String!) {
+       stop(id: $id) {
+         patterns { code headsign route { shortName longName@L color textColor } }
+       }
+     }`, { id: stopId });
+  const pats = data.stop?.patterns || [];
+  const memo = ptdMemo || new Map();
+  // Retry+backoff proxyn 429-kuristusta vasten. Lopullinen epäonnistuminen HEITTÄÄ:
+  // juliste ei saa koskaan tulostua hiljaa vajaana/tyhjänä virhetilassa (näyttäisi
+  // "ei lähtöjä" vaikka data jäi saamatta).
+  const fetchPat = async (code) => {
+    for (let a = 0; ; a++) {
+      try { return await patternTripsWithDays(code); }
+      catch (e) {
+        if (a >= 2) { memo.delete(code); throw e; }
+        await new Promise(r => setTimeout(r, 700 * (a + 1) + Math.random() * 400));
+      }
+    }
+  };
+  const perPat = await mapLimit(pats, conc || 4, async p => {
+    if (!memo.has(p.code)) memo.set(p.code, fetchPat(p.code));
+    return { p, trips: await memo.get(p.code) };
+  });
+  // Pseudovuoro per käynti TÄLLÄ pysäkillä: silmukkareitillä sama pysäkki 2× =
+  // 2 lähtöä (käyntikohtainen poiminta, ks. 91c9e7d). Lähtö EI ole: pickupType
+  // NONE (pelkkä jättö) eikä vuoron viimeinen käynti (bussi päättää matkan —
+  // feedit eivät aina merkitse päätepysäkin pickupTypea, esim. Salon silmukat).
+  const byLine = new Map();
+  for (const { p, trips } of perPat) {
+    const r = p.route || {};
+    for (const tr of trips || []) {
+      const sts = tr.stoptimes || [];
+      for (let i = 0; i < sts.length; i++) {
+        const st = sts[i];
+        if (st.stop?.gtfsId !== stopId || st.pickupType === "NONE" || i === sts.length - 1) continue;
+        // sama etusija kuin vanhassa julisteessa: pysäkkikohtainen kilpi ensin
+        // (sisältää via-tiedon, esim. "Soltti via Yliopisto - Mukkula")
+        const headsign = st.headsign || tr.tripHeadsign || p.headsign || r.longName || "";
+        const key = (r.shortName || "") + " " + headsign;
+        if (!byLine.has(key)) byLine.set(key, { route: r, headsign, trips: [] });
+        byLine.get(key).trips.push({
+          serviceId: tr.serviceId, activeDates: tr.activeDates,
+          stoptimes: [{ scheduledDeparture: st.scheduledDeparture }],
+        });
+      }
+    }
+  }
+  // groupTripsByDays ajetaan PER LINJA (sen aikasignatuuri-dedup ei saa niputtaa
+  // eri linjojen samanaikaisia lähtöjä yhteen); blokit kootaan päiväpatterni-
+  // avaimella → sama todellinen ajopäiväjoukko = sama julisteosio.
+  const blocks = new Map();
+  for (const L of byLine.values()) {
+    for (const g of groupTripsByDays(L.trips, refISO)) {
+      const bk = [...g.dows].sort((a, b) => a - b).join(",") + "|" + g.school;
+      if (!blocks.has(bk)) blocks.set(bk, { dows: g.dows, school: g.school, label: g.label, lines: new Map() });
+      const b = blocks.get(bk);
+      const lk = (L.route.shortName || "") + " " + L.headsign;
+      if (!b.lines.has(lk)) b.lines.set(lk, { route: L.route, headsign: L.headsign, times: [] });
+      b.lines.get(lk).times.push(...g.trips.map(tr => tr.stoptimes[0].scheduledDeparture));
+    }
+  }
+  const arr = [...blocks.values()].map(b => ({ ...b, lines: [...b.lines.values()] }));
+  // sama järjestys kuin groupTripsByDays: span alku nousevasti, laajempi ensin
+  arr.sort((a, b) => {
+    const am = Math.min(...a.dows), bm = Math.min(...b.dows);
+    return am !== bm ? am - bm : b.dows.size - a.dows.size;
+  });
+  return arr;
 }
 
 // Map-first linjanäkymä (#/linjakartta/<id>): koko reitti kartalla + live-bussit
@@ -6324,27 +6394,22 @@ async function viewStop(stopId) {
     showEmbedInto(box, stopId);
   });
 
-  // Pysäkkijuliste: kaikki pysäkiltä lähtevät linjat tuntikaaviona,
-  // erikseen Ma–Pe/La/Su (edustavat ei-pyhäpäivät), tulostettava A4-pystyyn.
+  // Pysäkkijuliste: kaikki pysäkiltä lähtevät linjat tuntikaaviona, osiot
+  // TODELLISTEN ajopäivien mukaan (activeDates → esim. Ma–Pe / Pe / La / Su),
+  // tulostettava A4-pystyyn. Sama tulos tulostuspäivästä riippumatta.
   document.getElementById("stopPosterBtn")?.addEventListener("click", async () => {
     const stEl = document.getElementById("stopPrintStatus");
     const po = document.getElementById("stopPrintOut");
     if (!po) return;
     if (stEl) stEl.textContent = t("preparingPrint");
     const today = todayISO();
-    const dts = dayTypeDates(today);
-    const sets = await Promise.all(dts.map(dt =>
-      cachedGql(`poster:${stopId}:${dt.date}`,
-        `query ($id: String!, $date: String!) {
-           stop(id: $id) {
-             stoptimesForServiceDate(date: $date, omitNonPickups: true) {
-               pattern { headsign route { shortName longName@L color textColor } }
-               stoptimes { scheduledDeparture headsign@L }
-             }
-           }
-         }`, { id: stopId, date: dt.date.replace(/-/g, "") })
-        .then(r => ({ dt, groups: r.data.stop?.stoptimesForServiceDate || [] }))
-        .catch(() => ({ dt, groups: [] }))));
+    let blocks;
+    try { blocks = await stopPosterBlocks(stopId, today); }
+    catch (e) {
+      // Haku epäonnistui → EI tulosteta (tyhjä juliste = "ei lähtöjä" olisi valhe)
+      if (stEl) stEl.textContent = esc(e.message);
+      return;
+    }
     // QR pysäkin live-sivulle upotetaan julisteeseen (skannattava katoksessa)
     let qrImg = "";
     try {
@@ -6352,18 +6417,21 @@ async function viewStop(stopId) {
       qrImg = `<div class="poster-qrwrap"><img class="poster-qr" src="${u}" alt="">
         <span class="poster-qrcap">${t("qrPosterHint")}</span></div>`;
     } catch (e) { /* QR ei pakollinen tulosteelle */ }
-    const sections = sets.map(({ dt, groups }) =>
-      `<section class="card poster-day">
-         <div class="poster-head">
+    const head = (sub) => `<div class="poster-head">
            <div>
              <h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
-             <p class="poster-sub">${esc(dt.label)} · ${esc(fmtDateLong(dt.date))}</p>
+             <p class="poster-sub">${esc(sub)}</p>
              <p class="muted">${t("posterAllLinesNote")}</p>
            </div>
            ${qrImg}
-         </div>
-         ${stopPosterHtml(groups)}
-       </section>`).join("");
+         </div>`;
+    const sections = blocks.length
+      ? blocks.map(b =>
+          `<section class="card poster-day">
+             ${head(b.label)}
+             ${stopPosterHtml(b.lines)}
+           </section>`).join("")
+      : `<section class="card poster-day">${head("")}<p class="muted">${t("bookletNoData")}</p></section>`;
     po.innerHTML = `<div class="print-only">${sections}
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
     setPageOrientation("portrait");
@@ -6954,22 +7022,22 @@ function bindScreenNetTab() {
   });
 }
 
-// Julisteet-välilehti (erätulostus): päivätyyppi- ja linjavalinnat + eräajo julisteiksi
-function bindPostersTab(routes, dts) {
-  const daySel = document.getElementById("batchDay");
-  if (!daySel) return;
-  daySel.innerHTML = dts.map((dt, i) => `<option value="${i}">${esc(dt.label)}</option>`).join("");
-  document.getElementById("batchLine").innerHTML = `<option value="">-</option>` + routes
+// Julisteet-välilehti (erätulostus): linjavalinta + eräajo julisteiksi. Jokainen
+// pysäkki saa KAIKKI todelliset päiväblokit (activeDates) — ei päivätyyppivalintaa,
+// jotta juliste ei koskaan jää vajaaksi eikä riipu tulostuspäivästä.
+function bindPostersTab(routes) {
+  const lineSel = document.getElementById("batchLine");
+  if (!lineSel) return;
+  lineSel.innerHTML = `<option value="">-</option>` + routes
     .slice().sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }))
     .map(r => `<option value="${esc(r.gtfsId)}">${esc(r.shortName || "")} ${esc(r.longName || "")}</option>`).join("");
 
   document.getElementById("batchGo").addEventListener("click", async () => {
-    const routeId = document.getElementById("batchLine").value;
+    const routeId = lineSel.value;
     const routeObj = routes.find(r => r.gtfsId === routeId);   // linjan tunnus julisteen alaotsikkoon
     const st = document.getElementById("batchStatus");
     const out = document.getElementById("batchOut");
     if (!routeId) { st.textContent = t("batchNoLine"); return; }
-    const dt = dts[+daySel.value] || dts[0];
     st.textContent = t("preparingPrint");
     try {
       const ids = await lineIds(routeId);
@@ -6979,25 +7047,27 @@ function bindPostersTab(routes, dts) {
       for (const r of (data.routes || [])) for (const p of (r?.patterns || [])) for (const s of (p.stops || []))
         if (!seen.has(s.gtfsId)) { seen.add(s.gtfsId); stops.push(s); }
       if (!stops.length) { st.textContent = t("batchNoStops"); return; }
+      const today = todayISO();
+      const ptdMemo = new Map();   // jaettu pattern-välimuisti: naapuripysäkit jakavat samat patternit
       let done = 0;
-      const sections = await mapLimit(stops, 4, async (s) => {
-        const r = await cachedGql(`poster:${s.gtfsId}:${dt.date}`,
-          `query ($id: String!, $date: String!) {
-             stop(id: $id) { stoptimesForServiceDate(date: $date, omitNonPickups: true) {
-               pattern { headsign route { shortName longName@L color textColor } }
-               stoptimes { scheduledDeparture headsign@L } } } }`,
-          { id: s.gtfsId, date: dt.date.replace(/-/g, "") }).catch(() => ({ data: null }));
-        const groups = r.data?.stop?.stoptimesForServiceDate || [];
+      const sections = await mapLimit(stops, 2, async (s) => {
+        // Virhe heittää → koko erä keskeytyy ulompaan catchiin (status näyttää syyn).
+        // Vajaa/tyhjä pysäkkijuliste virhetilassa olisi pahempi kuin uusi yritys.
+        const blocks = await stopPosterBlocks(s.gtfsId, today, ptdMemo, 2);
         st.textContent = t("batchProgress", { done: ++done, total: stops.length });
-        return `<section class="card poster-day">
-          <div class="poster-head"><div>
+        const head = (sub) => `<div class="poster-head"><div>
             <h2>${esc(s.name)} <span class="muted">${esc(s.code || "")}</span></h2>
-            <p class="poster-sub">${esc(routeObj?.shortName || "")} · ${esc(dt.label)} · ${esc(fmtDateLong(dt.date))}</p>
-          </div></div>
-          ${stopPosterHtml(groups)}</section>`;
+            <p class="poster-sub">${esc(sub)}</p>
+          </div></div>`;
+        return blocks.length
+          ? blocks.map(b => `<section class="card poster-day">
+              ${head((routeObj?.shortName ? routeObj.shortName + " · " : "") + b.label)}
+              ${stopPosterHtml(b.lines)}</section>`).join("")
+          : `<section class="card poster-day">${head(routeObj?.shortName || "")}
+              <p class="muted">${t("bookletNoData")}</p></section>`;
       });
       out.innerHTML = `<div class="print-only">${sections.join("")}
-        <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(dt.date) })}</p></div>`;
+        <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
       setPageOrientation("portrait");
       st.textContent = "";
       window.print();
@@ -8816,7 +8886,6 @@ async function viewPrintCenter(tab) {
   setView(`<p class="muted">${t("loadingRoutes")}</p>`);
   const routes = await loadRoutes();
   const today = todayISO();
-  const dts = dayTypeDates(today);
   setView(`
     <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
     <div class="card no-print">
@@ -8878,8 +8947,6 @@ async function viewPrintCenter(tab) {
         <p class="muted">${t("batchPosterIntro")}</p>
         <label class="embed-field">${t("batchChooseLine")}
           <select id="batchLine"><option value="">-</option></select></label>
-        <label class="embed-field">${t("batchChooseDay")}
-          <select id="batchDay"></select></label>
         <p><button type="button" id="batchGo">${t("batchGenerate")}</button>
           <span id="batchStatus" class="muted" role="status"></span></p>
       </div>
@@ -8908,7 +8975,7 @@ async function viewPrintCenter(tab) {
   btns.forEach(b => b.addEventListener("click", () => showTab(b.dataset.ptab)));
 
   bindBookletTab(routes, today);
-  bindPostersTab(routes, dts);
+  bindPostersTab(routes);
   bindScreenNetTab();
   showTab(tab);
 }
