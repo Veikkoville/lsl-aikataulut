@@ -809,8 +809,8 @@ const info = msg => console.log("INFO " + msg);
     active: document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab,
     booklet: !!document.getElementById("buildBtn"), batch: !!document.getElementById("batchGo"), hub: !!document.getElementById("hubStopSearch"),
   }));
-  (pc.tabs === 3 && pc.active === "vihko" && /#\/tulosteet\/vihko/.test(pc.hash) && pc.booklet && pc.batch && pc.hub)
-    ? ok(`tulosteet-keskus: #/tulosta ohjautuu vihko-välilehdelle, 3 välilehteä (${pc.hash})`)
+  (pc.tabs === 4 && pc.active === "vihko" && /#\/tulosteet\/vihko/.test(pc.hash) && pc.booklet && pc.batch && pc.hub)
+    ? ok(`tulosteet-keskus: #/tulosta ohjautuu vihko-välilehdelle, 4 välilehteä (${pc.hash})`)
     : fail("tulosteet-keskus: #/tulosta-ohjaus tai välilehdet pielessä: " + JSON.stringify(pc));
   if (await expect(".lineCb", "tulostusvihko: linjavalinta latautuu")) {
     await page.evaluate(() => { document.querySelector(".lineCb").checked = true; });
@@ -865,6 +865,50 @@ const info = msg => console.log("INFO " + msg);
       await page.evaluate(() => { document.getElementById("vihkoPrint")?.remove(); document.body.classList.remove("vihko-printing"); document.getElementById("printPrep")?.remove(); window.print = window.__rp; });
     }
   }
+  // --- Yhdistetyt suunnat (käytävä): presetti → kokoa → monen linjan yhteinen taulukko ---
+  await page.click('.ptab[data-ptab="kaytava"]');
+  await sleep(200);
+  const corrPre = await page.evaluate(() => ({
+    presets: document.querySelectorAll("[data-corridor]").length,
+    checks: document.querySelectorAll(".corrCb").length,
+  }));
+  (corrPre.presets >= 1 && corrPre.checks > 0)
+    ? ok(`yhdistetyt suunnat: välilehti + ${corrPre.presets} presettiä (Lahti) + linjalista`)
+    : fail("yhdistetyt suunnat: presetit/linjalista puuttuvat: " + JSON.stringify(corrPre));
+  await page.click('[data-corridor="ahtiala"]');
+  await page.click("#corrGo");
+  const corrOk = await page.waitForFunction(
+    () => document.querySelectorAll("#corridorOut table.corridor tbody tr").length > 5,
+    { timeout: 90000 }).then(() => true).catch(() => false);
+  if (corrOk) {
+    const corr = await page.evaluate(() => {
+      const badges = [...document.querySelectorAll("#corridorOut table.corridor tbody .badge")].map(b => b.textContent.trim());
+      // aikajärjestys per taulukko (5 ensimmäistä riviä; yön yli menevät vuorot voivat
+      // rikkoa HH:MM-merkkijonovertailun taulun lopussa, alkupää riittää assertioon)
+      const sorted = [...document.querySelectorAll("#corridorOut table.corridor")].every(tb => {
+        const ts = [...tb.querySelectorAll("tbody tr td:first-child")].slice(0, 5)
+          .map(td => td.textContent.trim()).filter(v => /^\d/.test(v));
+        return ts.every((v, i) => i === 0 || ts[i - 1] <= v);
+      });
+      return {
+        rows: document.querySelectorAll("#corridorOut table.corridor tbody tr").length,
+        distinctLines: [...new Set(badges)].length,
+        daytypes: document.querySelectorAll("#corridorOut h4.daytype").length,
+        dirs: document.querySelectorAll("#corridorOut .corridor-dir").length,
+        sorted,
+        // tulostuva sisältö: .no-print-lohkot (esim. tulostusnappi ikoneineen) eivät päädy paperille
+        nonText: [...document.querySelectorAll("#corridorOut svg, #corridorOut canvas, #corridorOut img")]
+          .filter(el => !el.closest(".no-print")).length,
+      };
+    });
+    (corr.distinctLines >= 2 && corr.daytypes >= 1 && corr.dirs >= 2 && corr.sorted)
+      ? ok(`yhdistetyt suunnat: ${corr.rows} lähtöä, ${corr.distinctLines} linjaa yhdessä taulukossa, ${corr.dirs} suuntaa, aikajärjestys OK`)
+      : fail("yhdistetyt suunnat: yhdistetty taulukko pielessä: " + JSON.stringify(corr));
+    corr.nonText === 0
+      ? ok("yhdistetyt suunnat: tuloste puhdasta tekstiä (0 svg/canvas/img)")
+      : fail(`yhdistetyt suunnat: ei-tekstielementtejä tulosteessa (${corr.nonText} kpl)`);
+  } else fail("yhdistetyt suunnat: taulukko ei koostunut (Ahtiala 4/14/24/34K)");
+
   // Välilehden vaihto: klikkaa "Näyttöverkosto" -> naytot-paneeli näkyviin + URL päivittyy (replaceState)
   await page.click('.ptab[data-ptab="naytot"]');
   await sleep(200);

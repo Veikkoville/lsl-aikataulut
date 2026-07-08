@@ -787,6 +787,11 @@
   table.hourgrid th[scope="row"] { text-align: right; padding: 0.1rem 0.5rem 0.1rem 0; color: var(--muted);
     font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: top; }
   table.hourgrid td { padding: 0.1rem 0; font-variant-numeric: tabular-nums; letter-spacing: 0.05em; }
+  /* "·"-selite tulostetaulujen alla + yhdistetyn suunta-aikataulun sarakkeet */
+  .matrix-legend { color: var(--muted); font-size: 0.85em; margin: 0.25rem 0 0.75rem; }
+  table.corridor th, table.corridor td { text-align: center; }
+  table.corridor th:first-child, table.corridor td:first-child { font-weight: 600; }
+  table.corridor td.corr-dest, table.corridor th:nth-child(3) { text-align: left; }
   /* QR-koodit (näyttö + juliste) */
   .embedbox { margin: 0.5rem 0; display: flex; flex-direction: column; gap: 0.5rem; }
   .embed-field { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
@@ -1528,6 +1533,10 @@
     .booklet-line > h3:first-of-type { break-before: avoid; page-break-before: avoid; }
     table.booklet { font-size: 0.95rem; }
     table.booklet th, table.booklet td { padding: 0.2rem 0.4rem; }
+    /* Yhdistetty suunta-aikataulu: osiot virtaavat, suuntaotsikko kiinni taulussa */
+    .corridor-head, .corridor-dir { break-inside: auto; page-break-inside: auto; }
+    .corridor-dir > h3 { break-after: avoid; page-break-after: avoid; }
+    .matrix-legend { font-size: 8pt; color: #444; }
     /* Pysäkkijuliste: kukin päivätyyppi omalle arkille, linjat virtaavat sarakkeisiin */
     .poster-day { break-before: page; }
     .poster-day:first-of-type { break-before: avoid; }
@@ -1625,6 +1634,14 @@ const CONFIGS = {
     heroEmphasis: "layer",                // on jo moderni reittiopas → korosta erottuvaa kerrosta
     // Ydinkeskustan solmupysäkit: "Keskustan linjat" -pikavalinta tulostusvihkossa
     centerStopNames: ["Kauppatori", "Matkakeskus"],
+    // Yhdistetyt suunta-aikataulut: pikavalinnat "Yhdistetyt suunnat" -tulostevälilehdelle
+    // (malli: LSL:n Laatukäytävät, talvilehtinen 2026). Vain presettejä — mekanismi on
+    // yleinen ja käytävä johdetaan datasta; datavarmistus 8.7.2026 (Ahtiala 11 ja
+    // Hennala 11 yhteistä pysäkkiä järjestyksessä).
+    corridors: [
+      { key: "ahtiala", name: "Ahtialan suunta", lines: ["4", "14", "24", "34K"] },
+      { key: "hennala", name: "Hennalan suunta", lines: ["3", "32"] },
+    ],
     // Keskusterminaalien pysäkit (#/laiturit). Pysäkit + linjat + sijainnit
     // piirretään avoimesta GTFS-datasta (stops nimellä); virallinen LSL:n PDF-
     // pysäkkikartta linkitetään ulos (kuvat ovat LSL:n tekijänoikeutta → ei upoteta).
@@ -1690,6 +1707,11 @@ const CONFIGS = {
     operatorShort: "Vilkku",
     feedMatch: /kuopio/i,
     heroEmphasis: "layer",
+    // Yhdistetyt suunnat -presetti (datavarmistus 8.7.2026: 31/31T/35 jakavat 33–51
+    // pysäkin jakson Siilinjärven suuntaan, kaikki aktiivisia)
+    corridors: [
+      { key: "siilinjarvi", name: "Siilinjärven suunta", lines: ["31", "31T", "35"] },
+    ],
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       focus: { lat: 62.8924, lon: 27.6782 },
@@ -1710,6 +1732,11 @@ const CONFIGS = {
     operator: "Salon seudun joukkoliikenne",
     operatorShort: "Salo",
     feedMatch: /salo/i,
+    // Yhdistetyt suunnat -presetti (datavarmistus 8.7.2026: 110+603 jakavat 40 pysäkin
+    // jakson Suomusjärven suuntaan; kesäliikenteessä aktiiviset — moni Salon linja lepää kesällä)
+    corridors: [
+      { key: "suomusjarvi", name: "Suomusjärven suunta", lines: ["110", "603"] },
+    ],
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       focus: { lat: 60.3835, lon: 23.1175 },
@@ -1729,6 +1756,13 @@ const CONFIGS = {
     operator: "Kajaanin joukkoliikenne",
     operatorShort: "Kajaani",
     feedMatch: /kajaani/i,
+    // Yhdistetyt suunnat -presetti (datavarmistus 8.7.2026: 1+3 jakavat 7 pysäkin jakson
+    // keskustassa; kesäliikenteen aktiiviset. HUOM: Pali (11 jaettua) ajaa vain ma+pe →
+    // activeProbeDates (Ti/To/La/Su) ei näe sitä eikä se ole linjalistassa. Talvifeedillä
+    // 1+2 olisi laajempi (24 jaettua) — päivitä presetti kun talviaikataulut voimaan.
+    corridors: [
+      { key: "keskusta", name: "Keskustan suunta", lines: ["1", "3"] },
+    ],
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       focus: { lat: 64.224087, lon: 27.733423 },
@@ -1753,6 +1787,13 @@ const CONFIGS = {
     operatorShort: "Lifti",
     feedMatch: /vaasa/i,
     heroEmphasis: "layer",
+    // Yhdistetyt suunnat -presetit (datavarmistus 8.7.2026: 1+4 jakavat 24 pysäkin jakson
+    // Palosaaren kautta, 7+7K 33 pysäkin jakson; kaikki aktiivisia). Kaksikieliset nimet
+    // (FI/SV-kärki): corridorName() valitsee kielen mukaan.
+    corridors: [
+      { key: "palosaari", name: { fi: "Palosaaren suunta", sv: "Riktning Brändö", en: "Brändö direction" }, lines: ["1", "4"] },
+      { key: "lansiniitty", name: { fi: "Länsiniityn suunta", sv: "Riktning Västeräng", en: "Västeräng direction" }, lines: ["7", "7K"] },
+    ],
     brandColor: "#bd0073",          // Liftin pinkki (headerBgColor() pitää AA:n valkoiselle)
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
@@ -1778,6 +1819,11 @@ const CONFIGS = {
     operatorShort: "Jonne ja Minne",
     feedMatch: /^kotka$/i,
     heroEmphasis: "layer",
+    // Yhdistetyt suunnat -presetti (datavarmistus 8.7.2026: 25+25S jakavat 44 pysäkin
+    // jakson Karhula–Kantasatama, molemmat aktiivisia)
+    corridors: [
+      { key: "karhula", name: "Karhulan suunta", lines: ["25", "25S"] },
+    ],
     brandColor: "#a8500f",          // Jonne ja Minne -oranssi (headerBgColor() pitää AA:n valkoiselle)
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
@@ -2162,6 +2208,18 @@ const STRINGS = {
     dayEveryDay: "Joka päivä", schoolTerm: "koulupäivinä", schoolBreak: "loma-aikoina",
     printKeyStopsPort: "Isot pysäkit (pysty)", printAllStopsLand: "Kaikki pysäkit (vaaka)",
     rackPrintBtn: "Tulosta lehtitelineeseen",
+    tabCorridor: "Yhdistetyt suunnat",
+    corridorTitle: "Yhdistetty suunta-aikataulu",
+    corridorIntro: "Valitse samaa käytävää ajavat linjat. Tuloste kokoaa kaikkien linjojen lähdöt yhteen taulukkoon yhteisten pysäkkien kohdalta.",
+    corridorPresets: "Valmiit ryhmät",
+    corridorGenerate: "Kokoa aikataulu",
+    corridorPickHint: "Valitse vähintään kaksi linjaa.",
+    corridorBuilding: "Kootaan yhdistettyä aikataulua…",
+    corridorNoShared: "Valituilla linjoilla ei ole riittävää yhteistä pysäkkijaksoa (vähintään 3 yhteistä pysäkkiä samassa järjestyksessä).",
+    corridorExcluded: "Ei mukana (ei yhteistä jaksoa valittujen kanssa): {lines}",
+    corridorLineCol: "Linja", corridorDestCol: "Määränpää",
+    corridorSharedNote: "Ajat yhteisillä pysäkeillä: {n} yhteistä pysäkkiä välillä {from}–{to}.",
+    legendSkipStop: "· = vuoro ei aja tämän pysäkin kautta",
     preparingPrint: "Valmistellaan tulostetta…", toHomeAria: "Etusivulle",
     mapStopsTitle: "Reitti kartalla ja pysäkit",
     mapAria: "Reitti kartalla",
@@ -2586,6 +2644,18 @@ const STRINGS = {
     dayEveryDay: "Daily", schoolTerm: "school days", schoolBreak: "school holidays",
     printKeyStopsPort: "Major stops (portrait)", printAllStopsLand: "All stops (landscape)",
     rackPrintBtn: "Print for leaflet rack",
+    tabCorridor: "Combined directions",
+    corridorTitle: "Combined direction timetable",
+    corridorIntro: "Choose routes that serve the same corridor. The printout combines all their departures into one table at the shared stops.",
+    corridorPresets: "Ready-made groups",
+    corridorGenerate: "Build timetable",
+    corridorPickHint: "Choose at least two routes.",
+    corridorBuilding: "Building the combined timetable…",
+    corridorNoShared: "The selected routes do not share a sufficient common stop sequence (at least 3 shared stops in the same order).",
+    corridorExcluded: "Not included (no shared corridor with the selection): {lines}",
+    corridorLineCol: "Line", corridorDestCol: "Destination",
+    corridorSharedNote: "Times at shared stops: {n} shared stops between {from}–{to}.",
+    legendSkipStop: "· = service does not run via this stop",
     preparingPrint: "Preparing printout…", toHomeAria: "To home page",
     mapStopsTitle: "Route map and stops",
     mapAria: "Route on map",
@@ -3008,6 +3078,18 @@ const STRINGS = {
     dayEveryDay: "Varje dag", schoolTerm: "skoldagar", schoolBreak: "skollov",
     printKeyStopsPort: "Stora hållplatser (stående)", printAllStopsLand: "Alla hållplatser (liggande)",
     rackPrintBtn: "Skriv ut för broschyrställ",
+    tabCorridor: "Kombinerade riktningar",
+    corridorTitle: "Kombinerad riktningstidtabell",
+    corridorIntro: "Välj linjer som trafikerar samma stråk. Utskriften samlar alla linjers avgångar i en tabell vid de gemensamma hållplatserna.",
+    corridorPresets: "Färdiga grupper",
+    corridorGenerate: "Sammanställ tidtabellen",
+    corridorPickHint: "Välj minst två linjer.",
+    corridorBuilding: "Sammanställer den kombinerade tidtabellen…",
+    corridorNoShared: "De valda linjerna har ingen tillräcklig gemensam hållplatssekvens (minst 3 gemensamma hållplatser i samma ordning).",
+    corridorExcluded: "Ingår inte (inget gemensamt stråk med urvalet): {lines}",
+    corridorLineCol: "Linje", corridorDestCol: "Destination",
+    corridorSharedNote: "Tider vid gemensamma hållplatser: {n} gemensamma hållplatser mellan {from}–{to}.",
+    legendSkipStop: "· = turen kör inte via denna hållplats",
     preparingPrint: "Förbereder utskrift…", toHomeAria: "Till startsidan",
     mapStopsTitle: "Rutt på kartan och hållplatser",
     mapAria: "Rutt på kartan",
@@ -5489,6 +5571,7 @@ function stopMatrixHtml(stops, trips, opts) {
   // saraketta/arkki (mitattu A4-vaakaan), pysäkkisarake toistuu ja numerointi jatkuu.
   // Ruutunäkymä (ilman paginate) = yksi vieritettävä taulu kuten ennen.
   const MAX_COLS = 30;
+  let usedDot = false;
   const sheets = (opts && opts.paginate && valid.length > MAX_COLS)
     ? Math.ceil(valid.length / MAX_COLS) : 1;
   const perSheet = Math.ceil(valid.length / sheets);
@@ -5510,7 +5593,7 @@ function stopMatrixHtml(stops, trips, opts) {
     const rows = stops.map((s, rowIdx) => {
       const cells = Array.from({ length: n }, (_, i) => {
         const v = tripTimes[from + i][rowIdx];
-        return `<td>${v == null ? "·" : fmtSec(v)}</td>`;
+        return `<td>${v == null ? (usedDot = true, "·") : fmtSec(v)}</td>`;
       }).join("");
       return `<tr><th scope="row">${esc(s.name)}</th>${cells}</tr>`;
     }).join("");
@@ -5526,13 +5609,14 @@ function stopMatrixHtml(stops, trips, opts) {
         <thead><tr><th scope="col">${t("stopColHead")}</th>${headCols}</tr></thead>
         <tbody>${rows}</tbody></table></div>`;
   };
-  if (sheets === 1) return sheetHtml(0, valid.length, "");
+  const legend = () => usedDot ? `<p class="matrix-legend">${t("legendSkipStop")}</p>` : "";
+  if (sheets === 1) { const one = sheetHtml(0, valid.length, ""); return one + legend(); }
   let out = "";
   for (let s = 0; s < sheets; s++) {
     const from = s * perSheet, to = Math.min(valid.length, from + perSheet);
     out += sheetHtml(from, to, s === 0 ? "" : " matrix-cont");  // jatkoarkki omalle sivulle
   }
-  return out;
+  return out + legend();
 }
 
 // Pysäkkijuliste: yhdeltä pysäkiltä lähtevät linjat tuntikaaviona
@@ -7084,6 +7168,80 @@ function bindScreenNetTab() {
 // Julisteet-välilehti (erätulostus): linjavalinta + eräajo julisteiksi. Jokainen
 // pysäkki saa KAIKKI todelliset päiväblokit (activeDates) — ei päivätyyppivalintaa,
 // jotta juliste ei koskaan jää vajaaksi eikä riipu tulostuspäivästä.
+// "Yhdistetyt suunnat" -välilehden sidonta: presetit valitsevat linjaruudut shortNamella,
+// Kokoa-nappi ajaa corridorBuildin ja renderöi suunnat päivätyyppilohkoineen.
+function bindCorridorTab(routes, today) {
+  const panel = document.querySelector('[data-ppanel="kaytava"]');
+  if (!panel) return;
+  const cbs = () => [...panel.querySelectorAll(".corrCb")];
+  panel.querySelectorAll("[data-corridor]").forEach(btn => btn.addEventListener("click", () => {
+    const preset = (CONFIG.corridors || []).find(c => c.key === btn.dataset.corridor);
+    if (!preset) return;
+    const want = new Set(preset.lines.map(String));
+    cbs().forEach(c => { c.checked = want.has(c.dataset.short); });
+  }));
+  const filter = document.getElementById("corrFilter");
+  filter?.addEventListener("input", () => {
+    const q = filter.value.trim().toLowerCase();
+    panel.querySelectorAll("#corrChecks li").forEach(li => {
+      li.hidden = !!q && !li.textContent.toLowerCase().includes(q);
+    });
+  });
+  document.getElementById("corrGo")?.addEventListener("click", async () => {
+    const mySeq = viewSeq;
+    const status = document.getElementById("corrStatus");
+    const out = document.getElementById("corridorOut");
+    const selected = cbs().filter(c => c.checked).map(c => c.value);
+    if (selected.length < 2) { status.textContent = t("corridorPickHint"); return; }
+    const date = document.getElementById("corrDate").value || today;
+    let dayKeys = [...panel.querySelectorAll(".corrDt:checked")].map(c => c.value);
+    if (!dayKeys.length) dayKeys = ["weekday", "sat", "sun"];
+    const bucketMatch = (dows) => dayKeys.some(k =>
+      k === "weekday" ? [...dows].some(d => d <= 4) : k === "sat" ? dows.has(5) : dows.has(6));
+    status.textContent = t("corridorBuilding");
+    out.innerHTML = "";
+    let res;
+    try { res = await corridorBuild(selected, date); }
+    catch (e) { if (mySeq === viewSeq) status.textContent = e.message; return; }
+    if (mySeq !== viewSeq) return;
+    status.textContent = "";
+    const dirs = res.dirs
+      .map(d => ({ ...d, groups: d.groups.filter(g => bucketMatch(g.dows)) }))
+      .filter(d => d.groups.length);
+    if (!dirs.length) { out.innerHTML = `<p class="muted">${t("corridorNoShared")}</p>`; return; }
+    // jos valinta vastaa presettiä, otsikoidaan sen nimellä
+    const selShorts = new Set(cbs().filter(c => c.checked).map(c => c.dataset.short));
+    const preset = (CONFIG.corridors || []).find(c =>
+      c.lines.length === selShorts.size && c.lines.every(l => selShorts.has(String(l))));
+    const allLines = [...new Map(dirs.flatMap(d => d.lines).map(r => [r.gtfsId, r])).values()];
+    const exNote = res.excluded.length
+      ? `<p class="muted">${t("corridorExcluded", { lines: esc(res.excluded.join(", ")) })}</p>` : "";
+    out.innerHTML = `
+      <div class="card corridor-head">
+        <h2>${t("corridorTitle")}${preset ? `: ${esc(corridorName(preset))}` : ""}</h2>
+        <p>${allLines.map(r => badgeHtml(r)).join(" ")}</p>
+        <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
+        <p class="muted">${t("printDaysNote")}</p>
+        ${exNote}
+        <p class="no-print buildbar"><button type="button" id="corrPrint">${icon("print")} ${t("printBtn")}</button></p>
+      </div>
+      ${dirs.map(d => `<section class="card corridor-dir">
+        <h3>${esc(d.label)}</h3>
+        <p class="muted">${t("corridorSharedNote", { n: d.sharedCount,
+          from: esc(d.keyStops[0].name), to: esc(d.keyStops[d.keyStops.length - 1].name) })}</p>
+        ${d.groups.map(g => `<h4 class="daytype">${esc(g.label)}</h4>${corridorTableHtml(g, d.keyStops)}`).join("")}
+      </section>`).join("")}`;
+    document.getElementById("corrPrint")?.addEventListener("click", () => {
+      runPrintJob(t("preparingPrint"), () => {
+        setPageOrientation("portrait");
+        const done = () => { hidePrintPrep(); window.removeEventListener("afterprint", done); };
+        window.addEventListener("afterprint", done);
+        window.print();
+      });
+    });
+  });
+}
+
 function bindPostersTab(routes) {
   const lineSel = document.getElementById("batchLine");
   if (!lineSel) return;
@@ -8939,10 +9097,204 @@ function bookletTableHtml(trips, keyOpts) {
     return m;
   }).sort((a, b) => (a[keyStops[0].gtfsId] ?? 1e9) - (b[keyStops[0].gtfsId] ?? 1e9));
   const head = keyStops.map(s => `<th scope="col">${esc(s.name)}</th>`).join("");
+  let usedDot = false;
   const body = rows.map(m =>
-    `<tr>${keyStops.map(s => `<td>${m[s.gtfsId] == null ? "·" : fmtSec(m[s.gtfsId])}</td>`).join("")}</tr>`).join("");
+    `<tr>${keyStops.map(s => `<td>${m[s.gtfsId] == null ? (usedDot = true, "·") : fmtSec(m[s.gtfsId])}</td>`).join("")}</tr>`).join("");
   return `<div class="matrix-wrap"><table class="stoptable booklet">
-      <thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+      <thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>` +
+    (usedDot ? `<p class="matrix-legend">${t("legendSkipStop")}</p>` : "");
+}
+
+/* ---------- Yhdistetty suunta-aikataulu (käytävä): usean linjan lähdöt yhteen ----------
+   Yleinen mekanismi: käytävä johdetaan DATASTA — linjojen patternien järjestyksessä säilyvä
+   yhteinen pysäkkijakso, ja suunnat jaetun jakson kulkusuunnasta. directionId:tä EI vertailla
+   linjojen yli (ei vertailukelpoinen eri linjojen välillä). CONFIG.corridors on vain
+   valinnainen pikavalintataso (malli: LSL:n Laatukäytävät, esim. Ahtiala 4/14/24/34K). */
+
+// Valittujen linjojen suunnittaiset ensisijaiset patternit + pysäkkisekvenssit.
+// Sama proute-kysely ja tulevien vuorojen probe kuin vihossa → jaettu välimuisti.
+async function corridorFetchLines(routeIds) {
+  const probe = activeProbeDates();
+  const probeAliases = probe.map((d, i) => `p${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
+  const upcoming = p => probe.reduce((n, _, i) => n + ((p["p" + i] || []).length), 0);
+  return (await mapLimit(routeIds, 4, async routeId => {
+    try {
+      const ids = await lineIds(routeId);
+      const { data } = await cachedGql("proute:" + ids.join(","),
+        `query ($ids: [String]) {
+           routes(ids: $ids) {
+             gtfsId shortName longName@L color textColor
+             patterns { code name directionId ${probeAliases} stops { gtfsId name@L } }
+           }
+         }`, { ids });
+      const arr = (data.routes || []).filter(Boolean);
+      const route = arr.find(r => r.gtfsId === routeId) || arr[0];
+      if (!route) return null;
+      const patterns = arr.flatMap(r => r.patterns || []);
+      const byDir = new Map();
+      for (const p of patterns) {
+        const k = p.directionId ?? 0;
+        if (!byDir.has(k)) byDir.set(k, []);
+        byDir.get(k).push(p);
+      }
+      const primaries = [...byDir.values()]
+        .map(list => list.sort((a, b) => upcoming(b) - upcoming(a))[0]);
+      return { route, byDir, primaries,
+               upcoming: primaries.reduce((n, p) => n + upcoming(p), 0) };
+    } catch (e) { return null; }
+  })).filter(Boolean);
+}
+
+// Patternin yhteensopivuuspisteet referenssiketjuun: jaettujen pysäkkien määrä kun
+// ensiesiintymät etenevät referenssillä pääosin kasvavasti; 0 jos jaettuja <2 tai
+// järjestys pääosin käänteinen/sekava. Silmukka/toistuva pysäkki voi tuottaa
+// yksittäisiä poikkeamia → selvä enemmistö riittää. HUOM: vastakkainen ajosuunta
+// käyttää eri fyysisiä pysäkkejä (kadun toinen puoli, eri gtfsId) → suuntia EI
+// tunnisteta käänteisjärjestyksestä vaan kummallakin suunnalla on oma referenssiketju.
+function corridorOrientScore(refIdx, stops) {
+  const pos = [];
+  for (const s of stops || []) {
+    const i = refIdx.get(s.gtfsId);
+    if (i != null) pos.push(i);
+  }
+  if (pos.length < 2) return 0;
+  let inc = 0, dec = 0;
+  for (let i = 1; i < pos.length; i++) {
+    if (pos[i] > pos[i - 1]) inc++;
+    else if (pos[i] < pos[i - 1]) dec++;
+  }
+  return ((inc && !dec) || inc >= 3 * Math.max(1, dec)) ? pos.length : 0;
+}
+
+// Järjestyksessä säilyvä yhteinen pysäkkijakso: referenssiketju suodatettuna pysäkkeihin
+// jotka esiintyvät KAIKILLA jäsenillä ja joiden ensiesiintymät etenevät jokaisella.
+function corridorShared(refStops, memberStopLists) {
+  const idx = memberStopLists.map(list => {
+    const m = new Map();
+    (list || []).forEach((s, i) => { if (!m.has(s.gtfsId)) m.set(s.gtfsId, i); });
+    return m;
+  });
+  let shared = (refStops || []).filter(s => idx.every(m => m.has(s.gtfsId)));
+  for (const m of idx) {
+    let lastPos = -1;
+    shared = shared.filter(s => {
+      const p = m.get(s.gtfsId);
+      if (p > lastPos) { lastPos = p; return true; }
+      return false;
+    });
+  }
+  return shared;
+}
+
+// Presetin näyttönimi: merkkijono tai kielikohtainen objekti ({ fi, sv, en } — esim.
+// kaksikielinen Vaasa: "Palosaaren suunta" / "Riktning Brändö").
+function corridorName(c) {
+  return typeof c.name === "object" ? (c.name[lang] || c.name.fi || "") : (c.name || "");
+}
+
+// Näyttösarakkeet jaetusta jaksosta: ensimmäinen + keskikohta (hub etusijalla) + viimeinen.
+function corridorKeyStops(shared) {
+  if (shared.length <= 3) return shared;
+  const hubTokens = (CONFIG.hubs || []).map(h => normHubName(h.name).split(" ").filter(Boolean)).filter(a => a.length);
+  let mid = null;
+  if (hubTokens.length) mid = shared.slice(1, -1).find(s => stopMatchesHub(s.name, hubTokens)) || null;
+  if (!mid) mid = shared[Math.floor(shared.length / 2)];
+  return [shared[0], mid, shared[shared.length - 1]];
+}
+
+// Koko käytävän kokoaminen: suunnat (A/B) → jaettu jakso → vuorot kaikilta linjoilta
+// päivätyyppilohkoihin. Ryhmittely ajetaan PER LINJA (groupTripsByDaysin aikasignatuuri-
+// dedup ei saa niputtaa eri linjojen identtisiä aikoja yhteen — sama periaate kuin
+// pysäkkijulisteessa); lohkot yhdistetään dows+school-avaimella.
+async function corridorBuild(routeIds, dateISO) {
+  const lines = await corridorFetchLines(routeIds);
+  if (lines.length < 2) return { dirs: [], excluded: lines.map(l => l.route.shortName || "") };
+  const ref = lines.reduce((a, b) => (b.upcoming > a.upcoming ? b : a));
+  // Referenssilinjan kummankin suunnan pysäkkiketjut = kahden suunnan referenssit.
+  const refIdxes = ref.primaries.slice(0, 2).map(p => {
+    const m = new Map();
+    (p.stops || []).forEach((s, i) => { if (!m.has(s.gtfsId)) m.set(s.gtfsId, i); });
+    return m;
+  });
+  const buckets = refIdxes.map(() => ({ members: [] }));
+  const excluded = [];
+  for (const L of lines) {
+    let placed = false;
+    for (const p of L.primaries) {
+      // sijoitus paremman myötäsuunta-osuman mukaan; sama linja vain kerran per suunta
+      // (silmukkalinjan molemmat suunnat voisivat muuten päätyä samaan ämpäriin)
+      const scores = refIdxes.map(idx => corridorOrientScore(idx, p.stops));
+      const best = scores.indexOf(Math.max(...scores));
+      if (scores[best] < 2) continue;
+      const b = buckets[best];
+      if (!b.members.some(m => m.line === L)) { b.members.push({ line: L, pattern: p }); placed = true; }
+    }
+    if (!placed) excluded.push(L.route.shortName || "");
+  }
+  const dirs = [];
+  for (const b of buckets) {
+    if (b.members.length < 2) continue;
+    const refMember = b.members.find(m => m.line === ref) || b.members[0];
+    const shared = corridorShared(refMember.pattern.stops, b.members.map(m => m.pattern.stops));
+    if (shared.length < 3) continue;
+    const keyStops = corridorKeyStops(shared);
+    const blocks = new Map();
+    await mapLimit(b.members, 3, async m => {
+      const dirPats = m.line.byDir.get(m.pattern.directionId ?? 0) || [m.pattern];
+      let trips = [];
+      try { trips = await dirTripsWithDays(dirPats); } catch (e) { trips = []; }
+      for (const g of groupTripsByDays(trips, dateISO)) {
+        const bk = [...g.dows].sort((x, y) => x - y).join(",") + "|" + g.school;
+        if (!blocks.has(bk)) blocks.set(bk, { dows: g.dows, school: g.school, label: g.label, rows: [] });
+        const blk = blocks.get(bk);
+        for (const tr of g.trips) {
+          // ensiesiintymä per pysäkki (käyntisemantiikka: 1. käynti = lähtöaika)
+          const times = new Map();
+          for (const st of tr.stoptimes || []) {
+            const id = st.stop?.gtfsId;
+            if (id && !times.has(id)) times.set(id, st.scheduledDeparture);
+          }
+          const sortSec = keyStops.map(s => times.get(s.gtfsId)).find(v => v != null);
+          if (sortSec == null) continue; // vuoro ei kosketa näyttöpysäkkejä
+          blk.rows.push({
+            route: m.line.route,
+            headsign: tr.tripHeadsign || tr.stoptimes?.[0]?.headsign || m.line.route.longName || "",
+            times, sortSec,
+          });
+        }
+      }
+    });
+    const groups = [...blocks.values()].filter(g => g.rows.length);
+    if (!groups.length) continue;
+    groups.forEach(g => g.rows.sort((x, y) => x.sortSec - y.sortSec));
+    groups.sort((x, y) => {
+      const am = Math.min(...x.dows), bm = Math.min(...y.dows);
+      return am !== bm ? am - bm : y.dows.size - x.dows.size;
+    });
+    dirs.push({
+      label: `${shared[0].name} → ${shared[shared.length - 1].name}`,
+      sharedCount: shared.length, keyStops, groups,
+      lines: b.members.map(m => m.line.route),
+    });
+  }
+  return { dirs, excluded };
+}
+
+// Yhdistetyn suunnan taulukko: Klo (1. yhteinen pysäkki) | Linja | Määränpää | muut
+// yhteiset pysäkit. Kaikki tekstiä (printtikärjen symbolilinja); "·" saa selitteen.
+function corridorTableHtml(group, keyStops) {
+  let usedDot = false;
+  const cell = v => { if (v == null) { usedDot = true; return "·"; } return fmtSec(v); };
+  const head = `<tr><th scope="col">${esc(keyStops[0].name)}</th>` +
+    `<th scope="col">${t("corridorLineCol")}</th><th scope="col">${t("corridorDestCol")}</th>` +
+    keyStops.slice(1).map(s => `<th scope="col">${esc(s.name)}</th>`).join("") + "</tr>";
+  const body = group.rows.map(r =>
+    `<tr><td>${cell(r.times.get(keyStops[0].gtfsId))}</td>` +
+    `<td>${badgeHtml(r.route)}</td><td class="corr-dest">${esc(r.headsign)}</td>` +
+    keyStops.slice(1).map(s => `<td>${cell(r.times.get(s.gtfsId))}</td>`).join("") + "</tr>").join("");
+  return `<div class="matrix-wrap"><table class="stoptable booklet corridor">
+      <thead>${head}</thead><tbody>${body}</tbody></table></div>` +
+    (usedDot ? `<p class="matrix-legend">${t("legendSkipStop")}</p>` : "");
 }
 
 // Monen linjan tulostusvihko: valitse linjat → aikataulut isoilla pysäkillä
@@ -8950,7 +9302,7 @@ function bookletTableHtml(trips, keyOpts) {
 // ohjautuvat oikealle välilehdelle (route()); välilehdet ovat URL-osoitettavia (#/tulosteet/<tab>
 // tai ?tab=<tab>). Kaikki kolme paneelia ovat DOMissa → sidonnat toimivat tabista riippumatta;
 // välilehden vaihto ei piirrä näkymää uudelleen (history.replaceState → lomaketila säilyy).
-const PRINT_TABS = ["vihko", "julisteet", "naytot"];
+const PRINT_TABS = ["vihko", "kaytava", "julisteet", "naytot"];
 async function viewPrintCenter(tab) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   tab = PRINT_TABS.includes(tab) ? tab : "vihko";
@@ -8964,6 +9316,7 @@ async function viewPrintCenter(tab) {
       <p class="muted">${t("printCenterIntro")}</p>
       <div class="tabs" role="group" aria-label="${t("printCenterTitle")}">
         <button type="button" class="ptab" data-ptab="vihko" aria-pressed="false">${t("tabBooklet")}</button>
+        <button type="button" class="ptab" data-ptab="kaytava" aria-pressed="false">${t("tabCorridor")}</button>
         <button type="button" class="ptab" data-ptab="julisteet" aria-pressed="false">${t("tabPosters")}</button>
         <button type="button" class="ptab" data-ptab="naytot" aria-pressed="false">${t("tabScreens")}</button>
       </div>
@@ -9012,6 +9365,44 @@ async function viewPrintCenter(tab) {
       <div id="bookletOut"></div>
     </div>
 
+    <div class="ppanel" data-ppanel="kaytava" hidden>
+      <div class="card no-print" id="corridorForm">
+        <h2>${icon("route")} ${t("corridorTitle")}</h2>
+        <p class="muted">${t("corridorIntro")}</p>
+        ${(CONFIG.corridors || []).length ? `
+        <div class="field">
+          <span class="muted">${t("corridorPresets")}</span>
+          <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin-top:0.3rem">
+            ${CONFIG.corridors.map(c => `<button type="button" class="linkish" data-corridor="${esc(c.key)}">${esc(corridorName(c))} (${c.lines.map(esc).join(", ")})</button>`).join("")}
+          </div>
+        </div>` : ""}
+        <div class="field">
+          <label for="corrDate">${t("bookletDateLabel")}</label>
+          <input type="date" id="corrDate" value="${esc(today)}">
+        </div>
+        <div class="field">
+          <span class="muted" id="corrDtLbl">${t("dayTypesLabel")}</span>
+          <div class="row" role="group" aria-labelledby="corrDtLbl" style="flex-wrap:wrap;gap:0.4rem 1rem">
+            <label class="dtopt"><input type="checkbox" class="corrDt" value="weekday" checked> ${t("dayWeekday")}</label>
+            <label class="dtopt"><input type="checkbox" class="corrDt" value="sat" checked> ${t("daySat")}</label>
+            <label class="dtopt"><input type="checkbox" class="corrDt" value="sun" checked> ${t("daySun")}</label>
+          </div>
+        </div>
+        <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
+          <input type="search" id="corrFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
+        </div>
+        <p class="buildbar"><button type="button" id="corrGo">${t("corridorGenerate")}</button>
+           <span id="corrStatus" class="muted" role="status"></span></p>
+        <ul class="plain" id="corrChecks">
+          ${routes.map(r => `<li><label class="item" style="cursor:pointer;align-items:center">
+              <input type="checkbox" class="corrCb" value="${esc(r.gtfsId)}" data-short="${esc(r.shortName || "")}"
+                     style="width:1.4rem;height:1.4rem;flex:none">
+              ${badgeHtml(r)} <span>${esc(r.longName)}</span></label></li>`).join("")}
+        </ul>
+      </div>
+      <div id="corridorOut"></div>
+    </div>
+
     <div class="ppanel" data-ppanel="julisteet" hidden>
       <div class="card no-print">
         <h2>${icon("print")} ${t("batchPosterTitle")}</h2>
@@ -9046,6 +9437,7 @@ async function viewPrintCenter(tab) {
   btns.forEach(b => b.addEventListener("click", () => showTab(b.dataset.ptab)));
 
   bindBookletTab(routes, today);
+  bindCorridorTab(routes, today);
   bindPostersTab(routes);
   bindScreenNetTab();
   showTab(tab);
