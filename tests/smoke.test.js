@@ -387,6 +387,29 @@ const info = msg => console.log("INFO " + msg);
     vLines ? ok("palvelutiski (Vaasa): pysäkin linjat listautuvat minimi-CONFIG-kaupungissa")
            : fail("palvelutiski (Vaasa): pysäkin linjat eivät listaudu");
   }
+
+  // --- Kaksikielisyys (Vaasa, SV): UI + CONFIG.cityNames.sv + GTFS-datan pysäkkinimet ---
+  // Kielenvaihto SV → otsikko "Busstidtabeller i Vasa" (cityNames.sv) ja linjasivun
+  // suuntavalinnassa ruotsinkielinen pysäkkinimi (name@L → translations.txt-data).
+  // EI hyväksytä FI-fallbackia: "Busstidtabeller" ja vägen/gatan/esplanaden ovat sv-spesifejä.
+  await page.goto(BASE + "/?city=vaasa#/", { waitUntil: "networkidle2" });
+  await page.click('[data-lang-opt="sv"]');
+  const svHome = await page.waitForFunction(
+    () => document.documentElement.lang === "sv"
+      && (document.getElementById("appTitle")?.textContent || "").includes("Busstidtabeller i Vasa"),
+    { timeout: 10000 }).then(() => true).catch(() => false);
+  svHome ? ok("kaksikielisyys (Vaasa, SV): otsikko 'Busstidtabeller i Vasa' + lang=sv")
+         : fail("kaksikielisyys (Vaasa, SV): otsikko/lang ei vaihtunut ruotsiksi");
+  await page.waitForSelector('#routeList a[href^="#/linja/"]', { timeout: 20000 });
+  const svRouteHref = await page.evaluate(() =>
+    document.querySelector('#routeList a[href^="#/linja/"]').getAttribute("href"));
+  await page.goto(BASE + "/?city=vaasa" + svRouteHref, { waitUntil: "networkidle2" });
+  const svStops = await page.waitForFunction(
+    () => /vägen|gatan|esplanaden/i.test(document.getElementById("app")?.innerText || ""),
+    { timeout: 20000 }).then(() => true).catch(() => false);
+  svStops ? ok("kaksikielisyys (Vaasa, SV): linjasivun pysäkkinimet ruotsiksi (name@L)")
+          : fail("kaksikielisyys (Vaasa, SV): linjasivulla ei ruotsinkielistä pysäkkinimeä");
+  await page.click('[data-lang-opt="fi"]'); // lang on globaali (ei ns-skoopattu) → palauta FI seuraaville testeille
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" }); // palauta oletuskaupunki seuraaville testeille
 
   // --- Tallennetut matkat: tallenna nykyinen reitti ja näe se etusivulla ---

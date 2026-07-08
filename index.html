@@ -3140,6 +3140,7 @@ function updateChrome() {
   setMeta('meta[property="og:description"]', t("metaDesc"));
   setMeta('meta[name="twitter:title"]', t("appTitle"));
   setMeta('meta[name="twitter:description"]', t("metaDesc"));
+  setMeta('meta[property="og:locale"]', lang === "sv" ? "sv_SE" : lang === "en" ? "en_GB" : "fi_FI");
   document.getElementById("appTitle").textContent = t("appTitle");
   document.getElementById("appSub").textContent = t("headerSub");
   document.getElementById("brandLink").setAttribute("aria-label", t("toHomeAria"));
@@ -4127,6 +4128,7 @@ function setLanguage(v) {
   localStorage.setItem("lang", lang);
   routesCache = null;   // muistissa olevat linjalistat ovat kielikohtaisia (longName) → tyhjennä
   networkCache = null;
+  alertsPromise = null; // häiriötekstit haetaan kielikohtaisesti (@L) → istuntovälimuisti tyhjäksi
   updateChrome();       // päivittää ylätunnisteen + footerin + meta-tagit
   syncControls();       // header-kontrollien aria + kielisegmentti
   route();              // piirrä nykyinen näkymä uudella kielellä
@@ -4425,7 +4427,7 @@ function loadAlerts(force) {
       const data = await gql(
         `query ($feeds: [String!]) {
            alerts(feeds: $feeds) {
-             alertHeaderText alertDescriptionText alertSeverityLevel alertEffect alertUrl
+             alertHeaderText@L alertDescriptionText@L alertSeverityLevel alertEffect alertUrl
              effectiveStartDate effectiveEndDate
              route { gtfsId } stop { gtfsId }
            }
@@ -7519,7 +7521,7 @@ const DESK_LASTBUS_QUERY = `
         start end numberOfTransfers
         legs {
           mode start { scheduledTime estimated { time } } end { scheduledTime estimated { time } }
-          from { name stop { platformCode } } to { name } route { gtfsId shortName color textColor }
+          from { name stop { platformCode name@L } } to { name stop { name@L } } route { gtfsId shortName color textColor }
         }
       } }
     }
@@ -7775,7 +7777,7 @@ async function viewServiceDesk() {
     try { data = await gql(PLAN_QUERY, { origin, destination, first: 5 }); }
     catch (e) { msg.innerHTML = `<div class="error">${t("deskSearchErr")}</div>`; return; }
     msg.innerHTML = "";
-    const nodes = (data.planConnection?.edges || []).map(e => e.node);
+    const nodes = (data.planConnection?.edges || []).map(e => localizePlanNode(e.node));
     const res = document.getElementById("deskResults");
     if (!nodes.length) { res.innerHTML = `<p class="muted">${t("noItineraries")}</p>`; return; }
     // Aina seuraava bussi näkyviin: jos ensisijaisessa haussa ei ole bussia (kävely voittaa tai
@@ -7785,7 +7787,7 @@ async function viewServiceDesk() {
     if (!busNode) {
       try {
         const nb = await gql(NEXT_BUS_QUERY, { origin, destination });
-        busNode = (nb.planConnection?.edges || []).map(e => e.node).find(firstTransitLeg) || null;
+        busNode = (nb.planConnection?.edges || []).map(e => localizePlanNode(e.node)).find(firstTransitLeg) || null;
       } catch (e) { busNode = null; }
     }
     res.innerHTML = deskTellHtml(nodes, busNode)
@@ -7894,7 +7896,7 @@ async function viewServiceDesk() {
     try { data = await gql(DESK_LASTBUS_QUERY, { origin, destination, dateTime: { latestArrival: eod.toISOString() } }); }
     catch (e) { msg.innerHTML = `<div class="error">${t("deskSearchErr")}</div>`; return; }
     msg.innerHTML = "";
-    const nodes = (data.planConnection?.edges || []).map(e => e.node).filter(firstTransitLeg);
+    const nodes = (data.planConnection?.edges || []).map(e => localizePlanNode(e.node)).filter(firstTransitLeg);
     if (!nodes.length) { res.innerHTML = `<p class="muted">${t("deskLastBusNone")}</p>`; return; }
     // viimeisin = myöhäisin ensimmäisen bussilegin lähtöaika
     const last = nodes.reduce((a, b) =>
@@ -7983,6 +7985,18 @@ function isoWithOffset(local) {
   return `${local}:00${sign}${pad(off / 60)}:${pad(off % 60)}`;
 }
 
+// SV/EN: OTP:n Place.name ei tue language-argumenttia → pysäkilliset pisteet haetaan
+// stop{name@L}-alivalinnalla ja nimi normalisoidaan tässä. FI ei muutu (ei ylikirjoitusta);
+// osoitepisteillä (from/to ilman stopia) Pelias-nimi säilyy sellaisenaan.
+function localizePlanNode(node) {
+  if (lang === "fi" || !node) return node;
+  for (const leg of node.legs || []) {
+    for (const pt of [leg.from, leg.to]) if (pt?.stop?.name) pt.name = pt.stop.name;
+    for (const p of leg.intermediatePlaces || []) if (p?.stop?.name) p.name = p.stop.name;
+  }
+  return node;
+}
+
 const PLAN_QUERY = `
   query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!,
          $first: Int, $after: String, $last: Int, $before: String,
@@ -7998,14 +8012,14 @@ const PLAN_QUERY = `
           mode duration distance realtimeState
           start { scheduledTime estimated { time } }
           end { scheduledTime estimated { time } }
-          from { name lat lon stop { code platformCode } }
-          to { name lat lon stop { code } }
+          from { name lat lon stop { code platformCode name@L } }
+          to { name lat lon stop { code name@L } }
           route { gtfsId shortName color textColor }
           trip { tripHeadsign@L occupancy { occupancyStatus } }
-          intermediateStops { name }
-          intermediatePlaces { name arrivalTime departureTime }
+          intermediateStops { name@L }
+          intermediatePlaces { name arrivalTime departureTime stop { name@L } }
           legGeometry { points }
-          alerts { alertHeaderText alertSeverityLevel }
+          alerts { alertHeaderText@L alertSeverityLevel }
         }
       } }
     }
@@ -8025,8 +8039,8 @@ const NEXT_BUS_QUERY = `
           mode duration
           start { scheduledTime estimated { time } }
           end { scheduledTime estimated { time } }
-          from { name stop { platformCode } }
-          to { name }
+          from { name stop { platformCode name@L } }
+          to { name stop { name@L } }
           route { gtfsId shortName color textColor }
         }
       } }
@@ -8603,7 +8617,7 @@ async function viewPlan(parts) {
       }
       const data = await gql(PLAN_QUERY, vars);
       const conn = data.planConnection;
-      const newNodes = (conn.edges || []).map(e => e.node);
+      const newNodes = (conn.edges || []).map(e => localizePlanNode(e.node));
       if (mode === "earlier") {
         nodes = newNodes.concat(nodes);
         prevCursor = conn.pageInfo.startCursor;
