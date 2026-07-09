@@ -1,0 +1,78 @@
+# Tuotanto-smoke-vahti: read-only regressiovahti demo.reittari.fi:tä vasten.
+# Failaava ajo = punainen run → GitHub lähettää sähköposti-ilmoituksen automaattisesti.
+# Ei salaisuuksia: julkinen tuotanto-URL, data kulkee samaa worker-proxyä kuin selaimessa.
+
+name: Tuotanto-smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Viikoittainen vahti: maanantaisin 04:00 UTC (07:00 Suomen kesäaikaa)
+    - cron: "0 4 * * 1"
+    # ⚠️ TALVIFEED-IKKUNA: päivittäin 8.–15.8. klo 04:00 UTC. LSL:n talvifeed vaihtuu
+    # 10.8.2026 ja KOUL/LOMA-validointi on 12.8.2026 — tihennetty ajo vahtii vaihtoa.
+    # POISTA TÄMÄ RIVI ikkunan jälkeen (elokuun 2026 lopussa): cron ei tunne vuotta,
+    # joten rivi laukeaisi uudelleen joka elokuu (2027, 2028, ...).
+    - cron: "0 4 8-15 8 *"
+
+permissions:
+  contents: read
+
+jobs:
+  # Ydinvahti: per-kaupunki-invariantit (6 kaupunkia), oma kevyt skripti.
+  prod-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Asenna testiriippuvuudet
+        run: npm ci
+        working-directory: tests
+
+      - name: Aja tuotanto-smoke (6 kaupunkia, read-only)
+        run: node prod-smoke.test.js
+        working-directory: tests
+        env:
+          BASE: https://demo.reittari.fi
+
+      - name: Arkistoi raportti
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-smoke-report
+          path: |
+            tests/prod-smoke-report.txt
+            tests/prod-smoke-report.json
+
+  # Syvä kattavuus: koko olemassa oleva smoke-sarja ajetaan tuotantoa vasten
+  # (BASE-parametrisoitu). Erillinen job, jotta mahdollinen flake ei sotke
+  # ydinvahdin signaalia — punainen prod-smoke on aina tutkittava, punainen
+  # full-smoke voi olla ajoituskohinaa (re-run ensin).
+  full-smoke-prod:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Asenna testiriippuvuudet
+        run: npm ci
+        working-directory: tests
+
+      - name: Aja koko smoke-sarja tuotantoa vasten
+        run: npm test
+        working-directory: tests
+        env:
+          BASE: https://demo.reittari.fi
