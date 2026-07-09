@@ -1834,6 +1834,51 @@ const CONFIGS = {
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
   },
+  // Raasepori-demo (?city=raasepori). Layer-kaupunki kuten Vaasa/Kotka: oma moderni
+  // reittiopas (bosse.digitransit.fi, brändi "BOSSE") → heroEmphasis "layer". Kaikki
+  // sisältö avoimesta Waltti/Digitransit-GTFS:stä. feedId "Raasepori" varmennettu
+  // feeds-kyselyllä proxyn kautta 9.7.2026 (14 BUS-linjaa; nykyinen feed = kesäkausi
+  // 25.6.–11.8.2026 → tarkista presetit talvifeedillä). Kaksikielinen, ruotsienemmistöinen
+  // kunta: GTFS:n pysäkkinimet kääntyvät FI/SV täysin, myös suuntakirjaimet (L→V, I→Ö,
+  // P→N, E→S); longNamet eivät käänny (feedin puute, kuten Vaasassa). EI fares/hubs/
+  // cmsAlerts (hintanäkymän copy on toistaiseksi Lahti-sidonnainen; keskuspysäkkilistaa
+  // tai häiriö-CMS:ää ei varmennettu) → lisää vasta varmennetulla datalla jos diili
+  // etenee. GTFS-RT-häiriöt toimivat silti.
+  raasepori: {
+    city: "Raasepori",
+    cityGenitive: "Raaseporin",
+    // Kaksikielinen kunta (SV-enemmistö): ruotsiksi "Raseborg". EN = "Raasepori" (oletus).
+    cityNames: { sv: "Raseborg" },
+    cityGenitives: { sv: "Raseborgs" },
+    operator: "Raaseporin joukkoliikenne",
+    operatorShort: "BOSSE",
+    feedMatch: /raasepori/i,
+    // Feedin natiivikieli on RUOTSI (stops.txt-nimet sv, FI tulee translations.txt:stä)
+    // → @L-lokalisointi pyytää FI:n eksplisiittisesti (localizeQuery/localizePlanNode).
+    feedLang: "sv",
+    heroEmphasis: "layer",
+    // Yhdistetyt suunnat -presetit (datavarmistus 9.7.2026: 201+201s+261 jakavat 17
+    // pysäkin jakson Tammisaari–Karjaa molempiin suuntiin, 104n+134n 17 pysäkin jakson
+    // Fiskars–Karjaa molempiin suuntiin; kesäfeedin aktiiviset. HUOM: 192 EI kelpaa
+    // käytävään — sen kesäfeedin primaripatternit ovat lyhyitä Karjaa–Grundsjö-syöttö-
+    // vuoroja, pitkä Tammisaari-ketju on harvinainen variantti.) Kaksikieliset nimet
+    // (SV-kärki): corridorName() valitsee kielen mukaan.
+    corridors: [
+      { key: "tammisaari", name: { fi: "Tammisaaren suunta", sv: "Riktning Ekenäs", en: "Ekenäs direction" }, lines: ["201", "201s", "261"] },
+      { key: "fiskars", name: { fi: "Fiskarsin suunta", sv: "Riktning Fiskars", en: "Fiskars direction" }, lines: ["104n", "134n"] },
+    ],
+    // BOSSE-vihreä = reittioppaan oma teemaväri (bosse.digitransit.fi meta theme-color,
+    // luettu 9.7.2026). headerBgColor() pitää AA:n valkoiselle.
+    brandColor: "#5B7B32",
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      // focus = Tammisaaren linja-autoasema; rect kattaa kaikki linjapysäkit
+      // (audit 9.7.2026: lat 59.9696–60.2096, lon 23.0275–23.9102) marginaalilla.
+      focus: { lat: 59.977, lon: 23.437 },
+      rect: { minLat: 59.85, maxLat: 60.33, minLon: 22.85, maxLon: 24.05 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
 };
 
 const cityKey = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();
@@ -3259,13 +3304,16 @@ let refreshTimer = null;
 /* ---------- API ---------- */
 
 // Kielitietoinen data: @L-sentinel kyselyssä (esim. name@L, longName@L, headsign@L)
-// laajenee valitun kielen mukaan. FI = feedien natiivikieli → sentinel poistetaan
-// kokonaan (kysely identtinen vanhaan → FI-näkymä ja -välimuisti muuttumattomia).
-// SV/EN → (language: "sv"/"en"); OTP palauttaa FI-nimen jos käännöstä ei ole (fallback).
-// Vain @L-merkityt kentät lokalisoidaan → stops(name:$name)-argumentti ja publisher{name}
-// eivät muutu. Laajennus tehdään lähetyshetkellä → toimii myös moduulitason vakiokyselyille.
+// laajenee valitun kielen mukaan. Feedin natiivikieli (oletus FI; ruotsienemmistöinen
+// kunta voi asettaa CONFIG.feedLang = "sv", esim. Raasepori) → sentinel poistetaan
+// kokonaan (kysely identtinen vanhaan → natiivinäkymä ja -välimuisti muuttumattomia).
+// Muut kielet → (language: "fi"/"sv"/"en"); OTP palauttaa natiivinimen jos käännöstä
+// ei ole (fallback). Vain @L-merkityt kentät lokalisoidaan → stops(name:$name)-argumentti
+// ja publisher{name} eivät muutu. Laajennus tehdään lähetyshetkellä → toimii myös
+// moduulitason vakiokyselyille.
+const FEED_LANG = CONFIG.feedLang || "fi";
 function localizeQuery(query) {
-  return query.replace(/@L\b/g, lang === "fi" ? "" : `(language: "${lang}")`);
+  return query.replace(/@L\b/g, lang === FEED_LANG ? "" : `(language: "${lang}")`);
 }
 
 async function gql(query, variables) {
@@ -8143,11 +8191,12 @@ function isoWithOffset(local) {
   return `${local}:00${sign}${pad(off / 60)}:${pad(off % 60)}`;
 }
 
-// SV/EN: OTP:n Place.name ei tue language-argumenttia → pysäkilliset pisteet haetaan
-// stop{name@L}-alivalinnalla ja nimi normalisoidaan tässä. FI ei muutu (ei ylikirjoitusta);
-// osoitepisteillä (from/to ilman stopia) Pelias-nimi säilyy sellaisenaan.
+// Käännetyt kielet: OTP:n Place.name ei tue language-argumenttia → pysäkilliset pisteet
+// haetaan stop{name@L}-alivalinnalla ja nimi normalisoidaan tässä. Feedin natiivikieli
+// (FEED_LANG, oletus FI) ei muutu (ei ylikirjoitusta); osoitepisteillä (from/to ilman
+// stopia) Pelias-nimi säilyy sellaisenaan.
 function localizePlanNode(node) {
-  if (lang === "fi" || !node) return node;
+  if (lang === FEED_LANG || !node) return node;
   for (const leg of node.legs || []) {
     for (const pt of [leg.from, leg.to]) if (pt?.stop?.name) pt.name = pt.stop.name;
     for (const p of leg.intermediatePlaces || []) if (p?.stop?.name) p.name = p.stop.name;
