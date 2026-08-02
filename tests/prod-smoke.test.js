@@ -29,6 +29,8 @@ const CITIES = [
   { key: "vaasa",   gen: "Vaasan",   svTitle: "Busstidtabeller i Vasa" },
   { key: "kotka",   gen: "Kotkan" },
   { key: "raasepori", gen: "Raaseporin", svTitle: "Busstidtabeller i Raseborg" },
+  { key: "kouvola", gen: "Kouvolan" },
+  { key: "mikkeli", gen: "Mikkelin" },
 ];
 
 const results = [];

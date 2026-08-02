@@ -1978,6 +1978,86 @@ const CONFIGS = {
       },
     },
   },
+  // Kouvola-demo (?city=kouvola). Layer-kaupunki kuten Vaasa/Kotka/Raasepori: oma moderni
+  // reittiopas (kouvola.digitransit.fi, brändi "Koutsi") → heroEmphasis "layer". Kaikki
+  // sisältö avoimesta Waltti/Digitransit-GTFS:stä. feedId "Kouvola" varmennettu feeds-
+  // kyselyllä proxyn kautta 2.8.2026: 47 BUS-linjaobjektia (46 aktiivista), 1 152 pysäkkiä,
+  // 5 liikennöitsijä-agencya (kaikki "Koutsi / ..."). Kattavuus ristiintarkistettu kaupungin
+  // omaan linjaluetteloon: kaikki 37 julkaistua linjaa löytyvät, lisäksi palveluliikenne
+  // P1–P8 ja ELY:n Kouvola–Taavetti. Kausivaihto kesä → talvi 12.8.2026 (vuoroja/pv 206 →
+  // 301), talvifeed oli jo luettavissa varmistushetkellä. EI brandColor (Koutsin reittioppaan
+  // oma primary on musta → käytetään sovelluksen oletussineä, Salo/Kajaani-malli), EI fares/
+  // hubs/cmsAlerts (hintoja, virallista laiturilistaa eikä häiriö-CMS:ää varmennettu) →
+  // lisää vasta varmennetulla datalla jos diili etenee. GTFS-RT-häiriöt toimivat feedistä.
+  kouvola: {
+    city: "Kouvola",
+    cityGenitive: "Kouvolan",
+    operator: "Kouvolan joukkoliikenne",
+    operatorShort: "Koutsi",
+    feedMatch: /kouvola/i,
+    heroEmphasis: "layer",
+    // Ydinkeskustan solmupysäkit ("Keskustan linjat" -pikavalinta vihkossa); testattu
+    // sovelluksen omalla stops(name:)-kyselyllä 2.8.2026: Matkakeskus 26 linjaa, Torikatu 22.
+    centerStopNames: ["Matkakeskus", "Torikatu"],
+    // Yhdistetyt suunnat -presetit (datavarmistus 2.8.2026 sekä kesä- että talvifeedillä,
+    // jotta 12.8. kausivaihto ei riko presettejä): 1+3 jakavat 15 pysäkin jakson suuntaan 0
+    // ja 16 suuntaan 1 (Lapinmäki–Voikkaa–Kuusankoski–keskusta), 2+6 jakavat 15 pysäkin
+    // jakson molempiin suuntiin (keskusta–Koria).
+    corridors: [
+      { key: "kuusankoski", name: "Kuusankosken suunta", lines: ["1", "3"] },
+      { key: "koria", name: "Korian suunta", lines: ["2", "6"] },
+    ],
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      // focus = Kouvola Matkakeskus linja-autoasema; rect kattaa kaikki linjapysäkit
+      // (audit 2.8.2026: lat 60.6137–61.2536, lon 26.3463–27.1965) marginaalilla.
+      focus: { lat: 60.8665, lon: 26.7042 },
+      rect: { minLat: 60.50, maxLat: 61.35, minLon: 26.20, maxLon: 27.35 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
+  // Mikkeli-demo (?city=mikkeli). Layer-kaupunki: oma reittiopas (mikkeli.digitransit.fi)
+  // → heroEmphasis "layer". Kaikki sisältö avoimesta Waltti/Digitransit-GTFS:stä. feedId
+  // "Mikkeli" varmennettu feeds-kyselyllä proxyn kautta 2.8.2026: 46 BUS-linjaobjektia
+  // (kaikki aktiivisia), 1 064 pysäkkiä, 6 liikennöitsijä-agencya (Savonlinja ajaa kaikki
+  // paikallislinjat, viisi muuta seutu- ja maaseutuliikennettä). Kattavuus ristiintarkistettu
+  // kaupungin omiin aikataulusivuihin: paikallisliikenne 12/12 (1T, 1R, 2T, 2S, 2X, 3, 4L,
+  // 4T, 5, 6, 7, 10), maaseutuliikenne 11/12 julkaistusta reittikokonaisuudesta (Mikkeli–
+  // Juva–Savonlinna ei ole feedissä). Markkinaehtoinen kaukoliikenne ei ole missään Waltti-
+  // feedissä. Kausivaihto kesä → talvi 12.8.2026 (vuoroja/pv 195 → 376). Paikallislinjat ovat
+  // silmukkalinjoja (lähtevät Hallitustorilta ja palaavat sinne). EI fares/hubs/cmsAlerts
+  // (hintoja, virallista laiturilistaa eikä häiriö-CMS:ää varmennettu). GTFS-RT-häiriöt
+  // toimivat feedistä.
+  mikkeli: {
+    city: "Mikkeli",
+    cityGenitive: "Mikkelin",
+    operator: "Mikkelin joukkoliikenne",
+    operatorShort: "Mikkeli",
+    feedMatch: /mikkeli/i,
+    heroEmphasis: "layer",
+    // Ydinkeskustan solmupysäkit; testattu stops(name:)-kyselyllä 2.8.2026: Hallitustori
+    // 28 linjaa, Mikkeli laituri 22. HUOM: kysely on alkuosahaku, joten pelkkä "Matkakeskus"
+    // ei osu — pysäkki on "Mikkeli Matkakeskus, saapuvat".
+    centerStopNames: ["Hallitustori", "Mikkeli Matkakeskus", "Mikkeli laituri"],
+    // Yhdistetyt suunnat -presetit (datavarmistus 2.8.2026 sekä kesä- että talvifeedillä):
+    // 1R+10 jakavat 21 pysäkin jakson (Hallitustori–Rantakylä–Hallitustori), 2T+3 jakavat
+    // 13 pysäkin jakson (Kirkkopuisto–Juvantie–Launiala–Hallitustori).
+    corridors: [
+      { key: "rantakyla", name: "Rantakylän suunta", lines: ["1R", "10"] },
+      { key: "launiala", name: "Launialan suunta", lines: ["2T", "3"] },
+    ],
+    // Mikkelin oman reittioppaan teemaväri (mikkeli.digitransit.fi meta theme-color +
+    // colors.primary, luettu 2.8.2026). headerBgColor() pitää AA:n valkoiselle.
+    brandColor: "#167CAC",
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      // focus = Hallitustori; rect kattaa kaikki linjapysäkit
+      // (audit 2.8.2026: lat 61.3257–62.1600, lon 26.4795–28.1835) marginaalilla.
+      focus: { lat: 61.6876, lon: 27.2743 },
+      rect: { minLat: 61.20, maxLat: 62.25, minLon: 26.35, maxLon: 28.30 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
 };
 
 const cityKey = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();
