@@ -21,6 +21,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // nightStopId/nightLines = Lahden yövuorotarkistus (Matkakeskus A, todennettu datasta
 // 9.7.2026). FAIL-taso ei sido linjanumeroita: feedivaihto saa muuttaa yölinjoja ilman
 // väärää hälytystä, linjanumerot raportoidaan vain INFO-rivinä.
+// posterStopId = julistetarkistuksen pysäkki silloin kun reittihaun automaattinen
+// lähtöpysäkki EI kelpaa: osa feedeistä nimeää aseman solmun pysäkiksi jolla ei ole
+// yhtään lähtöä (esim. Kouvola:302794 "Kouvola Matkakeskus linja-autoasema" 0 lähtöä,
+// lähdöt ovat laiturilla Kouvola:155786). Ilman tätä vahti hälyttäisi joka viikko
+// pysäkistä joka on tyhjä syystä. Todennettu datasta 2.8.2026.
+// corridorDirs = montako suuntaa käytävätulosteessa vähintään odotetaan (oletus 2).
+// Mikkelin paikallislinjat ovat silmukkalinjoja (lähtevät Hallitustorilta ja palaavat
+// sinne) → yhteinen jakso on yksi suunta, ei kaksi. Tämä on kaupungin verkon oikea
+// muoto, ei virhetilan fallback: rivi-, linja- ja aikajärjestysehdot pätevät ennallaan.
 const CITIES = [
   { key: "lahti",   gen: "Lahden",   nightStopId: "Lahti:85811", nightLines: ["91", "96", "97"] },
   { key: "kuopio",  gen: "Kuopion" },
@@ -29,8 +38,8 @@ const CITIES = [
   { key: "vaasa",   gen: "Vaasan",   svTitle: "Busstidtabeller i Vasa" },
   { key: "kotka",   gen: "Kotkan" },
   { key: "raasepori", gen: "Raaseporin", svTitle: "Busstidtabeller i Raseborg" },
-  { key: "kouvola", gen: "Kouvolan" },
-  { key: "mikkeli", gen: "Mikkelin" },
+  { key: "kouvola", gen: "Kouvolan", posterStopId: "Kouvola:155786" },
+  { key: "mikkeli", gen: "Mikkelin", posterStopId: "Mikkeli:310514", corridorDirs: 1 },
 ];
 
 const results = [];
@@ -194,7 +203,7 @@ function departuresMonotonic(times) {
 
       // --- 5) Pysäkkijuliste: päiväblokit todellisten ajopäivien mukaan; Lahdella lisäksi
       //        >1 blokki + ≥1 yölähtö ikkunassa 23:00–02:59 (talvifeed-portin ydin) ---
-      const posterStop = city.nightStopId || (eps && eps.from.gtfsId);
+      const posterStop = city.nightStopId || city.posterStopId || (eps && eps.from.gtfsId);
       if (!posterStop) {
         fail(city.key, "pysäkkijuliste", "ei esimerkkipysäkkiä (pysäkkihaku epäonnistui)");
       } else {
@@ -249,7 +258,8 @@ function departuresMonotonic(times) {
       }
 
       // --- 6) Yhdistetyt suunnat (käytävä): presetti → monen linjan yhteinen taulukko,
-      //        ≥2 suuntaa, aikajärjestys, tuloste puhdasta tekstiä + legenda ---
+      //        ≥2 suuntaa (silmukkaverkossa city.corridorDirs), aikajärjestys,
+      //        tuloste puhdasta tekstiä + legenda ---
       await page.goto(url("#/tulosteet/kaytava"), { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
       const preOk = await page.waitForSelector("[data-corridor]", { timeout: 30000 }).then(() => true).catch(() => false);
       if (!preOk) {
@@ -294,7 +304,8 @@ function departuresMonotonic(times) {
               legend: !!document.querySelector("#corridorOut .matrix-legend"),
             };
           });
-          (corr.distinctLines >= 2 && corr.daytypes >= 1 && corr.dirs >= 2 && corr.sorted)
+          const wantDirs = city.corridorDirs || 2;
+          (corr.distinctLines >= 2 && corr.daytypes >= 1 && corr.dirs >= wantDirs && corr.sorted)
             ? pass(city.key, "yhdistetyt suunnat",
                 `${corr.rows} lähtöä, ${corr.distinctLines} linjaa, ${corr.dirs} suuntaa, aikajärjestys OK`)
             : fail(city.key, "yhdistetyt suunnat", "taulukko pielessä: " + JSON.stringify(
