@@ -6645,7 +6645,11 @@ async function viewStop(stopId) {
       ? `<p class="muted">${icon("warning")} ${t("accStopNo")}</p>` : "";
   setView(`
     <nav class="crumb"><button class="linkish" id="backBtn">← ${t("back")}</button> · <a href="#/">${t("home")}</a></nav>
-    <div class="card">
+    <!-- Ruutukortti on no-print (sama kuvio kuin linjasivulla): paperille menee vain
+         #stopPrintOut-säiliöön koottu pysäkkijuliste. Ilman tätä juliste alkoi sivulla
+         jossa luki "nyt / 3 min" (live-lähtölista) — merkityksetön paperilla ja toistaa
+         pysäkin nimen. Juliste on kortin ULKOPUOLELLA, joten se ei piiloudu. -->
+    <div class="card no-print">
       <h2>${favButtonHtml(stopId)}${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
       ${accNote}
       ${stopRoutesHtml(stop)}

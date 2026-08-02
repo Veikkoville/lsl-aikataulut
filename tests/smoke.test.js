@@ -19,6 +19,36 @@ const ok = msg => console.log("OK   " + msg);
 const fail = msg => { failures++; console.log("FAIL " + msg); };
 const info = msg => console.log("INFO " + msg);
 
+// Printtihygienia-vartija: paperille saa mennä VAIN koottu tuloste, ei ruutunäkymän
+// lohkoja. Ajetaan pysäkkijulisteen kokoamisen jälkeen print-mediaa emuloiden, koska
+// ruutu- ja printtinäkymä eroavat vain @media print -säännöissä. Assertio vaatii
+// molemmat suunnat: ruutulohkot piilossa JA juliste näkyvissä — muuten liian innokas
+// piilotus (koko tulosteen katoaminen) menisi läpi vihreänä.
+// Tausta: pysäkkisivun ruutukortti ei ollut no-print → juliste alkoi sivulla jossa luki
+// "nyt / 3 min" (tuotannossa 9 kaupungissa 2.8.2026 asti). Ilman tätä vartijaa sama
+// palaa seuraavassa printtimuutoksessa eikä kukaan huomaa ennen kuin asiakas tulostaa.
+async function printHygiene(page, label) {
+  await page.emulateMediaType("print");
+  const view = await page.evaluate(() => {
+    const vis = el => {
+      if (!el) return false;
+      for (let e = el; e && e.id !== "app"; e = e.parentElement)
+        if (getComputedStyle(e).display === "none") return false;
+      return true;
+    };
+    return {
+      lahtolista: vis(document.querySelector("table.deps")),
+      ruutukortti: vis(document.querySelector("#app > .card")),
+      juliste: vis(document.querySelector("#stopPrintOut .poster-day .hourgrid")),
+    };
+  });
+  await page.emulateMediaType(null);
+  (!view.lahtolista && !view.ruutukortti && view.juliste)
+    ? ok(`printtihygienia (${label}): tulosteessa vain juliste, ei ruutunäkymän lohkoja`)
+    : fail(`printtihygienia (${label}): ${JSON.stringify(view)} ` +
+           "(odotus: lahtolista=false, ruutukortti=false, juliste=true)");
+}
+
 (async () => {
   // Lähdekoodi-tarkistus: em dash (—, U+2014) ei saa esiintyä UI-stringeissä eikä muissa
   // koodiliteraaleissa. Sallitaan vain kommenteissa (kehittäjähuomiot) — ne riisutaan ennen
@@ -410,6 +440,30 @@ const info = msg => console.log("INFO " + msg);
   svStops ? ok("kaksikielisyys (Vaasa, SV): linjasivun pysäkkinimet ruotsiksi (name@L)")
           : fail("kaksikielisyys (Vaasa, SV): linjasivulla ei ruotsinkielistä pysäkkinimeä");
   await page.click('[data-lang-opt="fi"]'); // lang on globaali (ei ns-skoopattu) → palauta FI seuraaville testeille
+
+  // Printtihygienia myös toisessa kaupungissa: vartija ei saa nojata yhden feedin
+  // erikoisuuksiin. Pysäkki poimitaan linjasivun pysäkkilistasta (ei kovakoodattua
+  // gtfsId:tä), jotta feedin muutos ei riko testiä väärästä syystä.
+  {
+    // kielenvaihto piirtää näkymän uudelleen → odota että pysäkkilista on taas DOMissa
+    await page.waitForSelector('.stop-timeline a[href^="#/pysakki/"]', { timeout: 20000 }).catch(() => {});
+    const vStopHref = await page.evaluate(() =>
+      document.querySelector('.stop-timeline a[href^="#/pysakki/"]')?.getAttribute("href"));
+    if (!vStopHref) {
+      fail("printtihygienia (Vaasa): linjasivulta ei löytynyt pysäkkilinkkiä");
+    } else {
+      await page.goto(BASE + "/?city=vaasa" + vStopHref, { waitUntil: "networkidle2" });
+      await page.waitForSelector("#stopPosterBtn", { timeout: 20000 });
+      await page.evaluate(() => { window.print = () => {}; });
+      await page.click("#stopPosterBtn");
+      const vPoster = await page.waitForFunction(
+        () => !!document.querySelector("#stopPrintOut .poster-day .poster-line .hourgrid tr"),
+        { timeout: 30000 }).then(() => true).catch(() => false);
+      vPoster ? await printHygiene(page, "Vaasa")
+              : fail("printtihygienia (Vaasa): julistetta ei saatu koottua → hygieniaa ei voi todeta");
+    }
+  }
+
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" }); // palauta oletuskaupunki seuraaville testeille
 
   // --- Tallennetut matkat: tallenna nykyinen reitti ja näe se etusivulla ---
@@ -595,6 +649,7 @@ const info = msg => console.log("INFO " + msg);
       posterOk && days >= 1
         ? ok(`pysäkkijuliste: tuntikaavio kootaan (${days} päiväblokkia)`)
         : fail(`pysäkkijuliste: tuntikaaviota ei muodostunut (päiväblokkeja ${days})`);
+      await printHygiene(page, "Lahti");
     }
     // QR-koodi: laiska kirjastolataus + canvas + lataus-linkki
     if (await page.$("#stopQrBtn")) {
