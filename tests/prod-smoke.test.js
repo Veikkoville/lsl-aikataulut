@@ -30,6 +30,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Mikkelin paikallislinjat ovat silmukkalinjoja (lähtevät Hallitustorilta ja palaavat
 // sinne) → yhteinen jakso on yksi suunta, ei kaksi. Tämä on kaupungin verkon oikea
 // muoto, ei virhetilan fallback: rivi-, linja- ja aikajärjestysehdot pätevät ennallaan.
+// Kaikille pinnatuille tunnuksille (nightStopId/posterStopId) ajetaan lisäksi
+// kausivaihtovahti (kohta 4b): tunnuksen on löydyttävä feedistä JA sillä on oltava
+// lähtöjä seuraavana arkipäivänä. Poistuva pysäkki EI katoa feedistä vaan jää
+// 0-lähtöiseksi objektiksi (todennettu 10.8.2026: Lahden Tevi P/E 215/213 → 0 lähtöä,
+// gtfsId:t jäivät feediin) → olemassaolotarkistus yksin päästäisi rikon läpi.
 const CITIES = [
   { key: "lahti",   gen: "Lahden",   nightStopId: "Lahti:85811", nightLines: ["91", "96", "97"] },
   { key: "kuopio",  gen: "Kuopion" },
@@ -199,6 +204,45 @@ function departuresMonotonic(times) {
           leg.legend ? pass(city.key, "legenda (vihko)", `${leg.dots} ·-solua + selite`)
                      : fail(city.key, "legenda (vihko)", `${leg.dots} ·-solua ilman selitettä`);
         } else info(city.key, "legenda (vihko)", "ei ·-soluja tässä linjassa (selitettä ei vaadita)");
+      }
+
+      // --- 4b) Pinnatut pysäkkitunnukset elävät feedissä (kausivaihtovahti) ---
+      // Erillinen tarkistus, jotta kausivaihdon rikkoma pinnaus FAILaa juurisyyllä
+      // ("tunnus kuoli feedistä") eikä vasta julistetarkistuksen epäsuorana
+      // "tuntikaaviota ei muodostunut" -virheenä. Sama tilanne toistuu joka
+      // kausivaihdossa joka kaupungissa. Ks. CITIES-kommentti (Tevi-ilmiö).
+      const pinnedIds = [...new Set([city.nightStopId, city.posterStopId].filter(Boolean))];
+      const pinDate = searchTime.slice(0, 10).replace(/-/g, "");
+      for (const id of pinnedIds) {
+        const pin = await page.evaluate(async (id, date) => {
+          if (typeof API_URL === "undefined") return { err: "API_URL ei saatavilla" };
+          const res = await fetch(API_URL, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              query: `query($id:String!,$date:String!){ stop(id:$id){ gtfsId name
+                stoptimesForServiceDate(date:$date, omitNonPickups:true){ stoptimes{ scheduledDeparture } } } }`,
+              variables: { id, date } }),
+          }).catch(() => null);
+          if (!res || !res.ok) return { err: "HTTP " + (res ? res.status : "ei vastausta") };
+          const j = await res.json().catch(() => null);
+          if (!j || !j.data) return { err: "vastaus ei jäsenny" };
+          const stop = j.data.stop;
+          if (!stop) return { missing: true };
+          const deps = (stop.stoptimesForServiceDate || [])
+            .reduce((n, p) => n + (p.stoptimes || []).length, 0);
+          return { name: stop.name, deps };
+        }, id, pinDate);
+        if (pin.err) {
+          fail(city.key, "pinnattu pysäkki", `${id}: tarkistus ei onnistunut (${pin.err})`);
+        } else if (pin.missing) {
+          fail(city.key, "pinnattu pysäkki",
+            `${id} on kadonnut feedistä — kausivaihto? Päivitä CITIES-pinnaus.`);
+        } else if (pin.deps === 0) {
+          fail(city.key, "pinnattu pysäkki",
+            `${id} "${pin.name}" 0 lähtöä ${pinDate} — pinnattu tunnus osoittaa kuolleeseen pysäkkiin (kausivaihto?)`);
+        } else {
+          pass(city.key, "pinnattu pysäkki", `${id} "${pin.name}" elää (${pin.deps} lähtöä ${pinDate})`);
+        }
       }
 
       // --- 5) Pysäkkijuliste: päiväblokit todellisten ajopäivien mukaan; Lahdella lisäksi

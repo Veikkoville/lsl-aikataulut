@@ -1648,17 +1648,22 @@ const CONFIGS = {
     // allow = LSL:n virallisen sivun lähtöpaikat (tarkistettu lsl.fi/.../lahden-
     // keskustan-pysakit/) → suodattaa pois GTFS:n tekniset/vanhentuneet pysäkit.
     // Ilman allow:ia näytetään kaikki pysäkit joilla on linjoja. PÄIVITÄ jos LSL muuttaa.
+    // PDF:t = LSL:n syksy 2026 -kartat (voimaan 10.8.2026; linkit tarkistettu 6.8.2026).
     hubs: [
       { key: "matkakeskus", name: "Matkakeskus", center: { lat: 60.9772, lon: 25.6588 },
         allow: ["A", "B", "C", "D", "E", "3", "4"], // A–E pysäkit + Laituri 3 (Hämeenlinna) ja 4
-        pdf: "https://www.lsl.fi/app/uploads/2026/04/lsl-matkakeskuksen-pysakit-kartta-kesa-2026-lahti.pdf" },
+        pdf: "https://www.lsl.fi/app/uploads/2026/07/lsl_matkakeskuksen_pysakit_lahti_syksy2026.pdf" },
       { key: "kauppatori", name: "Kauppatori", center: { lat: 60.9836, lon: 25.6556 },
         allow: ["A", "B", "C", "D", "E", "F"],
-        pdf: "https://www.lsl.fi/app/uploads/2026/04/lsl_kauppatorin_pysakit_lahti_kesa2026.pdf" },
-      // Trio jätetty pois väliaikaisesti: keskustan pysäkkiuudistus on kesken
-      // (kesä–elokuu 2026) eikä GTFS-data vastaa LSL:n virallista Trio-nimeämistä
-      // (avoindatassa Trio A–F, virallisesti vain Trio A/B + erilliset Tevi P/E
-      // Vesijärvenkadulla, valmiit elokuussa). Lisätään takaisin kun data vakiintuu.
+        pdf: "https://www.lsl.fi/app/uploads/2026/07/lsl_kauppatorin_pysakit_lahti_syksy2026.pdf" },
+      // Trio lisätty 6.8.2026: keskustan pysäkkiuudistus valmistuu 10.8.2026 (Tevi P →
+      // Trio F, Tevi E poistuu, uusi Trio E), jolloin feedin Trio A–F vastaa LSL:n
+      // virallista nimeämistä. Datavarmistus 6.8.2026 feedistä: kaikki kuusi pysäkkiä
+      // omilla gtfsId:illä, linjajako täsmää LSL:n tiedotteeseen (Trio E: 1,2,5,10,11,32;
+      // Trio F: 40,42,92,95).
+      { key: "trio", name: "Trio", center: { lat: 60.9831, lon: 25.6618 },
+        allow: ["A", "B", "C", "D", "E", "F"],
+        pdf: "https://www.lsl.fi/app/uploads/2026/07/lsl_trion_pysakit_lahti_syksy2026.pdf" },
     ],
     // Worker-välityspalvelin (worker/); tyhjä merkkijono → käyttäjä syöttää oman API-avaimen
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
