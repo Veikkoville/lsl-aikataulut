@@ -1902,15 +1902,19 @@ const CONFIGS = {
     // → @L-lokalisointi pyytää FI:n eksplisiittisesti (localizeQuery/localizePlanNode).
     feedLang: "sv",
     heroEmphasis: "layer",
-    // Yhdistetyt suunnat -presetit (datavarmistus 9.7.2026: 201+201s+261 jakavat 17
-    // pysäkin jakson Tammisaari–Karjaa molempiin suuntiin, 104n+134n 17 pysäkin jakson
-    // Fiskars–Karjaa molempiin suuntiin; kesäfeedin aktiiviset. HUOM: 192 EI kelpaa
-    // käytävään — sen kesäfeedin primaripatternit ovat lyhyitä Karjaa–Grundsjö-syöttö-
-    // vuoroja, pitkä Tammisaari-ketju on harvinainen variantti.) Kaksikieliset nimet
-    // (SV-kärki): corridorName() valitsee kielen mukaan.
+    // Yhdistetyt suunnat -presetit (datavarmistus 6.8.2026 SEKÄ kesä- (7.8.) että
+    // talvifeedillä (13.8.), jotta 12.8. kausivaihto ei riko presettejä):
+    // 201+201s jakavat 25 pysäkin jakson Karjaa–Tammisaari molempiin suuntiin
+    // molemmilla kausilla; 134n+144n 23/24 pysäkin jakson Karjaa–Fiskars/Antskog
+    // talvifeedillä (134n ajaa ympäri vuoden). Aiemmat kesäpresetit rikkoutuivat
+    // talvivaihtoon: 261 ja 104n eivät aja talvella lainkaan (9.7. valinta oli
+    // tehty vain kesäfeedillä). HUOM: 192 EI kelpaa käytävään — sen primaripatternit
+    // ovat molemmilla kausilla lyhyitä Karjaa–Grundsjö-syöttövuoroja, pitkä
+    // Tammisaari-ketju on harvinainen variantti. Kaksikieliset nimet (SV-kärki):
+    // corridorName() valitsee kielen mukaan.
     corridors: [
-      { key: "tammisaari", name: { fi: "Tammisaaren suunta", sv: "Riktning Ekenäs", en: "Ekenäs direction" }, lines: ["201", "201s", "261"] },
-      { key: "fiskars", name: { fi: "Fiskarsin suunta", sv: "Riktning Fiskars", en: "Fiskars direction" }, lines: ["104n", "134n"] },
+      { key: "tammisaari", name: { fi: "Tammisaaren suunta", sv: "Riktning Ekenäs", en: "Ekenäs direction" }, lines: ["201", "201s"] },
+      { key: "fiskars", name: { fi: "Fiskarsin suunta", sv: "Riktning Fiskars", en: "Fiskars direction" }, lines: ["134n", "144n"] },
     ],
     // BOSSE-vihreä = reittioppaan oma teemaväri (bosse.digitransit.fi meta theme-color,
     // luettu 9.7.2026). headerBgColor() pitää AA:n valkoiselle.
@@ -3829,24 +3833,36 @@ function groupTripsByDays(trips, refISO) {
   const startNum = +isoOf(start).replace(/-/g, "");
   const end = new Date(start); end.setDate(start.getDate() + PRINT_HORIZON_DAYS);
   const endNum = +isoOf(end).replace(/-/g, "");
-  const groups = new Map();
-  for (const tr of (trips || [])) {
-    if (!(tr.stoptimes || []).length) continue;
-    const perDow = {};
-    for (const x of (tr.activeDates || [])) {
-      const n = +x;
-      if (n < startNum || n > endNum) continue;
-      const w = dowOfCompact(x); perDow[w] = (perDow[w] || 0) + 1;
+  const build = (minOcc) => {
+    const groups = new Map();
+    for (const tr of (trips || [])) {
+      if (!(tr.stoptimes || []).length) continue;
+      const perDow = {};
+      for (const x of (tr.activeDates || [])) {
+        const n = +x;
+        if (n < startNum || n > endNum) continue;
+        const w = dowOfCompact(x); perDow[w] = (perDow[w] || 0) + 1;
+      }
+      // vain viikonpäivät joina vuoro toistuu ≥ minOcc kertaa ikkunassa
+      const dows = Object.keys(perDow).map(Number).filter(w => perDow[w] >= minOcc).sort((a, b) => a - b);
+      if (!dows.length) continue;
+      const sid = tr.serviceId || "";
+      const school = /koul/i.test(sid) ? "koul" : /loma/i.test(sid) ? "loma" : "";
+      const key = dows.join(",") + "|" + school;
+      if (!groups.has(key)) groups.set(key, { dows: new Set(dows), school, trips: [] });
+      groups.get(key).trips.push(tr);
     }
-    // vain viikonpäivät joina vuoro TOISTUU ikkunassa → kertaluontoiset pois
-    const dows = Object.keys(perDow).map(Number).filter(w => perDow[w] >= 2).sort((a, b) => a - b);
-    if (!dows.length) continue;
-    const sid = tr.serviceId || "";
-    const school = /koul/i.test(sid) ? "koul" : /loma/i.test(sid) ? "loma" : "";
-    const key = dows.join(",") + "|" + school;
-    if (!groups.has(key)) groups.set(key, { dows: new Set(dows), school, trips: [] });
-    groups.get(key).trips.push(tr);
-  }
+    return groups;
+  };
+  // Oletuskynnys 2: viikonpäivä mukaan vain jos vuoro TOISTUU ikkunassa → kerta-
+  // luontoiset festivaalilisät pois. Kausivaihdon siirtymäikkunassa sääntö söisi
+  // KOKO linjan (kausilinjan viimeinen ajoviikko: jokainen viikonpäivä esiintyy
+  // horisontissa enää kerran → 0 lohkoa → tyhjä tuloste vaikka linja ajaa yhä;
+  // todennettu Raasepori 101/201/261 6.8.2026, kesäfeedin viimeinen päivä 11.8.).
+  // Fallback yhden esiintymän kynnykseen laukeaa vain kun tiukka pass on tyhjä,
+  // joten festivaalisuodatus säilyy aina kun säännöllisiäkin vuoroja on.
+  let groups = build(2);
+  if (!groups.size) groups = build(1);
   const arr = [...groups.values()].map(g => {
     // dedup: sama aikataulurivi toistuu monena päivänä → yksi edustava per aikataulu
     const seen = new Set(), uniq = [];
