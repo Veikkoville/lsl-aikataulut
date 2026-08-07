@@ -45,6 +45,16 @@ const CITIES = [
   { key: "raasepori", gen: "Raaseporin", svTitle: "Busstidtabeller i Raseborg" },
   { key: "kouvola", gen: "Kouvolan", posterStopId: "Kouvola:155786" },
   { key: "mikkeli", gen: "Mikkelin", posterStopId: "Mikkeli:310514", corridorDirs: 1 },
+  // Kaupunkisweep 7.8.2026: presetit datavarmistettu kesä- JA talvikoetuksella.
+  // Rovaniemen 4+5-käytävän yhteinen jakso on yksisuuntainen (linjat kiertävät
+  // keskustan eri reittejä) → corridorDirs 1, sama verkon muoto kuin Mikkelissä.
+  { key: "hameenlinna", gen: "Hämeenlinnan" },
+  { key: "joensuu", gen: "Joensuun" },
+  { key: "jyvaskyla", gen: "Jyväskylän" },
+  { key: "lappeenranta", gen: "Lappeenrannan" },
+  { key: "oulu", gen: "Oulun" },
+  { key: "pori", gen: "Porin" },
+  { key: "rovaniemi", gen: "Rovaniemen", corridorDirs: 1 },
 ];
 
 const results = [];

@@ -2067,6 +2067,246 @@ const CONFIGS = {
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
   },
+  // Hämeenlinna-demo (?city=hameenlinna). Layer-kaupunki: oma reittiopas
+  // (hameenlinna.digitransit.fi) → heroEmphasis "layer". Kaikki sisältö avoimesta
+  // Waltti/Digitransit-GTFS:stä. feedId "Hameenlinna" varmennettu feeds-kyselyllä proxyn
+  // kautta 7.8.2026: 99 BUS-linjaobjektia (90 aktiivista talvikoetuksella), 1 417 pysäkkiä.
+  // Feed sisältää laajaa seutuliikennettä (Lammi/Hauho/Turenki/Tervakoski/Iittala).
+  // Kausivaihto näkyy feedissä (vuoroja 4 koetuspäivänä kesä 1 416 → talvi 1 627).
+  // EI fares/hubs/cmsAlerts (ei varmennettu) → lisää vasta varmennetulla datalla.
+  hameenlinna: {
+    city: "Hämeenlinna",
+    cityGenitive: "Hämeenlinnan",
+    operator: "Hämeenlinnan seudun joukkoliikenne",
+    operatorShort: "Hämeenlinna",
+    feedMatch: /hameenlinna|hämeenlinna/i,
+    heroEmphasis: "layer",
+    // Keskustan solmupysäkit (7.8.2026: Turuntien silta 41 linjaa, Sisälähetys 37).
+    centerStopNames: ["Turuntien silta", "Sisälähetys"],
+    // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella,
+    // molemmat suunnat molemmilla kausilla): 1+1A jakavat 41 pysäkin jakson (Loimalahti),
+    // 5+5Y 40 pysäkin jakson (Parolannummi; 5Y = yövuorovariantti).
+    corridors: [
+      { key: "loimalahti", name: "Loimalahden suunta", lines: ["1", "1A"] },
+      { key: "parolannummi", name: "Parolannummen suunta", lines: ["5", "5Y"] },
+    ],
+    // Reittioppaan teemaväri (hameenlinna.digitransit.fi meta theme-color rgb(196,40,31),
+    // luettu 7.8.2026). headerBgColor() pitää AA:n valkoiselle.
+    brandColor: "#C4281F",
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      // focus = Turuntien silta; rect kattaa linjapysäkit (7.8.2026: lat 60.733–61.241,
+      // lon 23.809–25.108) marginaalilla.
+      focus: { lat: 60.9949, lon: 24.4562 },
+      rect: { minLat: 60.65, maxLat: 61.32, minLon: 23.70, maxLon: 25.25 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
+  // Joensuu-demo (?city=joensuu). Layer-kaupunki: oma reittiopas (joensuu.digitransit.fi)
+  // → heroEmphasis "layer". Kaikki sisältö avoimesta Waltti/Digitransit-GTFS:stä. feedId
+  // "Joensuu" varmennettu feeds-kyselyllä proxyn kautta 7.8.2026: 40 BUS-linjaobjektia
+  // (39 aktiivista), 1 612 pysäkkiä. Kausivaihto näkyy feedissä (vuoroja 4 koetuspäivänä
+  // kesä 1 747 → talvi 1 941). EI fares/hubs/cmsAlerts (ei varmennettu).
+  joensuu: {
+    city: "Joensuu",
+    cityGenitive: "Joensuun",
+    operator: "Joensuun seudun joukkoliikenne",
+    operatorShort: "Joensuu",
+    feedMatch: /joensuu/i,
+    heroEmphasis: "layer",
+    // Keskustan solmupysäkit (7.8.2026: Itäranta 18 linjaa, Koskikatu 17).
+    centerStopNames: ["Itäranta", "Koskikatu"],
+    // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella,
+    // molemmat suunnat molemmilla kausilla): 201+202 jakavat 31 pysäkin jakson
+    // (Joensuu–Lehmola), 101+104 32 pysäkin jakson (Joensuu–Reijola).
+    corridors: [
+      { key: "lehmola", name: "Lehmolan suunta", lines: ["201", "202"] },
+      { key: "reijola", name: "Reijolan suunta", lines: ["101", "104"] },
+    ],
+    // Reittioppaan teemaväri (joensuu.digitransit.fi meta theme-color, luettu 7.8.2026).
+    brandColor: "#5C4696",
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      // focus = Koskikatu; rect kattaa linjapysäkit (7.8.2026: lat 62.095–63.326,
+      // lon 28.924–30.937) marginaalilla.
+      focus: { lat: 62.6006, lon: 29.7589 },
+      rect: { minLat: 62.00, maxLat: 63.42, minLon: 28.80, maxLon: 31.05 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
+  // Jyväskylä-demo (?city=jyvaskyla). Layer-kaupunki: oma reittiopas
+  // (jyvaskyla.digitransit.fi, brändi "Linkki") → heroEmphasis "layer". Kaikki sisältö
+  // avoimesta Waltti/Digitransit-GTFS:stä. HUOM feedId on "LINKKI" (publisher "Jyväskylä")
+  // — varmennettu feeds-kyselyllä proxyn kautta 7.8.2026: 82 BUS-linjaobjektia (80
+  // aktiivista), 2 171 pysäkkiä. Kausivaihto näkyy feedissä (vuoroja 4 koetuspäivänä
+  // kesä 4 350 → talvi 4 978). Feedissä yksi roskamainen shortName ("Uuraisten Liikenne")
+  // — ei vaadi toimia, dedup/aktiivisuussuodatus käsittelee. EI fares/hubs/cmsAlerts.
+  jyvaskyla: {
+    city: "Jyväskylä",
+    cityGenitive: "Jyväskylän",
+    operator: "Jyväskylän seudun joukkoliikenne",
+    operatorShort: "Linkki",
+    feedMatch: /linkki|jyväskylä/i,
+    heroEmphasis: "layer",
+    // Keskustan solmupysäkit (7.8.2026: Urhonkatu 42 linjaa, Kauppatori 29).
+    centerStopNames: ["Urhonkatu", "Kauppatori"],
+    // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella,
+    // molemmat suunnat molemmilla kausilla): 16+21 jakavat 35 pysäkin jakson (Säynätsalo),
+    // S1+S2 26 pysäkin jakson (keskussairaalan runkoyhteys, 60–70 vuoroa/pv).
+    corridors: [
+      { key: "saynatsalo", name: "Säynätsalon suunta", lines: ["16", "21"] },
+      { key: "keskussairaala", name: "Keskussairaalan suunta", lines: ["S1", "S2"] },
+    ],
+    // Linkin teemaväri (jyvaskyla.digitransit.fi meta theme-color, luettu 7.8.2026).
+    // Vaalea vihreä → headerBgColor() tummentaa AA:n verran.
+    brandColor: "#7DC02D",
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      // focus = Urhonkatu; rect kattaa linjapysäkit (7.8.2026: lat 61.875–62.872,
+      // lon 25.318–26.494) marginaalilla.
+      focus: { lat: 62.2431, lon: 25.7521 },
+      rect: { minLat: 61.78, maxLat: 62.97, minLon: 25.20, maxLon: 26.60 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
+  // Lappeenranta-demo (?city=lappeenranta). Layer-kaupunki: oma reittiopas
+  // (lappeenranta.digitransit.fi) → heroEmphasis "layer". Kaikki sisältö avoimesta
+  // Waltti/Digitransit-GTFS:stä. feedId "Lappeenranta" varmennettu feeds-kyselyllä proxyn
+  // kautta 7.8.2026: 43 BUS-linjaobjektia (38 aktiivista), 1 089 pysäkkiä. Kausivaihto
+  // näkyy feedissä (vuoroja 4 koetuspäivänä kesä 1 431 → talvi 1 705). EI fares/hubs/
+  // cmsAlerts (ei varmennettu).
+  lappeenranta: {
+    city: "Lappeenranta",
+    cityGenitive: "Lappeenrannan",
+    operator: "Lappeenrannan joukkoliikenne",
+    operatorShort: "Lappeenranta",
+    feedMatch: /lappeenranta/i,
+    heroEmphasis: "layer",
+    // Keskustan solmupysäkit (7.8.2026: Oikokatu 27 linjaa, Armada 18).
+    centerStopNames: ["Oikokatu", "Armada"],
+    // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella,
+    // molemmat suunnat molemmilla kausilla): 1+1X jakavat 26 pysäkin jakson
+    // (keskusta–LUT-yliopisto), 100+101 27 pysäkin jakson (Joutsenon/Imatran seutusuunta;
+    // 101 harvavuoroinen mutta elää molemmilla kausilla).
+    corridors: [
+      { key: "yliopisto", name: "Yliopiston suunta", lines: ["1", "1X"] },
+      { key: "joutseno", name: "Joutsenon suunta", lines: ["100", "101"] },
+    ],
+    // Reittioppaan teemaväri (lappeenranta.digitransit.fi meta theme-color, luettu
+    // 7.8.2026). headerBgColor() pitää AA:n valkoiselle.
+    brandColor: "#D4007A",
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      // focus = Oikokatu; rect kattaa linjapysäkit (7.8.2026: lat 60.713–61.242,
+      // lon 27.937–28.953) marginaalilla.
+      focus: { lat: 61.0601, lon: 28.1946 },
+      rect: { minLat: 60.62, maxLat: 61.34, minLon: 27.80, maxLon: 29.10 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
+  // Oulu-demo (?city=oulu). Layer-kaupunki: oma reittiopas (oulu.digitransit.fi, brändi
+  // "OSL" / Oulun seudun liikenne, osl.fi = feedin publisher-url) → heroEmphasis "layer".
+  // Kaikki sisältö avoimesta Waltti/Digitransit-GTFS:stä. HUOM feedId on "OULU" —
+  // varmennettu feeds-kyselyllä proxyn kautta 7.8.2026: 97 BUS-linjaobjektia (93
+  // aktiivista), 1 977 pysäkkiä — suurin demokaupunki (vuoroja 4 koetuspäivänä kesä
+  // 5 581 → talvi 6 251). EI fares/hubs/cmsAlerts (ei varmennettu).
+  oulu: {
+    city: "Oulu",
+    cityGenitive: "Oulun",
+    operator: "Oulun seudun liikenne",
+    operatorShort: "OSL",
+    feedMatch: /^oulu$/i,
+    heroEmphasis: "layer",
+    // Keskustan solmupysäkit (7.8.2026: Pokkitörmä 48 linjaa, Raatti 37).
+    centerStopNames: ["Pokkitörmä", "Raatti"],
+    // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella,
+    // molemmat suunnat molemmilla kausilla): 4+4A jakavat 45 pysäkin jakson (Herukan
+    // runkoyhteys, 36–65 vuoroa/pv), 59+59S 56 pysäkin jakson (Hailuoto–Marjaniemi,
+    // harvavuoroinen saaristosuunta).
+    corridors: [
+      { key: "herukka", name: "Herukan suunta", lines: ["4", "4A"] },
+      { key: "hailuoto", name: "Hailuodon suunta", lines: ["59", "59S"] },
+    ],
+    // OSL:n teemaväri (oulu.digitransit.fi meta theme-color, luettu 7.8.2026).
+    brandColor: "#E10669",
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      // focus = Pokkitörmä; rect kattaa linjapysäkit (7.8.2026: lat 64.762–65.372,
+      // lon 24.563–26.153) marginaalilla.
+      focus: { lat: 65.0163, lon: 25.4717 },
+      rect: { minLat: 64.66, maxLat: 65.47, minLon: 24.40, maxLon: 26.30 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
+  // Pori-demo (?city=pori). Layer-kaupunki: oma reittiopas (pori.digitransit.fi) →
+  // heroEmphasis "layer". Kaikki sisältö avoimesta Waltti/Digitransit-GTFS:stä. feedId
+  // "Pori" varmennettu feeds-kyselyllä proxyn kautta 7.8.2026 (feedMatch ankkuroitu:
+  // /^pori$/ EI saa osua Raasepori-feediin): 54 BUS-linjaobjektia (51 aktiivista),
+  // 1 084 pysäkkiä. Feed sisältää seutuliikennettä (Kankaanpää/Kokemäki/Harjavalta).
+  // Kausivaihto maltillinen (vuoroja 4 koetuspäivänä kesä 1 946 → talvi 1 960).
+  // EI fares/hubs/cmsAlerts (ei varmennettu).
+  pori: {
+    city: "Pori",
+    cityGenitive: "Porin",
+    operator: "Porin joukkoliikenne",
+    operatorShort: "Pori",
+    feedMatch: /^pori$/i,
+    heroEmphasis: "layer",
+    // Keskustan solmupysäkit (7.8.2026: Teljäntori 33 linjaa, Asema-aukio 23).
+    centerStopNames: ["Teljäntori", "Asema-aukio"],
+    // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella):
+    // 35+43 jakavat 26 pysäkin jakson molempiin suuntiin (Pihlava, 23–29 vuoroa/pv),
+    // 34+34W 46 pysäkin jakson yhteen suuntaan (Yyteri). Pihlava ensin (2 suuntaa →
+    // prod-smoken oletusodotus pätee).
+    corridors: [
+      { key: "pihlava", name: "Pihlavan suunta", lines: ["35", "43"] },
+      { key: "yyteri", name: "Yyterin suunta", lines: ["34", "34W"] },
+    ],
+    // Reittioppaan teemaväri (pori.digitransit.fi meta theme-color, luettu 7.8.2026).
+    brandColor: "#1F1F66",
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      // focus = Teljäntori; rect kattaa linjapysäkit (7.8.2026: lat 61.389–61.683,
+      // lon 21.419–22.592) marginaalilla.
+      focus: { lat: 61.4836, lon: 21.7945 },
+      rect: { minLat: 61.30, maxLat: 61.78, minLon: 21.30, maxLon: 22.75 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
+  // Rovaniemi-demo (?city=rovaniemi). Layer-kaupunki: oma reittiopas
+  // (rovaniemi.digitransit.fi) → heroEmphasis "layer". Kaikki sisältö avoimesta
+  // Waltti/Digitransit-GTFS:stä. feedId "Rovaniemi" varmennettu feeds-kyselyllä proxyn
+  // kautta 7.8.2026: 14 BUS-linjaobjektia (12 aktiivista), 433 pysäkkiä — pienin
+  // demokaupunki, mutta täysi paikallisverkko (vuoroja 4 koetuspäivänä kesä 497 →
+  // talvi 683). EI fares/hubs/cmsAlerts (ei varmennettu).
+  rovaniemi: {
+    city: "Rovaniemi",
+    cityGenitive: "Rovaniemen",
+    operator: "Rovaniemen paikallisliikenne",
+    operatorShort: "Rovaniemi",
+    feedMatch: /rovaniemi/i,
+    heroEmphasis: "layer",
+    // Keskustan solmupysäkit (7.8.2026: Poliisilaitos 10 linjaa, Hallituskatu 7).
+    centerStopNames: ["Poliisilaitos", "Hallituskatu"],
+    // Yhdistetyt suunnat -presetti (datavarmistus 7.8.2026 kesä- JA talvikoetuksella):
+    // 4+5 jakavat 9 pysäkin jakson Karinrakan haaralla (22–64 vuoroa/pv). Yhteinen jakso
+    // on yksisuuntainen (linjat kiertävät keskustan eri reittejä) → käytävässä 1 suunta,
+    // sama verkon oikea muoto kuin Mikkelin silmukkalinjoilla.
+    corridors: [
+      { key: "karinrakka", name: "Karinrakan suunta", lines: ["4", "5"] },
+    ],
+    // Reittioppaan teemaväri (rovaniemi.digitransit.fi meta theme-color, luettu 7.8.2026).
+    // headerBgColor() tummentaa AA:n verran.
+    brandColor: "#34B233",
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      // focus = Poliisilaitos; rect kattaa linjapysäkit (7.8.2026: lat 66.368–66.547,
+      // lon 25.372–25.953) marginaalilla.
+      focus: { lat: 66.4965, lon: 25.7300 },
+      rect: { minLat: 66.28, maxLat: 66.65, minLon: 25.25, maxLon: 26.10 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
 };
 
 const cityKey = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();
