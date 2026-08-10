@@ -36,6 +36,21 @@ const MAX_ATTEMPTS = +(process.env.SMOKE_ATTEMPTS || 2);
 // sen lisaksi mita jonon lapikaynti ehtii antaa.
 const RETRY_COOLDOWN_MS = +(process.env.SMOKE_RETRY_COOLDOWN_MS || 90000);
 
+// Eraajo (10.8.2026, kolmas kierros). Pelkka tauon kasvattaminen ei riittanyt:
+// 4 s -> 23 FAILia, 20 s -> 8 FAILia, ja kaatuvat kaupungit vaihtuivat joka ajolla
+// listan loppupaassa. Se kertoo etta kiintio kuluu KUMULATIIVISESTI ajon edetessa,
+// eika 16 kaupunkia mahdu yhden avaimen budjettiin yhdella istumalla. Tauon nosto
+// 45 sekuntiin veisi ajon yli 40 minuutin, mika on vaara suunta halvalle vahdille.
+// Siksi ajo jaetaan kahteen eraan jotka ajetaan perakkain omina jobeinaan, ja
+// jalkimmainen alkaa vasta tauon jalkeen. Kumpikin era on 8 kaupunkia = puolet
+// kuormasta, ja erien valissa kiintio ehtii palautua.
+//   SMOKE_CITIES        pilkkuerotettu lista (tyhja = kaikki). Kaytannollinen myos
+//                       kohdennettuun ajoon: SMOKE_CITIES=lahti node prod-smoke.test.js
+//   SMOKE_START_DELAY_MS viive ennen eran ensimmaista kaupunkia
+const CITY_FILTER = (process.env.SMOKE_CITIES || "")
+  .split(",").map(s => s.trim()).filter(Boolean);
+const START_DELAY_MS = +(process.env.SMOKE_START_DELAY_MS || 0);
+
 // gen = FI-otsikon genetiivi ("<gen> bussiaikataulut") — Lahti-fallbackia ei hyväksytä.
 // svTitle = kaksikielisen kaupungin SV-otsikko (FI-fallbackia ei hyväksytä).
 // nightStopId/nightLines = Lahden yövuorotarkistus (Matkakeskus A, todennettu datasta
@@ -55,7 +70,7 @@ const RETRY_COOLDOWN_MS = +(process.env.SMOKE_RETRY_COOLDOWN_MS || 90000);
 // lähtöjä seuraavana arkipäivänä. Poistuva pysäkki EI katoa feedistä vaan jää
 // 0-lähtöiseksi objektiksi (todennettu 10.8.2026: Lahden Tevi P/E 215/213 → 0 lähtöä,
 // gtfsId:t jäivät feediin) → olemassaolotarkistus yksin päästäisi rikon läpi.
-const CITIES = [
+let CITIES = [ // let eika const: SMOKE_CITIES suodattaa taman eraajossa
   { key: "lahti",   gen: "Lahden",   nightStopId: "Lahti:85811", nightLines: ["91", "96", "97"] },
   { key: "kuopio",  gen: "Kuopion" },
   { key: "salo",    gen: "Salon" },
@@ -76,6 +91,17 @@ const CITIES = [
   { key: "pori", gen: "Porin" },
   { key: "rovaniemi", gen: "Rovaniemen", corridorDirs: 1 },
 ];
+
+// Erarajaus. Tuntematon kaupunkiavain on kirjoitusvirhe eika tyhja era: se kaadetaan
+// heti, muuten era ajaisi vaarin ja raportoisi silti "kattavuus OK".
+if (CITY_FILTER.length) {
+  const tuntematon = CITY_FILTER.filter(k => !CITIES.some(c => c.key === k));
+  if (tuntematon.length) {
+    console.error("VIRHE: SMOKE_CITIES sisaltaa tuntemattomia avaimia: " + tuntematon.join(", "));
+    process.exit(2);
+  }
+  CITIES = CITIES.filter(c => CITY_FILTER.includes(c.key));
+}
 
 const results = [];
 const record = (city, check, status, detail = "") => {
@@ -141,10 +167,12 @@ function writeReport() {
   lines.push("");
   lines.push(failures.length ? failures.length + " TARKISTUSTA EPÄONNISTUI" : "KAIKKI TARKISTUKSET OK");
   const txt = lines.join("\n") + "\n";
-  fs.writeFileSync(path.join(__dirname, "prod-smoke-report.txt"), txt);
-  fs.writeFileSync(path.join(__dirname, "prod-smoke-report.json"), JSON.stringify({
+  // Eraajossa raportit eivat saa kirjoittaa toistensa paalle (Actions arkistoi molemmat).
+  const jalkiliite = process.env.SMOKE_REPORT_SUFFIX || "";
+  fs.writeFileSync(path.join(__dirname, `prod-smoke-report${jalkiliite}.txt`), txt);
+  fs.writeFileSync(path.join(__dirname, `prod-smoke-report${jalkiliite}.json`), JSON.stringify({
     base: BASE, generatedAt: new Date().toISOString(), searchTime,
-    failures: failures.length, results,
+    cities: CITIES.map(c => c.key), failures: failures.length, results,
   }, null, 2) + "\n");
   console.log("\n" + lines[lines.length - 1]);
   return failures.length;
@@ -152,6 +180,11 @@ function writeReport() {
 
 (async () => {
   console.log("Tuotanto-smoke-vahti · BASE=" + BASE);
+  if (CITY_FILTER.length) console.log("Erä: " + CITIES.map(c => c.key).join(", "));
+  if (START_DELAY_MS > 0) {
+    console.log(`Odotetaan ${START_DELAY_MS / 1000} s ennen erän alkua (kiintiön palautuminen)\n`);
+    await sleep(START_DELAY_MS);
+  }
   console.log("Reittihaun hakuaika: " + searchTime + " (Europe/Helsinki)\n");
 
   const browser = await puppeteer.launch({

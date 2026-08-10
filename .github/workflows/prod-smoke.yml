@@ -20,12 +20,30 @@ permissions:
 
 jobs:
   # Ydinvahti: per-kaupunki-invariantit (16 kaupunkia), oma kevyt skripti.
-  # Aikaraja 45 min eika 30: 10.8.2026 tauko kaupunkien valilla nostettiin 4 s -> 20 s
-  # Digitransitin kiintion takia, ja uusinnalla on 90 s jaahdytys. Ajo kestaa noin 25 min,
-  # joten 30 min olisi liian tiukka marginaali.
+  #
+  # ERAAJO (10.8.2026): Digitransitin kiintio ei kanna 16 kaupunkia yhdella istumalla.
+  # Mitattu samana paivana: tauko 4 s -> 23 FAILia, tauko 20 s + 90 s uusintajaahdytys
+  # -> 8 FAILia, ja kaatuvat kaupungit vaihtuivat joka ajolla listan loppupaassa eli
+  # kiintio kuluu kumulatiivisesti. Siksi ajo on jaettu kahteen 8 kaupungin eraan.
+  # max-parallel: 1 on OLENNAINEN - rinnakkain ajettuna erat kuluttaisivat saman
+  # kiintion yhta aikaa eika mikaan olisi muuttunut. Era 2 odottaa lisaksi 4 min.
+  # fail-fast: false, jotta eran 1 punainen ei estaisi eraa 2 ajautumasta.
+  #
+  # Aikaraja 45 min: era kestaa noin 13 min + eran 2 alkuviive.
   prod-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        include:
+          - era: 1
+            cities: "lahti,kuopio,salo,kajaani,vaasa,kotka,raasepori,kouvola"
+            delay: "0"
+          - era: 2
+            cities: "mikkeli,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi"
+            delay: "240000"
     steps:
       - uses: actions/checkout@v5
 
@@ -39,20 +57,23 @@ jobs:
         run: npm ci
         working-directory: tests
 
-      - name: Aja tuotanto-smoke (16 kaupunkia, read-only)
+      - name: Aja tuotanto-smoke (erä ${{ matrix.era }}/2, 8 kaupunkia, read-only)
         run: node prod-smoke.test.js
         working-directory: tests
         env:
           BASE: https://demo.reittari.fi
+          SMOKE_CITIES: ${{ matrix.cities }}
+          SMOKE_START_DELAY_MS: ${{ matrix.delay }}
+          SMOKE_REPORT_SUFFIX: -era${{ matrix.era }}
 
       - name: Arkistoi raportti
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: prod-smoke-report
+          name: prod-smoke-report-era${{ matrix.era }}
           path: |
-            tests/prod-smoke-report.txt
-            tests/prod-smoke-report.json
+            tests/prod-smoke-report-era${{ matrix.era }}.txt
+            tests/prod-smoke-report-era${{ matrix.era }}.json
 
   # Syvä kattavuus: koko olemassa oleva smoke-sarja ajetaan tuotantoa vasten
   # (BASE-parametrisoitu). Erillinen job, jotta mahdollinen flake ei sotke
