@@ -24,8 +24,17 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // alempana): tauko kaupunkien välissä tasoittaa kuorman, ja 429:n pilaama kierros
 // ajetaan uudelleen. Jos kiintiö ei palaudu uusinnankaan jälkeen, ajo FAILaa
 // juurisyyllä — 429 ei koskaan muutu PASSiksi eikä INFOksi.
-const CITY_GAP_MS = +(process.env.SMOKE_CITY_GAP_MS || 4000);
+// Mitoitus (10.8.2026, toinen kierros): 4 s tauko EI riittanyt GitHub Actionsissa.
+// Mekaniikka toimi - uusinta laukesi ja kattavuus sailyi 16/16 - mutta nelja kaupunkia
+// (Kouvola, Mikkeli, Hameenlinna, Joensuu) ei saanut kiintiota takaisin uusinnallakaan.
+// Sama koodi meni lapi lokaalisti 0 FAILia, joten ero on ymparistossa eika koodissa:
+// runnerin IP:sta 16 kaupungin ajo on liian tihea. Siksi tauko on nyt 20 s ja uusinnalle
+// oma jaahdytys. Ajo kestaa noin 30 min, mika on hyvaksyttavaa yoajolle.
+const CITY_GAP_MS = +(process.env.SMOKE_CITY_GAP_MS || 20000);
 const MAX_ATTEMPTS = +(process.env.SMOKE_ATTEMPTS || 2);
+// Uusittu kaupunki ei ala heti vuorollaan: kiintioampari tarvitsee oman palautumisaikansa
+// sen lisaksi mita jonon lapikaynti ehtii antaa.
+const RETRY_COOLDOWN_MS = +(process.env.SMOKE_RETRY_COOLDOWN_MS || 90000);
 
 // gen = FI-otsikon genetiivi ("<gen> bussiaikataulut") — Lahti-fallbackia ei hyväksytä.
 // svTitle = kaksikielisen kaupungin SV-otsikko (FI-fallbackia ei hyväksytä).
@@ -159,6 +168,16 @@ function writeReport() {
     const job = queue.shift();
     const city = job.city;
     const mark = results.length; // paluupiste: uusinta hylkää tämän kierroksen tulokset
+
+    // Uusinnan jäähdytys: odota loppuun se aika joka kiintiölle luvattiin, jos jonon
+    // läpikäynti ei sitä jo kuluttanut.
+    if (job.notBefore) {
+      const wait = job.notBefore - Date.now();
+      if (wait > 0) {
+        console.log(`  ⏳ [${city.key}] odotetaan kiintiön palautumista ${Math.ceil(wait / 1000)} s\n`);
+        await sleep(wait);
+      }
+    }
 
     // Oma selainkonteksti per kaupunki: localStorage (kieli, välimuistit) ei vuoda
     // kaupungista toiseen, ja konsolivirheet skooppautuvat siististi.
@@ -456,9 +475,9 @@ function writeReport() {
     const quotaBroke = roundFails.some(r => /\b429\b/.test(r.detail || ""));
     if (quotaBroke && job.attempt < MAX_ATTEMPTS) {
       results.length = mark; // hylkää kiintiön pilaaman kierroksen tulokset
-      queue.push({ city, attempt: job.attempt + 1 });
+      queue.push({ city, attempt: job.attempt + 1, notBefore: Date.now() + RETRY_COOLDOWN_MS });
       console.log(`  ↻ [${city.key}] Digitransit 429 → uusinta jonon lopussa `
-        + `(yritys ${job.attempt + 1}/${MAX_ATTEMPTS})\n`);
+        + `(yritys ${job.attempt + 1}/${MAX_ATTEMPTS}, jäähdytys ${RETRY_COOLDOWN_MS / 1000} s)\n`);
     } else {
       cityDone.add(city.key);
       console.log("");

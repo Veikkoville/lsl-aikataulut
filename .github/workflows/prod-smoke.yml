@@ -19,10 +19,13 @@ permissions:
   contents: read
 
 jobs:
-  # Ydinvahti: per-kaupunki-invariantit (6 kaupunkia), oma kevyt skripti.
+  # Ydinvahti: per-kaupunki-invariantit (16 kaupunkia), oma kevyt skripti.
+  # Aikaraja 45 min eika 30: 10.8.2026 tauko kaupunkien valilla nostettiin 4 s -> 20 s
+  # Digitransitin kiintion takia, ja uusinnalla on 90 s jaahdytys. Ajo kestaa noin 25 min,
+  # joten 30 min olisi liian tiukka marginaali.
   prod-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
 
@@ -36,7 +39,7 @@ jobs:
         run: npm ci
         working-directory: tests
 
-      - name: Aja tuotanto-smoke (6 kaupunkia, read-only)
+      - name: Aja tuotanto-smoke (16 kaupunkia, read-only)
         run: node prod-smoke.test.js
         working-directory: tests
         env:
