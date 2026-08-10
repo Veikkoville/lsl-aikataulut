@@ -16,6 +16,17 @@ const path = require("path");
 const BASE = process.env.BASE || "https://demo.reittari.fi";
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// Digitransit-kiintiö (todennettu 8.-10.8.2026). Kaupunkisweep 7.8. nosti ajon 9 -> 16
+// kaupunkiin samalla API-avaimella, ja peräkkäisajo alkoi saada 429 (rate limit) kesken
+// kierroksen. Kaatuvat kaupungit vaihtelivat ajon ajoituksen mukaan (9.8. mm. Kouvola,
+// Mikkeli ja Raasepori) — oire ei siis ollut kaupungissa vaan kuormassa.
+// Kaksi vastalääkettä, kumpikaan EI löysennä vartijaa (ks. CITY_GAP_MS ja jonon uusinta
+// alempana): tauko kaupunkien välissä tasoittaa kuorman, ja 429:n pilaama kierros
+// ajetaan uudelleen. Jos kiintiö ei palaudu uusinnankaan jälkeen, ajo FAILaa
+// juurisyyllä — 429 ei koskaan muutu PASSiksi eikä INFOksi.
+const CITY_GAP_MS = +(process.env.SMOKE_CITY_GAP_MS || 4000);
+const MAX_ATTEMPTS = +(process.env.SMOKE_ATTEMPTS || 2);
+
 // gen = FI-otsikon genetiivi ("<gen> bussiaikataulut") — Lahti-fallbackia ei hyväksytä.
 // svTitle = kaksikielisen kaupungin SV-otsikko (FI-fallbackia ei hyväksytä).
 // nightStopId/nightLines = Lahden yövuorotarkistus (Matkakeskus A, todennettu datasta
@@ -95,8 +106,42 @@ function departuresMonotonic(times) {
   return { ok: true };
 }
 
+const searchTime = searchTimeHelsinki();
+
+// Kaupungit jotka saivat lopulliset tulokset (uusintaan palanneet eivät lasketa vielä).
+const cityDone = new Set();
+
+// Raportti kirjoitetaan myös silloin kun ajo kaatuu kesken: muuten harness-virhe
+// jättää jälkeensä pelkän exit-koodin eikä tiedetä mikä ehti mennä läpi.
+function writeReport() {
+  // Kattavuus arvioidaan TÄSSÄ eikä silmukan jälkeen, jotta se on raportissa myös
+  // kaatumistilanteessa — juuri silloin sitä tarvitaan (10.8.2026: viisi kaupunkia
+  // jäi ajamatta, eikä raportti kertonut siitä mitään).
+  cityDone.size === CITIES.length
+    ? pass("(ajo)", "kattavuus", `${cityDone.size}/${CITIES.length} kaupunkia ajettu`)
+    : fail("(ajo)", "kattavuus",
+        `vain ${cityDone.size}/${CITIES.length} kaupunkia ajettu — ajamatta: `
+        + CITIES.filter(c => !cityDone.has(c.key)).map(c => c.key).join(", "));
+
+  const failures = results.filter(r => r.status === "FAIL");
+  const lines = [];
+  lines.push("Tuotanto-smoke-vahti · " + BASE + " · " + new Date().toISOString());
+  lines.push("Reittihaun hakuaika: " + searchTime + " (Europe/Helsinki)");
+  lines.push("");
+  for (const r of results) lines.push(`${r.status.padEnd(5)}[${r.city}] ${r.check}${r.detail ? " — " + r.detail : ""}`);
+  lines.push("");
+  lines.push(failures.length ? failures.length + " TARKISTUSTA EPÄONNISTUI" : "KAIKKI TARKISTUKSET OK");
+  const txt = lines.join("\n") + "\n";
+  fs.writeFileSync(path.join(__dirname, "prod-smoke-report.txt"), txt);
+  fs.writeFileSync(path.join(__dirname, "prod-smoke-report.json"), JSON.stringify({
+    base: BASE, generatedAt: new Date().toISOString(), searchTime,
+    failures: failures.length, results,
+  }, null, 2) + "\n");
+  console.log("\n" + lines[lines.length - 1]);
+  return failures.length;
+}
+
 (async () => {
-  const searchTime = searchTimeHelsinki();
   console.log("Tuotanto-smoke-vahti · BASE=" + BASE);
   console.log("Reittihaun hakuaika: " + searchTime + " (Europe/Helsinki)\n");
 
@@ -105,7 +150,16 @@ function departuresMonotonic(times) {
     args: ["--no-sandbox", "--disable-dev-shm-usage"],
   });
 
-  for (const city of CITIES) {
+  // Kaupungit ajetaan jonona, jotta 429:n pilaama kierros voidaan ajaa uudelleen.
+  // Uusinta menee jonon HÄNTÄÄN eikä heti perään: muiden kaupunkien ajo antaa
+  // kiintiölle aikaa palautua, eikä uusinta osu samaan tyhjään ämpäriin.
+  const queue = CITIES.map(city => ({ city, attempt: 1 }));
+
+  while (queue.length) {
+    const job = queue.shift();
+    const city = job.city;
+    const mark = results.length; // paluupiste: uusinta hylkää tämän kierroksen tulokset
+
     // Oma selainkonteksti per kaupunki: localStorage (kieli, välimuistit) ei vuoda
     // kaupungista toiseen, ja konsolivirheet skooppautuvat siististi.
     const ctx = await browser.createBrowserContext();
@@ -375,34 +429,52 @@ function departuresMonotonic(times) {
       }
 
       // --- 7) Konsolivirheet koko kaupungin ajolta ---
+      // 429 saa oman juurisyyviestin, jottei kiintiöongelma näytä sisältövirheeltä
+      // (10.8.2026: "tuntikaaviota ei muodostunut" oli oire, ei vika).
       const realErrors = consoleErrors.filter(e => !e.includes("favicon"));
-      realErrors.length
-        ? fail(city.key, "konsolivirheet", realErrors.slice(0, 3).join(" | ").slice(0, 300))
-        : pass(city.key, "konsolivirheet", "0 virhettä");
+      const rateLimited = realErrors.some(e => e.includes("429"));
+      if (!realErrors.length) {
+        pass(city.key, "konsolivirheet", "0 virhettä");
+      } else if (rateLimited) {
+        fail(city.key, "konsolivirheet",
+          `Digitransit-kiintiö (429) ei palautunut ${job.attempt} yrityksellä — kuormaongelma, ei sisältövirhe: `
+          + realErrors.slice(0, 2).join(" | ").slice(0, 200));
+      } else {
+        fail(city.key, "konsolivirheet", realErrors.slice(0, 3).join(" | ").slice(0, 300));
+      }
     } catch (e) {
       fail(city.key, "harness", (e.message || String(e)).slice(0, 200));
     }
-    await ctx.close();
-    console.log("");
+    // Kontekstin sulkeminen EI saa kaataa ajoa: 10.8.2026 tämä heitti
+    // "Target.disposeBrowserContext" Joensuun kohdalla, ja koska close oli
+    // per-kaupunki-catchin ulkopuolella, viisi viimeistä kaupunkia jäi kokonaan ajamatta.
+    await ctx.close().catch(() => {});
+
+    // Uusinta vain kun 429 tosiasiassa rikkoi jotain: pelkkä varoitus ilman FAILia ei
+    // ansaitse toista kierrosta, eikä uusinta saa piilottaa aitoa sisältövirhettä.
+    const roundFails = results.slice(mark).filter(r => r.status === "FAIL");
+    const quotaBroke = roundFails.some(r => /\b429\b/.test(r.detail || ""));
+    if (quotaBroke && job.attempt < MAX_ATTEMPTS) {
+      results.length = mark; // hylkää kiintiön pilaaman kierroksen tulokset
+      queue.push({ city, attempt: job.attempt + 1 });
+      console.log(`  ↻ [${city.key}] Digitransit 429 → uusinta jonon lopussa `
+        + `(yritys ${job.attempt + 1}/${MAX_ATTEMPTS})\n`);
+    } else {
+      cityDone.add(city.key);
+      console.log("");
+    }
+
+    // Tauko kaupunkien väliin: tasoittaa kuorman jaetulle Digitransit-avaimelle.
+    if (queue.length) await sleep(CITY_GAP_MS);
   }
 
-  await browser.close();
+  await browser.close().catch(() => {});
 
   // --- Yhteenveto + raporttiartefaktit ---
-  const failures = results.filter(r => r.status === "FAIL");
-  const lines = [];
-  lines.push("Tuotanto-smoke-vahti · " + BASE + " · " + new Date().toISOString());
-  lines.push("Reittihaun hakuaika: " + searchTime + " (Europe/Helsinki)");
-  lines.push("");
-  for (const r of results) lines.push(`${r.status.padEnd(5)}[${r.city}] ${r.check}${r.detail ? " — " + r.detail : ""}`);
-  lines.push("");
-  lines.push(failures.length ? failures.length + " TARKISTUSTA EPÄONNISTUI" : "KAIKKI TARKISTUKSET OK");
-  const txt = lines.join("\n") + "\n";
-  fs.writeFileSync(path.join(__dirname, "prod-smoke-report.txt"), txt);
-  fs.writeFileSync(path.join(__dirname, "prod-smoke-report.json"), JSON.stringify({
-    base: BASE, generatedAt: new Date().toISOString(), searchTime,
-    failures: failures.length, results,
-  }, null, 2) + "\n");
-  console.log("\n" + lines[lines.length - 1]);
-  process.exit(failures.length ? 1 : 0);
-})().catch(e => { console.error("HARNESS ERROR: " + e.message); process.exit(1); });
+  process.exit(writeReport() ? 1 : 0);
+})().catch(e => {
+  console.error("HARNESS ERROR: " + e.message);
+  record("(ajo)", "harness", "FAIL", (e.message || String(e)).slice(0, 200));
+  writeReport();
+  process.exit(1);
+});
