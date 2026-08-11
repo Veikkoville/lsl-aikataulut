@@ -7,10 +7,16 @@ name: Tuotanto-smoke
 on:
   workflow_dispatch:
   schedule:
-    # Viikoittainen vahti: maanantaisin 04:00 UTC (07:00 Suomen kesäaikaa)
+    # Erä 1 (tiivis seuranta) maanantaisin 04:00 UTC (07:00 Suomen kesäaikaa)
     - cron: "0 4 * * 1"
-    # ⚠️ TALVIFEED-IKKUNA: päivittäin 8.–15.8. klo 04:00 UTC. LSL:n talvifeed vaihtuu
-    # 10.8.2026 ja KOUL/LOMA-validointi on 12.8.2026 — tihennetty ajo vahtii vaihtoa.
+    # Erä 2 (laaja kattavuus) torstaisin 18:00 UTC (21:00 Suomen kesäaikaa).
+    # ILTA ON TARKOITUKSELLINEN: 10.8. klo 17:43 UTC ajo oli täysin vihreä samalla
+    # kuormalla joka kaatui aamulla, ja 04:00 UTC on sama minuutti kuin talvifeed-ikkunan
+    # ajo → aamuun sijoitettuna erät kuluttaisivat kiintiötä yhtä aikaa kahdessa
+    # rinnakkaisessa RUNissa, mitä max-parallel EI estä (se koskee vain saman runin matriisia).
+    - cron: "0 18 * * 4"
+    # ⚠️ TALVIFEED-IKKUNA: päivittäin 8.–15.8. klo 04:00 UTC, VAIN erä 1. LSL:n talvifeed
+    # vaihtuu 10.8.2026 ja KOUL/LOMA-validointi on 12.8.2026 — tihennetty ajo vahtii vaihtoa.
     # POISTA TÄMÄ RIVI ikkunan jälkeen (elokuun 2026 lopussa): cron ei tunne vuotta,
     # joten rivi laukeaisi uudelleen joka elokuu (2027, 2028, ...).
     - cron: "0 4 8-15 8 *"
@@ -19,31 +25,64 @@ permissions:
   contents: read
 
 jobs:
+  # Valitsee ajettavat erat laukaisimen mukaan. Ilman tata jokainen ajastus ajaisi
+  # kaikki 16 kaupunkia, mika on juuri se kuorma joka ei mahdu kiintioon (ks. alla).
+  valitse-erat:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.valinta.outputs.matrix }}
+    steps:
+      - name: Valitse erät laukaisimen mukaan
+        id: valinta
+        env:
+          LAUKAISIN: ${{ github.event.schedule }}
+        run: |
+          # Era 1 = tiiviin seurannan kaupungit, era 2 = loput. Jasenyys ei noudata
+          # CONFIG-jarjestysta vaan seurantatarvetta, ja se paivitetaan kasin tarpeen
+          # mukaan. Tekninen ehto: kumpikin erä pysyy alle kiintiörajan yksin ajettuna.
+          era1='{"era":1,"cities":"lahti,kuopio,vaasa,raasepori,kouvola,mikkeli","delay":"0"}'
+          era2='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi","delay":"0"}'
+          era2_viiveella='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi","delay":"600000"}'
+          case "$LAUKAISIN" in
+            # Torstai-ilta: era 2 yksin.
+            "0 18 * * 4") mukaan="[$era2]" ;;
+            # Tyhja = workflow_dispatch: molemmat erat sarjassa, 10 min valissa
+            # (kasiajo halutaan taydelliseksi kattavuudeksi, ja se ajetaan valvotusti).
+            "")           mukaan="[$era1,$era2_viiveella]" ;;
+            # Maanantai + talvifeed-ikkuna: era 1.
+            *)            mukaan="[$era1]" ;;
+          esac
+          echo "matrix={\"include\":$mukaan}" >> "$GITHUB_OUTPUT"
+          echo "Laukaisin '${LAUKAISIN:-workflow_dispatch}' → erät: $mukaan"
+
   # Ydinvahti: per-kaupunki-invariantit (16 kaupunkia), oma kevyt skripti.
   #
   # ERAAJO (10.8.2026): Digitransitin kiintio ei kanna 16 kaupunkia yhdella istumalla.
   # Mitattu samana paivana: tauko 4 s -> 23 FAILia, tauko 20 s + 90 s uusintajaahdytys
   # -> 8 FAILia, ja kaatuvat kaupungit vaihtuivat joka ajolla listan loppupaassa eli
-  # kiintio kuluu kumulatiivisesti. Siksi ajo on jaettu kahteen 8 kaupungin eraan.
+  # kiintio kuluu kumulatiivisesti. Siksi ajo on jaettu kahteen eraan.
   # max-parallel: 1 on OLENNAINEN - rinnakkain ajettuna erat kuluttaisivat saman
-  # kiintion yhta aikaa eika mikaan olisi muuttunut. Era 2 odottaa lisaksi 4 min.
+  # kiintion yhta aikaa eika mikaan olisi muuttunut.
   # fail-fast: false, jotta eran 1 punainen ei estaisi eraa 2 ajautumasta.
   #
-  # Aikaraja 45 min: era kestaa noin 13 min + eran 2 alkuviive.
+  # AIKATAULUJAKO (11.8.2026): erittely yksin EI riittanyt - 11.8. klo 05:02 ajo oli
+  # punainen omalla, jakamattomalla avaimella (Oulu 429, 2/2 yritysta). Mitattu samana
+  # aamuna: SMOKE_CITIES=oulu yksin -> KAIKKI OK, 0 konsolivirhetta. Oulu ei siis ole
+  # raskautensa takia rikki vaan kiintio kuluu kumulatiivisesti, eli oikea ruuvi on
+  # AJON KOKONAISKULUTUS. Siksi erat ajetaan nyt eri paivina eika perakkain:
+  # era 1 usein, era 2 kerran viikossa iltaan.
+  # Uusinnan jaahdytys 90 s -> 5 min: 11.8. lokista naki etta Oulun uusinta ammuttiin
+  # 90 s:n jalkeen liian aikaisin (Pori ja Rovaniemi palautuivat 1,5 min myohemmin).
+  #
+  # Aikaraja 45 min: era kestaa noin 13 min + mahdollinen alkuviive ja uusinnat.
   prod-smoke:
+    needs: valitse-erat
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       max-parallel: 1
       fail-fast: false
-      matrix:
-        include:
-          - era: 1
-            cities: "lahti,kuopio,salo,kajaani,vaasa,kotka,raasepori,kouvola"
-            delay: "0"
-          - era: 2
-            cities: "mikkeli,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi"
-            delay: "240000"
+      matrix: ${{ fromJSON(needs.valitse-erat.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v5
 
@@ -57,7 +96,7 @@ jobs:
         run: npm ci
         working-directory: tests
 
-      - name: Aja tuotanto-smoke (erä ${{ matrix.era }}/2, 8 kaupunkia, read-only)
+      - name: Aja tuotanto-smoke (erä ${{ matrix.era }}/2, read-only)
         run: node prod-smoke.test.js
         working-directory: tests
         env:
@@ -65,6 +104,8 @@ jobs:
           SMOKE_CITIES: ${{ matrix.cities }}
           SMOKE_START_DELAY_MS: ${{ matrix.delay }}
           SMOKE_REPORT_SUFFIX: -era${{ matrix.era }}
+          # 90 s oli liian lyhyt kun kiintio on pohjassa (ks. 11.8. perustelu ylla).
+          SMOKE_RETRY_COOLDOWN_MS: "300000"
 
       - name: Arkistoi raportti
         if: always()
