@@ -252,7 +252,7 @@ function writeReport() {
 
       // --- 3) Reittihaku: päätepisteet haetaan datasta (sama proxy-reitti kuin selaimessa),
       //        haku jaetun linkin muodolla + kiinnitetty t= → ≥1 ehdotus, lähtöajat nousevia ---
-      const eps = await page.evaluate(async () => {
+      const eps = await page.evaluate(async (searchDateCompact) => {
         if (typeof API_URL === "undefined" || typeof AREA === "undefined") return null;
         const res = await fetch(API_URL, {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -269,22 +269,72 @@ function writeReport() {
         if (nodes.length < 2) return null;
         nodes.sort((a, b) => a.distance - b.distance);
         const from = nodes[0].stop;
-        // määränpää: kaukaisin liikennöity pysäkki 4 km sisällä (mielekäs matka, ei sama pysäkki)
-        const to = [...nodes].reverse().find(n => n.stop.gtfsId !== from.gtfsId).stop;
+        // Määränpää + hakuaika johdetaan lähtöpysäkin TODELLISESTA lähdöstä kohdepäivänä:
+        // otetaan ensimmäinen lähtö klo 9 jälkeen ja sen patternin viimeinen alavirran
+        // pysäkki. Silloin ≥1 reitti on taatusti olemassa haetulla hetkellä. Kiinteä
+        // klo 9:00 + "kaukaisin pysäkki jolla patterneja" petti harvassa verkossa kahdesti:
+        // Raasepori/Trollböle Ö talvifeedillä 11.–12.8.2026 (pysäkin vuorot vasta 13:13+,
+        // OTP:n hakuikkuna ei yllä sinne) ja Storsvängen S 12.8. (Tammisaaren aamussa on
+        // palveluaukko 8:56→10:20, joten mikään 4 km:n määränpää ei kelvannut klo 9:00).
+        const stRes = await fetch(API_URL, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: `query($id:String!,$d:String!){ stop(id:$id){
+              stoptimesForServiceDate(date:$d){
+                pattern { code }
+                stoptimes { scheduledDeparture } } } }`,
+            variables: { id: from.gtfsId, d: searchDateCompact } }),
+        }).catch(() => null);
+        const stJ = stRes && stRes.ok ? await stRes.json().catch(() => null) : null;
+        const deps = [];
+        for (const g of (stJ?.data?.stop?.stoptimesForServiceDate || []))
+          for (const x of (g.stoptimes || []))
+            deps.push({ dep: x.scheduledDeparture, code: g.pattern.code });
+        deps.sort((a, b) => a.dep - b.dep);
+        const ordered = [...deps.filter(x => x.dep >= 9 * 3600), ...deps.reverse()];
+        let to = null, depSec = null;
+        for (const cand of ordered.slice(0, 8)) {
+          const pr = await fetch(API_URL, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              query: `query($c:String!){ pattern(id:$c){ stops { gtfsId name lat lon } } }`,
+              variables: { c: cand.code } }),
+          }).catch(() => null);
+          const pj = pr && pr.ok ? await pr.json().catch(() => null) : null;
+          const stops = pj?.data?.pattern?.stops || [];
+          const idx = stops.findIndex(s => s.gtfsId === from.gtfsId);
+          if (idx < 0 || idx >= stops.length - 1) continue; // from on patternin pää → ei alavirtaa
+          to = stops[stops.length - 1];
+          depSec = cand.dep;
+          break;
+        }
+        if (!to) {
+          // fallback vanhaan valintaan: mieluummin tunnettu epävarmuus kuin ei testiä lainkaan
+          to = [...nodes].reverse().find(n => n.stop.gtfsId !== from.gtfsId).stop;
+        }
         return { from: { gtfsId: from.gtfsId, lat: from.lat, lon: from.lon, name: from.name },
-                 to:   { gtfsId: to.gtfsId,   lat: to.lat,   lon: to.lon,   name: to.name } };
-      });
+                 to:   { gtfsId: to.gtfsId,   lat: to.lat,   lon: to.lon,   name: to.name },
+                 depSec };
+      }, searchTime.slice(0, 10).replace(/-/g, ""));
       if (!eps) {
         fail(city.key, "reittihaku", "päätepisteitä ei saatu stopsByRadius-kyselyllä");
       } else {
         const enc = p => encodeURIComponent(`${p.lat.toFixed(5)},${p.lon.toFixed(5)},${p.name}`);
-        const opts = encodeURIComponent(new URLSearchParams({ t: searchTime }).toString());
+        // hakuaika = valitun lähdön aika −5 min (haku alkaa juuri ennen todennettua vuoroa);
+        // ilman johdettua lähtöä pysytään ajon vakioajassa klo 9:00
+        let cityT = searchTime;
+        if (eps.depSec != null) {
+          const s = Math.max(0, eps.depSec - 300) % 86400;
+          const p2 = n => String(n).padStart(2, "0");
+          cityT = `${searchTime.slice(0, 10)}T${p2(Math.floor(s / 3600))}:${p2(Math.floor((s % 3600) / 60))}`;
+        }
+        const opts = encodeURIComponent(new URLSearchParams({ t: cityT }).toString());
         await page.goto(url(`#/reitti/${enc(eps.from)}/${enc(eps.to)}/${opts}`),
           { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
         const itinOk = await page.waitForSelector("details.itin[data-itin]", { timeout: 45000 })
           .then(() => true).catch(() => false);
         if (!itinOk) {
-          fail(city.key, "reittihaku", `ei reittiehdotuksia (${eps.from.name} → ${eps.to.name}, t=${searchTime})`);
+          fail(city.key, "reittihaku", `ei reittiehdotuksia (${eps.from.name} → ${eps.to.name}, t=${cityT})`);
         } else {
           const times = await page.evaluate(() =>
             [...document.querySelectorAll("details.itin[data-itin] .ih-time .times")]
