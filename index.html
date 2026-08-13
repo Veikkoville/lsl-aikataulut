@@ -1637,6 +1637,9 @@ const CONFIGS = {
     // "[genetiivi] joukkoliikenteessä" johdetaan automaattisesti CONFIGista).
     network: { fi: "Lahden seudun joukkoliikenteessä", en: "the Lahti region public transport", sv: "Lahtisregionens kollektivtrafik" },
     feedMatch: /lahti/i,                  // GTFS-syötteen tunnistus feedId:stä tai julkaisijasta
+    // rail = rata.digitraffic.fi-asemakoodi: junien lähdöt #/junat-näkymässä. Matkustaja-
+    // asemat todennettu metadatasta 13.8.2026 (kaikilla 16 kaupungilla on asema).
+    rail: "LH",
     heroEmphasis: "layer",                // on jo moderni reittiopas → korosta erottuvaa kerrosta
     // Ydinkeskustan solmupysäkit: "Keskustan linjat" -pikavalinta tulostusvihkossa
     centerStopNames: ["Kauppatori", "Matkakeskus"],
@@ -1757,6 +1760,7 @@ const CONFIGS = {
     operator: "Kuopion seudun joukkoliikenne",
     operatorShort: "Vilkku",
     feedMatch: /kuopio/i,
+    rail: "KUO",
     heroEmphasis: "layer",
     // Yhdistetyt suunnat -presetti (datavarmistus 8.7.2026: 31/31T/35 jakavat 33–51
     // pysäkin jakson Siilinjärven suuntaan, kaikki aktiivisia)
@@ -1783,6 +1787,7 @@ const CONFIGS = {
     operator: "Salon seudun joukkoliikenne",
     operatorShort: "Salo",
     feedMatch: /salo/i,
+    rail: "SLO",
     // Yhdistetyt suunnat -presetti (datavarmistus 8.7.2026: 110+603 jakavat 40 pysäkin
     // jakson Suomusjärven suuntaan; kesäliikenteessä aktiiviset — moni Salon linja lepää kesällä)
     corridors: [
@@ -1807,6 +1812,7 @@ const CONFIGS = {
     operator: "Kajaanin joukkoliikenne",
     operatorShort: "Kajaani",
     feedMatch: /kajaani/i,
+    rail: "KAJ",
     // Yhdistetyt suunnat -presetti. Alkup. 8.7.2026 kesäfeedillä 1+3 (7 jaettua pysäkkiä);
     // kommentin oma varaus toteutui: talvifeedillä (mitattu 12.8.2026) 1+2 jakaa 45 pysäkki-
     // tunnusta, 1+3 vain 11, ja kaikki kolme linjaa ajavat arkisin → presetti vaihdettu
@@ -1837,6 +1843,7 @@ const CONFIGS = {
     operator: "Vaasan paikallisliikenne",
     operatorShort: "Lifti",
     feedMatch: /vaasa/i,
+    rail: "VS",
     heroEmphasis: "layer",
     // Yhdistetyt suunnat -presetit (datavarmistus 8.7.2026: 1+4 jakavat 24 pysäkin jakson
     // Palosaaren kautta, 7+7K 33 pysäkin jakson; kaikki aktiivisia). Kaksikieliset nimet
@@ -1869,6 +1876,7 @@ const CONFIGS = {
     operator: "Kotkan seudun joukkoliikenne",
     operatorShort: "Jonne ja Minne",
     feedMatch: /^kotka$/i,
+    rail: "KTA",
     heroEmphasis: "layer",
     // Yhdistetyt suunnat -presetti (mitattu talvifeedistä 13.8.2026: talvifeed
     // korvasi 25-rungon varianteilla 25T (Tiutinen) ja 25Y (Ylänummi) — 24 ja 26
@@ -1908,6 +1916,7 @@ const CONFIGS = {
     operator: "Raaseporin joukkoliikenne",
     operatorShort: "BOSSE",
     feedMatch: /raasepori/i,
+    rail: "KR", // Karjaa = Raaseporin pääasema (rantarata + Hanko-rata)
     // Feedin natiivikieli on RUOTSI (stops.txt-nimet sv, FI tulee translations.txt:stä)
     // → @L-lokalisointi pyytää FI:n eksplisiittisesti (localizeQuery/localizePlanNode).
     feedLang: "sv",
@@ -2018,6 +2027,7 @@ const CONFIGS = {
     operator: "Kouvolan joukkoliikenne",
     operatorShort: "Koutsi",
     feedMatch: /kouvola/i,
+    rail: "KV",
     heroEmphasis: "layer",
     // Ydinkeskustan solmupysäkit ("Keskustan linjat" -pikavalinta vihkossa); testattu
     // sovelluksen omalla stops(name:)-kyselyllä 2.8.2026: Matkakeskus 26 linjaa, Torikatu 22.
@@ -2057,6 +2067,7 @@ const CONFIGS = {
     operator: "Mikkelin joukkoliikenne",
     operatorShort: "Mikkeli",
     feedMatch: /mikkeli/i,
+    rail: "MI",
     heroEmphasis: "layer",
     // Ydinkeskustan solmupysäkit; testattu stops(name:)-kyselyllä 2.8.2026: Hallitustori
     // 28 linjaa, Mikkeli laituri 22. HUOM: kysely on alkuosahaku, joten pelkkä "Matkakeskus"
@@ -2094,6 +2105,7 @@ const CONFIGS = {
     operator: "Hämeenlinnan seudun joukkoliikenne",
     operatorShort: "Hämeenlinna",
     feedMatch: /hameenlinna|hämeenlinna/i,
+    rail: "HL",
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Turuntien silta 41 linjaa, Sisälähetys 37).
     centerStopNames: ["Turuntien silta", "Sisälähetys"],
@@ -2127,6 +2139,7 @@ const CONFIGS = {
     operator: "Joensuun seudun joukkoliikenne",
     operatorShort: "Joensuu",
     feedMatch: /joensuu/i,
+    rail: "JNS",
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Itäranta 18 linjaa, Koskikatu 17).
     centerStopNames: ["Itäranta", "Koskikatu"],
@@ -2161,6 +2174,7 @@ const CONFIGS = {
     operator: "Jyväskylän seudun joukkoliikenne",
     operatorShort: "Linkki",
     feedMatch: /linkki|jyväskylä/i,
+    rail: "JY",
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Urhonkatu 42 linjaa, Kauppatori 29).
     centerStopNames: ["Urhonkatu", "Kauppatori"],
@@ -2195,6 +2209,7 @@ const CONFIGS = {
     operator: "Lappeenrannan joukkoliikenne",
     operatorShort: "Lappeenranta",
     feedMatch: /lappeenranta/i,
+    rail: "LR",
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Oikokatu 27 linjaa, Armada 18).
     centerStopNames: ["Oikokatu", "Armada"],
@@ -2230,6 +2245,7 @@ const CONFIGS = {
     operator: "Oulun seudun liikenne",
     operatorShort: "OSL",
     feedMatch: /^oulu$/i,
+    rail: "OL",
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Pokkitörmä 48 linjaa, Raatti 37).
     centerStopNames: ["Pokkitörmä", "Raatti"],
@@ -2265,6 +2281,7 @@ const CONFIGS = {
     operator: "Porin joukkoliikenne",
     operatorShort: "Pori",
     feedMatch: /^pori$/i,
+    rail: "PRI",
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Teljäntori 33 linjaa, Asema-aukio 23).
     centerStopNames: ["Teljäntori", "Asema-aukio"],
@@ -2299,6 +2316,7 @@ const CONFIGS = {
     operator: "Rovaniemen paikallisliikenne",
     operatorShort: "Rovaniemi",
     feedMatch: /rovaniemi/i,
+    rail: "ROI",
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Poliisilaitos 10 linjaa, Hallituskatu 7).
     centerStopNames: ["Poliisilaitos", "Hallituskatu"],
@@ -2696,6 +2714,15 @@ const STRINGS = {
     corridorExcluded: "Ei mukana (ei yhteistä jaksoa valittujen kanssa): {lines}",
     corridorLineCol: "Linja", corridorDestCol: "Määränpää",
     corridorSharedNote: "Ajat yhteisillä pysäkeillä: {n} yhteistä pysäkkiä välillä {from}–{to}.",
+    trainsLink: "Junien lähdöt",
+    trainsTitle: "Junien lähdöt",
+    trainsIntro: "Seuraavat lähtevät junat asemalta {station}. Ajat päivittyvät automaattisesti.",
+    trainsTrain: "Juna", trainsTrack: "Raide",
+    trainsEmpty: "Ei lähteviä junia lähitunteina.",
+    trainsCancelled: "Peruttu",
+    trainsLate: "arvio {time}",
+    trainsSrc: "Junatiedot: Fintraffic / rata.digitraffic.fi (CC BY 4.0)",
+    trainsErr: "Junatietoja ei saatu ladattua. Yritä hetken päästä uudelleen.",
     legendSkipStop: "· = vuoro ei aja tämän pysäkin kautta",
     preparingPrint: "Valmistellaan tulostetta…", toHomeAria: "Etusivulle",
     mapStopsTitle: "Reitti kartalla ja pysäkit",
@@ -3120,6 +3147,15 @@ const STRINGS = {
     corridorExcluded: "Not included (no shared corridor with the selection): {lines}",
     corridorLineCol: "Line", corridorDestCol: "Destination",
     corridorSharedNote: "Times at shared stops: {n} shared stops between {from}–{to}.",
+    trainsLink: "Train departures",
+    trainsTitle: "Train departures",
+    trainsIntro: "Next departing trains from {station}. Times update automatically.",
+    trainsTrain: "Train", trainsTrack: "Track",
+    trainsEmpty: "No departing trains in the next few hours.",
+    trainsCancelled: "Cancelled",
+    trainsLate: "estimate {time}",
+    trainsSrc: "Train data: Fintraffic / rata.digitraffic.fi (CC BY 4.0)",
+    trainsErr: "Could not load train data. Please try again in a moment.",
     legendSkipStop: "· = service does not run via this stop",
     preparingPrint: "Preparing printout…", toHomeAria: "To home page",
     mapStopsTitle: "Route map and stops",
@@ -3542,6 +3578,15 @@ const STRINGS = {
     corridorExcluded: "Ingår inte (inget gemensamt stråk med urvalet): {lines}",
     corridorLineCol: "Linje", corridorDestCol: "Destination",
     corridorSharedNote: "Tider vid gemensamma hållplatser: {n} gemensamma hållplatser mellan {from}–{to}.",
+    trainsLink: "Tågavgångar",
+    trainsTitle: "Tågavgångar",
+    trainsIntro: "Följande avgående tåg från {station}. Tiderna uppdateras automatiskt.",
+    trainsTrain: "Tåg", trainsTrack: "Spår",
+    trainsEmpty: "Inga avgående tåg under de närmaste timmarna.",
+    trainsCancelled: "Inställt",
+    trainsLate: "uppskattning {time}",
+    trainsSrc: "Tågdata: Fintraffic / rata.digitraffic.fi (CC BY 4.0)",
+    trainsErr: "Tågdata kunde inte laddas. Försök igen om en stund.",
     legendSkipStop: "· = turen kör inte via denna hållplats",
     preparingPrint: "Förbereder utskrift…", toHomeAria: "Till startsidan",
     mapStopsTitle: "Rutt på kartan och hållplatser",
@@ -4186,6 +4231,7 @@ const ICONS = {
   route: '<circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="5.5" r="2"/><path d="M7 17.5L17 6.5"/>',
   map: '<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/>',
   network: '<circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v3M11 11l-5 6M13 11l5 6"/>',
+  train: '<rect x="5" y="3" width="14" height="12" rx="3"/><path d="M5 10h14M9.5 12.9v.01M14.5 12.9v.01"/><path d="M9 15l-2 4M15 15l2 4M7.5 19h9"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/>',
   ticket: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M9 6v12"/>',
   print: '<path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 13H4a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-2"/>',
@@ -5842,6 +5888,7 @@ function homeToolGroupsHtml() {
   ]) + group("groupSchedules", [
     tool("#/poikkeukset", "calendar", t("exLink")),
     tool("#/tulosteet/vihko", "print", t("printCenterLink")),
+    CONFIG.rail ? tool("#/junat", "train", t("trainsLink")) : "",
   ]) + group("groupTickets", [
     CONFIG.fares ? tool("#/liput", "ticket", t("faresLink")) : "",
     PROXY_URL ? tool("#/sahkoposti", "mail", t("emailSubTitle")) : "",
@@ -7495,6 +7542,108 @@ function viewExceptions() {
       ${all.length ? `<ul class="ex-list">${rows}</ul>` : `<p>${t("exNone")}</p>`}
       <p style="margin-top:0.8rem"><a class="item" href="#/">${icon("bus")} <span>${t("exCheckCta")}</span></a></p>
     </div>`);
+}
+
+/* ---------- Junien lähdöt (#/junat) — rata.digitraffic.fi (Fintraffic, CC BY 4.0) ---------- */
+// Vain rail-kaupungit (CONFIG.rail = asemakoodi). Data haetaan SUORAAN selaimesta:
+// rajapinta on avoin, avaimeton ja palauttaa Access-Control-Allow-Origin: * →
+// proxya ei tarvita EIKÄ kutsu kuluta Digitransit-kiintiötä. Rajapinnan
+// Cache-Control on 30 s, joten 60 s päivitysväli ei kuormita sitä turhaan.
+
+const RAIL_API = "https://rata.digitraffic.fi/api/v1";
+
+// Asemakoodi → nimi (563 asemaa) localStorage-välimuistiin 7 vrk:ksi. Avain on
+// tarkoituksella kaupunkijaon (ns()) ulkopuolella: sama data joka kaupungille.
+async function railStationNames() {
+  const KEY = "railStations-v1";
+  try {
+    const c = JSON.parse(localStorage.getItem(KEY));
+    if (c && c.t > Date.now() - 7 * 864e5) return c.map;
+  } catch (e) { /* rikkinäinen välimuisti ohitetaan */ }
+  const res = await fetch(RAIL_API + "/metadata/stations", { headers: { "Digitraffic-User": "Reittari" } });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const map = {};
+  for (const s of await res.json()) {
+    // "Kuopio asema" → "Kuopio" — asema-pääte on tässä käytössä kohinaa
+    map[s.stationShortCode] = String(s.stationName || s.stationShortCode).replace(/ asema$/i, "");
+  }
+  try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), map })); } catch (e) { /* täysi storage ei kaada */ }
+  return map;
+}
+
+async function loadTrains(code, names) {
+  const res = await fetch(`${RAIL_API}/live-trains/station/${code}` +
+    "?arrived_trains=0&arriving_trains=0&departed_trains=0&departing_trains=15&include_nonstopping=false",
+    { headers: { "Digitraffic-User": "Reittari" } });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const rows = [];
+  for (const tr of await res.json()) {
+    // vain matkustajajunat; tavara- ja työjunat pois
+    if (tr.trainCategory !== "Long-distance" && tr.trainCategory !== "Commuter") continue;
+    const dep = (tr.timeTableRows || []).find(r =>
+      r.stationShortCode === code && r.type === "DEPARTURE" && r.trainStopping !== false);
+    if (!dep) continue;
+    const stops = (tr.timeTableRows || []).filter(r => r.trainStopping !== false);
+    const destCode = stops.length ? stops[stops.length - 1].stationShortCode : "";
+    rows.push({
+      sched: new Date(dep.scheduledTime),
+      est: dep.liveEstimateTime ? new Date(dep.liveEstimateTime) : null,
+      cancelled: !!(tr.cancelled || dep.cancelled),
+      // lähijunilla kirjaintunnus (Z, R, …), kaukojunilla tyyppi + numero (IC 62)
+      label: tr.commuterLineID || `${tr.trainType} ${tr.trainNumber}`,
+      dest: names[destCode] || destCode,
+      track: dep.commercialTrack || "",
+    });
+  }
+  rows.sort((a, b) => a.sched - b.sched);
+  return rows;
+}
+
+async function viewTrains() {
+  if (!CONFIG.rail) { location.hash = "#/"; return; }
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <div class="card">
+      <h2>${icon("train")} ${t("trainsTitle")}</h2>
+      <p class="muted" id="trainsIntro"></p>
+      <div id="trainsOut" aria-live="polite"><p class="muted">…</p></div>
+      <p class="muted" style="margin-top:0.8rem">${t("trainsSrc")}</p>
+    </div>`);
+  const my = viewSeq;
+  const hhmm = d => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  // Harvaan liikennöidyillä asemilla lista jatkuu huomiseen (esim. Vaasa: 18:07 → 04:44)
+  // → pelkkä kellonaika olisi harhaanjohtava, joten muu kuin tämä päivä saa viikonpäivän eteen
+  const locale = lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI";
+  const dayTime = d => (d.toDateString() === new Date().toDateString() ? "" :
+    d.toLocaleDateString(locale, { weekday: "short" }) + " ") + hhmm(d);
+  const draw = async () => {
+    let names, rows;
+    try { names = await railStationNames(); rows = await loadTrains(CONFIG.rail, names); }
+    catch (e) {
+      if (viewSeq === my) document.getElementById("trainsOut").innerHTML = `<div class="error">${t("trainsErr")}</div>`;
+      return;
+    }
+    if (viewSeq !== my) return;
+    document.getElementById("trainsIntro").textContent = t("trainsIntro", { station: names[CONFIG.rail] || CONFIG.rail });
+    const body = rows.map(r => {
+      // myöhässä ≥ 1 min → arvioitu aika korostettuna aikataulunmukaisen perään
+      const late = r.est && Math.abs(r.est - r.sched) >= 60000;
+      const time = r.cancelled
+        ? `<s>${dayTime(r.sched)}</s> <span class="ex-tag">${t("trainsCancelled")}</span>`
+        : dayTime(r.sched) + (late ? ` <strong>→ ${hhmm(r.est)}</strong>` : "");
+      return `<tr><td>${time}</td><td><strong>${esc(r.label)}</strong></td>` +
+        `<td style="text-align:left">${esc(r.dest)}</td><td>${esc(r.track)}</td></tr>`;
+    }).join("");
+    document.getElementById("trainsOut").innerHTML = rows.length
+      ? `<div class="matrix-wrap"><table class="stoptable booklet">
+           <thead><tr><th scope="col">${t("thDeparts")}</th><th scope="col">${t("trainsTrain")}</th>
+           <th scope="col" style="text-align:left">${t("thDest")}</th><th scope="col">${t("trainsTrack")}</th></tr></thead>
+           <tbody>${body}</tbody></table></div>`
+      : `<p>${t("trainsEmpty")}</p>`;
+  };
+  await draw();
+  refreshNow = () => { draw().catch(() => {}); };
+  refreshTimer = setInterval(refreshNow, 60000);
 }
 
 /* ---------- Palaute / vikailmoitus (#/palaute) ---------- */
@@ -10164,6 +10313,7 @@ async function route() {
     else if (parts[0] === "poikkeukset") viewExceptions();
     else if (parts[0] === "palaute") viewFeedback();
     else if (parts[0] === "liput") viewFares();
+    else if (parts[0] === "junat") await viewTrains();
     else if (parts[0] === "pysakki" && parts[1]) { track("stop", stripFeed(parts[1])); await viewStop(parts[1]); }
     else await viewRoutes();
   } catch (err) {

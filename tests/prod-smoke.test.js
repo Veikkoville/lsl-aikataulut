@@ -543,6 +543,28 @@ function writeReport() {
         }
       }
 
+      // --- 6c) Junien lähdöt (#/junat): näkymä renderöityy — taulukko TAI aito
+      //         tyhjä-viesti; virhetila FAILaa (pelisääntö 4: tyhjä-viesti tulee vain
+      //         kun rata.digitraffic vastasi 200 mutta matkustajajunia ei ole listalla,
+      //         API-virhe renderöi .error-lohkon). Ei kuluta Digitransit-kiintiötä.
+      await page.goto(url("#/junat"), { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
+      const railState = await page.waitForFunction(() => {
+        const out = document.getElementById("trainsOut");
+        if (!out) return null;
+        if (out.querySelector(".error")) return "error";
+        if (out.querySelector("table tbody tr")) return "rows";
+        const p = out.querySelector(":scope > p:not(.muted)");
+        return p ? "empty" : null;
+      }, { timeout: 30000 }).then(h => h.jsonValue()).catch(() => "timeout");
+      if (railState === "rows") {
+        const railN = await page.evaluate(() => document.querySelectorAll("#trainsOut tbody tr").length);
+        pass(city.key, "junien lähdöt", `${railN} lähtevää junaa (rata.digitraffic)`);
+      } else if (railState === "empty") {
+        info(city.key, "junien lähdöt", "ei lähteviä junia lähitunteina (näkymä ehjä, API vastasi)");
+      } else {
+        fail(city.key, "junien lähdöt", "näkymä ei renderöitynyt: " + railState);
+      }
+
       // --- 7) Konsolivirheet koko kaupungin ajolta ---
       // 429 saa oman juurisyyviestin, jottei kiintiöongelma näytä sisältövirheeltä
       // (10.8.2026: "tuntikaaviota ei muodostunut" oli oire, ei vika).
