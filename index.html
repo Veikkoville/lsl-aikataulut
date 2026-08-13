@@ -1870,10 +1870,14 @@ const CONFIGS = {
     operatorShort: "Jonne ja Minne",
     feedMatch: /^kotka$/i,
     heroEmphasis: "layer",
-    // Yhdistetyt suunnat -presetti (datavarmistus 8.7.2026: 25+25S jakavat 44 pysäkin
-    // jakson Karhula–Kantasatama, molemmat aktiivisia)
+    // Yhdistetyt suunnat -presetti (mitattu talvifeedistä 13.8.2026: talvifeed
+    // korvasi 25-rungon varianteilla 25T (Tiutinen) ja 25Y (Ylänummi) — 24 ja 26
+    // vuoroa/pv, molemmat suunnat, 39/44 jaettua pysäkkiä Keskusta–Mussalo–
+    // Karhuvuori–Karhula-jaksolla. Kesäpari 25+25S kutistui 2+1 vuoroon eikä
+    // jaa enää yhtään samansuuntaista pysäkkiä → käytävä ei koostunut.
+    // Alkuperäinen kesävarmistus 8.7.2026.)
     corridors: [
-      { key: "karhula", name: "Karhulan suunta", lines: ["25", "25S"] },
+      { key: "karhula", name: "Karhulan suunta", lines: ["25T", "25Y"] },
     ],
     brandColor: "#a8500f",          // Jonne ja Minne -oranssi (headerBgColor() pitää AA:n valkoiselle)
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",

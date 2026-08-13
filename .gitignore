@@ -12,3 +12,7 @@ _preview_*.pdf
 
 # Redesign-inventaario (sisäinen kartoitusdokumentti, ei julkiseen repoon)
 REDESIGN-INVENTAARIO.md
+
+# Kausivalidoinnin lokaali tulosraportti (CI kirjoittaa oman artefaktiksi)
+kausivalidointi-tulos.json
+kausivalidointi-loki.txt
