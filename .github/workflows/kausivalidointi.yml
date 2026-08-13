@@ -1,0 +1,48 @@
+# Kausivalidointi: feeditason viikkovahti (tests/kausivalidointi.js).
+# Täydentää Tuotanto-smokea: smoke todentaa tuotepolun selaimella, tämä vahtii
+# DATAN kausimuutoksia ennakkoon (serviceId-käytännöt, presettien elinvoima D+35,
+# solmupysäkkien vuoromäärät) — luokka jota 12.8. KP/LP-löydös ja 13.8. Raaseporin
+# presettirikko edustavat: tuote toimii, mutta data on vaihtunut alta.
+#
+# KIINTIÖKURI: pelkkiä GraphQL-kutsuja (ei sivulatauksia), kulutus < 10 %
+# smoke-ajosta. Ajastus eri päivälle ja ajalle kuin Tuotanto-smoken erät
+# (erä 1 ma 04:00 UTC, erä 2 to 18:00 UTC), ettei kiintiötä kuluteta yhtä aikaa.
+name: Kausivalidointi
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 2" # ti 05:00 UTC = 08:00 Suomen kesäaikaa
+
+permissions:
+  contents: read
+
+jobs:
+  kausivalidointi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Aja kausivalidointi (read-only, ei riippuvuuksia)
+        run: |
+          set -o pipefail
+          node tests/kausivalidointi.js 2>&1 | tee kausivalidointi-loki.txt
+      - name: Yhteenveto
+        if: always()
+        run: |
+          echo '## Kausivalidointi' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^(PASS|WARN|FAIL|YHTEENVETO)" kausivalidointi-loki.txt >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Arkistoi raportti
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kausivalidointi-raportti
+          path: |
+            kausivalidointi-tulos.json
+            kausivalidointi-loki.txt
+          retention-days: 90
