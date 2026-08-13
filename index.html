@@ -1908,19 +1908,23 @@ const CONFIGS = {
     // → @L-lokalisointi pyytää FI:n eksplisiittisesti (localizeQuery/localizePlanNode).
     feedLang: "sv",
     heroEmphasis: "layer",
-    // Yhdistetyt suunnat -presetit (datavarmistus 6.8.2026 SEKÄ kesä- (7.8.) että
-    // talvifeedillä (13.8.), jotta 12.8. kausivaihto ei riko presettejä):
-    // 201+201s jakavat 25 pysäkin jakson Karjaa–Tammisaari molempiin suuntiin
-    // molemmilla kausilla; 134n+144n 23/24 pysäkin jakson Karjaa–Fiskars/Antskog
-    // talvifeedillä (134n ajaa ympäri vuoden). Aiemmat kesäpresetit rikkoutuivat
-    // talvivaihtoon: 261 ja 104n eivät aja talvella lainkaan (9.7. valinta oli
-    // tehty vain kesäfeedillä). HUOM: 192 EI kelpaa käytävään — sen primaripatternit
-    // ovat molemmilla kausilla lyhyitä Karjaa–Grundsjö-syöttövuoroja, pitkä
-    // Tammisaari-ketju on harvinainen variantti. Kaksikieliset nimet (SV-kärki):
-    // corridorName() valitsee kielen mukaan.
+    // Yhdistetyt suunnat -presetit (mitattu AIDOSTA talvifeedistä 13.8.2026 — 6.8.
+    // "talvikoetus" tehtiin ennakkojulkaistulla datalla joka EI vastannut lopullista:
+    // 144n poistui feedistä kokonaan ja 201s ajaa talvella vain suuntaan Ekenäs,
+    // jolloin 201+201s-käytävästä katosi paluusuunta 11.8. feedivaihdossa):
+    // 201+192T jakavat 25/24 pysäkin jakson Karjaa–Tammisaari molempiin suuntiin
+    // (201s lisänä: +2 kouluvuoroa suuntaan Ekenäs, jää pois paluusuunnasta);
+    // 134+134n jakavat 22/21 pysäkin jakson Karjaa–Pohja–Fiskars molempiin suuntiin.
+    // Elinvoima todennettu tripsForDate-koetuksella 17.8./20.8./17.9./5.10./26.10.
+    // (kaikki linjat vakaita, myös syyslomaviikolla). Aiemmat kesäpresetit
+    // rikkoutuivat talvivaihtoon: 261 ja 104n eivät aja talvella lainkaan (9.7.
+    // valinta oli tehty vain kesäfeedillä). HUOM: 192 (perusversio) EI kelpaa
+    // käytävään — sen primaripatternit ovat lyhyitä Karjaa–Grundsjö-syöttövuoroja;
+    // 192T:n primaripatternit sen sijaan ajavat koko Tammisaari-ketjun.
+    // Kaksikieliset nimet (SV-kärki): corridorName() valitsee kielen mukaan.
     corridors: [
-      { key: "tammisaari", name: { fi: "Tammisaaren suunta", sv: "Riktning Ekenäs", en: "Ekenäs direction" }, lines: ["201", "201s"] },
-      { key: "fiskars", name: { fi: "Fiskarsin suunta", sv: "Riktning Fiskars", en: "Fiskars direction" }, lines: ["134n", "144n"] },
+      { key: "tammisaari", name: { fi: "Tammisaaren suunta", sv: "Riktning Ekenäs", en: "Ekenäs direction" }, lines: ["201", "201s", "192T"] },
+      { key: "fiskars", name: { fi: "Fiskarsin suunta", sv: "Riktning Fiskars", en: "Fiskars direction" }, lines: ["134", "134n"] },
     ],
     // BOSSE-vihreä = reittioppaan oma teemaväri (bosse.digitransit.fi meta theme-color,
     // luettu 9.7.2026). headerBgColor() pitää AA:n valkoiselle.
