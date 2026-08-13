@@ -1008,6 +1008,38 @@ async function printHygiene(page, label) {
   printTools === 1 ? ok("etusivu: yksi 'Tulosteet ja näytöt' -nappi (korvaa kaksi)")
                    : fail(`etusivu: tulostenappeja ${printTools} (odotus 1)`);
 
+  // --- Uusintapainatuslista: mitkä painetut tulosteet ovat vanhentuneet ---
+  // Seurattava yksikkö = painettava arkki: CONFIG.corridors-käytävät + jokainen linja.
+  // Assertio mittaa yksikkömäärät, ei pelkkää otsikkoa: tyhjä lista on virhetila eikä
+  // saa mennä läpi (vrt. "ei lähtöjä" -fallback).
+  await page.goto(BASE + "/#/uusintapainatus", { waitUntil: "networkidle2" });
+  await sleep(600);
+  const rp = await page.evaluate(() => ({
+    otsikko: !!document.querySelector("h2"),
+    yksikoita: document.querySelectorAll(".rpCb").length,
+    kaytavia: [...document.querySelectorAll("#rpOthers li, #rpTracked li")]
+      .filter(li => li.querySelector('input[value^="corr:"]')).length,
+    nappi: !!document.getElementById("rpGo"),
+    perustasovihje: !!document.querySelector("#rpOthers"),
+  }));
+  (rp.otsikko && rp.nappi && rp.perustasovihje && rp.kaytavia === 2 && rp.yksikoita > 50)
+    ? ok(`uusintapainatus: ${rp.yksikoita} seurattavaa yksikköä (${rp.kaytavia} käytävää + linjat)`)
+    : fail("uusintapainatus: näkymä vajaa: " + JSON.stringify(rp));
+
+  // Perustason vertailu: merkitty tuloste + muuttunut data = "painettava uudelleen".
+  // Ajetaan puhtaasti sormenjälkitasolla (ei verkkohakua), jotta assertio on nopea ja vakaa.
+  const diffProbe = await page.evaluate(() => {
+    const perus = { dirs: [{ label: "Tevi P A > Sipurantie P", groups: [
+      { label: "Ma-To", n: 84, first: "05:10", last: "23:18", h: "vanha" }] }] };
+    const nyt = { dirs: [{ label: "Trio A > Sipurantie P", groups: [
+      { label: "Ma-To", n: 87, first: "04:35", last: "23:18", h: "uusi" }] }] };
+    return { muutokset: reprintDiff(perus, nyt), sama: reprintDiff(nyt, nyt) };
+  });
+  (diffProbe.muutokset.length >= 2 && diffProbe.sama.length === 0 &&
+   diffProbe.muutokset.some(s => /Tevi P/.test(s)) && diffProbe.muutokset.some(s => /84|87/.test(s)))
+    ? ok(`uusintapainatus: muutosvertailu tuottaa syyn (${diffProbe.muutokset.length} riviä, muuttumaton = 0)`)
+    : fail("uusintapainatus: muutosvertailu ei toimi: " + JSON.stringify(diffProbe));
+
   // --- Konsolivirheet ---
   const realErrors = consoleErrors.filter(e => !e.includes("favicon"));
   realErrors.length

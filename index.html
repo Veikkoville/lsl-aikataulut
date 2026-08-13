@@ -96,6 +96,7 @@
     /* Transit-grade design-tokenit. Yksi vahva sininen primääri + neutraalit harmaat.
        Semanttiset värit VAIN merkitykseen: --green = ok/nopein, --sev-warning = häiriö,
        --sev-severe = vakava. Litteä ilme: ei gradientteja/varjoja (--shadow = läpinäkyvä). */
+    --page-max: 760px;          /* sisältösarakkeen leveys; kasvaa isolla ruudulla (ks. main) */
     --blue: #0a4ea3;            /* primääri, AA valkoisella (~7.6:1) */
     --btn-bg: #0a4ea3;
     --btn-hover: #083d80;
@@ -361,7 +362,7 @@
     z-index: 600;
   }
   .header-inner {
-    max-width: 760px;
+    max-width: var(--page-max);
     margin: 0 auto;
     display: flex;
     align-items: center;
@@ -428,7 +429,12 @@
   }
   /* min-height pitää footerin aina taitteen alapuolella, joten näkymän
      sisällön asynkroninen latautuminen ei työnnä sitä näkyvistä (CLS) */
-  main { max-width: 760px; margin: 0 auto; padding: 1rem; min-height: 100vh; }
+  main { max-width: var(--page-max); margin: 0 auto; padding: 1rem; min-height: 100vh; }
+  /* Isolla ruudulla 760 px jättää puolet näytöstä tyhjäksi, ja juuri linjaruudukko
+     (auto-fill 158 px) kärsii siitä eniten. Leveys kasvaa vain ylöspäin ja maltillisesti:
+     980 px pitää leipätekstin yhä luettavan mittaisena mutta antaa ruudukolle 2 saraketta
+     lisää. Ylätunniste ja footer seuraavat samaa muuttujaa, joten reunat pysyvät linjassa. */
+  @media (min-width: 1200px) { :root { --page-max: 980px; } }
   /* REILA F3: peruskortti saa Reila-signaalin — suurempi pyöristys + hienovarainen
      kohotus. Tokenit (--card/--border) pysyvät, joten print/dark/kontrasti/per-kaupunki
      -mekaniikka ei muutu; print nollaa varjon erikseen (ks. @media print). */
@@ -489,7 +495,7 @@
   button.secondary.armed { border-color: var(--blue); color: var(--blue);
     background: var(--hover); font-weight: 600; }
   /* Jäsennelty footer (linkkisarakkeet + lähde + varauma) */
-  .foot-cols { max-width: 760px; margin: 0 auto; display: grid;
+  .foot-cols { max-width: var(--page-max); margin: 0 auto; display: grid;
     grid-template-columns: 1.7fr 1fr 1fr; gap: 1.3rem; }
   .foot-brand { display: flex; gap: 0.6rem; align-items: flex-start; }
   .foot-brand img { border-radius: 8px; flex-shrink: 0; }
@@ -498,7 +504,7 @@
     letter-spacing: 0.06em; color: var(--text); }
   .foot-col a { display: block; padding: 0.22rem 0; color: var(--blue); text-decoration: none; }
   .foot-col a:hover { text-decoration: underline; }
-  .foot-note { max-width: 760px; margin: 1.2rem auto 0; padding-top: 1rem;
+  .foot-note { max-width: var(--page-max); margin: 1.2rem auto 0; padding-top: 1rem;
     border-top: 1px solid var(--border); }
   @media (max-width: 540px) {
     .foot-cols { grid-template-columns: 1fr 1fr; }
@@ -1095,6 +1101,7 @@
   .desk-deps-lines { margin: 0 0 0.6rem; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
   .desk-deps-lines .badge { font-size: 1.05em; padding: 0.18rem 0.55rem; }
   .desk-deps-upd { margin-top: 0.55rem; }
+  .desk-pin-row { margin: 0.6rem 0 0; }
   .desk .deps td, .desk .deps th { font-size: 1em; padding: 0.45rem 0.5rem; }
   .desk-aux { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.4rem; align-items: start; margin-top: 1.4rem; }
   @media (max-width: 820px) { .desk-aux { grid-template-columns: 1fr; } }
@@ -1146,7 +1153,9 @@
   .btn-primary .ic { width: 1.25em; height: 1.25em; }
   @media (min-width: 560px) { .btn-primary { width: auto; min-width: 15rem; } }
   /* Työkalut: hillitty, sekundaarinen ikonirivi (pienemmät kuin hero/lähimmät) */
-  .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  /* 140 px katkoi pitkät suomalaiset yhdyssanat kesken sanan ("Poikkeuspäivä-t"); 168 px
+     vie ne yhdelle riville eikä vie saraketta pois (mitattu 13.8.2026: 5 saraketta ennallaan). */
+  .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
     gap: 0.55rem; margin: 0 0 1.1rem; }
   /* Kompakti yhden rivin haku heron alle (ei isoa korttia) */
   .home-search { margin: 0 0 1.1rem; }
@@ -2546,6 +2555,8 @@ const STRINGS = {
     deskStopPlaceholder: "Pysäkin nimi",
     deskStopLines: "Linjat pysäkiltä {stop}:",
     deskStopNoLines: "Ei säännöllisiä linjoja.",
+    deskPinBtn: "Kiinnitä tämä pysäkki oletukseksi",
+    deskPinned: "Kiinnitetty oletukseksi",
     deskNoStop: "Pysäkkiä ei löytynyt.",
     deskDepsTitle: "Seuraavat lähdöt pysäkiltä",
     deskDepsHint: "Kirjoita pysäkki ja valitse listalta. Näet lähdöt reaaliajassa.",
@@ -2709,6 +2720,31 @@ const STRINGS = {
     corridorPresets: "Valmiit ryhmät",
     corridorGenerate: "Kokoa aikataulu",
     corridorPickHint: "Valitse vähintään kaksi linjaa.",
+    reprintLink: "Uusintapainatuslista",
+    reprintTitle: "Uusintapainatuslista",
+    reprintIntro: "Kertoo mitkä jo painetut tulosteet ovat vanhentuneet, kun aikataulut ovat muuttuneet. Merkitse tuloste painetuksi, niin seuraavalla tarkistuksella näet muuttuiko se.",
+    reprintCheck: "Tarkista muutokset",
+    reprintChecking: "Tarkistetaan {done}/{total}…",
+    reprintTracked: "Seurannassa",
+    reprintAddMore: "Lisää seurantaan",
+    reprintNoBaseline: "Mitään tulostetta ei ole vielä merkitty painetuksi. Valitse alta ne jotka olet painanut, aja tarkistus ja merkitse ne painetuiksi: se on vertailukohta jota vasten muutokset näkyvät.",
+    reprintNonePicked: "Valitse vähintään yksi tuloste.",
+    reprintChanged: "Painettava uudelleen",
+    reprintSame: "Ennallaan",
+    reprintNewUnits: "Ei vertailukohtaa",
+    reprintFailed: "Tarkistus ei onnistunut",
+    reprintNoRef: "Ei perustasoa.",
+    reprintMark: "Merkitse painetuksi",
+    reprintMarked: "Merkitty painetuksi",
+    reprintPrintedAt: "Painettu {date}",
+    reprintEmpty: "Yksikään seurattu tuloste ei ole muuttunut.",
+    reprintDiffDir: "Päätepysäkki muuttui: {a} → {b}",
+    reprintDiffDirCount: "Suuntien määrä muuttui: {a} → {b}",
+    reprintDiffTrips: "{label}: {a} → {b} lähtöä",
+    reprintDiffTimes: "{label}: lähtöajat muuttuivat",
+    reprintDiffSpan: "{label}: ensimmäinen–viimeinen {a} → {b}",
+    reprintDiffAdded: "Uusi lohko: {label}",
+    reprintDiffRemoved: "Lohko poistui: {label}",
     corridorBuilding: "Kootaan yhdistettyä aikataulua…",
     corridorNoShared: "Valituilla linjoilla ei ole riittävää yhteistä pysäkkijaksoa (vähintään 3 yhteistä pysäkkiä samassa järjestyksessä).",
     corridorExcluded: "Ei mukana (ei yhteistä jaksoa valittujen kanssa): {lines}",
@@ -2985,6 +3021,8 @@ const STRINGS = {
     deskStopPlaceholder: "Stop name",
     deskStopLines: "Lines at stop {stop}:",
     deskStopNoLines: "No regular lines.",
+    deskPinBtn: "Pin this stop as the default",
+    deskPinned: "Pinned as the default",
     deskNoStop: "Stop not found.",
     deskDepsTitle: "Next departures from stop",
     deskDepsHint: "Type a stop and pick it. Departures are shown in real time.",
@@ -3142,6 +3180,31 @@ const STRINGS = {
     corridorPresets: "Ready-made groups",
     corridorGenerate: "Build timetable",
     corridorPickHint: "Choose at least two routes.",
+    reprintLink: "Reprint list",
+    reprintTitle: "Reprint list",
+    reprintIntro: "Shows which already printed sheets are out of date after a timetable change. Mark a sheet as printed and the next check tells you whether it changed.",
+    reprintCheck: "Check for changes",
+    reprintChecking: "Checking {done}/{total}…",
+    reprintTracked: "Tracked",
+    reprintAddMore: "Add to tracking",
+    reprintNoBaseline: "No sheet has been marked as printed yet. Pick the ones you have printed, run a check and mark them printed: that is the baseline changes are measured against.",
+    reprintNonePicked: "Select at least one sheet.",
+    reprintChanged: "Needs reprinting",
+    reprintSame: "Unchanged",
+    reprintNewUnits: "No baseline",
+    reprintFailed: "Check failed",
+    reprintNoRef: "No baseline.",
+    reprintMark: "Mark as printed",
+    reprintMarked: "Marked as printed",
+    reprintPrintedAt: "Printed {date}",
+    reprintEmpty: "None of the tracked sheets have changed.",
+    reprintDiffDir: "Terminus changed: {a} → {b}",
+    reprintDiffDirCount: "Number of directions changed: {a} → {b}",
+    reprintDiffTrips: "{label}: {a} → {b} departures",
+    reprintDiffTimes: "{label}: departure times changed",
+    reprintDiffSpan: "{label}: first–last {a} → {b}",
+    reprintDiffAdded: "New block: {label}",
+    reprintDiffRemoved: "Block removed: {label}",
     corridorBuilding: "Building the combined timetable…",
     corridorNoShared: "The selected routes do not share a sufficient common stop sequence (at least 3 shared stops in the same order).",
     corridorExcluded: "Not included (no shared corridor with the selection): {lines}",
@@ -3416,6 +3479,8 @@ const STRINGS = {
     deskStopPlaceholder: "Hållplatsens namn",
     deskStopLines: "Linjer vid hållplats {stop}:",
     deskStopNoLines: "Inga reguljära linjer.",
+    deskPinBtn: "Fäst den här hållplatsen som standard",
+    deskPinned: "Fäst som standard",
     deskNoStop: "Hållplatsen hittades inte.",
     deskDepsTitle: "Nästa avgångar från hållplats",
     deskDepsHint: "Skriv en hållplats och välj den. Avgångarna visas i realtid.",
@@ -3573,6 +3638,31 @@ const STRINGS = {
     corridorPresets: "Färdiga grupper",
     corridorGenerate: "Sammanställ tidtabellen",
     corridorPickHint: "Välj minst två linjer.",
+    reprintLink: "Omtryckslista",
+    reprintTitle: "Omtryckslista",
+    reprintIntro: "Visar vilka redan tryckta utskrifter som är föråldrade efter en tidtabellsändring. Markera en utskrift som tryckt, så visar nästa kontroll om den har ändrats.",
+    reprintCheck: "Kontrollera ändringar",
+    reprintChecking: "Kontrollerar {done}/{total}…",
+    reprintTracked: "Bevakade",
+    reprintAddMore: "Lägg till bevakning",
+    reprintNoBaseline: "Ingen utskrift har ännu markerats som tryckt. Välj de du har tryckt, kör en kontroll och markera dem som tryckta: det är utgångsläget som ändringarna mäts mot.",
+    reprintNonePicked: "Välj minst en utskrift.",
+    reprintChanged: "Måste tryckas om",
+    reprintSame: "Oförändrade",
+    reprintNewUnits: "Ingen jämförelsepunkt",
+    reprintFailed: "Kontrollen misslyckades",
+    reprintNoRef: "Inget utgångsläge.",
+    reprintMark: "Markera som tryckt",
+    reprintMarked: "Markerad som tryckt",
+    reprintPrintedAt: "Tryckt {date}",
+    reprintEmpty: "Ingen av de bevakade utskrifterna har ändrats.",
+    reprintDiffDir: "Ändhållplatsen ändrades: {a} → {b}",
+    reprintDiffDirCount: "Antalet riktningar ändrades: {a} → {b}",
+    reprintDiffTrips: "{label}: {a} → {b} avgångar",
+    reprintDiffTimes: "{label}: avgångstiderna ändrades",
+    reprintDiffSpan: "{label}: första–sista {a} → {b}",
+    reprintDiffAdded: "Nytt block: {label}",
+    reprintDiffRemoved: "Block borttaget: {label}",
     corridorBuilding: "Sammanställer den kombinerade tidtabellen…",
     corridorNoShared: "De valda linjerna har ingen tillräcklig gemensam hållplatssekvens (minst 3 gemensamma hållplatser i samma ordning).",
     corridorExcluded: "Ingår inte (inget gemensamt stråk med urvalet): {lines}",
@@ -5888,6 +5978,7 @@ function homeToolGroupsHtml() {
   ]) + group("groupSchedules", [
     tool("#/poikkeukset", "calendar", t("exLink")),
     tool("#/tulosteet/vihko", "print", t("printCenterLink")),
+    tool("#/uusintapainatus", "print", t("reprintLink")),
     CONFIG.rail ? tool("#/junat", "train", t("trainsLink")) : "",
   ]) + group("groupTickets", [
     CONFIG.fares ? tool("#/liput", "ticket", t("faresLink")) : "",
@@ -5951,16 +6042,19 @@ function heroLayerHtml() {
   return `<section class="reila-hero hero-layer no-print">
       <h1 class="reila-hero-h1">${t("heroLayerTitle")}</h1>
       <p class="reila-hero-sub">${t("heroTagline")}</p>
-      <div class="hero-highlights">
+      <div class="hero-journey">
+        <h3 class="hero-journey-h">${icon("route")} ${t("heroJourneyHeading")} <span class="ab-badge">A → B</span></h3>${heroFieldsHtml()}
+      </div>
+      <!-- Nostot A->B-haun ALAPUOLELLA (13.8.2026): kuntalaisen ykköstehtävä on "milloin
+           seuraava lähtee", ja se ansaitsee ensimmäisen ruudullisen. Nostot jäävät heroon
+           (arvolupaus on demon myyntikärki), mutta eivät enää työnnä hakua alas. -->
+      <div class="hero-highlights hero-highlights--below">
         <button type="button" class="hl" id="hlBilingual">
           ${icon("info")}<span class="hl-t">${t("heroHlBilingual")}</span><span class="hl-d">${t("heroHlBilingualDesc")}</span></button>
         <a class="hl" href="#/tulosteet/vihko">
           ${icon("print")}<span class="hl-t">${t("heroHlPrint")}</span><span class="hl-d">${t("heroHlPrintDesc")}</span></a>
         ${PROXY_URL ? `<a class="hl" href="#/sahkoposti">
           ${icon("mail")}<span class="hl-t">${t("heroHlEmail")}</span><span class="hl-d">${t("heroHlEmailDesc")}</span></a>` : ""}
-      </div>
-      <div class="hero-journey">
-        <h3 class="hero-journey-h">${icon("route")} ${t("heroJourneyHeading")} <span class="ab-badge">A → B</span></h3>${heroFieldsHtml()}
       </div>
     </section>`;
 }
@@ -8554,6 +8648,49 @@ function deskOptionHtml(node) {
   </div>`;
 }
 
+/* Palvelutiskin oletuspysäkki. Tiskillä ei ehditä kirjoittaa pysäkin nimeä joka asiakkaan
+   kohdalla, joten näkymä avautuu valmiiksi yhteen pysäkkiin ja päivittyy itsestään (30 s,
+   ks. pickStop). Järjestys: käyttäjän kiinnittämä > CONFIG.centerStopNames > CONFIG.hubs.
+   Nimihaku eikä kova gtfsId, koska pysäkki-id:t vaihtuvat feedin mukana. */
+function deskPinKey() { return "deskPinnedStop:" + cityKey; }
+function deskPinnedStop() {
+  try { const o = JSON.parse(localStorage.getItem(deskPinKey()) || "null"); return (o && o.name) ? o : null; }
+  catch (e) { return null; }
+}
+async function deskFindDefaultStop() {
+  const pin = deskPinnedStop();
+  const names = [pin?.name, ...(CONFIG.centerStopNames || []), ...((CONFIG.hubs || []).map(h => h.name))]
+    .filter(Boolean);
+  const pref = feedId ? feedId + ":" : "";
+  for (const name of names) {
+    let data;
+    try { data = await gql(DESK_STOP_QUERY, { name }); } catch (e) { continue; }
+    const list = (data.stops || [])
+      .filter(s => !pref || String(s.gtfsId).startsWith(pref))
+      .filter(s => (s.routes || []).length);
+    if (!list.length) continue;
+    // Kiinnitetty pysäkki tunnistetaan id:llä ja käytetään sellaisenaan.
+    if (pin?.gtfsId) {
+      const exact = list.find(s => s.gtfsId === pin.gtfsId);
+      if (exact) return exact;
+    }
+    // Nimiosuma EI kelpaa sellaisenaan: aakkosjärjestyksen ensimmäinen laituri voi olla
+    // käytöstä poistunut (mitattu 13.8.2026: Lahti "Kauppatori A" 0 lähtöä, "Kauppatori E"
+    // 23 linjaa ja lähtöjä). Järjestä linjamäärän mukaan ja varmista lähdöt kolmelta
+    // parhaalta, ettei tiskille avaudu tyhjä pysäkki.
+    const ranked = [...list].sort((a, b) => (b.routes || []).length - (a.routes || []).length);
+    for (const s of ranked.slice(0, 3)) {
+      try {
+        const d = await gql(DESK_DEPS_QUERY, { id: s.gtfsId });
+        if ((d.stop?.stoptimesWithoutPatterns || []).length) return s;
+      } catch (e) { /* verkkovirhe: kokeile seuraavaa ehdokasta */ }
+    }
+    // Yöllä yhdelläkään ei ole lähtöjä: näytä silti vilkkain pysäkki (oikea tyhjä tila).
+    return ranked[0];
+  }
+  return null;
+}
+
 async function viewServiceDesk() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   document.body.classList.add("desk-mode");
@@ -8689,14 +8826,28 @@ async function viewServiceDesk() {
       if (dep && curStop === gtfsId) dep.innerHTML = `<p class="muted">${t("deskDepsNone")}</p>`;
     }
   };
-  const pickStop = (s) => {
-    stopEl.value = s.name; stopList.hidden = true;
+  // silent = automaattinen oletusvalinta: lähdöt renderöidään, mutta hakukenttään EI
+  // kirjoiteta mitään. Kenttä on hakulaatikko, ei näyttö (pysäkin nimi näkyy tuloksissa),
+  // ja oletuksen kirjoittaminen sinne sotkisi käyttäjän oman kirjoituksen kun asynkroninen
+  // haku valmistuu vasta näppäilyn jälkeen.
+  const pickStop = (s, opts) => {
+    if (!opts?.silent) { stopEl.value = s.name; stopList.hidden = true; }
     curStop = s.gtfsId;
     clearDeskDepTimer();
     // Linjat näkyviin HETI (synkroninen); live-lähdöt latautuvat omaan lohkoonsa perään.
+    const pinned = deskPinnedStop();
+    const isPinned = pinned && (pinned.gtfsId === s.gtfsId || pinned.name === s.name);
     document.getElementById("deskStopResults").innerHTML =
       `<div id="deskLines">${stopLinesHtml(s.routes)}</div>` +
-      `<div id="deskDeps"><p class="muted">${t("loadingStopDeps")}</p></div>`;
+      `<div id="deskDeps"><p class="muted">${t("loadingStopDeps")}</p></div>` +
+      `<p class="desk-pin-row"><button type="button" id="deskPinBtn" class="linkish">${
+        isPinned ? t("deskPinned") : t("deskPinBtn")}</button></p>`;
+    // Kiinnitys = tämä pysäkki avautuu jatkossa valmiiksi kun palvelutiski avataan.
+    document.getElementById("deskPinBtn")?.addEventListener("click", (e) => {
+      try { localStorage.setItem(deskPinKey(), JSON.stringify({ gtfsId: s.gtfsId, name: s.name })); }
+      catch (err) { /* kiintiö täynnä: kiinnitys ei säily, näkymä toimii silti */ }
+      e.target.textContent = t("deskPinned");
+    });
     loadDeskDeps(s.gtfsId);
     deskDepTimer = setInterval(() => { if (curStop) loadDeskDeps(curStop); }, 30000); // live-päivitys
   };
@@ -8727,6 +8878,17 @@ async function viewServiceDesk() {
   });
   const sw = stopEl.closest(".suggest");
   sw.addEventListener("focusout", e => { if (!sw.contains(e.relatedTarget)) setTimeout(() => { stopList.hidden = true; }, 150); });
+
+  // Avaa valmiiksi oletuspysäkkiin: tiskin yleisin kysymys ("milloin seuraava lähtee")
+  // saa vastauksen ilman yhtäkään näppäinpainallusta. Ei varasta fokusta A->B-kentiltä.
+  // Haku kestää useita satoja millisekunteja, joten käyttäjä ehtii aloittaa kirjoittamisen
+  // ennen kuin tulos saapuu: silloin oletusta EI saa asettaa, koska pickStop ylikirjoittaisi
+  // kentän ja sulkisi ehdotuslistan kesken kirjoittamisen.
+  const deskSeq = viewSeq;
+  deskFindDefaultStop().then(s => {
+    const kesken = stopEl.value.trim() || !stopList.hidden;   // käyttäjä ehti hakea itse
+    if (s && !curStop && !kesken && deskSeq === viewSeq) pickStop(s, { silent: true });
+  }).catch(() => {});
 
   // "Viimeinen bussi tänään X→Y": käyttää A→B-kenttien valintoja (dFrom/dTo).
   document.getElementById("deskLastBusBtn")?.addEventListener("click", async () => {
@@ -9985,6 +10147,269 @@ function corridorTableHtml(group, keyStops) {
     (usedDot ? `<p class="matrix-legend">${t("legendSkipStop")}</p>` : "");
 }
 
+/* ---------- Uusintapainatuslista: mitkä JO PAINETUT tulosteet ovat vanhentuneet ----------
+   Kausivalidointi-vahti (CI) kertoo että FEED muuttui. Se ei kerro mitkä painetut tulosteet
+   ovat sen takia väärin, ja juuri se on kysymys johon kunta tarvitsee vastauksen: Lahdessa
+   10.8.2026 Tevi P → Trio F, jolloin jokainen vanhan nimen sisältänyt tuloste oli sinä aamuna
+   väärässä eikä kukaan tiennyt mitkä ne olivat.
+   Perustaso = sormenjälki siitä datasta josta tuloste painettiin. Se tallentuu selaimeen kun
+   käyttäjä merkitsee tulosteen painetuksi. Vertailu tuottaa ihmisluettavan eron (lähtömäärä,
+   ensimmäinen/viimeinen lähtö, päätepysäkki, päivätyyppilohkot) — ei pelkkää hash-eroa, koska
+   "tiiviste muuttui" ei kerro painajalle mitään. */
+
+const REPRINT_VER = 1;
+function reprintKey() { return "reprintBase:" + cityKey; }
+function reprintLoad() {
+  try { const o = JSON.parse(localStorage.getItem(reprintKey()) || "{}"); return (o && typeof o === "object") ? o : {}; }
+  catch (e) { return {}; }
+}
+function reprintSave(all) {
+  try { localStorage.setItem(reprintKey(), JSON.stringify(all)); }
+  catch (e) { /* kiintiö täynnä: vertailu jatkuu muistissa, vain säilyvyys menetetään */ }
+}
+
+// Vakaa pieni tiiviste (djb2). Sormenjälki ei saa kasvaa lähtömäärän mukana, koska
+// koko kaupungin perustaso elää localStoragessa.
+function reprintHash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+// Lohkon sormenjälki. rows = [{ sec, key }]: sec järjestystä ja ensimmäinen/viimeinen
+// -tietoa varten, key kaiken sen tunnistamiseen mikä tulosteessa näkyy.
+function reprintGroupSig(label, rows) {
+  const secs = rows.map(r => r.sec).filter(v => v != null).sort((a, b) => a - b);
+  return {
+    label, n: rows.length,
+    first: secs.length ? fmtSec(secs[0]) : "",
+    last: secs.length ? fmtSec(secs[secs.length - 1]) : "",
+    h: reprintHash(rows.map(r => r.key).sort().join(";")),
+  };
+}
+
+// Linjatulosteen sormenjälki. Sama patternivalinta kuin vihossa (ks. bindBookletTab):
+// suunnittain se variantti jolla on eniten tulevia vuoroja, ja lohkot todellisten
+// ajopäivien mukaan — muuten perustaso ja tuloste eivät vertaisi samaa asiaa.
+async function reprintLineSnap(routeId, dateISO) {
+  const probe = activeProbeDates();
+  const probeAliases = probe.map((d, i) => `p${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
+  const upcoming = p => probe.reduce((n, _, i) => n + ((p["p" + i] || []).length), 0);
+  const ids = await lineIds(routeId);
+  const { data } = await cachedGql("proute:" + ids.join(","),
+    `query ($ids: [String]) {
+       routes(ids: $ids) {
+         gtfsId shortName longName@L color textColor
+         patterns { code name directionId ${probeAliases} stops { gtfsId name@L } }
+       }
+     }`, { ids });
+  const arr = (data.routes || []).filter(Boolean);
+  const route = arr.find(r => r.gtfsId === routeId) || arr[0];
+  if (!route) return null;
+  const byDir = new Map();
+  for (const p of arr.flatMap(r => r.patterns || [])) {
+    const k = p.directionId ?? 0;
+    if (!byDir.has(k)) byDir.set(k, []);
+    byDir.get(k).push(p);
+  }
+  const primaries = [...byDir.values()].map(list => list.sort((a, b) => upcoming(b) - upcoming(a))[0]);
+  const dirs = [];
+  for (const p of primaries) {
+    const stops = p.stops || [];
+    const label = stops.length ? `${stops[0].name} → ${stops[stops.length - 1].name}` : (p.name || "");
+    let groups = [];
+    try { groups = groupTripsByDays(await dirTripsWithDays(byDir.get(p.directionId ?? 0) || [p]), dateISO); }
+    catch (e) { groups = []; }
+    dirs.push({
+      label,
+      groups: groups.map(g => reprintGroupSig(g.label, g.trips.map(tr => {
+        const ts = (tr.stoptimes || []).map(s => s.scheduledDeparture);
+        return { sec: ts[0], key: ts.join(",") };
+      }))),
+    });
+  }
+  return { v: REPRINT_VER, kind: "line", label: `${route.shortName || ""} ${route.longName || ""}`.trim(), dirs };
+}
+
+// Käytävätulosteen sormenjälki (CONFIG.corridors-pikavalinnat = ne arkit joita oikeasti
+// painetaan). Käyttää samaa corridorBuildia kuin tuloste itse.
+async function reprintCorridorSnap(c, dateISO, routes) {
+  const want = new Set((c.lines || []).map(String));
+  const ids = routes.filter(r => want.has(String(r.shortName || ""))).map(r => r.gtfsId);
+  if (ids.length < 2) return null;
+  const built = await corridorBuild(ids, dateISO);
+  const dirs = (built.dirs || []).map(d => ({
+    label: d.label,
+    groups: (d.groups || []).map(g => reprintGroupSig(g.label, g.rows.map(r => ({
+      sec: r.sortSec, key: `${r.route.shortName || ""}@${r.sortSec}→${r.headsign || ""}`,
+    })))),
+  }));
+  return { v: REPRINT_VER, kind: "corridor", label: corridorName(c), dirs };
+}
+
+// Ihmisluettava ero perustason ja nykytilan välillä. Tyhjä lista = tuloste kelpaa yhä.
+// Suunnat verrataan indeksillä eikä nimellä, koska juuri nimenmuutos (päätepysäkki)
+// on se tapaus jonka pitää näkyä erona eikä kadota parittomana.
+function reprintDiff(base, now) {
+  const out = [];
+  const bd = base?.dirs || [], nd = now?.dirs || [];
+  if (bd.length !== nd.length) {
+    out.push(t("reprintDiffDirCount", { a: bd.length, b: nd.length }));
+  }
+  const n = Math.min(bd.length, nd.length);
+  for (let i = 0; i < n; i++) {
+    const b = bd[i], c = nd[i];
+    if (b.label !== c.label) out.push(t("reprintDiffDir", { a: b.label, b: c.label }));
+    const bg = new Map((b.groups || []).map(g => [g.label, g]));
+    const cg = new Map((c.groups || []).map(g => [g.label, g]));
+    for (const [label, g] of cg) {
+      const prev = bg.get(label);
+      if (!prev) { out.push(t("reprintDiffAdded", { label })); continue; }
+      if (prev.n !== g.n) out.push(t("reprintDiffTrips", { label, a: prev.n, b: g.n }));
+      else if (prev.h !== g.h) out.push(t("reprintDiffTimes", { label }));
+      if (prev.first !== g.first || prev.last !== g.last)
+        out.push(t("reprintDiffSpan", { label, a: `${prev.first}–${prev.last}`, b: `${g.first}–${g.last}` }));
+    }
+    for (const [label] of bg) if (!cg.has(label)) out.push(t("reprintDiffRemoved", { label }));
+  }
+  return out;
+}
+
+async function viewReprint() {
+  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  setView(`<p class="muted">${t("loadingRoutes")}</p>`);
+  const routes = await loadRoutes();
+  const today = todayISO();
+  const base = reprintLoad();
+
+  // Seurattava yksikkö = painettava arkki: linjatuloste tai käytävätuloste.
+  const units = [
+    ...(CONFIG.corridors || []).map(c => ({ id: "corr:" + c.key, kind: "corridor", cfg: c, label: corridorName(c) })),
+    ...routes.map(r => ({ id: r.gtfsId, kind: "line", route: r, label: `${r.shortName || ""} ${r.longName || ""}`.trim() })),
+  ];
+  const tracked = u => !!base[u.id];
+
+  const unitRow = (u) => `<li><label class="item" style="cursor:pointer;align-items:center">
+      <input type="checkbox" class="rpCb" value="${esc(u.id)}" ${tracked(u) ? "checked" : ""}
+             style="width:1.4rem;height:1.4rem;flex:none">
+      <span>${u.kind === "corridor" ? icon("route") : icon("print")} ${esc(u.label)}</span>
+      ${tracked(u) ? `<span class="muted" style="margin-left:auto;font-size:0.85em">${esc(t("reprintPrintedAt", { date: fmtDateLong((base[u.id].printed || "").slice(0, 10)) }))}</span>` : ""}
+    </label></li>`;
+
+  const trackedUnits = units.filter(tracked);
+  const otherUnits = units.filter(u => !tracked(u));
+
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <div class="card no-print">
+      <h2>${icon("print")} ${t("reprintTitle")}</h2>
+      <p class="muted">${t("reprintIntro")}</p>
+      <div class="field">
+        <label for="rpDate">${t("bookletDateLabel")}</label>
+        <input type="date" id="rpDate" value="${esc(today)}">
+      </div>
+      <p class="buildbar"><button type="button" id="rpGo">${t("reprintCheck")}</button>
+        <span id="rpStatus" class="muted" role="status"></span></p>
+      ${trackedUnits.length ? `
+        <h3>${t("reprintTracked")}</h3>
+        <ul class="plain" id="rpTracked">${trackedUnits.map(unitRow).join("")}</ul>` :
+        `<p class="muted">${t("reprintNoBaseline")}</p>`}
+      <h3>${t("reprintAddMore")}</h3>
+      <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
+        <input type="search" id="rpFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
+      </div>
+      <ul class="plain" id="rpOthers">${otherUnits.map(unitRow).join("")}</ul>
+    </div>
+    <div id="rpOut"></div>`);
+
+  document.getElementById("rpFilter").addEventListener("input", e => {
+    const f = e.target.value.toLowerCase();
+    document.querySelectorAll("#rpOthers li").forEach(li => {
+      li.hidden = f && !li.textContent.toLowerCase().includes(f);
+    });
+  });
+
+  const byId = new Map(units.map(u => [u.id, u]));
+  const snapOf = (u, date) => u.kind === "corridor"
+    ? reprintCorridorSnap(u.cfg, date, routes)
+    : reprintLineSnap(u.route.gtfsId, date);
+
+  // Viimeisimmän tarkistuksen tulokset. Kuuntelija sidotaan KERRAN (ei joka ajolla),
+  // muuten sama #rpOut keräisi kuuntelijan per tarkistus.
+  let lastResults = [];
+  document.getElementById("rpOut").addEventListener("click", (e) => {
+    const b = e.target.closest(".rpMark");
+    if (!b) return;
+    const r = lastResults.find(x => x.u.id === b.dataset.id);
+    if (!r || !r.snap) return;
+    // Merkitse painetuksi = tallenna NYKYINEN sormenjälki uudeksi perustasoksi.
+    const all = reprintLoad();
+    all[r.u.id] = { label: r.u.label, printed: new Date().toISOString(), sig: r.snap };
+    reprintSave(all);
+    base[r.u.id] = all[r.u.id];
+    b.replaceWith(Object.assign(document.createElement("span"), {
+      className: "muted", textContent: t("reprintMarked"),
+    }));
+  });
+
+  document.getElementById("rpGo").addEventListener("click", async () => {
+    const mySeq = viewSeq;
+    const status = document.getElementById("rpStatus");
+    const picked = [...document.querySelectorAll(".rpCb:checked")].map(c => byId.get(c.value)).filter(Boolean);
+    if (!picked.length) { status.textContent = t("reprintNonePicked"); return; }
+    const date = document.getElementById("rpDate").value || today;
+    let done = 0;
+    const tick = () => { status.textContent = t("reprintChecking", { done, total: picked.length }); };
+    tick();
+
+    const results = await mapLimit(picked, 3, async (u) => {
+      try {
+        const snap = await snapOf(u, date);
+        if (!snap) return null;
+        const prev = base[u.id];
+        return { u, snap, prev, diff: prev ? reprintDiff(prev.sig, snap) : null };
+      } catch (e) {
+        return { u, error: true };
+      } finally {
+        done++;
+        if (mySeq === viewSeq) tick();
+      }
+    });
+    if (mySeq !== viewSeq) return;
+
+    const ok = results.filter(Boolean);
+    const changed = ok.filter(r => r.diff && r.diff.length);
+    const same = ok.filter(r => r.diff && !r.diff.length);
+    const fresh = ok.filter(r => !r.error && !r.prev);
+    const failed = ok.filter(r => r.error);
+
+    const markBtn = (r) => `<button type="button" class="linkish rpMark" data-id="${esc(r.u.id)}">${t("reprintMark")}</button>`;
+    const card = (titleKey, list, body) => list.length ? `
+      <section class="card">
+        <h2>${t(titleKey)} (${list.length})</h2>
+        <ul class="plain">${list.map(body).join("")}</ul>
+      </section>` : "";
+
+    document.getElementById("rpOut").innerHTML =
+      card("reprintChanged", changed, r => `<li class="item" style="align-items:flex-start">
+        <div><strong>${esc(r.u.label)}</strong>
+          <ul class="muted" style="margin:0.2rem 0 0">${r.diff.map(d => `<li>${esc(d)}</li>`).join("")}</ul>
+        </div>
+        <span style="margin-left:auto">${markBtn(r)}</span></li>`) +
+      card("reprintNewUnits", fresh, r => `<li class="item">
+        <span>${esc(r.u.label)}</span>
+        <span class="muted" style="margin-left:auto">${t("reprintNoRef")} ${markBtn(r)}</span></li>`) +
+      card("reprintSame", same, r => `<li class="item"><span>${esc(r.u.label)}</span></li>`) +
+      card("reprintFailed", failed, r => `<li class="item"><span>${esc(r.u.label)}</span></li>`) +
+      // "ei muutoksia" vain kun jotain oikeasti vertailtiin; pelkkä perustasoton lista ei ole hyvä uutinen
+      (!changed.length && same.length ? `<p class="muted">${t("reprintEmpty")}</p>` : "");
+
+    lastResults = ok;
+    status.textContent = "";
+    document.getElementById("rpOut").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
 // Monen linjan tulostusvihko: valitse linjat → aikataulut isoilla pysäkillä
 // Yhdistetty "Tulosteet ja näytöt" -keskus välilehdillä. Vanhat reitit #/tulosta ja #/tulosteet
 // ohjautuvat oikealle välilehdelle (route()); välilehdet ovat URL-osoitettavia (#/tulosteet/<tab>
@@ -10301,6 +10726,7 @@ async function route() {
     // Vanhat reitit ohjautuvat yhdistettyyn keskukseen oikealle välilehdelle (QR-yhteensopivuus):
     // #/tulosta = vihko-välilehti; bare #/tulosteet = julisteet (entinen sisältö); välilehti
     // myös polusta (#/tulosteet/<tab>) tai kyselystä (?tab=<tab>).
+    else if (parts[0] === "uusintapainatus") await viewReprint();
     else if (parts[0] === "tulosta") await viewPrintCenter("vihko");
     else if (parts[0] === "tulosteet") await viewPrintCenter(query.get("tab") || parts[1] || "julisteet");
     else if (parts[0] === "reitti") await viewPlan(parts);
