@@ -48,9 +48,15 @@ function jsonResponse(obj, status, origin) {
 //     laskee omansa ja isolaatteja voi olla useita, mutta yksittäisen IP:n purske
 //     tai looppi katkeaa silti. Ei KV-kirjoituksia (ilmaiskiintiö säästyy).
 const RATE_WINDOW_MS = 60000;
-// Sivulataus tekee kymmeniä GraphQL-kutsuja ja monitorinäyttö pollaa puolen
-// minuutin välein → 300/min/IP on reilusti normaalikäytön yllä, kiintiösyöpön alla.
-const RATE_MAX = 300;
+// MITOITUS KORJATTU 13.8.2026: 300 oli liian tiukka ja RIKKOI tuotannossa pysäkki-
+// julisteiden erätulostuksen. Mitattu samana iltana: yhden linjan (Lahti 4) julisteajo
+// tekee 304 proxy-kutsua eli neljä yli vanhan rajan, jolloin käyttäjä sai "Rajapintavirhe:
+// HTTP 429" ja tuloste jäi syntymättä. Erätulostus on print-kärjen ydintoiminto.
+// 1200/min/IP kantaa suurenkin linjan julisteajon (~80 pysäkkiä) ja jättää varaa
+// sivulatauksille sen rinnalla, mutta karannut looppi (tuhansia kutsuja) katkeaa yhä.
+// Origin-portti (yllä) on se joka estää ulkopuolisen käytön; tämän raja on karannut
+// silmukka, ei laillinen erätyö. ÄLÄ laske takaisin mittaamatta julisteajoa.
+export const RATE_MAX = 1200;
 const rateMap = new Map();
 function rateLimited(ip) {
   const now = Date.now();

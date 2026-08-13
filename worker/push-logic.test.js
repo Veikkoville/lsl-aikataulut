@@ -3,7 +3,7 @@
 // Aja: node push-logic.test.js
 import worker, { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText, htmlToText, buildFeedbackRecord,
   constantTimeEqual, signSession, verifySession, buildAdminAlert, currentAdminAlerts, buildAdminFares, buildAdminA11y,
-  buildTrackEvent, buildStatsSql, isAnalyticsClient, quotaGate } from "./worker.js";
+  buildTrackEvent, buildStatsSql, isAnalyticsClient, quotaGate, RATE_MAX } from "./worker.js";
 import { readFileSync } from "node:fs";
 
 let fail = 0;
@@ -369,10 +369,17 @@ check(statsNoAuth.status === 403, "stats: ilman istuntoa → 403");
     "quotaGate: sallittu origin läpäisee");
   check(quotaGate(req({ "CF-Connecting-IP": "203.0.113.1" }), "http://localhost:8000") === null,
     "quotaGate: localhost (lokaali smoke) läpäisee");
+  // Raja luetaan moduulista eikä kovakoodata: 13.8.2026 kovakoodattu 305 jäi jälkeen kun
+  // RATE_MAX nostettiin 300 → 1200 (julisteiden erätulostus tarvitsee 304 kutsua yhdelle
+  // linjalle), ja testi failasi vaikka koodi oli oikein.
   let last = null;
-  for (let i = 0; i < 305; i++) last = quotaGate(req({ "CF-Connecting-IP": "203.0.113.9" }), "https://demo.reittari.fi");
+  for (let i = 0; i < RATE_MAX + 5; i++) last = quotaGate(req({ "CF-Connecting-IP": "203.0.113.9" }), "https://demo.reittari.fi");
   check(last?.status === 429 && last.headers.get("Retry-After") === "60",
-    "quotaGate: 305 pyyntöä/min samalta IP:ltä → 429 + Retry-After");
+    `quotaGate: ${RATE_MAX + 5} pyyntöä/min samalta IP:ltä → 429 + Retry-After`);
+  // Julisteiden erätulostuksen mitattu kutsumäärä EI saa osua rajaan (regressiovahti).
+  let batch = null;
+  for (let i = 0; i < 304; i++) batch = quotaGate(req({ "CF-Connecting-IP": "203.0.113.7" }), "https://demo.reittari.fi");
+  check(batch === null, "quotaGate: linjan julisteajo (304 kutsua) EI osu purskerajaan");
   check(quotaGate(req({ "CF-Connecting-IP": "203.0.113.8" }), "https://demo.reittari.fi") === null,
     "quotaGate: purske ei estä muita IP-osoitteita");
 }
