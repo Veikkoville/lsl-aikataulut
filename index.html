@@ -1536,6 +1536,12 @@
     /* Yhdistetty suunta-aikataulu: osiot virtaavat, suuntaotsikko kiinni taulussa */
     .corridor-head, .corridor-dir { break-inside: auto; page-break-inside: auto; }
     .corridor-dir > h3 { break-after: avoid; page-break-after: avoid; }
+    /* Määränpää-sarake: table-layout:fixed jakaa sarakkeet tasalevyisiksi ja
+       overflow:hidden + nowrap leikkaisi pitkän määränpään kesken sanan ilman
+       merkkiä katkeamisesta ("Myllykoski" → "Myllykosk") → sallitaan rivitys
+       sanarajalta ja annetaan sarakkeelle leveysvara */
+    table.corridor thead th:nth-child(3) { width: 26%; }
+    table.corridor td.corr-dest { white-space: normal; overflow-wrap: break-word; }
     .matrix-legend { font-size: 8pt; color: #444; }
     /* Pysäkkijuliste: kukin päivätyyppi omalle arkille, linjat virtaavat sarakkeisiin */
     .poster-day { break-before: page; }

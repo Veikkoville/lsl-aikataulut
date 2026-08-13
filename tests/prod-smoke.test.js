@@ -527,6 +527,19 @@ function writeReport() {
             corr.legend ? pass(city.key, "legenda (käytävä)", `${corr.dots} ·-solua + selite`)
                         : fail(city.key, "legenda (käytävä)", `${corr.dots} ·-solua ilman selitettä`);
           } else info(city.key, "legenda (käytävä)", "ei ·-soluja tässä käytävässä (selitettä ei vaadita)");
+          // Määränpää ei saa leikkautua print-CSS:ssä (13.8.2026: table-layout:fixed +
+          // overflow:hidden katkaisi "Myllykoski" → "Myllykosk" myyntinäytteessä ilman
+          // merkkiä katkeamisesta — näkyy VAIN print-mediassa, siksi oma emulointimittaus).
+          await page.emulateMediaType("print");
+          const clipped = await page.evaluate(() =>
+            [...document.querySelectorAll("#corridorOut td.corr-dest")]
+              .filter(td => td.scrollWidth > td.clientWidth + 1)
+              .map(td => td.textContent.trim()).slice(0, 3));
+          await page.emulateMediaType("screen");
+          clipped.length === 0
+            ? pass(city.key, "käytävä-määränpäät (print)", "0 leikkautunutta solua")
+            : fail(city.key, "käytävä-määränpäät (print)",
+                `määränpää leikkautuu tulosteessa: ${clipped.join(" | ")}`);
         }
       }
 
