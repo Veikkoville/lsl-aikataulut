@@ -1854,6 +1854,12 @@ const CONFIGS = {
     feedMatch: /vaasa/i,
     rail: "VS",
     heroEmphasis: "layer",
+    // Ydinkeskustan solmupysäkit: palvelutiskin oletuspysäkki + "Keskustan linjat"
+    // -pikavalinta vihossa. Mitattu feedistä 13.8.2026: "Vaasanpuistikko / matkakeskus P"
+    // 9 linjaa ja lähtöjä (matkakeskus = se paikka jossa tiski oikeasti on),
+    // "Vaasanpuistikko 17" 9 linjaa varalla. Nimihaku osuu molempiin P- ja E-suuntiin,
+    // ja deskFindDefaultStop valitsee niistä linjamäärältään suurimman.
+    centerStopNames: ["Vaasanpuistikko / matkakeskus", "Vaasanpuistikko 17"],
     // Yhdistetyt suunnat -presetit (datavarmistus 8.7.2026: 1+4 jakavat 24 pysäkin jakson
     // Palosaaren kautta, 7+7K 33 pysäkin jakson; kaikki aktiivisia). Kaksikieliset nimet
     // (FI/SV-kärki): corridorName() valitsee kielen mukaan.
