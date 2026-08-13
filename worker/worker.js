@@ -36,6 +36,46 @@ function jsonResponse(obj, status, origin) {
   return new Response(JSON.stringify(obj), { status, headers });
 }
 
+/* ---------- Kiintiösuoja (lisätty 13.8.2026) ---------- */
+// GraphQL- ja geokoodauspolut kuluttavat Digitransit-avaimen kiintiötä, ja
+// 8.–11.8. kiintiöepisodi osoitti että kulutus on niukka resurssi. Kaksi porttia:
+// (1) Origin-vaatimus: selain lähettää cross-origin-fetchissä aina Origin-headerin,
+//     joten kaikki aidot client-kutsut kantavat sen. Curl voi väärentää Originin,
+//     mutta portti sulkee upotukset (muu sivusto ei voi käyttää proxyä selaimessa,
+//     koska selain asettaa Originin itse) ja satunnaisen komentorivikäytön.
+//     Omat työkalut (kausivalidointi ym.) asettavat Originin eksplisiittisesti.
+// (2) Per-IP-liukuikkunaraja isolaatin muistissa. PEHMEÄ raja: jokainen isolaatti
+//     laskee omansa ja isolaatteja voi olla useita, mutta yksittäisen IP:n purske
+//     tai looppi katkeaa silti. Ei KV-kirjoituksia (ilmaiskiintiö säästyy).
+const RATE_WINDOW_MS = 60000;
+// Sivulataus tekee kymmeniä GraphQL-kutsuja ja monitorinäyttö pollaa puolen
+// minuutin välein → 300/min/IP on reilusti normaalikäytön yllä, kiintiösyöpön alla.
+const RATE_MAX = 300;
+const rateMap = new Map();
+function rateLimited(ip) {
+  const now = Date.now();
+  if (rateMap.size > 10000) { // siivous: älä kasva rajatta pitkäikäisessä isolaatissa
+    for (const [k, v] of rateMap) if (now - v.start > RATE_WINDOW_MS) rateMap.delete(k);
+  }
+  const e = rateMap.get(ip);
+  if (!e || now - e.start > RATE_WINDOW_MS) { rateMap.set(ip, { start: now, n: 1 }); return false; }
+  e.n++;
+  return e.n > RATE_MAX;
+}
+// Palauttaa virhevastauksen jos pyyntö ei saa kuluttaa kiintiötä, muuten null.
+export function quotaGate(request, origin) {
+  if (!ALLOWED_ORIGINS.has(origin)) {
+    return new Response("Forbidden: tuntematon origin", { status: 403, headers: corsHeaders(origin) });
+  }
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  if (rateLimited(ip)) {
+    const h = new Headers(corsHeaders(origin));
+    h.set("Retry-After", "60");
+    return new Response("Liikaa pyyntöjä", { status: 429, headers: h });
+  }
+  return null;
+}
+
 async function sha256hex(str) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -1178,6 +1218,8 @@ export default {
       if (request.method !== "GET") {
         return new Response("Only GET is supported for geocoding", { status: 405, headers: corsHeaders(origin) });
       }
+      const gate = quotaGate(request, origin);
+      if (gate) return gate;
       const upstream = await fetch(`${GEOCODING_UPSTREAM}/${geo[1]}${url.search}`, {
         headers: { "digitransit-subscription-key": env.DIGITRANSIT_KEY },
       });
@@ -1190,6 +1232,8 @@ export default {
     if (request.method !== "POST") {
       return new Response("Only POST is supported", { status: 405, headers: corsHeaders(origin) });
     }
+    const gate = quotaGate(request, origin);
+    if (gate) return gate;
     const upstream = await fetch(ROUTING_UPSTREAM, {
       method: "POST",
       headers: {

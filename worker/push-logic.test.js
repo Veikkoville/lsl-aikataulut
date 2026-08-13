@@ -3,7 +3,7 @@
 // Aja: node push-logic.test.js
 import worker, { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText, htmlToText, buildFeedbackRecord,
   constantTimeEqual, signSession, verifySession, buildAdminAlert, currentAdminAlerts, buildAdminFares, buildAdminA11y,
-  buildTrackEvent, buildStatsSql, isAnalyticsClient } from "./worker.js";
+  buildTrackEvent, buildStatsSql, isAnalyticsClient, quotaGate } from "./worker.js";
 import { readFileSync } from "node:fs";
 
 let fail = 0;
@@ -358,6 +358,23 @@ check(statsNoAuth.status === 403, "stats: ilman istuntoa → 403");
     const src = strip(readFileSync(new URL("./" + f, import.meta.url), "utf8"));
     check((src.match(/—/g) || []).length === 0, "em dash -guard: " + f + " ei em dashia (—) koodiliteraaleissa");
   }
+}
+
+// --- Kiintiösuoja (quotaGate): origin-portti + per-IP-purskeraja ---
+{
+  const req = (headers = {}) => ({ headers: { get: k => headers[k] ?? null } });
+  check(quotaGate(req(), "")?.status === 403, "quotaGate: origin-headeriton kutsu estetään (403)");
+  check(quotaGate(req(), "https://evil.example")?.status === 403, "quotaGate: vieras origin estetään (403)");
+  check(quotaGate(req({ "CF-Connecting-IP": "203.0.113.1" }), "https://demo.reittari.fi") === null,
+    "quotaGate: sallittu origin läpäisee");
+  check(quotaGate(req({ "CF-Connecting-IP": "203.0.113.1" }), "http://localhost:8000") === null,
+    "quotaGate: localhost (lokaali smoke) läpäisee");
+  let last = null;
+  for (let i = 0; i < 305; i++) last = quotaGate(req({ "CF-Connecting-IP": "203.0.113.9" }), "https://demo.reittari.fi");
+  check(last?.status === 429 && last.headers.get("Retry-After") === "60",
+    "quotaGate: 305 pyyntöä/min samalta IP:ltä → 429 + Retry-After");
+  check(quotaGate(req({ "CF-Connecting-IP": "203.0.113.8" }), "https://demo.reittari.fi") === null,
+    "quotaGate: purske ei estä muita IP-osoitteita");
 }
 
 console.log(fail ? `\n${fail} TARKISTUS EPÄONNISTUI` : "\nKAIKKI TARKISTUKSET OK");

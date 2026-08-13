@@ -65,7 +65,9 @@ async function gql(query, variables) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await fetch(PROXY, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // Origin vaaditaan: proxyn kiintiösuoja (worker.js quotaGate, 13.8.2026)
+      // hylkää origin-headerittömät kutsut 403:lla
+      headers: { "Content-Type": "application/json", "Origin": "https://demo.reittari.fi" },
       body: JSON.stringify({ query, variables }),
     });
     if (res.status === 429) { // kiintiö: pitkä jäähdytys, sama oppi kuin smokessa
