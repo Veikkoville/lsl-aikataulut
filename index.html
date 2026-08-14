@@ -1771,6 +1771,19 @@ const CONFIGS = {
     feedMatch: /kuopio/i,
     rail: "KUO",
     heroEmphasis: "layer",
+    // Keskustan solmupysäkit (mitattu feedistä 14.8.2026, ajopäivä 17.8.): Matkakeskus E
+    // 18 linjaa / 238 lähtöä, Keskusta-laiturit 5–8 linjaa mutta yhteensä vilkkaimmat
+    // (Keskusta 1: 211 lähtöä). Matkakeskus ensin = palvelutiskin oletus avautuu sinne
+    // missä tiski oikeasti on; Keskusta tuo vihon "Keskustan linjat" -valintaan ydinkeskustan.
+    centerStopNames: ["Matkakeskus", "Keskusta"],
+    // Keskusterminaalit (#/laiturit). Mitattu feedistä 14.8.2026: Linja-autoasema 8
+    // laituria (platformCode kaikilla), Keskusta 9 laituria. Ei allow-listaa eikä pdf:ää:
+    // kaupungin virallista pysäkkikarttaa ei ole varmennettu, joten näytetään kaikki
+    // pysäkit joilla on linjoja ja kerrotaan lähde avoimeksi dataksi (hubOpenDataNote).
+    hubs: [
+      { key: "linja-autoasema", name: "Linja-autoasema", center: { lat: 62.89835, lon: 27.68015 } },
+      { key: "keskusta", name: "Keskusta", center: { lat: 62.89309, lon: 27.67697 } },
+    ],
     // Yhdistetyt suunnat -presetti (datavarmistus 8.7.2026: 31/31T/35 jakavat 33–51
     // pysäkin jakson Siilinjärven suuntaan, kaikki aktiivisia)
     corridors: [
@@ -1797,6 +1810,17 @@ const CONFIGS = {
     operatorShort: "Salo",
     feedMatch: /salo/i,
     rail: "SLO",
+    // Keskustan solmupysäkit (mitattu feedistä 14.8.2026, ajopäivä 17.8.): "Salo linja-
+    // autoasema" 19 linjaa / 273 lähtöä (alkuosahaku osuu myös Mariankatu- ja Annankatu-
+    // laitureihin), Kaupungintalo I 12 linjaa / 116 lähtöä.
+    centerStopNames: ["Salo linja-autoasema", "Kaupungintalo"],
+    // Keskusterminaali (#/laiturit). Mitattu 14.8.2026: alkuosahaku "Salo linja-autoasema"
+    // antaa aseman + Mariankadun + Annankadun laiturit. Feedissä on samassa paikassa myös
+    // "Laituri 5/6/9", mutta niitä ei oteta mukaan: hub.name on sekä hakuavain ETTÄ
+    // välilehden otsikko, ja "Laituri" olisi käyttäjälle merkityksetön otsikko.
+    hubs: [
+      { key: "linja-autoasema", name: "Salo linja-autoasema", center: { lat: 60.38713, lon: 23.12191 } },
+    ],
     // Yhdistetyt suunnat -presetti (datavarmistus 8.7.2026: 110+603 jakavat 40 pysäkin
     // jakson Suomusjärven suuntaan; kesäliikenteessä aktiiviset — moni Salon linja lepää kesällä)
     corridors: [
@@ -1822,6 +1846,18 @@ const CONFIGS = {
     operatorShort: "Kajaani",
     feedMatch: /kajaani/i,
     rail: "KAJ",
+    // Keskustan solmupysäkit (mitattu feedistä 14.8.2026, ajopäivä 17.8.): Kirkko E
+    // 11 linjaa / 106 lähtöä on ydinkeskustan vilkkain, "Kajaani matkakeskus" vasta
+    // toisena (T-laituri 6 linjaa / 17 lähtöä). Vilkkain ensin, koska palvelutiskin
+    // oletusnäkymä 17 lähdöllä olisi käytännössä tyhjä; matkakeskus jää varalle ja tuo
+    // omat linjansa vihon "Keskustan linjat" -valintaan. HUOM: feedissä ei ole
+    // "Linja-autoasema"-nimistä pysäkkiä lainkaan (0 osumaa).
+    centerStopNames: ["Kirkko", "Kajaani matkakeskus"],
+    // Keskusterminaali (#/laiturit). Mitattu 14.8.2026: 5 laituria (L1, L2, L4, L6, T),
+    // neljällä platformCode → laiturinumerot näkyvät oikein kartalla ja listassa.
+    hubs: [
+      { key: "matkakeskus", name: "Kajaani matkakeskus", center: { lat: 64.22019, lon: 27.73939 } },
+    ],
     // Yhdistetyt suunnat -presetti. Alkup. 8.7.2026 kesäfeedillä 1+3 (7 jaettua pysäkkiä);
     // kommentin oma varaus toteutui: talvifeedillä (mitattu 12.8.2026) 1+2 jakaa 45 pysäkki-
     // tunnusta, 1+3 vain 11, ja kaikki kolme linjaa ajavat arkisin → presetti vaihdettu
@@ -1860,6 +1896,14 @@ const CONFIGS = {
     // "Vaasanpuistikko 17" 9 linjaa varalla. Nimihaku osuu molempiin P- ja E-suuntiin,
     // ja deskFindDefaultStop valitsee niistä linjamäärältään suurimman.
     centerStopNames: ["Vaasanpuistikko / matkakeskus", "Vaasanpuistikko 17"],
+    // Keskustan pysäkkiryhmät (#/laiturit). Mitattu 14.8.2026: alkuosahaku
+    // "Vaasanpuistikko" kattaa keskustan laiturit JA matkakeskuksen (P/E),
+    // "Raastuvankatu" kattaa Rewellin ja kaupungintalon pysäkit. Vaasan feedissä ei ole
+    // platformCodeja, joten laiturit tunnistetaan nimen loppuosasta (esim. "17").
+    hubs: [
+      { key: "vaasanpuistikko", name: "Vaasanpuistikko", center: { lat: 63.09425, lon: 21.61159 } },
+      { key: "raastuvankatu", name: "Raastuvankatu", center: { lat: 63.09071, lon: 21.61699 } },
+    ],
     // Yhdistetyt suunnat -presetit (datavarmistus 8.7.2026: 1+4 jakavat 24 pysäkin jakson
     // Palosaaren kautta, 7+7K 33 pysäkin jakson; kaikki aktiivisia). Kaksikieliset nimet
     // (FI/SV-kärki): corridorName() valitsee kielen mukaan.
@@ -1893,6 +1937,18 @@ const CONFIGS = {
     feedMatch: /^kotka$/i,
     rail: "KTA",
     heroEmphasis: "layer",
+    // Keskustan solmupysäkit (mitattu feedistä 14.8.2026, ajopäivä 17.8.): Kauppatori
+    // Kirkkokatu 45 linjaa / 198 lähtöä, Kauppatori Keskuskatu 43 / 192.
+    // Toinen nimi on tarkoituksella "Kantasatama lähtölaituri" eikä pelkkä "Kantasatama":
+    // laajempi alkuosa osuisi myös pysäkkiin "Kantasatama paikallisliikenneterminaali
+    // päätepysäkki", jolla on 36 linjaa mutta vain 2 lähtöä (päätepysäkki) — se voittaisi
+    // linjamääräjärjestyksen ja avaisi tiskille käytännössä tyhjän pysäkin.
+    centerStopNames: ["Kauppatori", "Kantasatama lähtölaituri"],
+    // Keskusterminaali (#/laiturit). Mitattu 14.8.2026: Kantasataman
+    // paikallisliikenneterminaali, 6 lähtölaituria platformCodeineen + päätepysäkki.
+    hubs: [
+      { key: "kantasatama", name: "Kantasatama", center: { lat: 60.46959, lon: 26.95040 } },
+    ],
     // Yhdistetyt suunnat -presetti (mitattu talvifeedistä 13.8.2026: talvifeed
     // korvasi 25-rungon varianteilla 25T (Tiutinen) ja 25Y (Ylänummi) — 24 ja 26
     // vuoroa/pv, molemmat suunnat, 39/44 jaettua pysäkkiä Keskusta–Mussalo–
@@ -1936,6 +1992,17 @@ const CONFIGS = {
     // → @L-lokalisointi pyytää FI:n eksplisiittisesti (localizeQuery/localizePlanNode).
     feedLang: "sv",
     heroEmphasis: "layer",
+    // Keskustan solmupysäkit (mitattu feedistä 14.8.2026, ajopäivä 17.8.): kunnan kaksi
+    // taajamaa saavat kumpikin oman asemansa — Ekenäs busstation 20 linjaa / 46 lähtöä ja
+    // Karis Resecenter 17 linjaa / 32 lähtöä. Nimet ovat feedin natiivikielellä (sv), koska
+    // stops(name:) hakee feedin omista nimistä eikä käännöksistä.
+    centerStopNames: ["Ekenäs busstation", "Karis Resecenter"],
+    // Keskusterminaali (#/laiturit). Mitattu 14.8.2026: Karis Resecenter 5 laituria
+    // (4 platformCodea). Ekenäs busstation on feedissä yksi pysäkki ilman laiturijakoa,
+    // joten siitä ei tule omaa välilehteä — laiturinäkymä yhdestä pysäkistä ei kerro mitään.
+    hubs: [
+      { key: "karis", name: "Karis Resecenter", center: { lat: 60.06993, lon: 23.66237 } },
+    ],
     // Yhdistetyt suunnat -presetit (mitattu AIDOSTA talvifeedistä 13.8.2026 — 6.8.
     // "talvikoetus" tehtiin ennakkojulkaistulla datalla joka EI vastannut lopullista:
     // 144n poistui feedistä kokonaan ja 201s ajaa talvella vain suuntaan Ekenäs,
@@ -2047,6 +2114,9 @@ const CONFIGS = {
     // Ydinkeskustan solmupysäkit ("Keskustan linjat" -pikavalinta vihkossa); testattu
     // sovelluksen omalla stops(name:)-kyselyllä 2.8.2026: Matkakeskus 26 linjaa, Torikatu 22.
     centerStopNames: ["Matkakeskus", "Torikatu"],
+    // EI hubs (#/laiturit): matkakeskus on feedissä yhtenä pysäkkinä ("Matkakeskus H1")
+    // + koontipysäkkinä "Matkakeskus laiturit 1-7". Laiturikohtaista dataa ei ole, joten
+    // laiturinäkymä lupaisi enemmän kuin data antaa. Mitattu 14.8.2026.
     // Yhdistetyt suunnat -presetit (datavarmistus 2.8.2026 sekä kesä- että talvifeedillä,
     // jotta 12.8. kausivaihto ei riko presettejä): 1+3 jakavat 15 pysäkin jakson suuntaan 0
     // ja 16 suuntaan 1 (Lapinmäki–Voikkaa–Kuusankoski–keskusta), 2+6 jakavat 15 pysäkin
@@ -2088,6 +2158,12 @@ const CONFIGS = {
     // 28 linjaa, Mikkeli laituri 22. HUOM: kysely on alkuosahaku, joten pelkkä "Matkakeskus"
     // ei osu — pysäkki on "Mikkeli Matkakeskus, saapuvat".
     centerStopNames: ["Hallitustori", "Mikkeli Matkakeskus", "Mikkeli laituri"],
+    // Keskusterminaalit (#/laiturit). Mitattu 14.8.2026: matkakeskuksen "Mikkeli laituri"
+    // 1–7 (platformCode kaikilla) + Hallitustorin 3 laituria.
+    hubs: [
+      { key: "matkakeskus", name: "Mikkeli laituri", center: { lat: 61.68740, lon: 27.27721 } },
+      { key: "hallitustori", name: "Hallitustori", center: { lat: 61.68747, lon: 27.27434 } },
+    ],
     // Yhdistetyt suunnat -presetit (datavarmistus 2.8.2026 sekä kesä- että talvifeedillä):
     // 1R+10 jakavat 21 pysäkin jakson (Hallitustori–Rantakylä–Hallitustori), 2T+3 jakavat
     // 13 pysäkin jakson (Kirkkopuisto–Juvantie–Launiala–Hallitustori).
@@ -2124,6 +2200,13 @@ const CONFIGS = {
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Turuntien silta 41 linjaa, Sisälähetys 37).
     centerStopNames: ["Turuntien silta", "Sisälähetys"],
+    // Keskusterminaalit (#/laiturit). Mitattu 14.8.2026: alkuosahaku "Linja-autoasema"
+    // kattaa sekä laiturit A–E että "Linja-autoasema, lait. 1–5" (10 pysäkkiä yhteensä),
+    // Rautatieasema 6 laituria A–F. Kaikilla platformCode.
+    hubs: [
+      { key: "linja-autoasema", name: "Linja-autoasema", center: { lat: 60.99522, lon: 24.46656 } },
+      { key: "rautatieasema", name: "Rautatieasema", center: { lat: 61.00193, lon: 24.47779 } },
+    ],
     // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella,
     // molemmat suunnat molemmilla kausilla): 1+1A jakavat 41 pysäkin jakson (Loimalahti),
     // 5+5Y 40 pysäkin jakson (Parolannummi; 5Y = yövuorovariantti).
@@ -2158,6 +2241,9 @@ const CONFIGS = {
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Itäranta 18 linjaa, Koskikatu 17).
     centerStopNames: ["Itäranta", "Koskikatu"],
+    // EI hubs (#/laiturit): feedissä ei ole matkakeskus- eikä linja-autoasema-nimistä
+    // pysäkkiä lainkaan (0 osumaa 14.8.2026), eikä keskustassa ole laiturijaollista
+    // terminaalia — vilkkaimmat ovat katupysäkkipareja (Koskikatu, Kanavaranta).
     // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella,
     // molemmat suunnat molemmilla kausilla): 201+202 jakavat 31 pysäkin jakson
     // (Joensuu–Lehmola), 101+104 32 pysäkin jakson (Joensuu–Reijola).
@@ -2193,6 +2279,12 @@ const CONFIGS = {
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Urhonkatu 42 linjaa, Kauppatori 29).
     centerStopNames: ["Urhonkatu", "Kauppatori"],
+    // Keskusterminaalit (#/laiturit). Mitattu 14.8.2026: Linkkikeskus 5 laituria
+    // (platformCode kaikilla) + Jyväskylä Matkakeskus 5 laituria.
+    hubs: [
+      { key: "linkkikeskus", name: "Linkkikeskus", center: { lat: 62.24119, lon: 25.74869 } },
+      { key: "matkakeskus", name: "Jyväskylä Matkakeskus", center: { lat: 62.24232, lon: 25.75541 } },
+    ],
     // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella,
     // molemmat suunnat molemmilla kausilla): 16+21 jakavat 35 pysäkin jakson (Säynätsalo),
     // S1+S2 26 pysäkin jakson (keskussairaalan runkoyhteys, 60–70 vuoroa/pv).
@@ -2228,6 +2320,8 @@ const CONFIGS = {
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Oikokatu 27 linjaa, Armada 18).
     centerStopNames: ["Oikokatu", "Armada"],
+    // EI hubs (#/laiturit): "Matkakeskus" on feedissä yksi pysäkki (11 linjaa) ilman
+    // laiturijakoa, eikä linja-autoasema-nimistä pysäkkiä ole. Mitattu 14.8.2026.
     // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella,
     // molemmat suunnat molemmilla kausilla): 1+1X jakavat 26 pysäkin jakson
     // (keskusta–LUT-yliopisto), 100+101 27 pysäkin jakson (Joutsenon/Imatran seutusuunta;
@@ -2264,6 +2358,11 @@ const CONFIGS = {
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Pokkitörmä 48 linjaa, Raatti 37).
     centerStopNames: ["Pokkitörmä", "Raatti"],
+    // Keskusterminaali (#/laiturit). Mitattu 14.8.2026: Linja-autoasema E/L/P/T
+    // (4 pysäkkiä, ei platformCodeja → laituritunnus luetaan nimen loppuosasta).
+    hubs: [
+      { key: "linja-autoasema", name: "Linja-autoasema", center: { lat: 65.00931, lon: 25.48436 } },
+    ],
     // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella,
     // molemmat suunnat molemmilla kausilla): 4+4A jakavat 45 pysäkin jakson (Herukan
     // runkoyhteys, 36–65 vuoroa/pv), 59+59S 56 pysäkin jakson (Hailuoto–Marjaniemi,
@@ -2300,6 +2399,12 @@ const CONFIGS = {
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Teljäntori 33 linjaa, Asema-aukio 23).
     centerStopNames: ["Teljäntori", "Asema-aukio"],
+    // Keskusterminaalit (#/laiturit). Mitattu 14.8.2026: Kauppatorin 8 laituria ja
+    // matkakeskuksen 5 laituria, kaikilla platformCode.
+    hubs: [
+      { key: "kauppatori", name: "Pori Kauppatori laituri", center: { lat: 61.48665, lon: 21.79608 } },
+      { key: "matkakeskus", name: "Pori matkakeskus laituri", center: { lat: 61.47788, lon: 21.78895 } },
+    ],
     // Yhdistetyt suunnat -presetit (datavarmistus 7.8.2026 kesä- JA talvikoetuksella):
     // 35+43 jakavat 26 pysäkin jakson molempiin suuntiin (Pihlava, 23–29 vuoroa/pv),
     // 34+34W 46 pysäkin jakson yhteen suuntaan (Yyteri). Pihlava ensin (2 suuntaa →
@@ -2335,6 +2440,11 @@ const CONFIGS = {
     heroEmphasis: "layer",
     // Keskustan solmupysäkit (7.8.2026: Poliisilaitos 10 linjaa, Hallituskatu 7).
     centerStopNames: ["Poliisilaitos", "Hallituskatu"],
+    // EI hubs (#/laiturit): feedissä ei ole matkakeskus- eikä linja-autoasema-pysäkkiä
+    // (0 osumaa 14.8.2026); keskustan ryhmät ovat katupysäkkejä. HUOM mittauksessa:
+    // "Rovaniemi Keskusurheilukenttä I" ja "Rovaniemi Lyseonpuisto L" näyttävät 10–11
+    // linjaa mutta 0 lähtöä arkipäivänä (koululiikennepysäkkejä) → älä valitse niitä
+    // solmupysäkeiksi pelkän linjamäärän perusteella.
     // Yhdistetyt suunnat -presetti (datavarmistus 7.8.2026 kesä- JA talvikoetuksella):
     // 4+5 jakavat 9 pysäkin jakson Karinrakan haaralla (22–64 vuoroa/pv). Yhteinen jakso
     // on yksisuuntainen (linjat kiertävät keskustan eri reittejä) → käytävässä 1 suunta,
@@ -2457,6 +2567,9 @@ const STRINGS = {
     hubDepartures: "Live-lähdöt →",
     hubOfficialMap: "LSL:n virallinen pysäkkikartta (PDF)",
     hubOfficialNote: "Pysäkkitiedot on koottu avoimesta datasta. Virallinen, kuvitettu pysäkkikartta on LSL:n sivuilla.",
+    // Kaupungit joilla ei ole varmennettua virallista pysäkkikarttaa: kerrotaan lähde
+    // ilman lupausta virallisesta kartasta (väärä linkki olisi pahempi kuin puuttuva).
+    hubOpenDataNote: "Pysäkkitiedot ja laiturit on koottu avoimesta joukkoliikennedatasta.",
     termStop: "Pysäkki",
     termPlatform: "Laituri",
     exLink: "Poikkeuspäivät",
@@ -2927,6 +3040,7 @@ const STRINGS = {
     hubDepartures: "Live departures →",
     hubOfficialMap: "Official LSL stop map (PDF)",
     hubOfficialNote: "Stop data is compiled from open data. The official illustrated stop map is on the LSL website.",
+    hubOpenDataNote: "Stop and platform data is compiled from open public transport data.",
     termStop: "Stop",
     termPlatform: "Platform",
     exLink: "Special days",
@@ -3385,6 +3499,7 @@ const STRINGS = {
     hubDepartures: "Avgångar i realtid →",
     hubOfficialMap: "LSL:s officiella hållplatskarta (PDF)",
     hubOfficialNote: "Hållplatsuppgifterna är sammanställda från öppna data. Den officiella illustrerade hållplatskartan finns på LSL:s webbplats.",
+    hubOpenDataNote: "Hållplats- och plattformsuppgifterna är sammanställda från öppna kollektivtrafikdata.",
     termStop: "Hållplats",
     termPlatform: "Plattform",
     exLink: "Avvikande dagar",
@@ -4298,6 +4413,37 @@ async function patternTripsWithDays(code) {
        }
      }`, { code });
   return data.pattern?.trips || [];
+}
+
+// Monen patternin vuorohaku yhdellä kyselyllä. Digitransit EI tue patterns(ids:)
+// (todennettu 14.8.2026: "Unknown field argument 'ids'"), mutta GraphQL-aliakset
+// kelpaavat: p0: pattern(id:$c0) … pN. Näin julisteiden erätulostus ei tee enää
+// kutsua per pattern — se oli 13.8.2026 purskerajavian (304 kutsua) suurin erä.
+// Erä on 5: yhden patternin vuorot stoptimeineen ovat iso vastaus, ja liian suuri
+// nippu kaataisi koko erän yhteen virheeseen. Epäonnistunut erä EI heitä vaan jättää
+// koodit memoon hakematta → kutsuja hakee ne yksitellen (hitaampi mutta oikea).
+const PTD_ALIAS_CHUNK = 5;
+const PTD_ALIAS_FIELDS = `trips { serviceId tripHeadsign@L activeDates
+  stoptimes { timepoint scheduledDeparture pickupType headsign@L stop { gtfsId name@L } } }`;
+async function patternTripsMany(codes, memo) {
+  const missing = [...new Set(codes)].filter(c => c && !memo.has(c));
+  const chunks = [];
+  for (let i = 0; i < missing.length; i += PTD_ALIAS_CHUNK)
+    chunks.push(missing.slice(i, i + PTD_ALIAS_CHUNK));
+  await mapLimit(chunks, 3, async chunk => {
+    const decl = chunk.map((_, i) => `$c${i}: String!`).join(", ");
+    const body = chunk.map((_, i) => `p${i}: pattern(id: $c${i}) { ${PTD_ALIAS_FIELDS} }`).join("\n");
+    const vars = Object.fromEntries(chunk.map((code, i) => ["c" + i, code]));
+    let data;
+    try { data = await gql(`query (${decl}) { ${body} }`, vars); }
+    catch (e) { return; }   // erä epäonnistui → jätetään yksittäishaulle
+    chunk.forEach((code, i) => {
+      const trips = data["p" + i]?.trips;
+      // Ei cachePutia: erä on kymmeniä patterneja stoptimeineen, ja niiden kirjoitus
+      // localStorageen täyttäisi välimuistin (cachePut joutuisi tyhjennyskierrokseen).
+      if (trips) memo.set(code, Promise.resolve(trips));
+    });
+  });
 }
 
 // Vuorot suunnan KAIKISTA patterneista (variantit) yhteen → ei pudoteta service-
@@ -6281,6 +6427,32 @@ function stopPosterHtml(lines) {
   }).join("")}</div>`;
 }
 
+// Pysäkkien patternit YHDELLÄ kyselyllä (stops(ids:)). Erätulostus haki nämä aiemmin
+// pysäkki kerrallaan, jolloin yhden linjan julisteajo teki 304 proxy-kutsua ja kaatui
+// 13.8.2026 workerin purskerajaan (RATE_MAX 300). Niputus pudottaa pysäkkiosuuden
+// n:stä muutamaan kyselyyn; loput kutsuista ovat pattern-hakuja, jotka ptdMemo jakaa.
+// Paloittelu: yksi jättikysely 80 pysäkille palauttaisi ison vastauksen ja kaatuisi
+// kokonaan yhteen virheeseen, joten erä on 40.
+const POSTER_STOP_CHUNK = 40;
+async function loadPosterPatterns(stopIds) {
+  const byStop = new Map();
+  for (let i = 0; i < stopIds.length; i += POSTER_STOP_CHUNK) {
+    const ids = stopIds.slice(i, i + POSTER_STOP_CHUNK);
+    // gql eikä cachedGql: 40 pysäkin patternipaketti on iso, ja sen tallennus
+    // localStorageen täyttäisi välimuistin ja pakottaisi cachePutin tyhjennyskierrokseen.
+    // Erätulostus on joka tapauksessa verkkotoimenpide (tuloste ei saa syntyä vanhalla datalla).
+    const data = await gql(
+      `query ($ids: [String]) {
+         stops(ids: $ids) {
+           gtfsId
+           patterns { code headsign route { shortName longName@L color textColor } }
+         }
+       }`, { ids });
+    for (const s of (data.stops || [])) if (s) byStop.set(s.gtfsId, s.patterns || []);
+  }
+  return byStop;
+}
+
 // Pysäkkijulisteen päiväblokit TODELLISTEN ajopäivien mukaan (activeDates) —
 // sama moottori kuin linjatulosteessa/lehtitelineessä/vihossa (groupTripsByDays).
 // Korjaa julisteen päivätyyppibugin: aiempi 1 edustava päivä / karkea tyyppi
@@ -6289,14 +6461,19 @@ function stopPosterHtml(lines) {
 // ptdMemo (Map) jakaa pattern-haut eräajon pysäkkien kesken. conc = pattern-hakujen
 // rinnakkaisuus: yksittäisjuliste 4 (talon normi, vrt. vihko), eräajo 2 per pysäkki
 // (ulompi mapLimit 2 pysäkkiä → yhteensä ~4 samanaikaista, upstream ~10 req/s).
-async function stopPosterBlocks(stopId, refISO, ptdMemo, conc) {
-  const { data } = await cachedGql(`posterpat:${stopId}`,
-    `query ($id: String!) {
-       stop(id: $id) {
-         patterns { code headsign route { shortName longName@L color textColor } }
-       }
-     }`, { id: stopId });
-  const pats = data.stop?.patterns || [];
+// presetPats = valmiiksi haetut patternit (eräajo hakee ne yhdellä stops(ids:)-kyselyllä
+// kaikille pysäkeille kerralla, ks. loadPosterPatterns) → per-pysäkki-kysely jää pois.
+async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
+  let pats = presetPats;
+  if (!pats) {
+    const { data } = await cachedGql(`posterpat:${stopId}`,
+      `query ($id: String!) {
+         stop(id: $id) {
+           patterns { code headsign route { shortName longName@L color textColor } }
+         }
+       }`, { id: stopId });
+    pats = data.stop?.patterns || [];
+  }
   const memo = ptdMemo || new Map();
   // Retry+backoff proxyn 429-kuristusta vasten. Lopullinen epäonnistuminen HEITTÄÄ:
   // juliste ei saa koskaan tulostua hiljaa vajaana/tyhjänä virhetilassa (näyttäisi
@@ -7522,7 +7699,9 @@ async function viewHubs(parts) {
       <p class="muted">${t("hubIntro")}</p>
       <div class="tabs plat-tabs" role="group" aria-label="${esc(t("hubTitle"))}">${tabs}</div>
       <div id="hubMap" class="map bigmap" aria-label="${esc(t("hubMapAria", { hub: hub.name }))}"></div>
-      <p class="muted">${icon("doc")} <a href="${esc(hub.pdf)}" target="_blank" rel="noopener">${t("hubOfficialMap")}</a><br><span class="muted">${t("hubOfficialNote")}</span></p>
+      ${hub.pdf
+        ? `<p class="muted">${icon("doc")} <a href="${esc(hub.pdf)}" target="_blank" rel="noopener">${t("hubOfficialMap")}</a><br><span class="muted">${t("hubOfficialNote")}</span></p>`
+        : `<p class="muted">${t("hubOpenDataNote")}</p>`}
       <div id="hubList"><p class="muted">${t("hubLoading")}</p></div>
     </div>`);
   document.querySelectorAll("[data-hub-tab]").forEach(btn =>
@@ -8049,11 +8228,19 @@ function bindPostersTab(routes) {
       if (!stops.length) { st.textContent = t("batchNoStops"); return; }
       const today = todayISO();
       const ptdMemo = new Map();   // jaettu pattern-välimuisti: naapuripysäkit jakavat samat patternit
+      // Pysäkkien patternit etukäteen yhdellä kyselyllä per 40 pysäkkiä (ks.
+      // loadPosterPatterns): tämä oli erätulostuksen suurin yksittäinen kutsuerä.
+      const patsByStop = await loadPosterPatterns(stops.map(s => s.gtfsId));
+      // Ja patternien vuorot aliasnipuissa (ks. patternTripsMany): ilman tätä erä tekisi
+      // yhden kutsun jokaisesta eri patternista, mikä oli 13.8.2026 vian pääerä.
+      await patternTripsMany([...patsByStop.values()].flat().map(p => p.code), ptdMemo);
       let done = 0;
       const sections = await mapLimit(stops, 2, async (s) => {
         // Virhe heittää → koko erä keskeytyy ulompaan catchiin (status näyttää syyn).
         // Vajaa/tyhjä pysäkkijuliste virhetilassa olisi pahempi kuin uusi yritys.
-        const blocks = await stopPosterBlocks(s.gtfsId, today, ptdMemo, 2);
+        // undefined (pysäkki puuttui niputetusta vastauksesta) → stopPosterBlocks hakee
+        // sen yksin. Tyhjä lista EI saa mennä läpi "ei patterneja" -totuutena.
+        const blocks = await stopPosterBlocks(s.gtfsId, today, ptdMemo, 2, patsByStop.get(s.gtfsId));
         st.textContent = t("batchProgress", { done: ++done, total: stops.length });
         const head = (sub) => `<div class="poster-head"><div>
             <h2>${esc(s.name)} <span class="muted">${esc(s.code || "")}</span></h2>

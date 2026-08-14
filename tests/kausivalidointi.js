@@ -13,6 +13,9 @@
 //     parittainen yhteisten pysäkkien määrä ≥ 3 (WARN — corridorNoShared-raja).
 //  3) Solmupysäkin pulssi: centerStopNames[0]-lähtömäärä D+7 vs D+35; WARN jos 0
 //     tai muutos > 40 % (kausivaihto tulossa → presetit ja näytteet tarkistettava).
+//  4) Keskusterminaalien nimihaku (CONFIG.hubs): jokaisen hub.name-alkuosahaun on
+//     osuttava ≥ 2 pysäkkiin joilla on linjoja (FAIL jos 0, WARN jos 1). Lisätty
+//     14.8.2026 kun #/laiturit laajeni Lahdesta 11 kaupunkiin.
 //
 // Kiintiökuri (opit 10.–11.8.): kyselyt ovat kevyitä GraphQL-kutsuja (ei
 // sivulatauksia), kaupunkien välissä tauko, ja ajastus eri päivälle/ajalle kuin
@@ -179,6 +182,26 @@ async function runCity(key, cfg, feeds, baseline, dNear, dFar) {
     else if (far === 0 || Math.abs(far - near) / near > 0.4)
       log("WARN", key, "solmupysäkki", `"${stopName}" ${near} lähtöä ${dNear} → ${far} lähtöä ${dFar} — kausivaihto tulossa`);
     else log("PASS", key, "solmupysäkki", `"${stopName}" ${near} → ${far} lähtöä, vakaa`);
+  }
+
+  // 4) keskusterminaalien (#/laiturit) nimihaku elää. CONFIG.hubs[].name on ALKUOSAHAKU
+  // feedin pysäkkinimiin, joten kausivaihto voi viedä terminaalin nimen alta ja
+  // laiturinäkymä jäisi tyhjäksi ilman virhettä. FAIL jos 0 osumaa, WARN jos alle 2
+  // (laiturinäkymä yhdestä pysäkistä ei kerro laitureista mitään).
+  for (const hub of (cfg.hubs || [])) {
+    await sleep(QUERY_GAP_MS);
+    const d = await gql(
+      `query ($name: String!) { stops(name: $name) { gtfsId platformCode routes { gtfsId } } }`,
+      { name: hub.name });
+    const own = (d.stops || [])
+      .filter(s => s.gtfsId.startsWith(feed + ":") && (s.routes || []).length);
+    const plats = own.filter(s => s.platformCode).length;
+    if (!own.length) log("FAIL", key, `laituriryhmä ${hub.key}`,
+      `"${hub.name}" ei osu yhteenkään pysäkkiin jolla on linjoja — nimi muuttunut feedissä?`);
+    else if (own.length < 2) log("WARN", key, `laituriryhmä ${hub.key}`,
+      `"${hub.name}" vain ${own.length} pysäkki — laiturinäkymä ei enää näytä laitureita`);
+    else log("PASS", key, `laituriryhmä ${hub.key}`,
+      `"${hub.name}" ${own.length} pysäkkiä (${plats} platformCodea)`);
   }
 }
 

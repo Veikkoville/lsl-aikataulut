@@ -367,20 +367,33 @@ async function printHygiene(page, label) {
     ? fail("palvelutiski: desk-mode ei purkaudu poistuttaessa")
     : ok("palvelutiski: desk-mode purkautuu poistuttaessa");
 
-  // Minimi-CONFIG-kaupungin (Vaasa) ETUSIVU: CONFIG-puuttuvat napit (hubs/fares) jäävät pois,
-  // mutta ryhmät renderöityvät silti ILMAN tyhjää otsikkoa (jokaisessa ≥1 nappi). Yksi haku.
-  await page.goto(BASE + "/?city=vaasa#/", { waitUntil: "networkidle2" });
-  const vHome = await page.evaluate(() => ({
+  // CONFIG-gating etusivulla molempiin suuntiin. Vaasa: EI fares → lippunappi pois, mutta
+  // hubs LISÄTTIIN 14.8.2026 → laiturinappi on. Joensuu: ei hubs eikä fares (feedissä ei ole
+  // laiturijaollista terminaalia) → molemmat napit pois. Ryhmät renderöityvät silti ILMAN
+  // tyhjää otsikkoa (jokaisessa ≥1 nappi), ja etusivulla on yksi haku.
+  // Kaksisuuntaisuus on tarkoituksellinen: pelkkä "nappi puuttuu" -testi menisi läpi myös
+  // silloin kun nappi puuttuisi kaikilta, eli gating olisi rikki toiseen suuntaan.
+  const homeTools = () => page.evaluate(() => ({
     groups: [...document.querySelectorAll(".tool-group")].map(g => ({
       title: g.querySelector(".tool-group-h")?.textContent.trim() || "", tools: g.querySelectorAll("a.tool").length })),
     hasFaresTool: !!document.querySelector('a.tool[href="#/liput"]'),
     hasHubTool: !!document.querySelector('a.tool[href="#/laiturit"]'),
     oneSearch: !!document.querySelector(".home-search #uniSearch") && !document.querySelector("#nearbyBtn"),
   }));
+  // Joensuu ensin ja Vaasa jälkimmäisenä: seuraava tarkistus (Vaasan brändiväri) lukee
+  // saman sivun tilan, joten sivu on jätettävä Vaasaan.
+  await page.goto(BASE + "/?city=joensuu#/", { waitUntil: "networkidle2" });
+  const jHome = await homeTools();
+  (jHome.groups.length >= 2 && jHome.groups.every(g => g.title && g.tools > 0)
+    && !jHome.hasFaresTool && !jHome.hasHubTool && jHome.oneSearch)
+    ? ok(`etusivu (Joensuu, minimi-CONFIG): hubs/fares-napit pois (${jHome.groups.map(g => g.title + ":" + g.tools).join(", ")})`)
+    : fail("etusivu (Joensuu): tyhjä/puuttuva ryhmä / hubs|fares-nappi yhä / haku rikki: " + JSON.stringify(jHome));
+  await page.goto(BASE + "/?city=vaasa#/", { waitUntil: "networkidle2" });
+  const vHome = await homeTools();
   (vHome.groups.length >= 2 && vHome.groups.every(g => g.title && g.tools > 0)
-    && !vHome.hasFaresTool && !vHome.hasHubTool && vHome.oneSearch)
-    ? ok(`etusivu (Vaasa, minimi-CONFIG): ryhmät ilman tyhjää otsikkoa, hubs/fares-napit pois (${vHome.groups.map(g => g.title + ":" + g.tools).join(", ")})`)
-    : fail("etusivu (Vaasa): tyhjä/puuttuva ryhmä / hubs|fares-nappi yhä / haku rikki: " + JSON.stringify(vHome));
+    && !vHome.hasFaresTool && vHome.hasHubTool && vHome.oneSearch)
+    ? ok(`etusivu (Vaasa): ryhmät ilman tyhjää otsikkoa, laiturinappi on, lippunappi pois (${vHome.groups.map(g => g.title + ":" + g.tools).join(", ")})`)
+    : fail("etusivu (Vaasa): tyhjä/puuttuva ryhmä / laiturinappi puuttuu / lippunappi yhä / haku rikki: " + JSON.stringify(vHome));
   // Vaasan demo: Liftin pinkki brändiväri (per-kaupunki) — header + primary-napit magenta (R>B),
   // kirkas #E6007E aksenttiraita. data-city="vaasa" gating → muut kaupungit (sininen) ennallaan.
   const vTheme = await page.evaluate(() => {

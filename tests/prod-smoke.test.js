@@ -51,6 +51,18 @@ const CITY_FILTER = (process.env.SMOKE_CITIES || "")
   .split(",").map(s => s.trim()).filter(Boolean);
 const START_DELAY_MS = +(process.env.SMOKE_START_DELAY_MS || 0);
 
+// Erätulostuksen kutsukatto. Workerin purskeraja on 1200/min/IP (worker.js RATE_MAX),
+// mutta katto asetetaan PALJON alemmas, jotta myös niputuksen hiljainen rikkoutuminen
+// näkyy eikä vain rajan osuminen. Mitatut arvot linjalle Lahti 4 (76 pysäkkiä, 14.8.2026):
+//   niputtamaton 304 · vain stops(ids:) niputettu 227 · molemmat niputettu 50.
+// 200 jää selvästi mitatun 50:n yläpuolelle (linjaston kasvu ei hälytä turhaan) mutta
+// alle kummankin rikkoutumistilan. Jos tämä ylittyy, älä nosta kattoa vaan selvitä
+// miksi niputus ei enää pidä.
+const BATCH_CALL_CEILING = +(process.env.SMOKE_BATCH_CEILING || 200);
+const BATCH_CITIES = (process.env.SMOKE_BATCH_CITIES === undefined
+  ? null                                   // oletus: CITIES-taulun batchPosterLine päättää
+  : process.env.SMOKE_BATCH_CITIES.split(",").map(s => s.trim()).filter(Boolean));
+
 // gen = FI-otsikon genetiivi ("<gen> bussiaikataulut") — Lahti-fallbackia ei hyväksytä.
 // svTitle = kaksikielisen kaupungin SV-otsikko (FI-fallbackia ei hyväksytä).
 // nightStopId/nightLines = Lahden yövuorotarkistus (Matkakeskus A, todennettu datasta
@@ -70,8 +82,16 @@ const START_DELAY_MS = +(process.env.SMOKE_START_DELAY_MS || 0);
 // lähtöjä seuraavana arkipäivänä. Poistuva pysäkki EI katoa feedistä vaan jää
 // 0-lähtöiseksi objektiksi (todennettu 10.8.2026: Lahden Tevi P/E 215/213 → 0 lähtöä,
 // gtfsId:t jäivät feediin) → olemassaolotarkistus yksin päästäisi rikon läpi.
+// batchPosterLine = pysäkkijulisteiden ERÄTULOSTUS ajetaan tälle linjalle oikean proxyn
+// läpi. Tämä on 13.8.2026 tuotantovian sulkeva tarkistus: workerin purskeraja (RATE_MAX
+// 300) katkaisi linjan 4 julisteajon 304. kutsuun, ja vika pääsi läpi koska paikallinen
+// smoke ajaa localhost-originia vasten eikä workeria ole silloin lainkaan matkassa.
+// Vain YHDELLE kaupungille (Lahti, erä 1 = kevein kiintiötilanne): erätulostus on ajon
+// raskain yksittäinen toimenpide, eikä sitä pidä ajaa 16 kertaa saman avaimen budjetista.
+// Ylikirjoitettavissa: SMOKE_BATCH_CITIES=vaasa,lahti (tyhjä = pois käytöstä).
 let CITIES = [ // let eika const: SMOKE_CITIES suodattaa taman eraajossa
-  { key: "lahti",   gen: "Lahden",   nightStopId: "Lahti:85811", nightLines: ["91", "96", "97"] },
+  { key: "lahti",   gen: "Lahden",   nightStopId: "Lahti:85811", nightLines: ["91", "96", "97"],
+    batchPosterLine: "4" },
   { key: "kuopio",  gen: "Kuopion" },
   { key: "salo",    gen: "Salon" },
   { key: "kajaani", gen: "Kajaanin" },
@@ -145,6 +165,11 @@ const searchTime = searchTimeHelsinki();
 
 // Kaupungit jotka saivat lopulliset tulokset (uusintaan palanneet eivät lasketa vielä).
 const cityDone = new Set();
+// Kaupungit jotka tarvitsivat vähintään yhden uusinnan 429:n takia. Vihreä ajo EI saa
+// piilottaa tätä: 13.8.2026 erä 2 päättyi "KAIKKI TARKISTUKSET OK" vaikka Pori ja
+// Rovaniemi olivat kaatuneet kiintiöön ja menneet läpi vasta jäähdytyksen jälkeen.
+// Uusinta on kiintiön ryömimisen mittari, ja juuri se mittausketju on katkennut kolmesti.
+const cityRetried = new Map();
 
 // Raportti kirjoitetaan myös silloin kun ajo kaatuu kesken: muuten harness-virhe
 // jättää jälkeensä pelkän exit-koodin eikä tiedetä mikä ehti mennä läpi.
@@ -158,6 +183,13 @@ function writeReport() {
         `vain ${cityDone.size}/${CITIES.length} kaupunkia ajettu — ajamatta: `
         + CITIES.filter(c => !cityDone.has(c.key)).map(c => c.key).join(", "));
 
+  // Uusintojen erittely INFO-rivinä: ei muuta ajoa punaiseksi (uusinta on tarkoituksellinen
+  // vastalääke), mutta tekee kiintiön kulumisen näkyväksi myös vihreässä ajossa.
+  info("(ajo)", "kiintiön uusinnat", cityRetried.size
+    ? `${cityRetried.size}/${CITIES.length} kaupunkia vaati uusinnan (429): `
+      + [...cityRetried].map(([k, n]) => `${k} ×${n}`).join(", ")
+    : `0/${CITIES.length} kaupunkia vaati uusinnan`);
+
   const failures = results.filter(r => r.status === "FAIL");
   const lines = [];
   lines.push("Tuotanto-smoke-vahti · " + BASE + " · " + new Date().toISOString());
@@ -165,14 +197,18 @@ function writeReport() {
   lines.push("");
   for (const r of results) lines.push(`${r.status.padEnd(5)}[${r.city}] ${r.check}${r.detail ? " — " + r.detail : ""}`);
   lines.push("");
-  lines.push(failures.length ? failures.length + " TARKISTUSTA EPÄONNISTUI" : "KAIKKI TARKISTUKSET OK");
+  // Uusintaluku loppuriville asti: yhteenveto on se mitä ajosta luetaan yhdellä silmäyksellä,
+  // ja ilman tätä "KAIKKI TARKISTUKSET OK" peittää kiintiön ryömimisen.
+  const retryNote = cityRetried.size ? ` · ${cityRetried.size} kaupunkia vaati uusinnan (429)` : "";
+  lines.push((failures.length ? failures.length + " TARKISTUSTA EPÄONNISTUI" : "KAIKKI TARKISTUKSET OK") + retryNote);
   const txt = lines.join("\n") + "\n";
   // Eraajossa raportit eivat saa kirjoittaa toistensa paalle (Actions arkistoi molemmat).
   const jalkiliite = process.env.SMOKE_REPORT_SUFFIX || "";
   fs.writeFileSync(path.join(__dirname, `prod-smoke-report${jalkiliite}.txt`), txt);
   fs.writeFileSync(path.join(__dirname, `prod-smoke-report${jalkiliite}.json`), JSON.stringify({
     base: BASE, generatedAt: new Date().toISOString(), searchTime,
-    cities: CITIES.map(c => c.key), failures: failures.length, results,
+    cities: CITIES.map(c => c.key), failures: failures.length,
+    retriedCities: Object.fromEntries(cityRetried), results,
   }, null, 2) + "\n");
   console.log("\n" + lines[lines.length - 1]);
   return failures.length;
@@ -543,6 +579,133 @@ function writeReport() {
         }
       }
 
+      // --- 6a) Palvelutiski (#/palvelutiski): oletuspysäkki avautuu ja siinä on linjoja.
+      //         Pariteettivahti: oletuspysäkki nojaa CONFIG.centerStopNames/hubs-kenttiin,
+      //         jotka puuttuivat 13.8.2026 kuudelta kaupungilta — tiski avautui niissä
+      //         tyhjänä eikä mikään testi kertonut siitä. Lähtömäärä on INFO eikä FAIL:
+      //         illan ajossa (21 Helsinki) harvan verkon kaupungissa voi aidosti olla 0
+      //         lähtöä, mutta oletuspysäkin PUUTTUMINEN on aina konfiguraatiovika.
+      await page.goto(url("#/palvelutiski"), { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
+      const deskOk = await page.waitForSelector("#deskStopResults #deskLines .badge", { timeout: 45000 })
+        .then(() => true).catch(() => false);
+      if (!deskOk) {
+        const empty = await page.evaluate(() =>
+          (document.getElementById("deskStopResults")?.textContent || "").trim().slice(0, 80));
+        fail(city.key, "palvelutiskin oletuspysäkki",
+          "tiski avautui ilman oletuspysäkkiä — tarkista CONFIG.centerStopNames"
+          + (empty ? ` (sisältö: "${empty}")` : " (tyhjä)"));
+      } else {
+        // Lähdöt latautuvat omaan lohkoonsa vasta linjarivin jälkeen; renderDeskDeps
+        // lisää aina .desk-deps-upd-rivin kun haku on valmis. Ilman tätä odotusta
+        // lähtömäärä mitattaisiin latausviestin päältä ja näyttäisi aina nollalta.
+        await page.waitForSelector("#deskDeps .desk-deps-upd", { timeout: 30000 }).catch(() => {});
+        const desk = await page.evaluate(() => ({
+          lines: document.querySelectorAll("#deskLines .badge").length,
+          stop: document.querySelector("#deskDeps .stophead a")?.textContent?.trim() || "",
+          deps: document.querySelectorAll("#deskDeps table.deps tbody tr").length,
+        }));
+        pass(city.key, "palvelutiskin oletuspysäkki", `${desk.lines} linjaa`);
+        info(city.key, "palvelutiskin lähdöt",
+          desk.deps ? `${desk.deps} lähtöä (${desk.stop})` : "ei lähtöjä juuri nyt (tarkista jos toistuu aamuajossa)");
+      }
+
+      // --- 6d) Keskustan pysäkit (#/laiturit): vain kaupungeille joilla CONFIG.hubs.
+      //         Laiturinäkymä on Lahden ulkopuolella uusi (14.8.2026), ja se nojaa
+      //         nimihakuun → kausivaihto voi viedä terminaalin nimen alta.
+      const hubKeys = await page.evaluate(() =>
+        (typeof CONFIG !== "undefined" && CONFIG.hubs ? CONFIG.hubs.map(h => h.key) : []));
+      if (hubKeys.length) {
+        await page.goto(url("#/laiturit"), { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
+        const platOk = await page.waitForSelector(".plat-list .plat-item", { timeout: 45000 })
+          .then(() => true).catch(() => false);
+        const plat = await page.evaluate(() => ({
+          items: document.querySelectorAll(".plat-list .plat-item").length,
+          tabs: document.querySelectorAll("[data-hub-tab]").length,
+          withLines: document.querySelectorAll(".plat-list .plat-item .plat-lines .badge").length,
+        }));
+        platOk && plat.items >= 1 && plat.withLines >= 1
+          ? pass(city.key, "keskustan pysäkit", `${plat.items} laituria, ${plat.tabs} välilehteä`)
+          : fail(city.key, "keskustan pysäkit",
+              `laiturilista jäi tyhjäksi (laitureita ${plat.items}, linjamerkkejä ${plat.withLines}) — `
+              + `CONFIG.hubs-nimi ei osu feediin? Välilehdet: ${hubKeys.join(", ")}`);
+      }
+
+      // --- 6b) Pysäkkijulisteiden ERÄTULOSTUS oikean proxyn läpi (tuotantovika 13.8.2026).
+      //         Mitataan kaksi asiaa joita mikään muu tarkistus ei näe:
+      //         (1) valmistuuko koko erä ilman yhtään 429:ää suojatun proxyn läpi,
+      //         (2) montako proxy-kutsua erä tekee (ryömiikö luku kohti workerin rajaa).
+      //         window.print stubataan ennen klikkiä — tuloste ei saa avata dialogia.
+      const runBatch = BATCH_CITIES ? BATCH_CITIES.includes(city.key) : !!city.batchPosterLine;
+      if (runBatch && city.batchPosterLine) {
+        await page.goto(url("#/tulosteet/julisteet"), { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
+        const selOk = await page.waitForFunction(
+          () => document.querySelectorAll("#batchLine option").length > 1,
+          { timeout: 60000 }).then(() => true).catch(() => false);
+        if (!selOk) {
+          fail(city.key, "julisteiden erätulostus", "linjavalitsin (#batchLine) ei latautunut");
+        } else {
+          // Linja valitaan tunnuksella (esim. "4"), ei indeksillä: indeksi liukuisi
+          // linjaston muuttuessa ja mittaisi eri kokoista erää joka kaudella.
+          const picked = await page.evaluate(short => {
+            const sel = document.getElementById("batchLine");
+            const opt = [...sel.options].find(o => (o.textContent || "").trim().split(/\s+/)[0] === short);
+            if (!opt) return null;
+            sel.value = opt.value;
+            return opt.textContent.trim();
+          }, city.batchPosterLine);
+          if (!picked) {
+            fail(city.key, "julisteiden erätulostus",
+              `linjaa "${city.batchPosterLine}" ei ole linjavalitsimessa — kausivaihto? Päivitä batchPosterLine.`);
+          } else {
+            await page.evaluate(() => {
+              window.print = () => { window.__batchPrinted = true; };
+              window.__batchCalls = 0; window.__batch429 = 0; window.__batchBad = [];
+              const orig = window.fetch;
+              window.fetch = async (...args) => {
+                const u = typeof args[0] === "string" ? args[0] : (args[0] && args[0].url) || "";
+                const mine = typeof API_URL !== "undefined" && u.startsWith(API_URL);
+                if (mine) window.__batchCalls++;
+                const res = await orig.apply(window, args);
+                if (mine && !res.ok) {
+                  if (res.status === 429) window.__batch429++;
+                  if (window.__batchBad.length < 5) window.__batchBad.push(res.status);
+                }
+                return res;
+              };
+            });
+            await page.click("#batchGo");
+            // Valmis = tuntikaavio renderöity JA window.print kutsuttu; virhetila =
+            // #batchStatus näyttää tekstin joka ei ole edistymisviesti.
+            const state = await page.waitForFunction(() => {
+              if (window.__batchPrinted
+                && document.querySelector("#batchOut .poster-day .hourgrid tr")) return "done";
+              const st = (document.getElementById("batchStatus")?.textContent || "").trim();
+              if (st && !/\d+\s*\/\s*\d+/.test(st) && !/valmistel|prepar|förbered/i.test(st)) return "err:" + st;
+              return null;
+            }, { timeout: 300000, polling: 500 }).then(h => h.jsonValue()).catch(() => "timeout");
+            const m = await page.evaluate(() => ({
+              calls: window.__batchCalls, n429: window.__batch429, bad: window.__batchBad,
+              days: document.querySelectorAll("#batchOut .poster-day").length,
+            }));
+            const detail = `linja ${city.batchPosterLine}, ${m.calls} proxy-kutsua, ${m.days} julistelohkoa`;
+            if (state !== "done") {
+              fail(city.key, "julisteiden erätulostus",
+                `erä ei valmistunut (${state}) — ${detail}, 429-vastauksia ${m.n429}`
+                + (m.bad.length ? `, muut HTTP-tilat: ${m.bad.join(",")}` : ""));
+            } else if (m.n429 > 0) {
+              fail(city.key, "julisteiden erätulostus",
+                `${m.n429} kpl HTTP 429 proxylta kesken erän — purskeraja katkaisee tulostuksen. ${detail}`);
+            } else if (m.calls > BATCH_CALL_CEILING) {
+              fail(city.key, "julisteiden erätulostus",
+                `${m.calls} proxy-kutsua ylittää katon ${BATCH_CALL_CEILING} — kutsumäärä ryömii kohti `
+                + "workerin purskerajaa. Selvitä syy, älä nosta kattoa. " + detail);
+            } else {
+              pass(city.key, "julisteiden erätulostus", detail + ", 0 kpl 429");
+            }
+          }
+        }
+      }
+
       // --- 6c) Junien lähdöt (#/junat): näkymä renderöityy — taulukko TAI aito
       //         tyhjä-viesti; virhetila FAILaa (pelisääntö 4: tyhjä-viesti tulee vain
       //         kun rata.digitraffic vastasi 200 mutta matkustajajunia ei ole listalla,
@@ -593,6 +756,7 @@ function writeReport() {
     const quotaBroke = roundFails.some(r => /\b429\b/.test(r.detail || ""));
     if (quotaBroke && job.attempt < MAX_ATTEMPTS) {
       results.length = mark; // hylkää kiintiön pilaaman kierroksen tulokset
+      cityRetried.set(city.key, (cityRetried.get(city.key) || 0) + 1);
       queue.push({ city, attempt: job.attempt + 1, notBefore: Date.now() + RETRY_COOLDOWN_MS });
       console.log(`  ↻ [${city.key}] Digitransit 429 → uusinta jonon lopussa `
         + `(yritys ${job.attempt + 1}/${MAX_ATTEMPTS}, jäähdytys ${RETRY_COOLDOWN_MS / 1000} s)\n`);
