@@ -361,6 +361,21 @@ async function printHygiene(page, label) {
       { timeout: 12000 }).then(() => true).catch(() => false);
     lines ? ok("palvelutiski: pysäkin live-lähdöt + linjat listautuvat") : fail("palvelutiski: pysäkin linjat eivät listaudu");
   }
+  // Juna + bussi samassa näkymässä (14.8.2026): tiskillä kysytään molempia, ja Lahti on
+  // juna+bussi-solmu. Data rata.digitraffic.fi:stä suoraan selaimesta → ei Digitransit-kiintiötä.
+  // Assertio vaatii rivejä JA että sarakeotsikot ovat paikallaan (pelkkä lohkon olemassaolo
+  // menisi läpi myös virheviestillä).
+  const dTrains = await page.waitForFunction(
+    () => document.querySelectorAll("#deskTrains table tbody tr").length > 0,
+    { timeout: 20000 }).then(() => true).catch(() => false);
+  const dTrainInfo = await page.evaluate(() => ({
+    rows: document.querySelectorAll("#deskTrains table tbody tr").length,
+    heads: document.querySelectorAll("#deskTrains table thead th").length,
+    txt: (document.getElementById("deskTrains")?.textContent || "").trim().slice(0, 60),
+  }));
+  (dTrains && dTrainInfo.heads === 4)
+    ? ok(`palvelutiski: junalähdöt lohkossa (${dTrainInfo.rows} junaa, rata.digitraffic)`)
+    : fail("palvelutiski: junalähdöt eivät renderöityneet: " + JSON.stringify(dTrainInfo));
   // Poistuminen purkaa koko ruudun tilan
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   (await page.evaluate(() => document.body.classList.contains("desk-mode")))

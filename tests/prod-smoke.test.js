@@ -607,6 +607,15 @@ function writeReport() {
         pass(city.key, "palvelutiskin oletuspysäkki", `${desk.lines} linjaa`);
         info(city.key, "palvelutiskin lähdöt",
           desk.deps ? `${desk.deps} lähtöä (${desk.stop})` : "ei lähtöjä juuri nyt (tarkista jos toistuu aamuajossa)");
+        // Juna + bussi samassa näkymässä. INFO eikä FAIL: rata.digitraffic on ulkoinen
+        // rajapinta jonka katkos ei saa värjätä koko ajoa punaiseksi — #/junat-tarkistus
+        // (kohta 6c) on se joka FAILaa jos junanäkymä on aidosti rikki.
+        const dt = await page.waitForFunction(
+          () => document.querySelectorAll("#deskTrains table tbody tr").length > 0,
+          { timeout: 20000 }).then(() => true).catch(() => false);
+        const dtN = await page.evaluate(() => document.querySelectorAll("#deskTrains table tbody tr").length);
+        info(city.key, "palvelutiskin junalähdöt",
+          dt ? `${dtN} junaa lohkossa` : "ei junarivejä 20 s kuluessa (ulkoinen rata.digitraffic)");
       }
 
       // --- 6d) Keskustan pysäkit (#/laiturit): vain kaupungeille joilla CONFIG.hubs.

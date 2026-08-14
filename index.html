@@ -7878,6 +7878,33 @@ async function loadTrains(code, names) {
   return rows;
 }
 
+// Lähtörivien renderöinti jaettuna kahdelle kutsujalle: #/junat-näkymä (koko lista) ja
+// palvelutiskin junalohko (lyhennetty). Sama muotoilu molemmissa, jotta tiskin luku ja
+// näkymän luku eivät voi erota toisistaan.
+function railHhmm(d) { return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; }
+function railDayTime(d) {
+  // Harvaan liikennöidyillä asemilla lista jatkuu huomiseen (esim. Vaasa: 18:07 → 04:44)
+  // → pelkkä kellonaika olisi harhaanjohtava, joten muu kuin tämä päivä saa viikonpäivän eteen
+  const locale = lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI";
+  return (d.toDateString() === new Date().toDateString() ? ""
+    : d.toLocaleDateString(locale, { weekday: "short" }) + " ") + railHhmm(d);
+}
+function railTableHtml(rows, limit) {
+  const body = rows.slice(0, limit || rows.length).map(r => {
+    // myöhässä ≥ 1 min → arvioitu aika korostettuna aikataulunmukaisen perään
+    const late = r.est && Math.abs(r.est - r.sched) >= 60000;
+    const time = r.cancelled
+      ? `<s>${railDayTime(r.sched)}</s> <span class="ex-tag">${t("trainsCancelled")}</span>`
+      : railDayTime(r.sched) + (late ? ` <strong>→ ${railHhmm(r.est)}</strong>` : "");
+    return `<tr><td>${time}</td><td><strong>${esc(r.label)}</strong></td>` +
+      `<td style="text-align:left">${esc(r.dest)}</td><td>${esc(r.track)}</td></tr>`;
+  }).join("");
+  return `<div class="matrix-wrap"><table class="stoptable booklet">
+       <thead><tr><th scope="col">${t("thDeparts")}</th><th scope="col">${t("trainsTrain")}</th>
+       <th scope="col" style="text-align:left">${t("thDest")}</th><th scope="col">${t("trainsTrack")}</th></tr></thead>
+       <tbody>${body}</tbody></table></div>`;
+}
+
 async function viewTrains() {
   if (!CONFIG.rail) { location.hash = "#/"; return; }
   setView(`
@@ -7889,12 +7916,6 @@ async function viewTrains() {
       <p class="muted" style="margin-top:0.8rem">${t("trainsSrc")}</p>
     </div>`);
   const my = viewSeq;
-  const hhmm = d => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  // Harvaan liikennöidyillä asemilla lista jatkuu huomiseen (esim. Vaasa: 18:07 → 04:44)
-  // → pelkkä kellonaika olisi harhaanjohtava, joten muu kuin tämä päivä saa viikonpäivän eteen
-  const locale = lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI";
-  const dayTime = d => (d.toDateString() === new Date().toDateString() ? "" :
-    d.toLocaleDateString(locale, { weekday: "short" }) + " ") + hhmm(d);
   const draw = async () => {
     let names, rows;
     try { names = await railStationNames(); rows = await loadTrains(CONFIG.rail, names); }
@@ -7904,20 +7925,8 @@ async function viewTrains() {
     }
     if (viewSeq !== my) return;
     document.getElementById("trainsIntro").textContent = t("trainsIntro", { station: names[CONFIG.rail] || CONFIG.rail });
-    const body = rows.map(r => {
-      // myöhässä ≥ 1 min → arvioitu aika korostettuna aikataulunmukaisen perään
-      const late = r.est && Math.abs(r.est - r.sched) >= 60000;
-      const time = r.cancelled
-        ? `<s>${dayTime(r.sched)}</s> <span class="ex-tag">${t("trainsCancelled")}</span>`
-        : dayTime(r.sched) + (late ? ` <strong>→ ${hhmm(r.est)}</strong>` : "");
-      return `<tr><td>${time}</td><td><strong>${esc(r.label)}</strong></td>` +
-        `<td style="text-align:left">${esc(r.dest)}</td><td>${esc(r.track)}</td></tr>`;
-    }).join("");
     document.getElementById("trainsOut").innerHTML = rows.length
-      ? `<div class="matrix-wrap"><table class="stoptable booklet">
-           <thead><tr><th scope="col">${t("thDeparts")}</th><th scope="col">${t("trainsTrain")}</th>
-           <th scope="col" style="text-align:left">${t("thDest")}</th><th scope="col">${t("trainsTrack")}</th></tr></thead>
-           <tbody>${body}</tbody></table></div>`
+      ? railTableHtml(rows)
       : `<p>${t("trainsEmpty")}</p>`;
   };
   await draw();
@@ -8934,9 +8943,39 @@ async function viewServiceDesk() {
           <h2 id="deskAlertsH">${icon("warning")} ${t("deskAlertsTitle")}</h2>
           <div id="deskAlerts"><p class="muted">${t("loadingAlerts")}</p></div>
         </section>
+        ${CONFIG.rail ? `<section class="desk-col" aria-labelledby="deskTrainsH">
+          <h2 id="deskTrainsH">${icon("train")} ${t("trainsTitle")}</h2>
+          <div id="deskTrains" aria-live="polite"><p class="muted">…</p></div>
+          <p class="muted">${t("trainsSrc")}</p>
+        </section>` : ""}
         ${CONFIG.fares ? deskFaresHtml(CONFIG.fares) : ""}
       </div>
     </div>`);
+
+  // Junalähdöt tiskin sivupalstaan: Lahti ja Vaasa ovat juna+bussi-solmuja, ja tiskillä
+  // kysytään molempia. Data rata.digitraffic.fi:stä SUORAAN selaimesta (avoin, avaimeton,
+  // CORS *) → ei kuluta Digitransit-kiintiötä eikä kulje proxyn kautta. Virhe ei saa
+  // kaataa tiskiä: junalohko on lisätieto, bussilähdöt ovat näkymän ydin.
+  if (CONFIG.rail) {
+    const mySeq = viewSeq;
+    const drawTrains = async () => {
+      let rows;
+      try {
+        const names = await railStationNames();
+        rows = await loadTrains(CONFIG.rail, names);
+      } catch (e) {
+        const el = document.getElementById("deskTrains");
+        if (el && mySeq === viewSeq) el.innerHTML = `<p class="muted">${t("trainsErr")}</p>`;
+        return;
+      }
+      const el = document.getElementById("deskTrains");
+      if (!el || mySeq !== viewSeq) return;
+      el.innerHTML = rows.length ? railTableHtml(rows, 6) : `<p class="muted">${t("trainsEmpty")}</p>`;
+    };
+    drawTrains();
+    refreshNow = () => { drawTrains().catch(() => {}); };
+    refreshTimer = setInterval(refreshNow, 60000);
+  }
 
   const fromEl = document.getElementById("deskFrom");
   const toEl = document.getElementById("deskTo");
