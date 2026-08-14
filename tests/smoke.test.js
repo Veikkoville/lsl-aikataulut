@@ -382,6 +382,56 @@ async function printHygiene(page, label) {
     ? fail("palvelutiski: desk-mode ei purkaudu poistuttaessa")
     : ok("palvelutiski: desk-mode purkautuu poistuttaessa");
 
+  // Työkalunappien teksti ei saa katketa KESKEN SANAN. Rivitys sanavälistä on kunnossa
+  // ("Bussit kartalla (live)" saa olla kahdella rivillä); sanan sisäinen katkos ei ole
+  // ("Uusintapainatuslist|a", löydetty tuotannosta 14.8.2026). Syy on `.tool span`in
+  // `overflow-wrap: anywhere`, joka on siellä estämässä reunan yli valumista — se ei siis
+  // ole poistettavissa, joten tekstin on mahduttava. Mitataan merkkikohtaisilla Rangeilla
+  // eikä silmämääräisesti: leveys yksin ei kerro mistä rivi katkeaa.
+  // Katkos yhdysmerkin JÄLKEEN on sallittu (tyypografinen katkopaikka); jos sitäkään ei
+  // haluta, käytä sitovaa yhdysmerkkiä U+2011 kuten SV "e‑post".
+  // Kolme kieltä ja neljä leveyttä, koska ongelma on kielikohtainen: 14.8. rikki olivat
+  // FI "Uusintapainatuslista" ja SV "Störningsmeddelanden", EN oli puhdas.
+  const midWordBreaks = () => page.evaluate(() => {
+    const out = [];
+    for (const s of document.querySelectorAll(".tool span")) {
+      const t = s.firstChild;
+      if (!t || t.nodeType !== 3) continue;
+      const txt = t.textContent;
+      const r = document.createRange();
+      let prevY = null;
+      for (let i = 0; i < txt.length; i++) {
+        r.setStart(t, i); r.setEnd(t, i + 1);
+        const y = Math.round(r.getBoundingClientRect().top);
+        if (prevY !== null && y !== prevY) {
+          const before = txt[i - 1], at = txt[i];
+          if (before !== " " && at !== " " && before !== "-" && before !== "‑")
+            out.push(txt.slice(0, i) + "|" + txt.slice(i));
+          break;
+        }
+        prevY = y;
+      }
+    }
+    return out;
+  });
+  const wrapFails = [];
+  for (const lang of ["fi", "en", "sv"]) {
+    await page.goto(BASE + "/?city=lahti#/", { waitUntil: "networkidle2" });
+    if (lang !== "fi") {
+      await page.click(`[data-lang-opt="${lang}"]`).catch(() => {});
+      await page.waitForFunction(l => document.documentElement.lang === l, { timeout: 10000 }, lang).catch(() => {});
+    }
+    for (const w of [1400, 1000, 800, 480]) {
+      await page.setViewport({ width: w, height: 900 });
+      await new Promise(r => setTimeout(r, 200));
+      for (const b of await midWordBreaks()) wrapFails.push(`${lang} ${w}px: ${b}`);
+    }
+  }
+  await page.setViewport({ width: 1280, height: 900 });
+  wrapFails.length === 0
+    ? ok("etusivun työkalunapit: 0 sanan sisäistä rivikatkoa (fi/en/sv × 4 leveyttä)")
+    : fail("etusivun työkalunapit katkeavat kesken sanan: " + wrapFails.slice(0, 4).join("  ·  "));
+
   // CONFIG-gating etusivulla molempiin suuntiin. Vaasa: EI fares → lippunappi pois, mutta
   // hubs LISÄTTIIN 14.8.2026 → laiturinappi on. Joensuu: ei hubs eikä fares (feedissä ei ole
   // laiturijaollista terminaalia) → molemmat napit pois. Ryhmät renderöityvät silti ILMAN

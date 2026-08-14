@@ -2636,6 +2636,10 @@ const STRINGS = {
     sizeNormal: "Normaali", sizeLarge: "Suuri", sizeLarger: "Suurin",
     langTitle: "Kieli",
     emailSubTitle: "Häiriötiedotteet sähköpostiin",
+    // Erillinen lyhyt teksti työkalunappiin (vrt. reprintLink/reprintTitle). FI ja EN
+    // katkeavat sanavälistä eivätkä tarvitse lyhennystä; SV:n "Störningsmeddelanden" on
+    // yksi 20 merkin sana joka ei mahdu ruutuun ja katkesi kesken sanan.
+    emailSubLink: "Häiriötiedotteet sähköpostiin",
     emailSubHint: "Saat häiriötiedotteet valitsemiltasi linjoilta sähköpostiisi, myös ilman sovellusta. Lähetämme vahvistuslinkin: tilaus aktivoituu vasta kun klikkaat sitä. Voit perua tilauksen milloin tahansa jokaisen viestin lopussa olevasta linkistä.",
     emailSubEmailLabel: "Sähköpostiosoite",
     emailSubPlaceholder: "nimi@esimerkki.fi",
@@ -2839,7 +2843,11 @@ const STRINGS = {
     corridorPresets: "Valmiit ryhmät",
     corridorGenerate: "Kokoa aikataulu",
     corridorPickHint: "Valitse vähintään kaksi linjaa.",
-    reprintLink: "Uusintapainatuslista",
+    // Napin teksti on lyhyempi kuin näkymän otsikko TARKOITUKSELLA: "Uusintapainatuslista"
+    // on 20 merkkiä eikä mahdu työkaluruudun tekstisarakkeeseen (mitattu 14.8.2026: tarvitsee
+    // 144 px, tilaa on 103–127 px), jolloin se katkesi kesken sanan ("Uusintapainatuslist|a").
+    // "Uusintapainatus" tarvitsee 114 px ja mahtuu yhdelle riville joka leveydellä.
+    reprintLink: "Uusintapainatus",
     reprintTitle: "Uusintapainatuslista",
     reprintIntro: "Kertoo mitkä jo painetut tulosteet ovat vanhentuneet, kun aikataulut ovat muuttuneet. Merkitse tuloste painetuksi, niin seuraavalla tarkistuksella näet muuttuiko se.",
     reprintCheck: "Tarkista muutokset",
@@ -3103,6 +3111,7 @@ const STRINGS = {
     sizeNormal: "Normal", sizeLarge: "Large", sizeLarger: "Largest",
     langTitle: "Language",
     emailSubTitle: "Disruption alerts by email",
+    emailSubLink: "Disruption alerts by email",
     emailSubHint: "Get disruption alerts for the lines you choose by email, even without the app. We send a confirmation link: the subscription activates only when you click it. You can unsubscribe at any time from the link at the bottom of every message.",
     emailSubEmailLabel: "Email address",
     emailSubPlaceholder: "name@example.com",
@@ -3562,6 +3571,9 @@ const STRINGS = {
     sizeNormal: "Normal", sizeLarge: "Stor", sizeLarger: "Störst",
     langTitle: "Språk",
     emailSubTitle: "Störningsmeddelanden via e-post",
+    // "e‑post" = SITOVA yhdysmerkki (U+2011): tavallisella yhdysmerkillä rivi katkesi
+    // "e-|post" keskeltä sanaa. Nyt katkos osuu sanaväliin ("Störningar via / e-post").
+    emailSubLink: "Störningar via e‑post",
     emailSubHint: "Få störningsmeddelanden för de linjer du väljer via e-post, även utan appen. Vi skickar en bekräftelselänk: prenumerationen aktiveras först när du klickar på den. Du kan avsluta prenumerationen när som helst via länken i slutet av varje meddelande.",
     emailSubEmailLabel: "E-postadress",
     emailSubPlaceholder: "namn@exempel.fi",
@@ -6134,7 +6146,7 @@ function homeToolGroupsHtml() {
     CONFIG.rail ? tool("#/junat", "train", t("trainsLink")) : "",
   ]) + group("groupTickets", [
     CONFIG.fares ? tool("#/liput", "ticket", t("faresLink")) : "",
-    PROXY_URL ? tool("#/sahkoposti", "mail", t("emailSubTitle")) : "",
+    PROXY_URL ? tool("#/sahkoposti", "mail", t("emailSubLink")) : "",
     tool("#/palaute", "tools", t("fbLink")),
   ]);
 }
