@@ -4406,15 +4406,43 @@ function groupTripsByDays(trips, refISO) {
       seen.add(sig); uniq.push(tr);
     }
     g.trips = uniq;
-    g.label = dowLabel(g.dows) + (g.school ? ` · ${t(g.school === "koul" ? "schoolTerm" : "schoolBreak")}` : "");
+    // Lohkon aikataulu merkkijonona: yhdistämisen ainoa peruste (ks. alla).
+    g._sig = g.school + "|" + uniq
+      .map(tr => (tr.stoptimes || []).map(s => s.scheduledDeparture).join(","))
+      .sort().join(";");
     return g;
   });
+  /* Yhdistä lohkot joiden aikataulu on MERKKI MERKILTÄ sama ja koulu/loma-merkintä sama.
+     Kaupungit koodaavat saman aikataulun moneksi serviceId:ksi, ja ilman yhdistämistä
+     sama taulukko tulostuu monta kertaa eri otsikolla. Kaksi todennettua tapausta
+     Lahden syötteessä 23.8.2026, linjat 4/14/24/34K, molemmat suunnat:
+     1) "Ma-To KP 20260831 asti" ja "Ma-To KP 20261101 asti" ovat sama aikataulu, vain
+        kausi katkeaa 31.8. Päättyvästä palvelusta tuli lohko "Ma · koulupäivinä",
+        koska 42 vrk ikkunassa maanantai osui kahdesti (24.8. ja 31.8.) mutta ti/ke/to
+        vain kerran → ne putosivat toistumiskynnykseen ja otsikko jäi maanantaiksi.
+        Kynnys on oikea (se suodattaa festivaalilisät); virhe oli että kauden katkeaminen
+        kesken viikon luki sen viikonpäiväjoukoksi.
+     2) "Pe KP" on oma serviceId, mutta lähtöajat ovat identtiset Ma-To:n kanssa → oikea
+        otsikko on "Ma–Pe · koulupäivinä", ei kaksi erillistä taulukkoa.
+     Mitään ei piiloteta: jos yksikin lähtöaika eroaa, allekirjoitus eroaa eikä
+     yhdistämistä tapahdu. Eri koulu/loma-merkintä ei yhdisty koskaan. */
+  const byTimetable = new Map();
+  for (const g of arr) {
+    const prev = byTimetable.get(g._sig);
+    if (prev) { g.dows.forEach(d => prev.dows.add(d)); continue; }
+    byTimetable.set(g._sig, g);
+  }
+  const outGroups = [...byTimetable.values()];
+  outGroups.forEach(g => {
+    delete g._sig;
+    g.label = dowLabel(g.dows) + (g.school ? ` · ${t(g.school === "koul" ? "schoolTerm" : "schoolBreak")}` : "");
+  });
   // järjestä: viikonpäiväspan alku nousevasti, sitten laajempi (Ma–Pe) ennen kapeampaa (Pe)
-  arr.sort((a, b) => {
+  outGroups.sort((a, b) => {
     const am = Math.min(...a.dows), bm = Math.min(...b.dows);
     return am !== bm ? am - bm : b.dows.size - a.dows.size;
   });
-  return arr;
+  return outGroups;
 }
 
 // Patternin vuorot + todelliset ajopäivät yhdellä haulla (ei per-päivä-hakua).
