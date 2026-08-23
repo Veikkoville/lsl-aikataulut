@@ -1650,8 +1650,14 @@ const CONFIGS = {
     // asemat todennettu metadatasta 13.8.2026 (kaikilla 16 kaupungilla on asema).
     rail: "LH",
     heroEmphasis: "layer",                // on jo moderni reittiopas → korosta erottuvaa kerrosta
-    // Ydinkeskustan solmupysäkit: "Keskustan linjat" -pikavalinta tulostusvihkossa
-    centerStopNames: ["Kauppatori", "Matkakeskus"],
+    // Ydinkeskustan solmupysäkit: palvelutiskin oletuspysäkki + "Keskustan linjat"
+    // -pikavalinta tulostusvihkossa. JÄRJESTYS RATKAISEE TISKIN OLETUKSEN:
+    // deskFindDefaultStop ottaa ensimmäisen nimen jolta löytyy lähtöjä, joten
+    // Matkakeskus ensin = tiski avautuu sinne missä matkustaja vaihtaa (Matkakeskus A
+    // 19 linjaa / 311 lähtöä arkipäivänä). Kauppatori jää toiseksi. Vihon "Keskustan
+    // linjat" käyttää molempia nimiä unionina, joten järjestys ei vaikuta siihen.
+    // Sama linjaus kuin Kuopiolla ja Vaasalla.
+    centerStopNames: ["Matkakeskus", "Kauppatori"],
     // Yhdistetyt suunta-aikataulut: pikavalinnat "Yhdistetyt suunnat" -tulostevälilehdelle
     // (malli: LSL:n Laatukäytävät, talvilehtinen 2026). Vain presettejä — mekanismi on
     // yleinen ja käytävä johdetaan datasta; datavarmistus 8.7.2026 (Ahtiala 11 ja
