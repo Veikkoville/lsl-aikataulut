@@ -8197,7 +8197,13 @@ function bindCorridorTab(routes, today) {
     const dirs = res.dirs
       .map(d => ({ ...d, groups: d.groups.filter(g => bucketMatch(g.dows)) }))
       .filter(d => d.groups.length);
-    if (!dirs.length) { out.innerHTML = `<p class="muted">${t("corridorNoShared")}</p>`; return; }
+    if (!dirs.length) {
+      // Myos kieltaytyminen skrollataan nakyviin: linjalista on pitka, joten pelkka
+      // out.innerHTML jaa taitteen alle ja nappi nayttaa silta ettei se tehnyt mitaan.
+      out.innerHTML = `<p class="muted">${t("corridorNoShared")}</p>`;
+      out.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     // jos valinta vastaa presettiä, otsikoidaan sen nimellä
     const selShorts = new Set(cbs().filter(c => c.checked).map(c => c.dataset.short));
     const preset = (CONFIG.corridors || []).find(c =>
@@ -8228,6 +8234,9 @@ function bindCorridorTab(routes, today) {
         window.print();
       });
     });
+    // Sama kuin vihossa: koottu tuloste ja sen Tulosta-nappi tuodaan suoraan nakyviin,
+    // jotta kayttajan ei tarvitse skrollata linjalistan ohi loytaakseen ne.
+    out.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
