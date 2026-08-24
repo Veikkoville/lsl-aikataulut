@@ -323,6 +323,60 @@ async function printHygiene(page, label) {
       }
     }
   }
+  // --- Palvelutiski: "tulosta aikataulu asiakkaalle" (lisätty 24.8.2026) ---
+  // Myyntimateriaali on väittänyt tätä ominaisuutta, mutta sitä ei ollut olemassa:
+  // tiskiltä piti siirtyä pysäkkisivulle tulostaakseen. Vartija on tässä siksi, ettei
+  // väite ja tuote pääse enää eroamaan toisistaan.
+  await page.click("#deskStop");
+  await page.type("#deskStop", "Matkakeskus", { delay: 25 });
+  if (await expect("#deskStopList button[data-s]", "palvelutiski: pysäkkiehdotus", 15000)) {
+    await page.click("#deskStopList button[data-s]");
+    if (await expect("#deskPrintBtn", "palvelutiski: tulostusnappi näkyy pysäkin kohdalla", 15000)) {
+      await page.evaluate(() => { window.print = () => {}; });
+      await page.click("#deskPrintBtn");
+      const printed = await page.waitForFunction(
+        () => !!document.querySelector("#deskPrintOut .poster-day .poster-line .hourgrid tr"),
+        { timeout: 90000 }).then(() => true).catch(() => false);
+      if (!printed) {
+        fail("palvelutiski: tulostettava aikataulu ei koostunut 90 s kuluessa");
+      } else {
+        const dp = await page.evaluate(() => ({
+          paivablokit: document.querySelectorAll("#deskPrintOut .poster-day").length,
+          linjat: new Set([...document.querySelectorAll("#deskPrintOut .poster-line h4 .badge")]
+            .map(b => b.textContent.trim())).size,
+          // lehtitelineen mitoitus: sovellus asettaa @page-säännön itse
+          orient: document.getElementById("pageOrient")?.textContent || "",
+        }));
+        (dp.paivablokit >= 1 && dp.linjat >= 1)
+          ? ok(`palvelutiski: aikataulu tulostuu tiskiltä (${dp.paivablokit} päiväblokkia, ${dp.linjat} linjaa)`)
+          : fail(`palvelutiski: tuloste tyhjä: ${JSON.stringify(dp)}`);
+        /portrait/.test(dp.orient) && /8mm/.test(dp.orient)
+          ? ok("palvelutiski: tuloste on lehtitelineen mitoituksessa (A4 pysty, tiukat marginaalit)")
+          : fail(`palvelutiski: väärä sivumitoitus: ${JSON.stringify(dp.orient)}`);
+        // Printtihygienia: paperille ei saa mennä hakukenttiä eikä live-listaa
+        await page.emulateMediaType("print");
+        const hy = await page.evaluate(() => {
+          const vis = el => {
+            if (!el) return false;
+            for (let e = el; e && e.id !== "app"; e = e.parentElement)
+              if (getComputedStyle(e).display === "none") return false;
+            return true;
+          };
+          return {
+            tiskinaykyma: vis(document.querySelector(".desk")),
+            hakukentta: vis(document.getElementById("deskStop")),
+            tuloste: vis(document.querySelector("#deskPrintOut .poster-day .hourgrid")),
+          };
+        });
+        await page.emulateMediaType(null);
+        (!hy.tiskinaykyma && !hy.hakukentta && hy.tuloste)
+          ? ok("printtihygienia (palvelutiski): tulosteessa vain aikataulu, ei tiskinäkymää")
+          : fail(`printtihygienia (palvelutiski): ${JSON.stringify(hy)} ` +
+                 "(odotus: tiskinaykyma=false, hakukentta=false, tuloste=true)");
+      }
+    }
+  }
+
   // Yksikkötestit: "seuraava bussi vaikka kävely voittaa" -logiikka synteettisillä nodeilla
   const nb = await page.evaluate(() => {
     const walk = { start: "2026-06-23T12:00:00+03:00", end: "2026-06-23T12:15:00+03:00", numberOfTransfers: 0,

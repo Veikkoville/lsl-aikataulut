@@ -1101,7 +1101,10 @@
   .desk-deps-lines { margin: 0 0 0.6rem; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
   .desk-deps-lines .badge { font-size: 1.05em; padding: 0.18rem 0.55rem; }
   .desk-deps-upd { margin-top: 0.55rem; }
-  .desk-pin-row { margin: 0.6rem 0 0; }
+  /* Kiinnitys ja tulostusnappi samalla rivillä; kapealla ruudulla ne rivittyvät
+     eivätkä puristu päällekkäin (tiskillä käytetään myös tablettia). */
+  .desk-pin-row { margin: 0.6rem 0 0; display: flex; flex-wrap: wrap; gap: 0.6rem;
+    align-items: center; }
   .desk .deps td, .desk .deps th { font-size: 1em; padding: 0.45rem 0.5rem; }
   .desk-aux { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.4rem; align-items: start; margin-top: 1.4rem; }
   @media (max-width: 820px) { .desk-aux { grid-template-columns: 1fr; } }
@@ -2685,6 +2688,7 @@ const STRINGS = {
     deskStopLines: "Linjat pysäkiltä {stop}:",
     deskStopNoLines: "Ei säännöllisiä linjoja.",
     deskPinBtn: "Kiinnitä tämä pysäkki oletukseksi",
+    deskPrintBtn: "Tulosta aikataulu asiakkaalle",
     deskPinned: "Kiinnitetty oletukseksi",
     deskNoStop: "Pysäkkiä ei löytynyt.",
     deskDepsTitle: "Seuraavat lähdöt pysäkiltä",
@@ -2812,6 +2816,9 @@ const STRINGS = {
     loadingMatrix: "Haetaan koko aikataulua…",
     // tulostusvihko (monta linjaa)
     printPageTitle: "Tulosta aikatauluja",
+    // Painetun vihon kansiotsikko. EI sama kuin ruudun "Tulosta aikatauluja":
+    // kansilehdellä lukisi silloin käsky eikä se mitä paperi on.
+    bookletCoverTitle: "Aikataulut",
     printPageLink: "Tulosta aikatauluja (vihko)",
     printPageIntro: "Valitse linjat, niin saat niiden aikataulut isoilla pysäkeillä yhtenä tulosteena (kuten aikatauluvihko). Sopii myös tulostettavaksi internetiä käyttämättömille.",
     selectAllLines: "Valitse kaikki", clearLines: "Tyhjennä valinnat",
@@ -2827,7 +2834,7 @@ const STRINGS = {
     vihkoContinued: "(jatkoa)",
     bookletDateLabel: "Voimassa päivänä",
     bookletDateHint: "Aikataulukausi (kesä/talvi) määräytyy tämän päivän mukaan. Jätä tämänpäiväiseksi nykyiselle aikataululle tai valitse tuleva päivä, jos haluat tulostaa seuraavan kauden aikataulun.",
-    bookletPeriodNote: "Tuloste vastaa {date} voimassa olevaa aikataulua. Aikataulu päivittyy rajapinnasta automaattisesti, joten kausivaihdoksen jälkeen tulosta vihko uudelleen.",
+    bookletPeriodNote: "Tuloste vastaa {date} voimassa olevaa aikataulua. Aikataulu päivittyy rajapinnasta automaattisesti, joten tulosta tämä uudelleen kausivaihdoksen jälkeen.",
     bookletKeyStopsNote: "Kellonajat näytetään vain reitin isoilla pysäkillä.",
     bookletDir: "Suunta",
     bookletNoData: "Ei lähtöjä valittuna päivänä.",
@@ -3157,6 +3164,7 @@ const STRINGS = {
     deskStopLines: "Lines at stop {stop}:",
     deskStopNoLines: "No regular lines.",
     deskPinBtn: "Pin this stop as the default",
+    deskPrintBtn: "Print timetable for the customer",
     deskPinned: "Pinned as the default",
     deskNoStop: "Stop not found.",
     deskDepsTitle: "Next departures from stop",
@@ -3278,6 +3286,7 @@ const STRINGS = {
     loadingMatrix: "Loading full timetable…",
     // print booklet (multiple routes)
     printPageTitle: "Print timetables",
+    bookletCoverTitle: "Timetables",
     printPageLink: "Print timetables (booklet)",
     printPageIntro: "Select routes to get their timetables at major stops as a single printout (like a timetable booklet). Also suitable for printing for people who don't use the internet.",
     selectAllLines: "Select all", clearLines: "Clear selection",
@@ -3293,7 +3302,7 @@ const STRINGS = {
     vihkoContinued: "(cont.)",
     bookletDateLabel: "Valid on",
     bookletDateHint: "The timetable season (summer/winter) is determined by this date. Keep it as today for the current timetable, or pick a future date to print the next season's timetable.",
-    bookletPeriodNote: "This printout reflects the timetable in effect on {date}. The timetable updates automatically from the data source, so print the booklet again after a seasonal change.",
+    bookletPeriodNote: "This printout reflects the timetable in effect on {date}. The timetable updates automatically from the data source, so print this again after a seasonal change.",
     bookletKeyStopsNote: "Times are shown only at the route's major stops.",
     bookletDir: "Direction",
     bookletNoData: "No departures on the selected day.",
@@ -3619,6 +3628,7 @@ const STRINGS = {
     deskStopLines: "Linjer vid hållplats {stop}:",
     deskStopNoLines: "Inga reguljära linjer.",
     deskPinBtn: "Fäst den här hållplatsen som standard",
+    deskPrintBtn: "Skriv ut tidtabellen åt kunden",
     deskPinned: "Fäst som standard",
     deskNoStop: "Hållplatsen hittades inte.",
     deskDepsTitle: "Nästa avgångar från hållplats",
@@ -3740,6 +3750,7 @@ const STRINGS = {
     loadingMatrix: "Hämtar hela tidtabellen…",
     // utskriftshäfte (flera linjer)
     printPageTitle: "Skriv ut tidtabeller",
+    bookletCoverTitle: "Tidtabeller",
     printPageLink: "Skriv ut tidtabeller (häfte)",
     printPageIntro: "Välj linjer för att få deras tidtabeller vid de stora hållplatserna som en enda utskrift (som ett tidtabellshäfte). Lämpar sig även för utskrift åt personer som inte använder internet.",
     selectAllLines: "Välj alla", clearLines: "Rensa val",
@@ -3755,7 +3766,7 @@ const STRINGS = {
     vihkoContinued: "(forts.)",
     bookletDateLabel: "Gäller den",
     bookletDateHint: "Tidtabellsperioden (sommar/vinter) bestäms av detta datum. Lämna det som i dag för den aktuella tidtabellen, eller välj ett framtida datum för att skriva ut nästa periods tidtabell.",
-    bookletPeriodNote: "Utskriften motsvarar tidtabellen som gäller {date}. Tidtabellen uppdateras automatiskt från datakällan, så skriv ut häftet på nytt efter ett periodbyte.",
+    bookletPeriodNote: "Utskriften motsvarar tidtabellen som gäller {date}. Tidtabellen uppdateras automatiskt från datakällan, så skriv ut den här på nytt efter ett periodbyte.",
     bookletKeyStopsNote: "Tiderna visas endast vid linjens stora hållplatser.",
     bookletDir: "Riktning",
     bookletNoData: "Inga avgångar den valda dagen.",
@@ -8979,7 +8990,11 @@ async function viewServiceDesk() {
   document.body.classList.add("desk-mode");
   await findFeed().catch(() => {});
   setView(`
-    <div class="desk">
+    <!-- Tiskinäkymä on kokonaan no-print: paperille menee vain #deskPrintOut-säiliöön
+         koottu aikataulu. Sama kuvio kuin pysäkkisivulla (9039fc7) ja linjasivulla.
+         Ilman tätä "tulosta asiakkaalle mukaan" tulostaisi ensin hakukentät, live-listan
+         ja häiriölohkon, jotka ovat merkityksettömiä paperilla. -->
+    <div class="desk no-print">
       <div class="desk-top">
         <h1>${t("deskTitle")}</h1>
         <a class="btnlink secondary" href="#/">${t("deskExit")}</a>
@@ -9031,7 +9046,8 @@ async function viewServiceDesk() {
         </section>` : ""}
         ${CONFIG.fares ? deskFaresHtml(CONFIG.fares) : ""}
       </div>
-    </div>`);
+    </div>
+    <div id="deskPrintOut"></div>`);
 
   // Junalähdöt tiskin sivupalstaan: Lahti ja Vaasa ovat juna+bussi-solmuja, ja tiskillä
   // kysytään molempia. Data rata.digitraffic.fi:stä SUORAAN selaimesta (avoin, avaimeton,
@@ -9154,7 +9170,53 @@ async function viewServiceDesk() {
       `<div id="deskLines">${stopLinesHtml(s.routes)}</div>` +
       `<div id="deskDeps"><p class="muted">${t("loadingStopDeps")}</p></div>` +
       `<p class="desk-pin-row"><button type="button" id="deskPinBtn" class="linkish">${
-        isPinned ? t("deskPinned") : t("deskPinBtn")}</button></p>`;
+        isPinned ? t("deskPinned") : t("deskPinBtn")}</button>
+        <button type="button" id="deskPrintBtn" class="secondary">${icon("print")} ${t("deskPrintBtn")}</button>
+        <span id="deskPrintStatus" class="muted" role="status"></span></p>`;
+    /* Asiakkaalle mukaan annettava aikataulu: sama pysäkkijulisteen moottori
+       (stopPosterBlocks + stopPosterHtml) mutta lehtitelineen mitoituksella
+       (setPageOrientation("rack") = A4 pysty, tiukat marginaalit), koska tämä
+       paperi ojennetaan tiskin yli eikä teipata katokseen. Tiskiltä ei tarvitse
+       poistua: se oli koko pointti, ja 24.8.2026 asti se puuttui. */
+    document.getElementById("deskPrintBtn")?.addEventListener("click", async () => {
+      const stEl = document.getElementById("deskPrintStatus");
+      const po = document.getElementById("deskPrintOut");
+      if (!po) return;
+      if (stEl) stEl.textContent = t("preparingPrint");
+      const today = todayISO();
+      let blocks;
+      try { blocks = await stopPosterBlocks(s.gtfsId, today); }
+      catch (e) {
+        // Haku epäonnistui → EI tulosteta. Tyhjä paperi asiakkaan käteen olisi
+        // pahempi kuin "yritä uudelleen": hän luulee ettei vuoroja ole.
+        if (stEl) stEl.textContent = esc(e.message);
+        return;
+      }
+      if (!blocks.length) { if (stEl) stEl.textContent = t("bookletNoData"); return; }
+      // QR pysäkin live-sivulle: mukaan otettavassa paperissa se on hyödyllisempi
+      // kuin katoksessa, koska asiakas kantaa puhelinta mukanaan. Ei pakollinen.
+      let qrImg = "";
+      try {
+        const u = await qrDataUrl(appUrl("#/pysakki/" + encodeURIComponent(s.gtfsId)), 240);
+        qrImg = `<div class="poster-qrwrap"><img class="poster-qr" src="${u}" alt="">
+          <span class="poster-qrcap">${t("qrPosterHint")}</span></div>`;
+      } catch (e) { /* QR ei pakollinen tulosteelle */ }
+      const head = (sub) => `<div class="poster-head"><div>
+             <h2>${esc(s.name)} <span class="muted">${esc(s.code || "")}</span></h2>
+             <p class="poster-sub">${esc(sub)}</p>
+             <p class="muted">${t("posterAllLinesNote")}</p>
+           </div>${qrImg}</div>`;
+      po.innerHTML = `<div class="print-only">${blocks.map(b =>
+          `<section class="card poster-day">${head(b.label)}${stopPosterHtml(b.lines)}</section>`).join("")}
+        <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
+      if (stEl) stEl.textContent = "";
+      runPrintJob(t("preparingPrint"), () => {
+        setPageOrientation("rack");
+        const done = () => { setPageOrientation("portrait"); hidePrintPrep(); window.removeEventListener("afterprint", done); };
+        window.addEventListener("afterprint", done);
+        window.print();
+      });
+    });
     // Kiinnitys = tämä pysäkki avautuu jatkossa valmiiksi kun palvelutiski avataan.
     document.getElementById("deskPinBtn")?.addEventListener("click", (e) => {
       try { localStorage.setItem(deskPinKey(), JSON.stringify({ gtfsId: s.gtfsId, name: s.name })); }
@@ -11003,7 +11065,7 @@ function bindBookletTab(routes, today) {
     const out = document.getElementById("bookletOut");
     out.innerHTML = `
       <div class="card booklet-head">
-        <h2>${esc(CONFIG.operator)} · ${t("printPageTitle")}</h2>
+        <h2>${esc(CONFIG.operator)} · ${t("bookletCoverTitle")}</h2>
         <p>${dts.map(d => esc(d.label)).join(" · ")}. ${t("bookletKeyStopsNote")}</p>
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
         <p class="muted">${t("printDaysNote")}</p>
