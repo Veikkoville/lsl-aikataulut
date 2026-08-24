@@ -10451,8 +10451,15 @@ function corridorTableHtml(group, keyStops) {
   const head = `<tr><th scope="col">${esc(keyStops[0].name)}</th>` +
     `<th scope="col">${t("corridorLineCol")}</th><th scope="col">${t("corridorDestCol")}</th>` +
     keyStops.slice(1).map(s => `<th scope="col">${esc(s.name)}</th>`).join("") + "</tr>";
+  // data-sec = GTFS-sekunnit vuorokauden alusta, myös yli 24 h (24:04 = 86640).
+  // Näkyvä teksti on kellonaika ("00:04"), josta ei voi päätellä onko lähtö saman
+  // vai seuraavan vuorokauden puolella. Vartija tarvitsee sen tiedon: ilman sitä
+  // aikajärjestyksen tarkistus joutuisi arvaamaan (12 h -heuristiikka petti
+  // 24.8.2026 Hämeenlinnan perjantailohkossa jossa oli vain 06:11 ja 24:04).
+  // Attribuutti ei näy tulosteessa eikä muuta ulkoasua.
   const body = group.rows.map(r =>
-    `<tr><td>${cell(r.times.get(keyStops[0].gtfsId))}</td>` +
+    `<tr><td${r.times.get(keyStops[0].gtfsId) != null ? ` data-sec="${r.times.get(keyStops[0].gtfsId)}"` : ""}>` +
+    `${cell(r.times.get(keyStops[0].gtfsId))}</td>` +
     `<td>${badgeHtml(r.route)}</td><td class="corr-dest">${esc(r.headsign)}</td>` +
     keyStops.slice(1).map(s => `<td>${cell(r.times.get(s.gtfsId))}</td>`).join("") + "</tr>").join("");
   return `<div class="matrix-wrap"><table class="stoptable booklet corridor">

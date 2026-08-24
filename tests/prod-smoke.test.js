@@ -523,16 +523,25 @@ function writeReport() {
           const corr = await page.evaluate(() => {
             const badges = [...document.querySelectorAll("#corridorOut table.corridor tbody .badge")]
               .map(b => b.textContent.trim());
-            // aikajärjestys per taulukko, kaikki rivit; vuorokausiraja sallitaan (GTFS 24:xx+
-            // renderöityy "00:xx" taulun lopussa → seuraava aika saa hypätä taaksepäin > 12 h,
-            // tulkitaan seuraavaksi päiväksi — sama toleranssi kuin reittihaun assertiossa)
+            // Aikajärjestys per taulukko, kaikki rivit. Luetaan solun data-sec, joka on
+            // GTFS-sekunnit vuorokauden alusta myös yli 24 h (24:04 = 86640). Näkyvästä
+            // tekstistä sitä ei voi päätellä: 24:04 renderöityy "00:04". Aiempi versio
+            // arvasi vuorokauden vaihtumisen 12 h -heuristiikalla, ja se antoi väärän
+            // FAILin 24.8.2026 Hämeenlinnan perjantailohkossa (vain 06:11 ja 24:04,
+            // pudotus 6 h → heuristiikka ei tunnistanut sitä seuraavaksi päiväksi).
+            // data-sec on tiukempi eikä löysempi: se ei salli mitään takaperoista
+            // hyppyä, kun taas heuristiikka salli minkä tahansa yli 12 h pudotuksen.
+            // Jos attribuutti puuttuu (vanha tuotantoversio), tarkistus EI mene läpi
+            // hiljaa vaan raportoituu erikseen alempana (corr.secMissing).
+            const secCells = [...document.querySelectorAll("#corridorOut table.corridor tbody tr td:first-child")];
+            const secMissing = secCells.filter(td => !td.hasAttribute("data-sec")
+              && /^\d{1,2}:\d{2}/.test(td.textContent.trim())).length;
             const sorted = [...document.querySelectorAll("#corridorOut table.corridor")].every(tb => {
               const ts = [...tb.querySelectorAll("tbody tr td:first-child")]
-                .map(td => /^(\d{1,2}):(\d{2})/.exec(td.textContent.trim()))
-                .filter(Boolean).map(m => (+m[1]) * 60 + (+m[2]));
+                .filter(td => td.hasAttribute("data-sec"))
+                .map(td => +td.getAttribute("data-sec"));
               let prev = -1;
-              for (let v of ts) {
-                if (prev >= 0 && v < prev - 720) v += 1440;
+              for (const v of ts) {
                 if (v < prev) return false;
                 prev = v;
               }
@@ -543,7 +552,7 @@ function writeReport() {
               distinctLines: [...new Set(badges)].length,
               daytypes: document.querySelectorAll("#corridorOut h4.daytype").length,
               dirs: document.querySelectorAll("#corridorOut .corridor-dir").length,
-              sorted,
+              sorted, secMissing,
               nonText: [...document.querySelectorAll("#corridorOut svg, #corridorOut canvas, #corridorOut img")]
                 .filter(el => !el.closest(".no-print")).length,
               dots: [...document.querySelectorAll("#corridorOut td")].filter(td => td.textContent.trim() === "·").length,
@@ -551,11 +560,13 @@ function writeReport() {
             };
           });
           const wantDirs = city.corridorDirs || 2;
-          (corr.distinctLines >= 2 && corr.daytypes >= 1 && corr.dirs >= wantDirs && corr.sorted)
+          (corr.distinctLines >= 2 && corr.daytypes >= 1 && corr.dirs >= wantDirs
+            && corr.sorted && corr.secMissing === 0)
             ? pass(city.key, "yhdistetyt suunnat",
                 `${corr.rows} lähtöä, ${corr.distinctLines} linjaa, ${corr.dirs} suuntaa, aikajärjestys OK`)
             : fail(city.key, "yhdistetyt suunnat", "taulukko pielessä: " + JSON.stringify(
-                { rows: corr.rows, linjat: corr.distinctLines, suunnat: corr.dirs, daytypes: corr.daytypes, sorted: corr.sorted }));
+                { rows: corr.rows, linjat: corr.distinctLines, suunnat: corr.dirs, daytypes: corr.daytypes,
+                  sorted: corr.sorted, secMissing: corr.secMissing }));
           corr.nonText === 0
             ? pass(city.key, "käytävä-tuloste", "puhdasta tekstiä (0 svg/canvas/img)")
             : fail(city.key, "käytävä-tuloste", corr.nonText + " ei-tekstielementtiä tulosteessa");

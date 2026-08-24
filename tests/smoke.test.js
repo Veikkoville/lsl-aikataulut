@@ -1016,25 +1016,30 @@ async function printHygiene(page, label) {
   if (corrOk) {
     const corr = await page.evaluate(() => {
       const badges = [...document.querySelectorAll("#corridorOut table.corridor tbody .badge")].map(b => b.textContent.trim());
-      // aikajärjestys per taulukko (5 ensimmäistä riviä; yön yli menevät vuorot voivat
-      // rikkoa HH:MM-merkkijonovertailun taulun lopussa, alkupää riittää assertioon)
+      // Aikajärjestys per taulukko, KAIKKI rivit. Luetaan solun data-sec (GTFS-sekunnit
+      // vuorokauden alusta, myös yli 24 h), jolloin yön yli menevät vuorot eivät enää
+      // riko vertailua: 24:04 renderöityy "00:04" mutta data-sec on 86640. Aiemmin
+      // tarkistettiin vain 5 ensimmäistä riviä juuri tämän takia.
       const sorted = [...document.querySelectorAll("#corridorOut table.corridor")].every(tb => {
-        const ts = [...tb.querySelectorAll("tbody tr td:first-child")].slice(0, 5)
-          .map(td => td.textContent.trim()).filter(v => /^\d/.test(v));
+        const ts = [...tb.querySelectorAll("tbody tr td:first-child")]
+          .filter(td => td.hasAttribute("data-sec")).map(td => +td.getAttribute("data-sec"));
         return ts.every((v, i) => i === 0 || ts[i - 1] <= v);
       });
+      // data-sec puuttuu rivistä jolla on kellonaika = tuloste ei kanna järjestystietoa
+      const secMissing = [...document.querySelectorAll("#corridorOut table.corridor tbody tr td:first-child")]
+        .filter(td => !td.hasAttribute("data-sec") && /^\d{1,2}:\d{2}/.test(td.textContent.trim())).length;
       return {
         rows: document.querySelectorAll("#corridorOut table.corridor tbody tr").length,
         distinctLines: [...new Set(badges)].length,
         daytypes: document.querySelectorAll("#corridorOut h4.daytype").length,
         dirs: document.querySelectorAll("#corridorOut .corridor-dir").length,
-        sorted,
+        sorted, secMissing,
         // tulostuva sisältö: .no-print-lohkot (esim. tulostusnappi ikoneineen) eivät päädy paperille
         nonText: [...document.querySelectorAll("#corridorOut svg, #corridorOut canvas, #corridorOut img")]
           .filter(el => !el.closest(".no-print")).length,
       };
     });
-    (corr.distinctLines >= 2 && corr.daytypes >= 1 && corr.dirs >= 2 && corr.sorted)
+    (corr.distinctLines >= 2 && corr.daytypes >= 1 && corr.dirs >= 2 && corr.sorted && corr.secMissing === 0)
       ? ok(`yhdistetyt suunnat: ${corr.rows} lähtöä, ${corr.distinctLines} linjaa yhdessä taulukossa, ${corr.dirs} suuntaa, aikajärjestys OK`)
       : fail("yhdistetyt suunnat: yhdistetty taulukko pielessä: " + JSON.stringify(corr));
     corr.nonText === 0
