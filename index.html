@@ -4366,13 +4366,39 @@ function groupTripsByDays(trips, refISO) {
     for (const tr of (trips || [])) {
       if (!(tr.stoptimes || []).length) continue;
       const perDow = {};
+      const inWin = [];
       for (const x of (tr.activeDates || [])) {
         const n = +x;
         if (n < startNum || n > endNum) continue;
+        inWin.push(n);
         const w = dowOfCompact(x); perDow[w] = (perDow[w] || 0) + 1;
       }
-      // vain viikonpäivät joina vuoro toistuu ≥ minOcc kertaa ikkunassa
-      const dows = Object.keys(perDow).map(Number).filter(w => perDow[w] >= minOcc).sort((a, b) => a - b);
+      /* Kauden katkeaminen kesken viikon EI ole vuoron viikonpäiväjoukko.
+         Lahden syötteessä "Ma-To KP 20260831 asti" päättyy maanantaihin: ikkunassa
+         ma osuu kahdesti mutta ti/ke/to kerran, joten pelkkä ≥ minOcc jätti otsikoksi
+         "Ma" (todennettu 24.8.2026: 61 vuoroa, linjat 10/10K/11/11B/11V, ne joilla
+         aikataulu ei ole merkki merkiltä sama kuin jatkuvalla palvelulla, eli joita
+         alempi lohkojen yhdistäminen ei korjaa).
+         Sääntö: jos vuoro toistuu jonain viikonpäivänä (ankkuri), otetaan mukaan myös
+         ne viikonpäivät jotka se ajaa JOKA kerta kun ne mahtuvat sen omaan jaksoon.
+         Festivaalisuodatus säilyy: kertaluontoisella lisällä ei ole ankkuria, ja
+         viikoittaisen vuoron yksi ylimääräinen lauantai osuu jaksoon monta kertaa
+         (avail ≥ 2) → se ei tule mukaan. */
+      const anchored = Object.values(perDow).some(c => c >= minOcc);
+      const availInSpan = {};
+      if (anchored && inWin.length > 1) {
+        inWin.sort((a, b) => a - b);
+        const cut = s => new Date(+String(s).slice(0, 4), +String(s).slice(4, 6) - 1, +String(s).slice(6, 8), 12);
+        const last = cut(inWin[inWin.length - 1]);
+        for (const d = cut(inWin[0]); d <= last; d.setDate(d.getDate() + 1)) {
+          const w = (d.getDay() + 6) % 7; availInSpan[w] = (availInSpan[w] || 0) + 1;
+        }
+      }
+      // viikonpäivät joina vuoro toistuu ≥ minOcc kertaa ikkunassa, sekä kauden
+      // katkeamisen takia vain kerran mahtuvat (ks. yllä)
+      const dows = Object.keys(perDow).map(Number)
+        .filter(w => perDow[w] >= minOcc || (anchored && perDow[w] === 1 && availInSpan[w] === 1))
+        .sort((a, b) => a - b);
       if (!dows.length) continue;
       const sid = tr.serviceId || "";
       // Waltti-feedit kirjoittavat "koul"/"loma" auki serviceId:hin; Lahden talvifeed
