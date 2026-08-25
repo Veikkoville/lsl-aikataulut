@@ -340,6 +340,13 @@ async function printHygiene(page, label) {
       if (!printed) {
         fail("palvelutiski: tulostettava aikataulu ei koostunut 90 s kuluessa");
       } else {
+        // @page-sääntö asetetaan runPrintJob:ssa kahden requestAnimationFrame-kierroksen
+        // takana, eli vasta sen jälkeen kun tulosteen rivit ovat jo DOMissa. Ilman tätä
+        // odotusta headless-ajo lukee tyhjän #pageOrientin ja mitoitusvartija kaatuu
+        // vaikka tuloste on oikein (CI 24.8.2026).
+        await page.waitForFunction(
+          () => !!document.getElementById("pageOrient")?.textContent,
+          { timeout: 15000 }).catch(() => {});
         const dp = await page.evaluate(() => ({
           paivablokit: document.querySelectorAll("#deskPrintOut .poster-day").length,
           linjat: new Set([...document.querySelectorAll("#deskPrintOut .poster-line h4 .badge")]

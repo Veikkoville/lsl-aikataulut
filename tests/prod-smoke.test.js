@@ -63,6 +63,17 @@ const BATCH_CITIES = (process.env.SMOKE_BATCH_CITIES === undefined
   ? null                                   // oletus: CITIES-taulun batchPosterLine päättää
   : process.env.SMOKE_BATCH_CITIES.split(",").map(s => s.trim()).filter(Boolean));
 
+// Tiskiltä tulostus (kohta 6a2) rakentaa koko pysäkin julisteen proxyn läpi, eli se on
+// erätulostuksen jälkeen ajon raskain yksittäinen toimenpide. Siksi sitä ei ajeta 16
+// kertaa saman avaimen budjetista vaan niille kaupungeille joiden MYYNTIESITE väittää
+// ominaisuuden olevan olemassa ("aikataulu tulostuu samasta näkymästä telineen kokoon"):
+// lahti, vaasa, raasepori. Väite ja tuote eivät saa erota — sama peruste kuin
+// paikallisen smoken tiskivartijalla. Koodi itsessään on kaupunkiriippumaton.
+// Ylikirjoitettavissa: SMOKE_DESK_PRINT_CITIES=kotka,salo (tyhjä = pois käytöstä).
+const DESK_PRINT_CITIES = (process.env.SMOKE_DESK_PRINT_CITIES === undefined
+  ? null                                   // oletus: CITIES-taulun deskPrint päättää
+  : process.env.SMOKE_DESK_PRINT_CITIES.split(",").map(s => s.trim()).filter(Boolean));
+
 // gen = FI-otsikon genetiivi ("<gen> bussiaikataulut") — Lahti-fallbackia ei hyväksytä.
 // svTitle = kaksikielisen kaupungin SV-otsikko (FI-fallbackia ei hyväksytä).
 // nightStopId/nightLines = Lahden yövuorotarkistus (Matkakeskus A, todennettu datasta
@@ -91,13 +102,13 @@ const BATCH_CITIES = (process.env.SMOKE_BATCH_CITIES === undefined
 // Ylikirjoitettavissa: SMOKE_BATCH_CITIES=vaasa,lahti (tyhjä = pois käytöstä).
 let CITIES = [ // let eika const: SMOKE_CITIES suodattaa taman eraajossa
   { key: "lahti",   gen: "Lahden",   nightStopId: "Lahti:85811", nightLines: ["91", "96", "97"],
-    batchPosterLine: "4" },
+    batchPosterLine: "4", deskPrint: true },
   { key: "kuopio",  gen: "Kuopion" },
   { key: "salo",    gen: "Salon" },
   { key: "kajaani", gen: "Kajaanin" },
-  { key: "vaasa",   gen: "Vaasan",   svTitle: "Busstidtabeller i Vasa" },
+  { key: "vaasa",   gen: "Vaasan",   svTitle: "Busstidtabeller i Vasa", deskPrint: true },
   { key: "kotka",   gen: "Kotkan" },
-  { key: "raasepori", gen: "Raaseporin", svTitle: "Busstidtabeller i Raseborg" },
+  { key: "raasepori", gen: "Raaseporin", svTitle: "Busstidtabeller i Raseborg", deskPrint: true },
   { key: "kouvola", gen: "Kouvolan", posterStopId: "Kouvola:155786" },
   { key: "mikkeli", gen: "Mikkelin", posterStopId: "Mikkeli:310514", corridorDirs: 1 },
   // Kaupunkisweep 7.8.2026: presetit datavarmistettu kesä- JA talvikoetuksella.
@@ -217,6 +228,13 @@ function writeReport() {
 (async () => {
   console.log("Tuotanto-smoke-vahti · BASE=" + BASE);
   if (CITY_FILTER.length) console.log("Erä: " + CITIES.map(c => c.key).join(", "));
+  // Rajattu kattavuus sanotaan ääneen: tiskiltä tulostus mitataan vain osalle
+  // kaupungeista, eikä "kaikki vihreää" saa lukea kattavuudeksi jota ei ajettu.
+  {
+    const dpc = CITIES.filter(c => DESK_PRINT_CITIES ? DESK_PRINT_CITIES.includes(c.key) : !!c.deskPrint);
+    console.log("Tiskiltä tulostus mitataan: " + (dpc.length ? dpc.map(c => c.key).join(", ") : "ei yhdellekään")
+      + " (muut " + (CITIES.length - dpc.length) + " kaupunkia ajavat saman koodin mittaamatta)");
+  }
   if (START_DELAY_MS > 0) {
     console.log(`Odotetaan ${START_DELAY_MS / 1000} s ennen erän alkua (kiintiön palautuminen)\n`);
     await sleep(START_DELAY_MS);
@@ -627,6 +645,51 @@ function writeReport() {
         const dtN = await page.evaluate(() => document.querySelectorAll("#deskTrains table tbody tr").length);
         info(city.key, "palvelutiskin junalähdöt",
           dt ? `${dtN} junaa lohkossa` : "ei junarivejä 20 s kuluessa (ulkoinen rata.digitraffic)");
+
+        // --- 6a2) Tiskiltä tulostus (lisätty 24.8.2026): "aikataulu tulostuu samasta
+        //          näkymästä telineen kokoon" on myyntiesitteen väite Lahdesta, Vaasasta
+        //          ja Raaseporista. Ennen 24.8. tiskiltä piti siirtyä pysäkkisivulle.
+        //          Koodi on kaupunkiriippumaton, mutta se ei ollut ennen tätä mitattu
+        //          muualla kuin Lahdessa eikä kertaakaan oikean proxyn läpi.
+        //          window.print stubataan ennen klikkiä — tuloste ei saa avata dialogia.
+        const runDeskPrint = DESK_PRINT_CITIES ? DESK_PRINT_CITIES.includes(city.key) : !!city.deskPrint;
+        if (runDeskPrint) {
+          const btn = await page.$("#deskPrintBtn");
+          if (!btn) {
+            fail(city.key, "tiskiltä tulostus", "#deskPrintBtn puuttuu oletuspysäkin kohdalta");
+          } else {
+            await page.evaluate(() => { window.print = () => { window.__deskPrinted = true; }; });
+            await page.click("#deskPrintBtn");
+            const built = await page.waitForFunction(
+              () => !!document.querySelector("#deskPrintOut .poster-day .poster-line .hourgrid tr"),
+              { timeout: 90000 }).then(() => true).catch(() => false);
+            if (!built) {
+              // Tiski näyttää epäonnistuneen haun tilarivillä eikä tulosta tyhjää paperia.
+              const st = await page.evaluate(() =>
+                (document.getElementById("deskPrintStatus")?.textContent || "").trim().slice(0, 80));
+              fail(city.key, "tiskiltä tulostus",
+                "tuloste ei koostunut 90 s kuluessa" + (st ? ` (tila: "${st}")` : ""));
+            } else {
+              // @page-sääntö asetetaan runPrintJob:ssa kahden rAF-kierroksen takana,
+              // eli vasta tulosterivien jälkeen. Ilman odotusta luetaan tyhjä arvo.
+              await page.waitForFunction(
+                () => !!document.getElementById("pageOrient")?.textContent,
+                { timeout: 15000 }).catch(() => {});
+              const dp = await page.evaluate(() => ({
+                days: document.querySelectorAll("#deskPrintOut .poster-day").length,
+                lines: new Set([...document.querySelectorAll("#deskPrintOut .poster-line h4 .badge")]
+                  .map(b => b.textContent.trim())).size,
+                orient: document.getElementById("pageOrient")?.textContent || "",
+                printed: !!window.__deskPrinted,
+              }));
+              dp.days >= 1 && dp.lines >= 1 && dp.printed
+                && /portrait/.test(dp.orient) && /8mm/.test(dp.orient)
+                ? pass(city.key, "tiskiltä tulostus",
+                    `${dp.days} päiväblokkia, ${dp.lines} linjaa, A4 pysty 8 mm`)
+                : fail(city.key, "tiskiltä tulostus", `tuloste ei kelpaa: ${JSON.stringify(dp)}`);
+            }
+          }
+        }
       }
 
       // --- 6d) Keskustan pysäkit (#/laiturit): vain kaupungeille joilla CONFIG.hubs.
