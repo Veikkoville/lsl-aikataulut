@@ -792,7 +792,9 @@
   table.hourgrid { border-collapse: collapse; width: auto; }
   table.hourgrid th[scope="row"] { text-align: right; padding: 0.1rem 0.5rem 0.1rem 0; color: var(--muted);
     font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: top; }
-  table.hourgrid td { padding: 0.1rem 0; font-variant-numeric: tabular-nums; letter-spacing: 0.05em; }
+  table.hourgrid td { padding: 0.1rem 0.45rem 0.1rem 0; font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em; vertical-align: top; white-space: nowrap; }
+  table.hourgrid td:last-child { padding-right: 0; }
   /* "·"-selite tulostetaulujen alla + yhdistetyn suunta-aikataulun sarakkeet */
   .matrix-legend { color: var(--muted); font-size: 0.85em; margin: 0.25rem 0 0.75rem; }
   table.corridor th, table.corridor td { text-align: center; }
@@ -6501,8 +6503,18 @@ function stopPosterHtml(lines) {
       if (!byHour.has(h)) byHour.set(h, []);
       byHour.get(h).push(String(Math.floor((sec % 3600) / 60)).padStart(2, "0"));
     }
+    // Minuutit omiin sarakkeisiinsa kymmenluvuittain. Yhteen soluun ladottuna ne eivät
+    // osu allekkain: tunnilla jolla on yksi lähtö se alkaa solun alusta, joten :35 päätyi
+    // saman tunnin :05:n kohdalle ja luvut kulkivat vinosti alaspäin. Pysäkillä seisova
+    // etsii omaa lähtöään silmällään pystysuunnassa, joten sarakkeen on oltava suora.
+    // Tyhjät kymmenluvut pudotetaan, joten juliste ei levene turhaan; jos samaan
+    // kymmenlukuun osuu tunnilla kaksi lähtöä, ne ovat samassa solussa vierekkäin.
+    const tens = m => Math.floor(+m / 10);
+    const cols = [...new Set([...byHour.values()].flat().map(tens))].sort((a, b) => a - b);
     const rows = [...byHour.entries()].map(([h, mins]) =>
-      `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th><td>${mins.join(" ")}</td></tr>`).join("");
+      `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th>`
+      + cols.map(c => `<td>${mins.filter(m => tens(m) === c).join(" ")}</td>`).join("")
+      + `</tr>`).join("");
     return `<div class="poster-line">
         <h4>${badgeHtml(L.route)} <span>${esc(L.headsign)}</span></h4>
         <table class="hourgrid"><tbody>${rows}</tbody></table>
@@ -10129,6 +10141,24 @@ const VK_A5_W = 148, VK_A5_H = 210, VK_PAD = 10;    // mm
 const VK_CONTENT_H = VK_A5_H - 2 * VK_PAD;          // 190mm
 const VK_CONTENT_W = VK_A5_W - 2 * VK_PAD;          // 128mm
 
+// A5 on 128 mm leveä eikä siihen mahdu A4:n kymmentä avainpysäkkisaraketta: oikea reuna
+// leikkautui ja paperille jäi puolikkaita kellonaikoja (havaittu Vaasan ruotsinkielisestä
+// vihosta 25.8.2026, taulukko 706 px / sivu 486 px). vkPaginate mittaa vain KORKEUDEN, joten
+// liian leveä taulukko ei näkynyt sivutuksessa mitenkään. Karsitaan sarakkeet VIHKOA VARTEN
+// kloonista, samalla säännöllä kuin pickKeyStops: lähtöpysäkki ja pääte aina mukaan, väliltä
+// tasavälein. A4-vihko ja ruudun esikatselu pysyvät ennallaan, koska alkuperäiseen ei kosketa.
+const VK_MAX_COLS = 6;
+function vkNarrowTable(table) {
+  const clone = table.cloneNode(true);
+  const n = clone.querySelector("tr")?.children.length || 0;
+  if (n <= VK_MAX_COLS) return clone;
+  const keep = new Set([0, n - 1]);
+  for (let i = 0; i < VK_MAX_COLS; i++) keep.add(Math.round(i * (n - 1) / (VK_MAX_COLS - 1)));
+  for (const tr of clone.querySelectorAll("tr"))
+    [...tr.children].forEach((cell, i) => { if (!keep.has(i)) cell.remove(); });
+  return clone;
+}
+
 // Pilko #bookletOut atomeiksi: otsikot (pidä seuraavan kanssa) + taulukot rivilistana (jaettavissa).
 function vkCollectAtoms(out) {
   const atoms = [];
@@ -10146,7 +10176,8 @@ function vkCollectAtoms(out) {
       else if (tag === "H3") { dirLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h3">${node.innerHTML}</div>`, keepWithNext: true }); }
       else if (tag === "H4") atoms.push({ html: `<div class="vk-h4">${node.innerHTML}</div>`, keepWithNext: true });
       else {
-        const table = tag === "TABLE" ? node : node.querySelector("table");
+        const src = tag === "TABLE" ? node : node.querySelector("table");
+        const table = src ? vkNarrowTable(src) : null;
         const rows = table ? [...table.querySelectorAll("tbody tr")].map(tr => tr.outerHTML) : [];
         if (table && rows.length)
           atoms.push({ table: true, thead: table.querySelector("thead")?.outerHTML || "", rows,

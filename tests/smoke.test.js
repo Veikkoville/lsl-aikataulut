@@ -785,6 +785,22 @@ async function printHygiene(page, label) {
         document.querySelectorAll("#stopPrintOut .poster-day").length);
       // Osioiden määrä on datavetoinen (todelliset ajopäiväblokit, esim. Ma–Pe/Pe/La/Su)
       // → vaaditaan ≥1 osio JA vähintään yksi oikea tuntikaaviorivi (ei tyhjä fallback).
+      // Sarakevartija: minuutit olivat ennen 25.8.2026 yhdessä solussa välilyönnein, jolloin
+      // yhden lähdön tunti alkoi solun alusta ja :35 päätyi toisen tunnin :05:n kohdalle —
+      // luvut kulkivat vinosti alaspäin eikä pysäkillä seisova löytänyt omaa lähtöään
+      // pystysuunnassa. Nyt jokainen kymmenluku on oma sarakkeensa, joten saman
+      // tuntikaavion jokaisella rivillä on yhtä monta solua.
+      const grid = await page.evaluate(() => {
+        const bad = [];
+        document.querySelectorAll("#stopPrintOut .hourgrid").forEach((g, i) => {
+          const counts = [...new Set([...g.querySelectorAll("tr")].map(tr => tr.children.length))];
+          if (counts.length > 1) bad.push({ i, counts });
+        });
+        return { grids: document.querySelectorAll("#stopPrintOut .hourgrid").length, bad };
+      });
+      grid.grids >= 1 && !grid.bad.length
+        ? ok(`pysäkkijuliste: minuutit omissa sarakkeissaan, rivit samanmittaisia (${grid.grids} tuntikaaviota)`)
+        : fail(`pysäkkijuliste: tuntikaavion rivit eri mittaisia → minuutit eivät ole allekkain: ${JSON.stringify(grid.bad.slice(0, 3))}`);
       posterOk && days >= 1
         ? ok(`pysäkkijuliste: tuntikaavio kootaan (${days} päiväblokkia)`)
         : fail(`pysäkkijuliste: tuntikaaviota ei muodostunut (päiväblokkeja ${days})`);
@@ -1049,7 +1065,17 @@ async function printHygiene(page, label) {
         a4: !!document.getElementById("bookletPrint"),
         prepAtPrint: window.__prepAtPrint,
         prepHidden: document.getElementById("printPrep")?.hidden !== false,
+        // Leveysvartija: A5 on 128 mm eikä siihen mahdu A4:n kymmentä saraketta. Ennen
+        // 25.8.2026 taulukko vuoti sivun oikean reunan yli ja paperille jäi puolikkaita
+        // kellonaikoja (Vaasan SV-vihko). Sivutus mittaa vain korkeuden, joten mikään
+        // ei kertonut tästä. Mitataan suurin ylivuoto sivun sisällön oikeaan reunaan.
+        yli: Math.round(Math.max(0, ...[...document.querySelectorAll("#vihkoPrint .vihko-page-content")]
+          .flatMap(pg => [...pg.querySelectorAll("table")]
+            .map(t => t.getBoundingClientRect().right - pg.getBoundingClientRect().right)))),
       }));
+      vk.yli <= 1
+        ? ok("vihko: A5-taulukot mahtuvat sivun leveyteen (ei leikkautuvia sarakkeita)")
+        : fail(`vihko: A5-taulukko vuotaa sivun yli ${vk.yli} px → oikea reuna leikkautuu paperilla`);
       (vk.sheets >= 2 && vk.pages >= 1 && vk.slots % 4 === 0 && vk.a4)
         ? ok(`vihko: A5-imposition (${vk.pages} sivua → ${vk.slots} paikkaa, ${vk.sheets} arkkipuolta; A4-nappi ennallaan)`)
         : fail("vihko: imposition pielessä: " + JSON.stringify(vk));
