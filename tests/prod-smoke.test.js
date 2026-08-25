@@ -424,6 +424,43 @@ function writeReport() {
           leg.legend ? pass(city.key, "legenda (vihko)", `${leg.dots} ·-solua + selite`)
                      : fail(city.key, "legenda (vihko)", `${leg.dots} ·-solua ilman selitettä`);
         } else info(city.key, "legenda (vihko)", "ei ·-soluja tässä linjassa (selitettä ei vaadita)");
+
+        // --- 4a) A5-vihon leveysvartija (myyntikaupungit). A5:n sisältöleveys on 128 mm,
+        //         eikä siihen mahdu yhtä monta avainpysäkkisaraketta kuin A4:ään: 25.8.2026
+        //         Vaasan ruotsinkielisessä vihossa taulukko oli 706 px sivun ollessa 486 px,
+        //         jolloin oikea reuna leikkautui ja paperille jäi puolikkaita kellonaikoja.
+        //         Sivutus mittaa vain korkeuden, joten mikään ei kertonut tästä. Ajetaan
+        //         nimenomaan täällä eikä paikallisessa smokessa, koska raja tulee vastaan
+        //         PITKILLÄ pysäkkinimillä (Vaasa ja Raasepori ruotsiksi) — Lahden lyhyet
+        //         nimet mahtuisivat vaikka rajoitus olisi rikki.
+        if (DESK_PRINT_CITIES ? DESK_PRINT_CITIES.includes(city.key) : !!city.deskPrint) {
+          await page.evaluate(() => { window.print = () => {}; });
+          await page.click("#bookletPrintA5").catch(() => {});
+          const imposed = await page.waitForFunction(
+            () => !!document.querySelector("#vihkoPrint .vihko-page-content table"),
+            { timeout: 60000 }).then(() => true).catch(() => false);
+          if (!imposed) {
+            fail(city.key, "vihko A5", "A5-taittoa ei syntynyt 60 s kuluessa");
+          } else {
+            await page.emulateMediaType("print");
+            const vk = await page.evaluate(() => {
+              const pgs = [...document.querySelectorAll("#vihkoPrint .vihko-page-content")];
+              return {
+                yli: Math.round(Math.max(0, ...pgs.flatMap(pg => [...pg.querySelectorAll("table")]
+                  .map(t => t.getBoundingClientRect().right - pg.getBoundingClientRect().right)))),
+                cols: [...new Set(pgs.flatMap(pg => [...pg.querySelectorAll("table")]
+                  .map(t => t.querySelector("tr")?.children.length)))].sort((a, b) => a - b),
+                sivuja: document.querySelectorAll("#vihkoPrint .vihko-a5:not(.vihko-blank)").length,
+              };
+            });
+            await page.emulateMediaType("screen");
+            vk.yli <= 1
+              ? pass(city.key, "vihko A5", `${vk.sivuja} sivua, sarakkeita ${JSON.stringify(vk.cols)}, mahtuu leveyteen`)
+              : fail(city.key, "vihko A5",
+                  `taulukko vuotaa A5-sivun yli ${vk.yli} px → oikea reuna leikkautuu paperilla `
+                  + `(sarakkeita ${JSON.stringify(vk.cols)})`);
+          }
+        }
       }
 
       // --- 4b) Pinnatut pysäkkitunnukset elävät feedissä (kausivaihtovahti) ---

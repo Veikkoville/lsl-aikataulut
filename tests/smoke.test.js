@@ -1132,6 +1132,23 @@ async function printHygiene(page, label) {
     corr.nonText === 0
       ? ok("yhdistetyt suunnat: tuloste puhdasta tekstiä (0 svg/canvas/img)")
       : fail(`yhdistetyt suunnat: ei-tekstielementtejä tulosteessa (${corr.nonText} kpl)`);
+    // Rivikorkeusvartija (25.8.2026): määränpääsarake oli print-CSS:ssä vain 26 % leveä,
+    // jolloin pitkä määränpää ("Gerby / Tallmarksvägen 3") rivittyi kahdelle riville ja
+    // vain osa riveistä oli kaksinkertaisen korkuisia. Sarakkeet olivat linjassa, mutta
+    // vaakaviivat kulkivat epätasaisin välein ja paperilla taulukko luki vinona. Ville
+    // huomasi sen silmällä; mikään mittaus ei nähnyt sitä, koska ylivuotoa ei ollut.
+    await page.emulateMediaType("print");
+    const rk = await page.evaluate(() => {
+      const t = document.querySelector("table.corridor");
+      if (!t || !t.tBodies[0]) return null;
+      const hs = [...t.tBodies[0].rows].slice(0, 60).map(r => Math.round(r.getBoundingClientRect().height));
+      return { korkeudet: [...new Set(hs)], riveja: hs.length };
+    });
+    await page.emulateMediaType("screen");
+    rk && rk.korkeudet.length === 1
+      ? ok(`yhdistetyt suunnat: rivikorkeus tasainen printissä (${rk.riveja} riviä, ${rk.korkeudet[0]} px)`)
+      : fail("yhdistetyt suunnat: rivikorkeudet vaihtelevat printissä → taulukko lukee vinona: "
+          + JSON.stringify(rk));
   } else fail("yhdistetyt suunnat: taulukko ei koostunut (Ahtiala 4/14/24/34K)");
 
   // Välilehden vaihto: klikkaa "Näyttöverkosto" -> naytot-paneeli näkyviin + URL päivittyy (replaceState)

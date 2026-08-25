@@ -1554,7 +1554,13 @@
        overflow:hidden + nowrap leikkaisi pitkän määränpään kesken sanan ilman
        merkkiä katkeamisesta ("Myllykoski" → "Myllykosk") → sallitaan rivitys
        sanarajalta ja annetaan sarakkeelle leveysvara */
-    table.corridor thead th:nth-child(3) { width: 26%; }
+    /* Sarakejako: aikasarakkeet vievat vain "HH:MM", maaranpaa kaiken muun. 26 % oli
+       maaranpaalle liian vahan (Vaasa SV "Gerby / Tallmarksvagen 3" rivittyi kahdelle
+       riville), jolloin osa riveista oli kaksinkertaisen korkuisia ja taulukon vaakaviivat
+       kulkivat epatasaisin valein - paperilla se lukee vinona vaikka sarakkeet ovat
+       linjassa. Leveampi maaranpaa pitaa rivit yhden korkuisina. */
+    table.corridor thead th:nth-child(2) { width: 9%; }
+    table.corridor thead th:nth-child(3) { width: 38%; }
     table.corridor td.corr-dest { white-space: normal; overflow-wrap: break-word; }
     .matrix-legend { font-size: 8pt; color: #444; }
     /* Pysäkkijuliste: kukin päivätyyppi omalle arkille, linjat virtaavat sarakkeisiin */
@@ -10141,12 +10147,18 @@ const VK_A5_W = 148, VK_A5_H = 210, VK_PAD = 10;    // mm
 const VK_CONTENT_H = VK_A5_H - 2 * VK_PAD;          // 190mm
 const VK_CONTENT_W = VK_A5_W - 2 * VK_PAD;          // 128mm
 
-// A5 on 128 mm leveä eikä siihen mahdu A4:n kymmentä avainpysäkkisaraketta: oikea reuna
-// leikkautui ja paperille jäi puolikkaita kellonaikoja (havaittu Vaasan ruotsinkielisestä
-// vihosta 25.8.2026, taulukko 706 px / sivu 486 px). vkPaginate mittaa vain KORKEUDEN, joten
-// liian leveä taulukko ei näkynyt sivutuksessa mitenkään. Karsitaan sarakkeet VIHKOA VARTEN
-// kloonista, samalla säännöllä kuin pickKeyStops: lähtöpysäkki ja pääte aina mukaan, väliltä
-// tasavälein. A4-vihko ja ruudun esikatselu pysyvät ennallaan, koska alkuperäiseen ei kosketa.
+// A5 on 128 mm leveä eikä siihen mahdu yhtä monta avainpysäkkisaraketta kuin A4:ään:
+// oikea reuna leikkautui ja paperille jäi puolikkaita kellonaikoja (havaittu Vaasan
+// ruotsinkielisestä vihosta 25.8.2026, taulukko 706 px / sivu 486 px). vkPaginate mittaa
+// vain KORKEUDEN, joten liian leveä taulukko ei näkynyt sivutuksessa mitenkään.
+//
+// Raja on kiinteä eikä mitattu, koska mittaus pitäisi tehdä print-medialla: ruudulla sama
+// taulukko on leveämpi (eri fontti ja min-leveydet), joten ruudulla mittaava karsinta
+// tiivistäisi vihon turhaan minimiin. Kuusi on suurin arvo jolla pisimmätkin mitatut
+// pysäkkinimet mahtuvat (Vaasa SV 485 px / 485 px). Vartija smokessa ja tuotanto-smokessa
+// mittaa todellisen tuloksen, joten jos jokin kaupunki ei mahdu, se kaatuu eikä leikkaudu.
+// Karsinta tehdään VIHKOA VARTEN kloonista samalla säännöllä kuin pickKeyStops (lähtö ja
+// pääte aina, väliltä tasavälein), joten A4-vihko ja ruudun esikatselu pysyvät ennallaan.
 const VK_MAX_COLS = 6;
 function vkNarrowTable(table) {
   const clone = table.cloneNode(true);
