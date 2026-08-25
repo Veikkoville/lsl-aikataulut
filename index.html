@@ -1113,6 +1113,9 @@
   .desk-aux { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.4rem; align-items: start; margin-top: 1.4rem; }
   @media (max-width: 820px) { .desk-aux { grid-template-columns: 1fr; } }
   .desk-aux .alert { font-size: 0.95em; }
+  /* Vyöhykehinnaston väliotsikko (Vaasa): erottaa vyöhykkeiden taulukot toisistaan
+     ilman että tasataksakaupungin sivu muuttuu. */
+  h4.fare-zone { margin: 1rem 0 0.35rem; font-size: 1em; font-weight: var(--wmed); color: var(--blue); }
   .desk-fares-single { font-weight: var(--wmed); margin: 0 0 0.4rem; }
   table.desk-fares td { text-align: right; font-weight: var(--wmed); }
   table.desk-fares th { font-size: 1em; color: var(--text); }
@@ -1939,6 +1942,116 @@ const CONFIGS = {
       rect: { minLat: 62.85, maxLat: 63.35, minLon: 21.25, maxLon: 22.50 },
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
+    // Lippu- ja hintatiedot (vaasa.fi, "Liput ja myyntipisteet"). Hinnat ovat voimassa
+    // 1.7.2026 alkaen ja tarkistettu 25.8.2026. Numerot luettiin sekä suomen- että
+    // englanninkieliseltä viralliselta sivulta ja ne täsmäävät rivi riviltä; sivun oma
+    // hinnasto-PDF ei ollut koneluettavassa muodossa, joten lähteeksi merkitään sivu.
+    // TOISIN KUIN Lahti ja Raasepori, Vaasa on VYÖHYKEHINNOITELTU (A/B/C): hinta
+    // riippuu siitä monenko vyöhykkeen läpi matka kulkee. Siksi zones-taulukko, jossa
+    // jokaisella vyöhykemäärällä on oma hinnastonsa. Tasataksakentät (single/season/day/
+    // capDay) johdetaan koodissa ensimmäisestä vyöhykkeestä, ks. CONFIGS-normalisointi.
+    // Käteishinnastossa on julkaistu vain aikuisen ja lapsen hinta, joten opiskelijan ja
+    // seniorin käteisruutu jää tyhjäksi (näkyy viivana) eikä sitä arvata.
+    fares: {
+      checked: "25.8.2026",
+      url: "https://www.vaasa.fi/asu-ja-ela/liikenne-ja-kadut/joukkoliikenne/liput-ja-myyntipisteet/",
+      cardFee: "5",
+      zones: [
+        {
+          label: { fi: "1 vyöhyke", sv: "1 zon", en: "1 zone" },
+          single: {
+            cardApp: { adult: "2,10", child: "1,40", reduced: "1,60" },
+            contactless: "2,10",
+            salespoint: { adult: "2,60", child: "2,40", reduced: "" },
+          },
+          season: [
+            { d: "30", adult: "57,10", child: "43,10", reduced: "50,10" },
+            { d: "90", adult: "158,30", child: "114,30", reduced: "136,30" },
+          ],
+          day: [{ d: "1", adult: "6,30", child: "4,10" }],
+          capDay: "6,30", capWeek: "",
+        },
+        {
+          label: { fi: "2 vyöhykettä", sv: "2 zoner", en: "2 zones" },
+          single: {
+            cardApp: { adult: "3,50", child: "2,30", reduced: "3,20" },
+            contactless: "3,50",
+            salespoint: { adult: "5,20", child: "3,20", reduced: "" },
+          },
+          season: [
+            { d: "30", adult: "65,10", child: "53,10", reduced: "58,10" },
+            { d: "90", adult: "183,30", child: "145,30", reduced: "161,30" },
+          ],
+          day: [{ d: "1", adult: "7,40", child: "5,10" }],
+          capDay: "7,40", capWeek: "",
+        },
+        {
+          label: { fi: "3 vyöhykettä", sv: "3 zoner", en: "3 zones" },
+          single: {
+            cardApp: { adult: "5,20", child: "3,40", reduced: "4,70" },
+            contactless: "5,20",
+            salespoint: { adult: "6,00", child: "4,50", reduced: "" },
+          },
+          season: [
+            { d: "30", adult: "84,10", child: "63,10", reduced: "74,10" },
+            { d: "90", adult: "237,30", child: "177,30", reduced: "208,30" },
+          ],
+          day: [{ d: "1", adult: "8,40", child: "6,10" }],
+          capDay: "8,40", capWeek: "",
+        },
+      ],
+      i18n: {
+        flatTitle: { fi: "Hinta määräytyy vyöhykkeiden mukaan",
+          sv: "Priset bestäms enligt zonerna", en: "The fare depends on the number of zones" },
+        flatBody: {
+          fi: "Liftin alue on jaettu vyöhykkeisiin A, B ja C. Lipun hinta määräytyy sen mukaan, monenko vyöhykkeen läpi matka kulkee: Vaasan kaupunkialueen sisäinen matka on 1 vyöhyke. 0–6-vuotiaat matkustavat maksutta maksavan matkustajan seurassa, samoin veteraanit ja heidän puolisonsa.",
+          sv: "Liftis område är indelat i zonerna A, B och C. Biljettpriset bestäms av hur många zoner resan går genom: en resa inom Vasa stadsområde är 1 zon. Barn 0–6 år reser gratis i sällskap med en betalande passagerare, likaså veteraner och deras makar.",
+          en: "The Lifti area is divided into zones A, B and C. The fare depends on how many zones the journey crosses: a trip within the Vaasa city area is 1 zone. Children aged 0–6 travel free with a paying passenger, as do veterans and their spouses." },
+        transfer: { fi: "Vaihtoaika on 1 tunti: samalla lipulla voit vaihtaa bussia.",
+          sv: "Bytestiden är 1 timme: du kan byta buss med samma biljett.",
+          en: "Transfer time is 1 hour: you can change buses on the same ticket." },
+        colAdult: { fi: "Aikuinen (19 v tai yli)", sv: "Vuxen (19 år eller äldre)", en: "Adult (19 or over)" },
+        colChild: { fi: "Lapsi (7–18 v)", sv: "Barn (7–18 år)", en: "Child (7–18)" },
+        colReduced: { fi: "Opiskelija / seniori (70+)", sv: "Studerande / senior (70+)", en: "Student / senior (70+)" },
+        methodCardApp: { fi: "Waltti-kortti tai -sovellus (arvolippu)",
+          sv: "Waltti-kort eller app (värdebiljett)", en: "Waltti card or app (value ticket)" },
+        methodContactless: { fi: "Lähimaksu (sama kaikille ryhmille)",
+          sv: "Närbetalning (samma för alla grupper)", en: "Contactless (same for all groups)" },
+        methodSalespoint: { fi: "Käteinen kuljettajalta (vain aikuisen ja lapsen hinta)",
+          sv: "Kontant av föraren (endast vuxen- och barnpris)",
+          en: "Cash from the driver (adult and child price only)" },
+        caps: { fi: "Lähimaksun hintakatto tällä vyöhykemäärällä: {day} € / vrk. Useammasta matkasta ei veloiteta enempää.",
+          sv: "Närbetalningens pristak för detta antal zoner: {day} € / dygn. Fler resor debiteras inte utöver detta.",
+          en: "Contactless price cap for this number of zones: €{day} / day. Additional trips are not charged beyond this." },
+        cardFee: { fi: "Waltti-matkakortti {n} € (kertamaksu).", sv: "Waltti-resekort {n} € (engångsavgift).",
+          en: "Waltti travel card €{n} (one-off fee)." },
+        dayNote: { fi: "Vuorokausilippu ostetaan Waltti Mobiili -sovelluksesta.",
+          sv: "Dygnsbiljetten köps i Waltti Mobiili-appen.",
+          en: "Day tickets are bought in the Waltti Mobiili app." },
+        where: {
+          fi: ["Waltti Mobiili -sovellus (kerta-, vuorokausi- ja kausiliput)",
+            "Liftin lipputoimisto, kauppakeskus Rewell (2. kerros)",
+            "Kansalaisinfo (Teräksenkuja 1) ja Yhteispalvelu Vähäkyrö",
+            "Mustasaaren virastotalo (Keskuskatu 4)",
+            "R-kioskit (vain lataus) ja Waltti-verkkokauppa"],
+          sv: ["Waltti Mobiili-appen (engångs-, dygns- och periodbiljetter)",
+            "Liftis biljettkontor, köpcentret Rewell (2 vån.)",
+            "Medborgarinfo (Teräksenkuja 1) och Samservice i Lillkyro",
+            "Korsholms ämbetshus (Keskuskatu 4)",
+            "R-kiosker (endast laddning) och Waltti-webbutiken"],
+          en: ["Waltti Mobiili app (single, day and season tickets)",
+            "Lifti ticket office, Rewell Center shopping mall (2nd floor)",
+            "Citizen Services (Teräksenkuja 1) and Vähäkyrö joint services",
+            "Mustasaari municipal office (Keskuskatu 4)",
+            "R-kioski (top-ups only) and the Waltti online store"] },
+        sourceNote: {
+          fi: "Tiedot on koottu Vaasan kaupungin sivuilta ja tarkistettu {date}. Hinnat ovat voimassa 1.7.2026 alkaen. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot osoitteesta vaasa.fi.",
+          sv: "Uppgifterna är sammanställda från Vasa stads webbplats och kontrollerade {date}. Priserna gäller från 1.7.2026. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor på vaasa.fi.",
+          en: "This information is compiled from the City of Vaasa's website and checked on {date}. Prices are valid from 1 July 2026. This is an unofficial service: please confirm current prices and terms at vaasa.fi." },
+        sourceLink: { fi: "Virallinen hinnasto (vaasa.fi)", sv: "Officiell prislista (vaasa.fi)",
+          en: "Official price list (vaasa.fi)" },
+      },
+    },
   },
   // Kotka-demo (?city=kotka). Layer-kaupunki kuten Vaasa: oma moderni reittiopas
   // (kotka.digitransit.fi, brändi "Jonne ja Minne", jonnejaminne.fi) → heroEmphasis "layer".
@@ -2489,6 +2602,16 @@ const CONFIGS = {
 
 const cityKey = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();
 const CONFIG = CONFIGS[cityKey] || CONFIGS.lahti;
+
+// Vyöhykehinnoitellussa kaupungissa tasataksakentät (single/season/day/capDay/capWeek)
+// ovat aina ensimmäisen vyöhykkeen arvot: niitä lukevat tiskin tiivis hintalohko ja
+// worker-yhteensopivuus. Johdetaan koodissa eikä kirjoiteta CONFIGiin käsin, jottei
+// samasta hinnasta synny kahta totuutta jotka pääsevät eriytymään.
+for (const c of Object.values(CONFIGS)) {
+  const z = c && c.fares && Array.isArray(c.fares.zones) && c.fares.zones[0];
+  if (z) Object.assign(c.fares, { single: z.single, season: z.season, day: z.day,
+    capDay: z.capDay || "", capWeek: z.capWeek || "" });
+}
 // Vahvista per-kaupunki teemaväri CONFIGin mukaan (tuntematon ?city → lahti → ei pinkkiä).
 document.documentElement.dataset.city = CONFIG === CONFIGS.lahti ? "lahti" : cityKey;
 // Demo-kaupungit saavat oman localStorage-nimiavaruuden, jotta suosikit,
@@ -8143,7 +8266,13 @@ async function viewFares() {
   // copy (i18n) otetaan aina CONFIGista, numerot julkaistusta.
   try {
     const pub = await loadPublished();
-    if (pub && pub.fares) f = { ...pub.fares, i18n: CONFIG.fares && CONFIG.fares.i18n };
+    // Vyöhykekaupungissa julkaistu override jätetään tarkoituksella huomiotta:
+    // worker/buildAdminFares tuntee vain tasataksan rakenteen, joten sen läpi mennyt
+    // tallennus näyttäisi yhden vyöhykkeen hinnat koko hinnastona. Mieluummin CONFIGin
+    // varmennettu hinnasto kuin hiljaa väärä hinta tiskillä.
+    if (pub && pub.fares && !(CONFIG.fares && CONFIG.fares.zones)) {
+      f = { ...pub.fares, i18n: CONFIG.fares && CONFIG.fares.i18n };
+    }
   } catch (e) {}
   if (!f) { location.hash = "#/"; return; }
   // Worker täyttää puuttuvat kentät tyhjiksi merkkijonoiksi → "" = ei tätä
@@ -8152,8 +8281,15 @@ async function viewFares() {
   const has = v => v != null && String(v).trim() !== "";
   const eur = n => (has(n) ? `${n} €` : "–");
   const ftx = (key, params, fallbackKey) => faresText(f, key, params, fallbackKey);
-  const hasReduced = has(f.single.cardApp.reduced) || has(f.single.salespoint && f.single.salespoint.reduced)
-    || f.season.some(s => has(s.reduced));
+  // Vyöhykehinnoittelu (Vaasa): jokainen vyöhyke on oma hinnastonsa, jolla on omat
+  // single/season/day/capDay-kentät. Tasataksakaupungissa (Lahti, Raasepori) vyöhykkeitä
+  // on täsmälleen yksi ja se on f itse, jolloin sivu renderöityy sanasta sanaan kuten ennen.
+  const zones = (Array.isArray(f.zones) && f.zones.length) ? f.zones : [f];
+  const zoned = zones.length > 1;
+  const zoneLabel = z => (z.label ? String(z.label[lang] ?? z.label.fi) : "");
+  const hasReduced = zones.some(z => has(z.single.cardApp.reduced)
+    || has(z.single.salespoint && z.single.salespoint.reduced)
+    || z.season.some(s => has(s.reduced)));
   const cells = vals => vals.map(v => `<td>${eur(v)}</td>`).join("");
   const grpVals = g => (hasReduced ? [g.adult, g.child, g.reduced] : [g.adult, g.child]);
   const grp3 = `<th>${ftx("colAdult", null, "faresColAdult")}</th><th>${ftx("colChild", null, "faresColChild")}</th>`
@@ -8161,20 +8297,23 @@ async function viewFares() {
   const row = (label, vals) => `
     <tr><th scope="row">${label}</th>
       ${cells(vals)}</tr>`;
-  const singleRows = [
-    row(ftx("methodCardApp", null, "faresMethodCardApp"), grpVals(f.single.cardApp)),
-    has(f.single.contactless)
+  const singleRows = z => [
+    row(ftx("methodCardApp", null, "faresMethodCardApp"), grpVals(z.single.cardApp)),
+    has(z.single.contactless)
       ? row(ftx("methodContactless", null, "faresMethodContactless"),
-          grpVals({ adult: f.single.contactless, child: f.single.contactless, reduced: f.single.contactless }))
+          grpVals({ adult: z.single.contactless, child: z.single.contactless, reduced: z.single.contactless }))
       : "",
-    f.single.salespoint && grpVals(f.single.salespoint).some(has)
-      ? row(ftx("methodSalespoint", null, "faresMethodSalespoint"), grpVals(f.single.salespoint))
+    z.single.salespoint && grpVals(z.single.salespoint).some(has)
+      ? row(ftx("methodSalespoint", null, "faresMethodSalespoint"), grpVals(z.single.salespoint))
       : "",
   ].join("");
-  const seasonRows = f.season.map(s =>
+  const seasonRows = z => z.season.map(s =>
     `<tr><th scope="row">${t("faresDays", { n: s.d })}</th>${cells(grpVals(s))}</tr>`).join("");
-  const dayRows = f.day.map(s =>
+  const dayRows = z => z.day.map(s =>
     `<tr><th scope="row">${t("faresDays", { n: s.d })}</th><td>${eur(s.adult)}</td><td>${eur(s.child)}</td></tr>`).join("");
+  // Vyöhykeotsikko renderöidään vain jos vyöhykkeitä on useampi kuin yksi.
+  const zoneH = z => (zoned ? `
+      <h4 class="fare-zone">${esc(zoneLabel(z))}</h4>` : "");
   // Valinnaiset lohkot: renderöidään vain jos kaupungilla on ko. copy/data —
   // puuttuva jätetään pois kokonaan (ei toisen kaupungin tekstiä).
   const noticeParts = [];
@@ -8185,20 +8324,30 @@ async function viewFares() {
       <div class="notice">
         ${noticeParts.join("\n        ")}
       </div>` : "";
-  const capsNote = (has(f.capDay) || has(f.capWeek)) ? ftx("caps", { day: f.capDay, week: f.capWeek }) : null;
-  const capsP = capsNote ? `
-      <p class="muted">${capsNote}</p>` : "";
-  const seasonSec = f.season.length ? `
-      <h3>${t("faresSeasonTitle")}</h3>
+  // Hintakatto on vyöhykekohtainen (Vaasassa lähimaksun katto nousee vyöhykkeittäin),
+  // joten se renderöityy kunkin vyöhykkeen kertalipputaulukon alle.
+  const capsP = z => {
+    const n = (has(z.capDay) || has(z.capWeek))
+      ? ftx("caps", { day: z.capDay, week: z.capWeek, zone: zoneLabel(z) }) : null;
+    return n ? `
+      <p class="muted">${n}</p>` : "";
+  };
+  const singleSec = `
+      <h3>${t("faresSingleTitle")}</h3>` + zones.map(z => zoneH(z) + `
+      <div class="fare-wrap"><table class="fare">
+        <thead><tr><th>${t("faresColMethod")}</th>${grp3}</tr></thead>
+        <tbody>${singleRows(z)}</tbody></table></div>` + capsP(z)).join("");
+  const seasonSec = zones.some(z => z.season.length) ? `
+      <h3>${t("faresSeasonTitle")}</h3>` + zones.map(z => (z.season.length ? zoneH(z) + `
       <div class="fare-wrap"><table class="fare">
         <thead><tr><th>${t("faresColDuration")}</th>${grp3}</tr></thead>
-        <tbody>${seasonRows}</tbody></table></div>` : "";
+        <tbody>${seasonRows(z)}</tbody></table></div>` : "")).join("") : "";
   const dayNote = ftx("dayNote");
-  const daySec = f.day.length ? `
-      <h3>${t("faresDayTitle")}</h3>
+  const daySec = zones.some(z => z.day.length) ? `
+      <h3>${t("faresDayTitle")}</h3>` + zones.map(z => (z.day.length ? zoneH(z) + `
       <div class="fare-wrap"><table class="fare">
         <thead><tr><th>${t("faresColDuration")}</th><th>${ftx("colAdult", null, "faresColAdult")}</th><th>${ftx("colChild", null, "faresColChild")}</th></tr></thead>
-        <tbody>${dayRows}</tbody></table></div>` + (dayNote ? `
+        <tbody>${dayRows(z)}</tbody></table></div>` : "")).join("") + (dayNote ? `
       <p class="muted">${dayNote}</p>` : "") : "";
   const whereLis = faresWhereItems(f).map(w => `<li>${w}</li>`);
   const whereRows = [];
@@ -8220,11 +8369,7 @@ async function viewFares() {
   setView(`
     <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
     <div class="card">
-      <h2>${icon("ticket")} ${t("faresTitle")}</h2>${notice}
-      <h3>${t("faresSingleTitle")}</h3>
-      <div class="fare-wrap"><table class="fare">
-        <thead><tr><th>${t("faresColMethod")}</th>${grp3}</tr></thead>
-        <tbody>${singleRows}</tbody></table></div>${capsP}${seasonSec}${daySec}${whereSec}${extraSec}${sourceP}
+      <h2>${icon("ticket")} ${t("faresTitle")}</h2>${notice}${singleSec}${seasonSec}${daySec}${whereSec}${extraSec}${sourceP}
     </div>`);
 }
 
@@ -8809,7 +8954,18 @@ const DESK_LASTBUS_QUERY = `
 function deskFaresHtml(f) {
   if (!f || !f.single) return "";
   const eur = n => `${n} €`;
-  const ca = f.single.cardApp || {};
+  // Vyöhykekaupungissa tiskille tarvitaan koko matriisi eikä vain kaupungin sisäinen
+  // hinta: työntekijän on osattava sanoa hinta myös naapurikuntaan. Tasataksassa
+  // sarakeotsikot jäävät pois ja lohko on täsmälleen entisensä.
+  const zones = (Array.isArray(f.zones) && f.zones.length > 1) ? f.zones : null;
+  const zoneLabel = z => (z.label ? String(z.label[lang] ?? z.label.fi) : "");
+  const head = zones ? `<thead><tr><td></td>${zones
+    .map(z => `<th scope="col">${esc(zoneLabel(z))}</th>`).join("")}</tr></thead>` : "";
+  const gRow = (key, copyKey, fallbackKey) => {
+    const vals = (zones || [f]).map(z => (z.single.cardApp || {})[key]);
+    return `<tr><th scope="row">${faresText(f, copyKey, null, fallbackKey)}</th>${vals
+      .map(v => `<td>${eur(v ?? "–")}</td>`).join("")}</tr>`;
+  };
   // Kaupunkikohtainen copy CONFIG.fares.i18n:stä; ryhmäotsikoille geneerinen
   // STRINGS-fallback, tasataksa-huomio ja hinnastolinkki pois jos copyä ei ole.
   const flatBody = faresText(f, "flatBody");
@@ -8817,10 +8973,10 @@ function deskFaresHtml(f) {
   return `<section class="desk-col" aria-labelledby="deskFaresH">
     <h2 id="deskFaresH">${icon("ticket")} ${t("deskFaresTitle")}</h2>
     <p class="desk-fares-single">${t("deskFaresSingle")}</p>
-    <table class="deps desk-fares"><tbody>
-      <tr><th scope="row">${faresText(f, "colAdult", null, "faresColAdult")}</th><td>${eur(ca.adult ?? "–")}</td></tr>
-      <tr><th scope="row">${faresText(f, "colReduced", null, "faresColReduced")}</th><td>${eur(ca.reduced ?? "–")}</td></tr>
-      <tr><th scope="row">${faresText(f, "colChild", null, "faresColChild")}</th><td>${eur(ca.child ?? "–")}</td></tr>
+    <table class="deps desk-fares">${head}<tbody>
+      ${gRow("adult", "colAdult", "faresColAdult")}
+      ${gRow("reduced", "colReduced", "faresColReduced")}
+      ${gRow("child", "colChild", "faresColChild")}
     </tbody></table>${flatBody ? `
     <p class="muted">${flatBody}</p>` : ""}${srcLink ? `
     <p class="muted fares-source"><a href="${esc(f.url || "#")}" target="_blank" rel="noopener">${srcLink}</a></p>` : ""}

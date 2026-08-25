@@ -528,9 +528,44 @@ async function printHygiene(page, label) {
   await page.goto(BASE + "/?city=vaasa#/", { waitUntil: "networkidle2" });
   const vHome = await homeTools();
   (vHome.groups.length >= 2 && vHome.groups.every(g => g.title && g.tools > 0)
-    && !vHome.hasFaresTool && vHome.hasHubTool && vHome.oneSearch)
-    ? ok(`etusivu (Vaasa): ryhmät ilman tyhjää otsikkoa, laiturinappi on, lippunappi pois (${vHome.groups.map(g => g.title + ":" + g.tools).join(", ")})`)
-    : fail("etusivu (Vaasa): tyhjä/puuttuva ryhmä / laiturinappi puuttuu / lippunappi yhä / haku rikki: " + JSON.stringify(vHome));
+    && vHome.hasFaresTool && vHome.hasHubTool && vHome.oneSearch)
+    ? ok(`etusivu (Vaasa): ryhmät ilman tyhjää otsikkoa, laituri- ja lippunappi näkyvät (${vHome.groups.map(g => g.title + ":" + g.tools).join(", ")})`)
+    : fail("etusivu (Vaasa): tyhjä/puuttuva ryhmä / laituri- tai lippunappi puuttuu / haku rikki: " + JSON.stringify(vHome));
+
+  // --- Vyöhykehinnasto (Vaasa, lisätty 25.8.2026) ---
+  // Vaasa on ensimmäinen vyöhykehinnoiteltu kaupunki: hinta riippuu siitä monenko
+  // vyöhykkeen läpi matka kulkee. Vartija varmistaa ettei sivu näytä vain yhden
+  // vyöhykkeen hintoja koko hinnastona: se olisi tiskillä hiljaa väärä vastaus.
+  await page.goto(BASE + "/?city=vaasa#/liput", { waitUntil: "networkidle2" });
+  const vFares = await page.evaluate(() => {
+    const txt = document.body.innerText;
+    return {
+      vyohykeotsikot: document.querySelectorAll("h4.fare-zone").length,
+      taulukot: document.querySelectorAll("table.fare").length,
+      // 1 vyöhyke aikuinen 2,10 ja 3 vyöhykettä aikuinen 5,20 (vaasa.fi 1.7.2026)
+      halvin: txt.includes("2,10"),
+      kallein: txt.includes("5,20"),
+      kausi: txt.includes("57,10"),
+      lahde: (document.querySelector(".fares-source a") || {}).href || "",
+    };
+  });
+  (vFares.vyohykeotsikot >= 3 && vFares.taulukot >= 3 && vFares.halvin && vFares.kallein
+    && vFares.kausi && /vaasa\.fi/.test(vFares.lahde))
+    ? ok(`hinnat (Vaasa): vyöhykehinnasto renderöityy (${vFares.vyohykeotsikot} vyöhykeotsikkoa, ${vFares.taulukot} taulukkoa, lähdelinkki vaasa.fi)`)
+    : fail("hinnat (Vaasa): vyöhykehinnasto puutteellinen: " + JSON.stringify(vFares));
+
+  // Tasataksakaupungin sivu ei saa saada vyöhykeotsikoita: vyöhyketuki on additiivinen.
+  await page.goto(BASE + "/#/liput", { waitUntil: "networkidle2" });
+  const lFares = await page.evaluate(() => ({
+    vyohykeotsikot: document.querySelectorAll("h4.fare-zone").length,
+    taulukot: document.querySelectorAll("table.fare").length,
+  }));
+  (lFares.vyohykeotsikot === 0 && lFares.taulukot >= 2)
+    ? ok("hinnat (Lahti, tasataksa): sivu ennallaan ilman vyöhykeotsikoita")
+    : fail("hinnat (Lahti): tasataksasivu muuttui vyöhyketuen myötä: " + JSON.stringify(lFares));
+  // Takaisin Vaasaan: seuraavat tarkistukset (teema, tiski) lukevat sivun tilan
+  // navigoimatta itse, joten Lahti-välikäynti ei saa jäädä voimaan.
+  await page.goto(BASE + "/?city=vaasa#/", { waitUntil: "networkidle2" });
   // Vaasan demo: Liftin pinkki brändiväri (per-kaupunki) — header + primary-napit magenta (R>B),
   // kirkas #E6007E aksenttiraita. data-city="vaasa" gating → muut kaupungit (sininen) ennallaan.
   const vTheme = await page.evaluate(() => {
@@ -553,10 +588,16 @@ async function printHygiene(page, label) {
     deps: !!document.getElementById("deskStop"), ab: !!document.getElementById("deskFrom"),
     lastBus: !!document.getElementById("deskLastBusBtn"), alerts: !!document.getElementById("deskAlerts"),
     fares: !!document.getElementById("deskFaresH"),
+    // Vyöhykekaupungissa tiskin hintalohkon on oltava matriisi: yksi sarake per
+    // vyöhykemäärä, muuten työntekijä lukisi kaupungin sisäisen hinnan myös
+    // naapurikuntaan menevälle asiakkaalle.
+    hintaSarakkeet: document.querySelectorAll("table.desk-fares thead th").length,
+    hintaRivit: document.querySelectorAll("table.desk-fares tbody tr").length,
   }));
-  (vBlocks.deps && vBlocks.ab && vBlocks.lastBus && vBlocks.alerts && !vBlocks.fares)
-    ? ok("palvelutiski (Vaasa, minimi-CONFIG): live-lähdöt + viimeinen bussi + häiriöt näkyvät, hinnat piilossa")
-    : fail("palvelutiski (Vaasa, minimi-CONFIG): uudet lohkot puuttuvat / hintalohko väärin: " + JSON.stringify(vBlocks));
+  (vBlocks.deps && vBlocks.ab && vBlocks.lastBus && vBlocks.alerts && vBlocks.fares
+    && vBlocks.hintaSarakkeet === 3 && vBlocks.hintaRivit === 3)
+    ? ok(`palvelutiski (Vaasa): live-lähdöt + viimeinen bussi + häiriöt + vyöhykehinnat (${vBlocks.hintaSarakkeet} vyöhykesaraketta)`)
+    : fail("palvelutiski (Vaasa): lohkot puuttuvat / hintamatriisi väärin: " + JSON.stringify(vBlocks));
   // Brändipariteetti (25.8.2026): tiski oli ainoa näkymä josta kaupungin väri katosi, koska
   // .desk kovakoodasi sinisen. Vaasan tiskin on kannettava Liftin pinkkiä (R selvästi > B)
   // ja säilytettävä tiskin oma 5.5:1 kontrastitavoite valkoista pohjaa vasten.
