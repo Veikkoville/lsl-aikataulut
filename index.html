@@ -1117,6 +1117,11 @@
      ilman että tasataksakaupungin sivu muuttuu. */
   h4.fare-zone { margin: 1rem 0 0.35rem; font-size: 1em; font-weight: var(--wmed); color: var(--blue); }
   .desk-fares-single { font-weight: var(--wmed); margin: 0 0 0.4rem; }
+  /* Maksutavan väliotsikkorivi tiskin hintataulukossa: erottaa kortti-, lähimaksu- ja
+     ostopaikkahinnat toisistaan, koska ne ovat eri hintoja samalle lipulle. */
+  table.desk-fares tr.desk-fares-method th { padding-top: 0.75rem; color: var(--blue);
+    font-size: 0.94em; font-weight: var(--wmed); border-bottom: none; }
+  table.desk-fares tr.desk-fares-method:first-child th { padding-top: 0.2rem; }
   table.desk-fares td { text-align: right; font-weight: var(--wmed); }
   table.desk-fares th { font-size: 1em; color: var(--text); }
   /* Inline-ikonit: kokoa em:nä → skaalautuu tekstikoon mukaan, väri perii currentColorin */
@@ -2172,7 +2177,11 @@ const CONFIGS = {
     // tyhjä → rivi ja hintakatot jäävät pois). Seniori (65+) ja opiskelija maksavat
     // kerta- ja päivälipuista aikuisen hinnan; kausilipussa oma hinta.
     fares: {
-      checked: "10.7.2026",
+      // Tarkistettu uudelleen 25.8.2026: arvot ennallaan (sivun oma päivitysleima 24.7.26,
+      // hinnat voimassa 1.1.2025 alkaen). HUOM: 3,80 € ei ole käteishinta vaan
+      // ostopaikkahinta (kuljettajalta, Luckanista tai R-kioskilta): sivu kertoo vain että
+      // bussissa voi maksaa yleisimmillä pankki- ja luottokorteilla eikä mainitse käteistä.
+      checked: "25.8.2026",
       url: "https://www.raseborg.fi/fi/liikenne-kadut-ja-yleiset-alueet/joukkoliikenne/liput-ja-hinnat/",
       single: {
         cardApp: { adult: "3,60", child: "1,80", reduced: "3,60" },
@@ -8954,18 +8963,49 @@ const DESK_LASTBUS_QUERY = `
 function deskFaresHtml(f) {
   if (!f || !f.single) return "";
   const eur = n => `${n} €`;
+  const has = v => v != null && String(v).trim() !== "";
   // Vyöhykekaupungissa tiskille tarvitaan koko matriisi eikä vain kaupungin sisäinen
   // hinta: työntekijän on osattava sanoa hinta myös naapurikuntaan. Tasataksassa
-  // sarakeotsikot jäävät pois ja lohko on täsmälleen entisensä.
+  // sarakeotsikot jäävät pois ja jäljelle jää yksi hintasarake.
   const zones = (Array.isArray(f.zones) && f.zones.length > 1) ? f.zones : null;
+  const cols = zones || [f];
   const zoneLabel = z => (z.label ? String(z.label[lang] ?? z.label.fi) : "");
   const head = zones ? `<thead><tr><td></td>${zones
     .map(z => `<th scope="col">${esc(zoneLabel(z))}</th>`).join("")}</tr></thead>` : "";
-  const gRow = (key, copyKey, fallbackKey) => {
-    const vals = (zones || [f]).map(z => (z.single.cardApp || {})[key]);
-    return `<tr><th scope="row">${faresText(f, copyKey, null, fallbackKey)}</th>${vals
-      .map(v => `<td>${eur(v ?? "–")}</td>`).join("")}</tr>`;
+  const valCells = vals => vals.map(v => `<td>${has(v) ? eur(v) : "–"}</td>`).join("");
+  // Maksutapa on tiskillä oikeasti merkitsevä: Vaasassa käteinen kuljettajalta maksaa
+  // aikuiselta 2,60 € kun kortti/sovellus maksaa 2,10 €, ja Lahdessa lähimaksu on eri
+  // kuin Waltti-hinta. Pelkän korttihinnan näyttäminen antaisi käteisellä maksavalle
+  // liian matalan luvun. Maksutavat siis omina väliotsikkoinaan samassa taulukossa,
+  // kunkin kaupungin omalla nimityksellä (Raaseporissa 3,80 € ei ole käteishinta vaan
+  // ostopaikkahinta, eikä sitä saa esittää käteisenä).
+  const span = cols.length + 1;
+  const subHead = label => `<tr class="desk-fares-method"><th scope="colgroup" colspan="${span}">${label}</th></tr>`;
+  const gRow = (pick, key, copyKey, fallbackKey) => {
+    const vals = cols.map(z => (pick(z) || {})[key]);
+    // Ryhmä jolle maksutavalla ei ole julkaistua hintaa jätetään kokonaan pois
+    // (esim. Vaasan käteishinnastossa ei ole opiskelijan hintaa) — tyhjä viivarivi
+    // näyttäisi puuttuvalta tiedolta vaikka kyse on siitä ettei tuotetta ole.
+    if (!vals.some(has)) return "";
+    return `<tr><th scope="row">${faresText(f, copyKey, null, fallbackKey)}</th>${valCells(vals)}</tr>`;
   };
+  const methodBlock = (copyKey, fallbackKey, pick) => {
+    const rows = [
+      gRow(pick, "adult", "colAdult", "faresColAdult"),
+      gRow(pick, "reduced", "colReduced", "faresColReduced"),
+      gRow(pick, "child", "colChild", "faresColChild"),
+    ].join("");
+    return rows ? subHead(faresText(f, copyKey, null, fallbackKey)) + rows : "";
+  };
+  // Lähimaksulla ei ole asiakasryhmäulottuvuutta (sama hinta kaikille), joten se on
+  // yksi rivi eikä oma lohkonsa.
+  const clVals = cols.map(z => z.single.contactless);
+  const contactlessRow = clVals.some(has)
+    ? `<tr class="desk-fares-contactless"><th scope="row">${faresText(f, "methodContactless", null, "faresMethodContactless")}</th>${valCells(clVals)}</tr>`
+    : "";
+  const body = methodBlock("methodCardApp", "faresMethodCardApp", z => z.single.cardApp)
+    + contactlessRow
+    + methodBlock("methodSalespoint", "faresMethodSalespoint", z => z.single.salespoint);
   // Kaupunkikohtainen copy CONFIG.fares.i18n:stä; ryhmäotsikoille geneerinen
   // STRINGS-fallback, tasataksa-huomio ja hinnastolinkki pois jos copyä ei ole.
   const flatBody = faresText(f, "flatBody");
@@ -8974,9 +9014,7 @@ function deskFaresHtml(f) {
     <h2 id="deskFaresH">${icon("ticket")} ${t("deskFaresTitle")}</h2>
     <p class="desk-fares-single">${t("deskFaresSingle")}</p>
     <table class="deps desk-fares">${head}<tbody>
-      ${gRow("adult", "colAdult", "faresColAdult")}
-      ${gRow("reduced", "colReduced", "faresColReduced")}
-      ${gRow("child", "colChild", "faresColChild")}
+      ${body}
     </tbody></table>${flatBody ? `
     <p class="muted">${flatBody}</p>` : ""}${srcLink ? `
     <p class="muted fares-source"><a href="${esc(f.url || "#")}" target="_blank" rel="noopener">${srcLink}</a></p>` : ""}

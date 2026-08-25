@@ -590,13 +590,21 @@ async function printHygiene(page, label) {
     fares: !!document.getElementById("deskFaresH"),
     // Vyöhykekaupungissa tiskin hintalohkon on oltava matriisi: yksi sarake per
     // vyöhykemäärä, muuten työntekijä lukisi kaupungin sisäisen hinnan myös
-    // naapurikuntaan menevälle asiakkaalle.
+    // naapurikuntaan menevälle asiakkaalle. Lisäksi maksutavan on erotuttava:
+    // Vaasassa käteinen kuljettajalta on aikuiselta 2,60 € kun kortti on 2,10 €,
+    // joten pelkkä korttihinta antaisi käteisellä maksavalle liian matalan luvun.
     hintaSarakkeet: document.querySelectorAll("table.desk-fares thead th").length,
-    hintaRivit: document.querySelectorAll("table.desk-fares tbody tr").length,
+    maksutapaOtsikot: document.querySelectorAll("table.desk-fares tr.desk-fares-method").length,
+    // Rakenteelliset tarkistukset, EI tekstihakua: smoke on tässä kohtaa ruotsiksi,
+    // ja "Lähimaksu" olisi silloin "Närbetalning". Käteinen tunnistetaan hinnasta,
+    // joka on kielestä riippumaton.
+    kateinen: (document.querySelector("table.desk-fares")?.innerText || "").includes("2,60"),
+    lahimaksu: !!document.querySelector("table.desk-fares tr.desk-fares-contactless"),
   }));
   (vBlocks.deps && vBlocks.ab && vBlocks.lastBus && vBlocks.alerts && vBlocks.fares
-    && vBlocks.hintaSarakkeet === 3 && vBlocks.hintaRivit === 3)
-    ? ok(`palvelutiski (Vaasa): live-lähdöt + viimeinen bussi + häiriöt + vyöhykehinnat (${vBlocks.hintaSarakkeet} vyöhykesaraketta)`)
+    && vBlocks.hintaSarakkeet === 3 && vBlocks.maksutapaOtsikot === 2
+    && vBlocks.kateinen && vBlocks.lahimaksu)
+    ? ok(`palvelutiski (Vaasa): vyöhykehinnat maksutavoittain (${vBlocks.hintaSarakkeet} vyöhykesaraketta, ${vBlocks.maksutapaOtsikot} maksutapalohkoa, käteinen ja lähimaksu mukana)`)
     : fail("palvelutiski (Vaasa): lohkot puuttuvat / hintamatriisi väärin: " + JSON.stringify(vBlocks));
   // Brändipariteetti (25.8.2026): tiski oli ainoa näkymä josta kaupungin väri katosi, koska
   // .desk kovakoodasi sinisen. Vaasan tiskin on kannettava Liftin pinkkiä (R selvästi > B)
