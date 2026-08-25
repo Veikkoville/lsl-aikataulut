@@ -143,6 +143,73 @@ const pass = (c, k, d) => record(c, k, "PASS", d);
 const fail = (c, k, d) => record(c, k, "FAIL", d);
 const info = (c, k, d) => record(c, k, "INFO", d);
 
+// --- Asetteluvartija (lisätty 25.8.2026) ------------------------------------------
+// Kolme printtivikaa pääsi asiakkaalle asti, koska mikään tarkistus ei katsonut miltä
+// taulukko NÄYTTÄÄ paperin levyisenä: julisteen minuutit eivät olleet allekkain,
+// A5-vihon sarakkeet leikkautuivat, ja käytävätulosteen määränpääsarake oli niin kapea
+// että joka toinen rivi oli kaksinkertaisen korkuinen. Yksikään ei näkynyt sisältöä
+// laskevissa tarkistuksissa eikä ruudun leveydellä: viat syntyvät vasta kun sivu on
+// paperin levyinen ja teksti alkaa rivittyä.
+//
+// Siksi tämä vartija tekee kaksi asiaa joita muut eivät tee:
+//   1. asettaa ikkunan leveyden TULOSTUSALUEEN levyiseksi (@page-koko - marginaalit)
+//   2. mittaa print-medialla kolme asiaa jotka kaikki lukevat paperilla vinona:
+//      sarakkeen vasen reuna eri kohdassa eri riveillä · tbody-rivit eri korkuisia ·
+//      taulukko vuotaa sivun oikean reunan yli.
+// Ikkunan koko palautetaan jokaisen mittauksen jälkeen, jotta muut tarkistukset
+// näkevät saman näkymän kuin ennenkin.
+const PRINT_MM = { portrait: 210 - 24, rack: 210 - 16, landscape: 297 - 16 };
+const mmPx = mm => Math.round(mm * 96 / 25.4);
+async function asetteluTarkistus(page, cityKey, tuote, rootSel, tyyppi) {
+  const vp = page.viewport();
+  await page.setViewport({ width: mmPx(PRINT_MM[tyyppi]), height: (vp && vp.height) || 1600 });
+  await page.emulateMediaType("print");
+  const r = await page.evaluate(sel => {
+    const root = document.querySelector(sel);
+    if (!root) return { puuttuu: true };
+    const lim = document.body.getBoundingClientRect().right;
+    const viat = [];
+    let n = 0;
+    // Palstoitettu taulukko jatetaan linjaus- ja korkeustarkistuksen ulkopuolelle.
+    // Lehtitelinetuloste latoo Ma-Pe-taulun TAHALLAAN kahteen palstaan (.rack-days
+    // columns:2, otsikkorivi toistuu fragmentissa). Fragmentoituneen taulukon
+    // getBoundingClientRect palauttaa palstojen YHTEISEN laatikon, jolloin oikean
+    // palstan solut nayttavat olevan eri kohdassa kuin vasemman ja yksi rivi nayttaa
+    // satojen pikselien korkuiselta. Todennettu silmalla 25.8.2026: tuloste on ehja.
+    const palstoitettu = el => {
+      for (let n = el.parentElement; n; n = n.parentElement) {
+        const cc = getComputedStyle(n).columnCount;
+        if (cc && cc !== "auto" && +cc > 1) return true;
+      }
+      return false;
+    };
+    root.querySelectorAll("table").forEach(t => {
+      const body = t.tBodies && t.tBodies[0];
+      if (!body || !body.rows.length) return;
+      n++;
+      const frag = palstoitettu(t);
+      const rows = [...body.rows].slice(0, 60);
+      const lefts = rows.map(r2 => [...r2.cells].map(c => Math.round(c.getBoundingClientRect().left)));
+      const cols = Math.max(...lefts.map(a => a.length));
+      for (let i = 0; i < cols; i++) {
+        const v = [...new Set(lefts.map(a => a[i]).filter(x => x != null))];
+        if (!frag && v.length > 1 && viat.length < 4) viat.push(`sarake ${i} eri linjassa riveittäin (${v.slice(0, 4).join("/")})`);
+      }
+      const hs = [...new Set(rows.map(r2 => Math.round(r2.getBoundingClientRect().height)))];
+      if (!frag && hs.length > 1 && viat.length < 4) viat.push(`rivikorkeudet ${JSON.stringify(hs.slice(0, 4))} — teksti rivittyy osalla riveistä`);
+      const yli = Math.round(t.getBoundingClientRect().right - lim);
+      if (yli > 1 && viat.length < 4) viat.push(`taulukko vuotaa sivun yli ${yli} px`);
+    });
+    return { n, viat };
+  }, rootSel);
+  await page.emulateMediaType("screen");
+  if (vp) await page.setViewport(vp);
+  if (r.puuttuu || !r.n) { info(cityKey, `asettelu: ${tuote}`, "ei taulukoita mitattavaksi"); return; }
+  r.viat.length
+    ? fail(cityKey, `asettelu: ${tuote}`, r.viat.join(" · "))
+    : pass(cityKey, `asettelu: ${tuote}`, `${r.n} taulukkoa, sarakkeet linjassa, rivikorkeus tasainen, ei ylivuotoa`);
+}
+
 // Reittihaun hakuaika: seuraava arkipäivä klo 09.00 Suomen aikaa. Kiinnitetty aika
 // (jaetun linkin t=-parametri) tekee haun deterministiseksi: viikonloppu- ja yöajot
 // eivät hälytä harvan liikenteen kaupungeista väärin. Selaimen aikavyöhyke
@@ -424,6 +491,7 @@ function writeReport() {
           leg.legend ? pass(city.key, "legenda (vihko)", `${leg.dots} ·-solua + selite`)
                      : fail(city.key, "legenda (vihko)", `${leg.dots} ·-solua ilman selitettä`);
         } else info(city.key, "legenda (vihko)", "ei ·-soluja tässä linjassa (selitettä ei vaadita)");
+        if (bookletOk) await asetteluTarkistus(page, city.key, "vihko A4", "#bookletOut", "portrait");
 
         // --- 4a) A5-vihon leveysvartija (myyntikaupungit). A5:n sisältöleveys on 128 mm,
         //         eikä siihen mahdu yhtä monta avainpysäkkisaraketta kuin A4:ään: 25.8.2026
@@ -540,6 +608,7 @@ function writeReport() {
               outText: (document.getElementById("stopPrintOut")?.textContent || "").trim().slice(0, 80),
             };
           });
+          if (posterOk) await asetteluTarkistus(page, city.key, "pysäkkijuliste", "#stopPrintOut", "portrait");
           posterOk && poster.days >= 1
             ? pass(city.key, "pysäkkijuliste", `${poster.days} päiväblokkia (${posterStop})`)
             : fail(city.key, "pysäkkijuliste", `tuntikaaviota ei muodostunut (${posterStop}, ` +
@@ -719,6 +788,7 @@ function writeReport() {
                 orient: document.getElementById("pageOrient")?.textContent || "",
                 printed: !!window.__deskPrinted,
               }));
+              await asetteluTarkistus(page, city.key, "tiskin tuloste", "#deskPrintOut", "rack");
               dp.days >= 1 && dp.lines >= 1 && dp.printed
                 && /portrait/.test(dp.orient) && /8mm/.test(dp.orient)
                 ? pass(city.key, "tiskiltä tulostus",
