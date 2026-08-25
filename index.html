@@ -1040,6 +1040,8 @@
   .desk {
     --bg: #ffffff; --card: #ffffff; --text: #111111; --muted: #2f2f2f;
     --border: #1a1a1a; --hover: #eaf0fb; --chip: #e7edf6;
+    /* Oletusaksentti kaupungeille joilla ei ole varmennettua brandColoria. Brändikaupungeissa
+       deskAccentStyle() ylikirjoittaa nämä inline CONFIG.brandColorista (AA-syvennettynä). */
     --blue: #0033cc; --btn-bg: #0033cc; --btn-hover: #001f99;
     --rt-bg: #d6f0d6; --rt-text: #00540f;
     /* REILA F3: tiski on tahallaan pakotettu kirkas korkea kontrasti riippumatta teemasta.
@@ -1892,10 +1894,12 @@ const CONFIGS = {
   // Vaasa-demo (?city=vaasa). Sama minimimalli kuin Salo/Kajaani: kaikki sisältö tulee
   // avoimesta Waltti/Digitransit-GTFS:stä. feedId "Vaasa" varmennettu feeds-kyselyllä
   // proxyn kautta 20.6.2026 (28 BUS-linjaa). Kaksikielinen alue (FI/SV): GTFS:n longNamet
-  // sisältävät molempia, sovellus toimii FI/SV/EN. EI fares/hubs/cmsAlerts (Vaasan hintoja,
-  // keskuspysäkkejä eikä häiriö-CMS:ää varmennettu). Brändiväri = Liftin pinkki/magenta
-  // (mitattu bussikuvasta #DB149A/#E6007E; käytetään syvää #bd0073 AA-headeria/nappeja varten,
-  // kirkas #E6007E aksenttina). GTFS-RT-häiriöt toimivat silti.
+  // sisältävät molempia, sovellus toimii FI/SV/EN. Hubs lisätty 14.8.2026. EI fares eikä
+  // cmsAlerts: Vaasan hintoja ei ole varmennettu lähteestä (siksi tiskillä ei ole
+  // hintalohkoa, toisin kuin Lahdessa ja Raaseporissa), eikä häiriö-CMS:lle ole vastinetta.
+  // Brändiväri = Liftin pinkki/magenta (mitattu bussikuvasta #DB149A/#E6007E): syvää #bd0073
+  // käytetään AA-headeriin, nappeihin ja palvelutiskin aksenttiin, kirkasta #E6007E
+  // ei-tekstuaalisena aksenttina. GTFS-RT-häiriöt toimivat silti.
   vaasa: {
     city: "Vaasa",
     cityGenitive: "Vaasan",
@@ -1991,10 +1995,10 @@ const CONFIGS = {
   // feeds-kyselyllä proxyn kautta 9.7.2026 (14 BUS-linjaa; nykyinen feed = kesäkausi
   // 25.6.–11.8.2026 → tarkista presetit talvifeedillä). Kaksikielinen, ruotsienemmistöinen
   // kunta: GTFS:n pysäkkinimet kääntyvät FI/SV täysin, myös suuntakirjaimet (L→V, I→Ö,
-  // P→N, E→S); longNamet eivät käänny (feedin puute, kuten Vaasassa). EI fares/hubs/
-  // cmsAlerts (hintanäkymän copy on toistaiseksi Lahti-sidonnainen; keskuspysäkkilistaa
-  // tai häiriö-CMS:ää ei varmennettu) → lisää vasta varmennetulla datalla jos diili
-  // etenee. GTFS-RT-häiriöt toimivat silti.
+  // P→N, E→S); longNamet eivät käänny (feedin puute, kuten Vaasassa). Hinnat lisätty
+  // 10.7.2026 raseborg.fi:stä (tasataksa, Waltti/Bosse, ei lähimaksua) ja hubs 14.8.2026,
+  // eli hintalohko näkyy myös palvelutiskillä. EI cmsAlerts: häiriö-CMS on Lahden LSL:n
+  // oma järjestelmä, jolle ei ole Raaseporin vastinetta → GTFS-RT-häiriöt hoitavat sen.
   raasepori: {
     city: "Raasepori",
     cityGenitive: "Raaseporin",
@@ -4609,6 +4613,32 @@ function headerBgColor() {
     r = Math.round(r * 0.9); g = Math.round(g * 0.9); b = Math.round(b * 0.9);
   }
   return "#" + toHex();
+}
+
+// Palvelutiskin aksenttiväri kaupungin brändistä. .desk-lohko pakottaa omat tokenit, jotta
+// tumma teema ei vuoda tiskin valkoiselle pinnalle (REILA F3), mutta kovakoodattu oletus
+// #0033cc vei mukanaan myös brändivärin: Vaasan tiski oli sininen vaikka Lifti on pinkki ja
+// Raaseporin sininen vaikka BOSSE on vihreä. Tiski oli ainoa näkymä jossa brändi katosi.
+// headerBgColor() syventää CONFIG.brandColorin kunnes valkoinen teksti on AA; kontrasti on
+// symmetrinen, joten sama arvo kelpaa myös tiskin valkoisella pohjalla tekstivärinä
+// (details.desk-stops summary) ja reunaviivana. Inline-tyyli voittaa
+// .desk-säännön specificityssä. Ilman brandColoria (esim. Kuopio) jää CSS:n oletussininen.
+function deskAccentStyle() {
+  if (!CONFIG.brandColor) return "";
+  const hex = a => "#" + a.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+  // Tiskillä tavoite on tiukempi kuin ylätunnisteen AA 4.5:1, koska koko näkymä on tahallaan
+  // pakotettu korkea kontrasti: syvennetään 5.5:1 asti, jolloin brändisävy säilyy mutta
+  // aksentti ei jää AA:n rajalle. Käytännössä tämä koskee vain vaaleimpia brändivärejä.
+  let rgb = [0, 2, 4].map(i => parseInt(headerBgColor().slice(1 + i, 3 + i), 16));
+  for (let i = 0; i < 40 && (1.05 / (relLum(hex(rgb).slice(1)) + 0.05)) < 5.5; i++)
+    rgb = rgb.map(v => Math.round(v * 0.94));
+  const base = hex(rgb);
+  const dark = hex(rgb.map(v => v * 0.78));             // hover/aktiivitila
+  // Hover- ja chip-taustat samasta väristä vaaleana sävynä (8 % / 11 %), muuten tiskillä
+  // olisi pinkin aksentin vieressä sinertävät taustat.
+  const tint = a => hex(rgb.map(v => 255 - (255 - v) * a));
+  return ` style="--blue:${base};--btn-bg:${base};--btn-hover:${dark};--accent:${base};` +
+    `--accent-dark:${dark};--hover:${tint(0.08)};--chip:${tint(0.11)}"`;
 }
 
 /* ---------- QR-koodit (vendoroitu qrcode.js, MIT — ladataan laiskasti) ---------- */
@@ -9012,7 +9042,7 @@ async function viewServiceDesk() {
          koottu aikataulu. Sama kuvio kuin pysäkkisivulla (9039fc7) ja linjasivulla.
          Ilman tätä "tulosta asiakkaalle mukaan" tulostaisi ensin hakukentät, live-listan
          ja häiriölohkon, jotka ovat merkityksettömiä paperilla. -->
-    <div class="desk no-print">
+    <div class="desk no-print"${deskAccentStyle()}>
       <div class="desk-top">
         <h1>${t("deskTitle")}</h1>
         <a class="btnlink secondary" href="#/">${t("deskExit")}</a>

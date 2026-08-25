@@ -277,6 +277,10 @@ async function printHygiene(page, label) {
   await page.keyboard.press("Enter");
   await expect("details.itin[data-itin]", "etusivu: koko lause Mistä-kentässä ajaa reittihaun", 20000);
 
+  const deskAccent = () => page.evaluate(() => {
+    const el = document.querySelector(".desk");
+    return el ? getComputedStyle(el).getPropertyValue("--blue").trim().toLowerCase() : "";
+  });
   // --- Palvelutiski-tila (#/palvelutiski): A→B + pysäkin linjat työntekijälle ---
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   (await page.$('#appFooter a[href="#/palvelutiski"]'))
@@ -288,6 +292,13 @@ async function printHygiene(page, label) {
     !!document.getElementById("deskFrom") && !!document.getElementById("deskTo") && !!document.getElementById("deskStop"));
   deskOk ? ok("palvelutiski: koko ruudun näkymä + kentät latautuvat")
          : fail("palvelutiski: näkymä/kentät puuttuvat");
+  // Tiskin aksentti: Lahdella ei ole CONFIG.brandColoria, joten se pysyy .desk-lohkon
+  // oletussinisessä. Pari Vaasan tarkistukselle alempana: brändiväri saa vaihtaa tämän,
+  // mutta ei brändittömässä kaupungissa.
+  const lDeskAccent = await deskAccent();
+  (lDeskAccent === "#0033cc")
+    ? ok("palvelutiski (Lahti, ei brandColoria): aksentti pysyy oletussinisenä")
+    : fail(`palvelutiski (Lahti): odotettu oletussininen #0033cc, saatiin "${lDeskAccent}"`);
   // "Aktiiviset häiriöt" näyttää VAIN HÄIRIÖ-luokan (ei informatiivisia tiedotteita): määrän
   // on täsmättävä etusivun häiriölohkoon (ei etusivun tiedotelohkoa).
   await page.waitForFunction(() => {
@@ -546,6 +557,21 @@ async function printHygiene(page, label) {
   (vBlocks.deps && vBlocks.ab && vBlocks.lastBus && vBlocks.alerts && !vBlocks.fares)
     ? ok("palvelutiski (Vaasa, minimi-CONFIG): live-lähdöt + viimeinen bussi + häiriöt näkyvät, hinnat piilossa")
     : fail("palvelutiski (Vaasa, minimi-CONFIG): uudet lohkot puuttuvat / hintalohko väärin: " + JSON.stringify(vBlocks));
+  // Brändipariteetti (25.8.2026): tiski oli ainoa näkymä josta kaupungin väri katosi, koska
+  // .desk kovakoodasi sinisen. Vaasan tiskin on kannettava Liftin pinkkiä (R selvästi > B)
+  // ja säilytettävä tiskin oma 5.5:1 kontrastitavoite valkoista pohjaa vasten.
+  const vDeskAccent = await page.evaluate(() => {
+    const hex = getComputedStyle(document.querySelector(".desk"))
+      .getPropertyValue("--blue").trim().replace(/^#/, "");
+    const rgb = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
+    const lum = rgb.map(v => v / 255)
+      .map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
+      .reduce((a, c, i) => a + [0.2126, 0.7152, 0.0722][i] * c, 0);
+    return { hex: "#" + hex.toLowerCase(), pinkki: rgb[0] > rgb[2] + 40, kontrasti: 1.05 / (lum + 0.05) };
+  });
+  (vDeskAccent.hex !== "#0033cc" && vDeskAccent.pinkki && vDeskAccent.kontrasti >= 5.5)
+    ? ok(`palvelutiski (Vaasa): aksentti kantaa Liftin pinkkiä (${vDeskAccent.hex}, ${vDeskAccent.kontrasti.toFixed(1)}:1)`)
+    : fail("palvelutiski (Vaasa): tiskin aksentti ei ole brändinmukainen/kontrastinen: " + JSON.stringify(vDeskAccent));
   await page.click("#deskStop");
   await page.type("#deskStop", "Vöyrinkatu", { delay: 25 });
   if (await expect("#deskStopList button[data-s]", "palvelutiski (Vaasa): pysäkkiehdotus", 15000)) {

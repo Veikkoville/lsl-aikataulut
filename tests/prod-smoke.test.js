@@ -721,6 +721,46 @@ function writeReport() {
       //         illan ajossa (21 Helsinki) harvan verkon kaupungissa voi aidosti olla 0
       //         lähtöä, mutta oletuspysäkin PUUTTUMINEN on aina konfiguraatiovika.
       await page.goto(url("#/palvelutiski"), { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
+      // Brändipariteetti: tiski oli ainoa näkymä josta kaupungin väri katosi (kovakoodattu
+      // sininen), eli Vaasan pinkki ja Raaseporin vihreä eivät näkyneet siellä lainkaan.
+      // Vartija katsoo kolmea asiaa: brändikaupungin aksentti ei saa olla oletussininen,
+      // sen on oltava samasta väristä kuin brandColor (sama hallitseva kanava), ja
+      // kontrastin valkoista pohjaa vasten on pysyttävä tiskin omassa 5.5:1 tavoitteessa
+      // (tiski on tahallaan korkeampi kontrasti kuin AA 4.5:1).
+      const deskAccent = await page.evaluate(() => {
+        const el = document.querySelector(".desk");
+        if (!el) return null;
+        const rd = h => [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+        const maxCh = rgb => rgb.indexOf(Math.max(...rgb));
+        const hex = getComputedStyle(el).getPropertyValue("--blue").trim().replace(/^#/, "");
+        const brand = (CONFIG.brandColor || "").replace(/^#/, "");
+        if (!/^[0-9a-fA-F]{6}$/.test(hex)) return { hex, contrast: 0, brand: brand || null };
+        const rgb = rd(hex);
+        const lum = rgb.map(v => v / 255)
+          .map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
+          .reduce((a, c, i) => a + [0.2126, 0.7152, 0.0722][i] * c, 0);
+        return { hex: "#" + hex.toLowerCase(), contrast: 1.05 / (lum + 0.05),
+          brand: brand ? "#" + brand.toLowerCase() : null,
+          sameHue: brand ? maxCh(rgb) === maxCh(rd(brand)) : null };
+      });
+      if (!deskAccent) {
+        fail(city.key, "tiskin brändiväri", ".desk-elementtiä ei löytynyt tiskinäkymästä");
+      } else if (deskAccent.contrast < 5.5) {
+        fail(city.key, "tiskin brändiväri",
+          `aksentti ${deskAccent.hex} vain ${deskAccent.contrast.toFixed(2)}:1 valkoista vasten (tiskin tavoite 5.5:1)`);
+      } else if (deskAccent.brand && deskAccent.hex === "#0033cc") {
+        fail(city.key, "tiskin brändiväri",
+          `brandColor ${deskAccent.brand} on määritelty, mutta tiski käyttää yhä oletussinistä`);
+      } else if (deskAccent.brand && !deskAccent.sameHue) {
+        fail(city.key, "tiskin brändiväri",
+          `aksentti ${deskAccent.hex} ei ole brandColorin ${deskAccent.brand} sävy`);
+      } else if (!deskAccent.brand && deskAccent.hex !== "#0033cc") {
+        fail(city.key, "tiskin brändiväri",
+          `ei brandColoria, mutta tiskin aksentti on ${deskAccent.hex} (odotettu oletussininen)`);
+      } else {
+        pass(city.key, "tiskin brändiväri",
+          `${deskAccent.hex}, kontrasti ${deskAccent.contrast.toFixed(1)}:1`);
+      }
       const deskOk = await page.waitForSelector("#deskStopResults #deskLines .badge", { timeout: 45000 })
         .then(() => true).catch(() => false);
       if (!deskOk) {
