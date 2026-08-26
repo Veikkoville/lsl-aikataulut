@@ -2661,15 +2661,15 @@ const STRINGS = {
     heroSearch: "Hae yhteydet",
     heroNeedBoth: "Valitse lähtö ja määränpää ehdotuslistasta.",
     nlLabel: "Sano tai kirjoita, mihin haluat mennä",
-    nlPlaceholder: "Esim. Matkakeskukselta Kauppatorille",
-    nlHint: "Kirjoita tai sanele koko matka kerralla (esim. 'Matkakeskukselta Kauppatorille').",
+    nlPlaceholder: "Esim. {exFrom} → {exTo}",
+    nlHint: "Kirjoita tai sanele koko matka kerralla (esim. 'pysäkiltä {exFrom} pysäkille {exTo}').",
     nlOr: "tai",
     nlMicStart: "Puhu matka",
     nlMicStop: "Lopeta kuuntelu",
     nlListening: "Kuuntelee…",
     nlNeedOrigin: "En saanut kiinni lähtöpaikasta, täydennä tähän.",
     nlNeedDest: "En saanut kiinni määränpäästä, täydennä tähän.",
-    nlNeedBoth: "En saanut kiinni lähtöä ja määränpäätä. Kokeile esim. \"Matkakeskukselta Kauppatorille\".",
+    nlNeedBoth: "En saanut kiinni lähtöä ja määränpäätä. Kokeile esim. \"{exFrom} → {exTo}\".",
     nlMicError: "Puheentunnistus ei onnistunut. Voit kirjoittaa matkan.",
     footerNote: "Tämä on epävirallinen palvelu, joka ei ole liikennöitsijän ({operator}) tuottama. Aikataulu- ja reaaliaikadata: {operatorShort} / Waltti avoin data (CC BY 4.0) Digitransit-rajapinnan kautta.",
     footColService: "Palvelu",
@@ -3149,15 +3149,15 @@ const STRINGS = {
     heroSearch: "Find connections",
     heroNeedBoth: "Choose origin and destination from the suggestions.",
     nlLabel: "Say or type where you want to go",
-    nlPlaceholder: "E.g. from Matkakeskus to Kauppatori",
-    nlHint: "Type or speak the whole trip at once (e.g. 'from Matkakeskus to Kauppatori').",
+    nlPlaceholder: "E.g. {exFrom} → {exTo}",
+    nlHint: "Type or speak the whole trip at once (e.g. 'from {exFrom} to {exTo}').",
     nlOr: "or",
     nlMicStart: "Speak your trip",
     nlMicStop: "Stop listening",
     nlListening: "Listening…",
     nlNeedOrigin: "I didn't catch the origin, please add it here.",
     nlNeedDest: "I didn't catch the destination, please add it here.",
-    nlNeedBoth: "I couldn't catch the origin and destination. Try e.g. \"from Matkakeskus to Kauppatori\".",
+    nlNeedBoth: "I couldn't catch the origin and destination. Try e.g. \"from {exFrom} to {exTo}\".",
     nlMicError: "Speech recognition failed. You can type the trip instead.",
     footerNote: "This is an unofficial service, not produced by the transit authority ({operator}). Timetable and real-time data: {operatorShort} / Waltti open data (CC BY 4.0) via the Digitransit API.",
     footColService: "Service",
@@ -3611,15 +3611,15 @@ const STRINGS = {
     heroSearch: "Sök förbindelser",
     heroNeedBoth: "Välj startplats och destination från förslagen.",
     nlLabel: "Säg eller skriv vart du vill åka",
-    nlPlaceholder: "T.ex. från Matkakeskus till Kauppatori",
-    nlHint: "Skriv eller diktera hela resan på en gång (t.ex. 'från Matkakeskus till Kauppatori').",
+    nlPlaceholder: "T.ex. {exFrom} → {exTo}",
+    nlHint: "Skriv eller diktera hela resan på en gång (t.ex. 'från {exFrom} till {exTo}').",
     nlOr: "eller",
     nlMicStart: "Tala in din resa",
     nlMicStop: "Sluta lyssna",
     nlListening: "Lyssnar…",
     nlNeedOrigin: "Jag uppfattade inte startplatsen, fyll i den här.",
     nlNeedDest: "Jag uppfattade inte destinationen, fyll i den här.",
-    nlNeedBoth: "Jag uppfattade inte start och destination. Försök t.ex. \"från Matkakeskus till Kauppatori\".",
+    nlNeedBoth: "Jag uppfattade inte start och destination. Försök t.ex. \"från {exFrom} till {exTo}\".",
     nlMicError: "Taligenkänningen misslyckades. Du kan skriva resan istället.",
     footerNote: "Detta är en inofficiell tjänst som inte har producerats av trafikbolaget ({operator}). Tidtabells- och realtidsdata: {operatorShort} / Waltti öppna data (CC BY 4.0) via Digitransit-gränssnittet.",
     footColService: "Tjänst",
@@ -4078,11 +4078,22 @@ function networkPhrase() {
   return cityGenName() + " joukkoliikenteessä";
 }
 
+// Luonnollisen kielen haun esimerkkipaikat. Otetaan kaupungin omista solmupysäkeistä,
+// jotta esimerkki ei ole kovakoodattu Lahden nimiin (Matkakeskus/Kauppatori) muiden
+// kaupunkien näkymissä. Fallback pitää lauseen ehjänä jos lista puuttuu.
+function nlExample(i) {
+  const n = CONFIG.centerStopNames || [];
+  if (n[i]) return n[i];
+  const h = (CONFIG.hubs || [])[i];
+  return n[0] || (h && h.name) || cityName();
+}
+
 function t(key, params) {
   let s = STRINGS[lang][key] ?? STRINGS.fi[key] ?? key;
   const all = { city: cityName(), cityGen: cityGenName(),
                 operator: CONFIG.operator, operatorShort: CONFIG.operatorShort,
-                network: networkPhrase(), ...params };
+                network: networkPhrase(),
+                exFrom: nlExample(0), exTo: nlExample(1), ...params };
   return s.replace(/\{(\w+)\}/g, (_, k) => all[k] ?? "");
 }
 
