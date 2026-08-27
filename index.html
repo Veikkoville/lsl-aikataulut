@@ -506,6 +506,14 @@
   .foot-col a:hover { text-decoration: underline; }
   .foot-note { max-width: var(--page-max); margin: 1.2rem auto 0; padding-top: 1rem;
     border-top: 1px solid var(--border); }
+  .foot-data { max-width: var(--page-max); margin: 0.5rem auto 0; }
+  .foot-provider { margin-top: 0.5rem; }
+  .legal { max-width: 46rem; }
+  .legal h3 { margin: 1.3rem 0 0.4rem; font-size: 1.05rem; }
+  .legal dl { margin: 0.4rem 0 0.8rem; }
+  .legal dt { font-weight: 600; margin-top: 0.7rem; }
+  .legal dd { margin: 0.15rem 0 0 0; }
+  .legal ul { padding-left: 1.3rem; }
   @media (max-width: 540px) {
     .foot-cols { grid-template-columns: 1fr 1fr; }
     .foot-brand { grid-column: 1 / -1; }
@@ -1646,7 +1654,10 @@
 
 <footer id="appFooter">
   Tämä on epävirallinen palvelu, joka ei ole Lahden seudun liikenteen tuottama.
-  Aikataulu- ja reaaliaikadata: LSL / Waltti avoin data (CC BY 4.0) Digitransit-rajapinnan kautta.
+  Aikataulu- ja reaaliaikadata: LSL / Waltti avoin data Digitransit-rajapinnan kautta,
+  lisenssi <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="license noopener" target="_blank">CC BY 4.0</a>.
+  Palveluntarjoaja: Ville Saarinen, <a href="mailto:ville@reittari.fi">ville@reittari.fi</a>.
+  <a href="#/tietosuoja">Tietosuojaseloste</a> · <a href="#/kayttoehdot">Käyttöehdot</a>
 </footer>
 
 <script>
@@ -2671,9 +2682,13 @@ const STRINGS = {
     nlNeedDest: "En saanut kiinni määränpäästä, täydennä tähän.",
     nlNeedBoth: "En saanut kiinni lähtöä ja määränpäätä. Kokeile esim. \"{exFrom} → {exTo}\".",
     nlMicError: "Puheentunnistus ei onnistunut. Voit kirjoittaa matkan.",
-    footerNote: "Tämä on epävirallinen palvelu, joka ei ole liikennöitsijän ({operator}) tuottama. Aikataulu- ja reaaliaikadata: {operatorShort} / Waltti avoin data (CC BY 4.0) Digitransit-rajapinnan kautta.",
+    footerNote: "Tämä on epävirallinen esittelyversio (demo), joka ei ole liikennöitsijän ({operator}) tuottama eikä hyväksymä.",
+    footData: 'Aikataulu- ja reaaliaikadata: {operatorShort} / Waltti avoin data Digitransit-rajapinnan kautta, lisenssi <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="license noopener" target="_blank">CC BY 4.0</a>.',
     footColService: "Palvelu",
     footColInfo: "Tietoa",
+    footProvider: "Palveluntarjoaja",
+    privacyLink: "Tietosuojaseloste",
+    termsLink: "Käyttöehdot",
     quickNavAria: "Pikavalinnat",
     groupMaps: "Kartat",
     groupSchedules: "Aikataulut & tulosteet",
@@ -3159,9 +3174,13 @@ const STRINGS = {
     nlNeedDest: "I didn't catch the destination, please add it here.",
     nlNeedBoth: "I couldn't catch the origin and destination. Try e.g. \"from {exFrom} to {exTo}\".",
     nlMicError: "Speech recognition failed. You can type the trip instead.",
-    footerNote: "This is an unofficial service, not produced by the transit authority ({operator}). Timetable and real-time data: {operatorShort} / Waltti open data (CC BY 4.0) via the Digitransit API.",
+    footerNote: "This is an unofficial demo, neither produced nor endorsed by the transit authority ({operator}).",
+    footData: 'Timetable and real-time data: {operatorShort} / Waltti open data via the Digitransit API, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener" target="_blank">CC BY 4.0</a>.',
     footColService: "Service",
     footColInfo: "About",
+    footProvider: "Service provider",
+    privacyLink: "Privacy notice",
+    termsLink: "Terms of use",
     quickNavAria: "Quick links",
     groupMaps: "Maps",
     groupSchedules: "Timetables & printing",
@@ -3621,9 +3640,13 @@ const STRINGS = {
     nlNeedDest: "Jag uppfattade inte destinationen, fyll i den här.",
     nlNeedBoth: "Jag uppfattade inte start och destination. Försök t.ex. \"från {exFrom} till {exTo}\".",
     nlMicError: "Taligenkänningen misslyckades. Du kan skriva resan istället.",
-    footerNote: "Detta är en inofficiell tjänst som inte har producerats av trafikbolaget ({operator}). Tidtabells- och realtidsdata: {operatorShort} / Waltti öppna data (CC BY 4.0) via Digitransit-gränssnittet.",
+    footerNote: "Detta är en inofficiell demoversion som varken har producerats eller godkänts av trafikbolaget ({operator}).",
+    footData: 'Tidtabells- och realtidsdata: {operatorShort} / Waltti öppna data via Digitransit-gränssnittet, licens <a href="https://creativecommons.org/licenses/by/4.0/deed.sv" rel="license noopener" target="_blank">CC BY 4.0</a>.',
     footColService: "Tjänst",
     footColInfo: "Information",
+    footProvider: "Tjänsteleverantör",
+    privacyLink: "Dataskyddsbeskrivning",
+    termsLink: "Användarvillkor",
     quickNavAria: "Snabbval",
     groupMaps: "Kartor",
     groupSchedules: "Tidtabeller & utskrifter",
@@ -4139,7 +4162,10 @@ function updateChrome() {
   document.getElementById("appFooter").innerHTML = `
     <div class="foot-cols">
       <div class="foot-brand">
-        <div><strong>${t("appTitle")}</strong><br><span class="muted">${t("headerSub")}</span></div>
+        <div><strong>${t("appTitle")}</strong><br><span class="muted">${t("headerSub")}</span>
+          <p class="foot-provider" id="footProvider"><span class="muted">${t("footProvider")}:</span>
+            Ville Saarinen, <a href="mailto:ville@reittari.fi">ville@reittari.fi</a></p>
+        </div>
       </div>
       <nav class="foot-col" aria-label="${t("footColService")}">
         <h4>${t("footColService")}</h4>
@@ -4152,12 +4178,15 @@ function updateChrome() {
       <nav class="foot-col" aria-label="${t("footColInfo")}">
         <h4>${t("footColInfo")}</h4>
         <a href="#/saavutettavuus">${t("a11yStatement")}</a>
+        <a href="#/tietosuoja">${t("privacyLink")}</a>
+        <a href="#/kayttoehdot">${t("termsLink")}</a>
         <a href="#/palaute">${t("fbLink")}</a>
         <a href="#/asetukset">${t("settings")}</a>
         ${PROXY_URL ? `<a href="#/palvelutiski">${t("deskTitle")}</a>` : ""}
       </nav>
     </div>
-    <p class="foot-note">${t("footerNote")}</p>`;
+    <p class="foot-note">${t("footerNote")}</p>
+    <p class="foot-data" id="footAttribution">${t("footData")}</p>`;
 }
 
 let apiKey = localStorage.getItem("digitransitKey") || "";
@@ -10356,6 +10385,465 @@ function viewOfficialA11y(a) {
     </div>`);
 }
 
+/* ---------- Tietosuojaseloste ja käyttöehdot (demo.reittari.fi) ----------
+   Seloste on kirjoitettu workerin todellisista käsittelijöistä (worker/worker.js:
+   /email/*, /push/*, /feedback, /track, Digitransit-proxy), ei mallipohjasta. Jos
+   lisäät päätepisteen joka tallentaa henkilötietoa, päivitä osio 2 samassa muutoksessa.
+   Rekisterinpitäjä on toistaiseksi luonnollinen henkilö; y-tunnus lisätään kun
+   yritys on rekisteröity (LEGAL_PROVIDER). Kaikki kolme kieltä ovat täydet tekstit,
+   ei automaattikäännöksiä. */
+const LEGAL_PROVIDER = { name: "Ville Saarinen", email: "ville@reittari.fi", businessId: "" };
+const LEGAL_UPDATED = "27.8.2026";
+
+function legalProviderHtml() {
+  const e = esc(LEGAL_PROVIDER.email);
+  return `${esc(LEGAL_PROVIDER.name)}, <a href="mailto:${e}">${e}</a>` +
+    (LEGAL_PROVIDER.businessId ? ` (Y-tunnus ${esc(LEGAL_PROVIDER.businessId)})` : "");
+}
+
+const LEGAL = {
+  fi: {
+    privacyTitle: "Tietosuojaseloste",
+    privacy: () => `
+      <p class="muted">Päivitetty ${LEGAL_UPDATED}. Koskee palvelua demo.reittari.fi (myös
+        veikkoville.github.io/lsl-aikataulut) ja sen kaikkia kaupunkinäkymiä.</p>
+      <h3>1. Rekisterinpitäjä</h3>
+      <p>${legalProviderHtml()}.${LEGAL_PROVIDER.businessId ? "" : " Y-tunnus lisätään, kun yritys on rekisteröity."}</p>
+      <h3>2. Mitä tietoja käsitellään ja miksi</h3>
+      <p>Aikataulut, lähdöt, reittihaku ja kartat toimivat ilman rekisteröitymistä, eikä niiden
+        käytöstä tallenneta sinusta tietoja palvelimelle. Henkilötietoja käsitellään vain, jos
+        käytät alla lueteltuja valinnaisia toimintoja.</p>
+      <dl>
+        <dt>Häiriötiedotteet sähköpostiin</dt>
+        <dd>Tiedot: sähköpostiosoite, valitut linjat, kaupunki, kieli, tilaus- ja vahvistusaika sekä
+          satunnainen tunniste, jota vahvistus- ja peruutuslinkit käyttävät.
+          Oikeusperuste: suostumus (tietosuoja-asetuksen 6 artiklan 1 kohdan a alakohta). Tilaus
+          aktivoituu vasta, kun vahvistat sen sähköpostiisi lähetetystä linkistä.
+          Säilytys: kunnes peruutat tilauksen. Peruutuslinkki on jokaisessa viestissä, myös
+          vahvistusviestissä, ja peruutus poistaa tiedot heti. Vahvistamaton tilaus säilyy, kunnes se
+          vahvistetaan tai peruutetaan.
+          Tallennus: Cloudflare Workers KV. Lähetys: Resend.</dd>
+        <dt>Häiriöilmoitukset selaimeen (web push)</dt>
+        <dd>Tiedot: selaimesi push-palvelun osoite (laitekohtainen tunniste), viestien salausavaimet,
+          seuratut linjat, kaupunki, kieli ja tilausaika. Ei IP-osoitetta.
+          Oikeusperuste: suostumus, jonka annat sallimalla ilmoitukset selaimessa.
+          Säilytys: kunnes poistat ilmoitukset käytöstä asetuksista tai selaimesi push-tilaus vanhenee,
+          jolloin tieto poistetaan. Viestit kulkevat selaimen valmistajan push-palvelun (esimerkiksi
+          Google, Mozilla tai Apple) kautta päästä päähän salattuina, joten välittäjä ei näe sisältöä.</dd>
+        <dt>Lähtömuistutus</dt>
+        <dd>Tiedot: push-osoite ja salausavaimet, muistutuksen ajankohta sekä sen otsikko ja teksti
+          (linja ja pysäkki). Oikeusperuste: suostumus, sillä pyydät muistutuksen itse.
+          Säilytys: poistetaan kun muistutus on lähetetty, viimeistään kaksi tuntia ajankohdan jälkeen.</dd>
+        <dt>Palaute</dt>
+        <dd>Tiedot: viestisi, valitsemasi aihe, vapaaehtoinen yhteystieto, sen sivun osoite jolta
+          palaute lähetettiin (voi sisältää hakemasi reitin tai pysäkin), kaupunki, selaimen tunniste
+          (User-Agent) ja aika. Oikeusperuste: oikeutettu etu (6 artiklan 1 kohdan f alakohta),
+          eli palautteen käsittely ja vikojen korjaaminen. Yhteystietoa käytetään vain vastaamiseen.
+          Säilytys: 90 vuorokautta, minkä jälkeen tieto poistuu automaattisesti. Palaute on luettavissa
+          vain rekisterinpitäjän avaimella.</dd>
+        <dt>Käyttötilastot</dt>
+        <dd>Tiedot: tapahtuman tyyppi (sivunäkymä, linja, pysäkki tai tulokseton haku), sen arvo
+          (esimerkiksi linjan numero tai hakusana) ja kaupunki. Ei IP-osoitetta, ei tunnistetta, ei
+          evästettä, eikä palvelin tallenna selaintietoa. Tapahtumia ei voi yhdistää henkilöön. Jos
+          selaimessasi on Do Not Track -asetus päällä, tapahtumaa ei lähetetä lainkaan.
+          Tallennus: Cloudflare Analytics Engine, josta luetaan enintään 90 päivän koosteita.</dd>
+        <dt>Reitti- ja pysäkkihaut</dt>
+        <dd>Reittihaut, osoitehaut ja pysäkkitiedot välitetään Digitransit-rajapintaan
+          välityspalvelimen (Cloudflare Worker) kautta. Kysely sisältää antamasi osoitteet tai
+          koordinaatit ja, jos sallit paikannuksen, sijaintisi. Välityspalvelin ei tallenna kyselyjä
+          eikä IP-osoitettasi; IP-osoitetta pidetään muistissa enintään minuutin ajan pyyntömäärän
+          rajoittamiseksi. Digitransit ei saa IP-osoitettasi. Paikannus tehdään selaimessa vain
+          pyynnöstäsi, ja lupa muistetaan selaimen omassa muistissa.</dd>
+      </dl>
+      <h3>3. Evästeet ja selaimeen tallennettavat tiedot</h3>
+      <p>Palvelu ei käytä evästeitä eikä kolmansien osapuolten seurantaa. Asetukset (teema, tekstikoko,
+        kontrasti, kieli), suosikit, viimeisimmät haut ja aikataulujen välimuisti tallennetaan
+        selaimesi paikalliseen muistiin (localStorage) ja sovelluksen välimuistiin. Ne eivät siirry
+        palvelimelle, ja voit poistaa ne selaimen asetuksista. Käyttötilastot ovat anonyymejä ja
+        kunnioittavat Do Not Track -asetusta. Arvio 26.8.2026: koska päätelaitteelle tallennetaan vain
+        palvelun toiminnan kannalta välttämättömiä tietoja, sähköisen viestinnän palveluista annetun
+        lain (917/2014) 205 § ei edellytä suostumusta, eikä palvelussa siksi ole evästeilmoitusta.
+        Ylläpidon kirjautumissivu, jota käyttää vain kaupungin henkilöstö eri osoitteessa, asettaa yhden
+        kirjautumiselle välttämättömän istuntoevästeen.</p>
+      <h3>4. Käsittelijät ja tiedonsiirrot</h3>
+      <ul>
+        <li>Cloudflare, Inc. (välityspalvelin, KV-tietovarasto, käyttötilastot). Yhdysvaltalainen
+          yhtiö; tietoja voidaan käsitellä EU:n ulkopuolella. Siirron suojatoimena ovat Cloudflaren
+          tietojenkäsittelysopimuksen vakiosopimuslausekkeet.</li>
+        <li>Resend (sähköpostin lähetys). Yhdysvaltalainen yhtiö, joka saa sähköpostiosoitteesi ja
+          viestin sisällön lähetystä varten. Suojatoimena vakiosopimuslausekkeet.</li>
+        <li>Digitransit (reitti- ja aikataulurajapinta, Fintraffic). Saa hakukyselyjen sisällön,
+          ei IP-osoitettasi.</li>
+        <li>Selaimesi ottaa lisäksi suoraan yhteyden seuraaviin palveluihin, jotka näkevät
+          IP-osoitteesi tavallisena verkkoliikenteenä: GitHub Pages (sivuston jakelu),
+          OpenStreetMap (karttalaatat, kun avaat kartan), unpkg.com (karttakirjaston lataus),
+          mqtt.digitransit.fi (ajoneuvojen sijainnit, kun avaat livekartan) ja rata.digitraffic.fi
+          (junat-näkymä). Nämä eivät saa muuta tietoa sinusta.</li>
+      </ul>
+      <h3>5. Oikeutesi</h3>
+      <p>Sinulla on oikeus saada pääsy tietoihisi, pyytää niiden oikaisua tai poistoa, rajoittaa
+        käsittelyä, vastustaa oikeutettuun etuun perustuvaa käsittelyä ja peruuttaa suostumuksesi
+        milloin tahansa. Sähköposti- ja push-tilauksen voit perua itse: peruutuslinkistä tai
+        asetuksista. Muissa asioissa ota yhteyttä osoitteeseen
+        <a href="mailto:${esc(LEGAL_PROVIDER.email)}">${esc(LEGAL_PROVIDER.email)}</a>.
+        Jos katsot, että tietojasi käsitellään lainvastaisesti, voit tehdä valituksen
+        tietosuojavaltuutetun toimistolle
+        (<a href="https://tietosuoja.fi" target="_blank" rel="noopener">tietosuoja.fi</a>).</p>
+      <h3>6. Muutokset</h3>
+      <p>Selostetta päivitetään, kun käsittely muuttuu. Muutospäivä näkyy selosteen alussa.
+        Katso myös <a href="#/kayttoehdot">käyttöehdot</a>.</p>`,
+    termsTitle: "Käyttöehdot",
+    terms: () => `
+      <p class="muted">Päivitetty ${LEGAL_UPDATED}.</p>
+      <h3>1. Mikä tämä palvelu on</h3>
+      <p>demo.reittari.fi on Reittari-tuotteen julkinen esittelyversio (demo). Sen tarjoaa
+        ${legalProviderHtml()}. Palvelu ei ole minkään kaupungin, liikennöitsijän tai viranomaisen
+        tuottama eikä hyväksymä. Demon tarkoitus on näyttää, miltä Reittari näyttää oikealla datalla.</p>
+      <h3>2. Ei palvelutasoa</h3>
+      <p>Demo tarjotaan sellaisenaan. Sille ei luvata saatavuutta, vasteaikaa, virheettömyyttä eikä
+        jatkuvuutta. Demo voi muuttua, keskeytyä tai loppua ilman ennakkoilmoitusta. Käytät sitä
+        omalla vastuullasi.</p>
+      <h3>3. Aikataulutiedot</h3>
+      <p>Aikataulut, lähdöt, häiriötiedotteet ja reittiohjeet haetaan Waltti-kaupunkien avoimesta
+        datasta Digitransit-rajapinnan kautta. Tiedot voivat olla puutteellisia, vanhentuneita tai
+        virheellisiä. Tarkista matkasi liikennöitsijän virallisesta kanavasta. Hintatiedot ovat
+        viitteellisiä.</p>
+      <h3>4. Mitä demolla ei saa tehdä</h3>
+      <ul>
+        <li>Käyttää sitä kaupungin tai liikennöitsijän virallisena tiedotuskanavana tai esittää sitä
+          sellaisena.</li>
+        <li>Linkittää siihen viranomaisen tai kaupungin verkkosivustolta, opasteista tai tiedotteista.</li>
+        <li>Tulostaa siitä aikatauluja, julisteita tai vihkoja jaettavaksi yleisölle, pysäkeille tai
+          toimipisteisiin.</li>
+        <li>Upottaa sitä toiselle sivustolle tai käyttää sen rajapintoja omissa sovelluksissa.</li>
+      </ul>
+      <p>Omaan matkasuunnitteluun ja tutustumiseen demo on vapaasti käytettävissä.</p>
+      <h3>5. Tekijänoikeus ja data</h3>
+      <p>Tulosteiden, näkymien ja käyttöliittymän ulkoasu, rakenne, tekstit ja lähdekoodi ovat
+        tekijänoikeuden suojaamia (${esc(LEGAL_PROVIDER.name)}, kaikki oikeudet pidätetään). Niitä ei
+        saa kopioida tai jäljentää ilman lupaa. Aikataulu- ja reaaliaikadata on Waltti-kaupunkien
+        avointa dataa Digitransit-rajapinnan kautta, lisenssi
+        <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="license noopener" target="_blank">Creative Commons Nimeä 4.0 (CC BY 4.0)</a>.
+        Data ei kuulu näiden ehtojen piiriin, ja se on käytettävissä lisenssin ehdoin suoraan lähteestä.</p>
+      <h3>6. Sopimusasiakkaat</h3>
+      <p>Jos kaupunki tai liikennöitsijä on hankkinut Reittarin käyttöönsä, sen käyttöä ohjaa erillinen
+        sopimus, eivät nämä ehdot. Nämä ehdot koskevat vain demoa.</p>
+      <h3>7. Saavutettavuus</h3>
+      <p>Demo on yksityisen toimijan oma esittelyversio, eikä se kuulu digitaalisten palvelujen
+        tarjoamisesta annetun lain (306/2019) soveltamisalaan. Lakisääteistä saavutettavuusselostetta
+        sillä ei siksi ole. Demo on silti tehty WCAG 2.1 AA -tason mukaisesti, ja tuotteeseen kuuluu
+        kaupungin oma <a href="#/saavutettavuus">saavutettavuusseloste</a>, jonka kaupunki julkaisee
+        ylläpidossa, kun palvelu otetaan viralliseen käyttöön.</p>
+      <h3>8. Henkilötiedot</h3>
+      <p>Henkilötietojen käsittely on kuvattu <a href="#/tietosuoja">tietosuojaselosteessa</a>.</p>
+      <h3>9. Vastuunrajoitus</h3>
+      <p>Palveluntarjoaja ei vastaa vahingosta, joka aiheutuu demon käytöstä, virheellisistä tiedoista
+        tai palvelun keskeytyksestä, ellei pakottavasta lainsäädännöstä muuta johdu.</p>
+      <h3>10. Muutokset ja sovellettava laki</h3>
+      <p>Ehtoja voidaan muuttaa; voimassa oleva versio on aina tällä sivulla. Ehtoihin sovelletaan
+        Suomen lakia.</p>`,
+  },
+  en: {
+    privacyTitle: "Privacy notice",
+    privacy: () => `
+      <p class="muted">Updated ${LEGAL_UPDATED}. Applies to demo.reittari.fi (also
+        veikkoville.github.io/lsl-aikataulut) and all of its city views.</p>
+      <h3>1. Controller</h3>
+      <p>${legalProviderHtml()}.${LEGAL_PROVIDER.businessId ? "" : " A business ID will be added once the company is registered."}</p>
+      <h3>2. What data is processed and why</h3>
+      <p>Timetables, departures, journey planning and maps work without registration, and using them
+        stores nothing about you on the server. Personal data is processed only if you use the optional
+        features listed below.</p>
+      <dl>
+        <dt>Disruption alerts by email</dt>
+        <dd>Data: email address, selected lines, city, language, subscription and confirmation time,
+          and a random token used by the confirmation and unsubscribe links.
+          Legal basis: consent (GDPR Article 6(1)(a)). The subscription activates only when you confirm
+          it from the link sent to your email.
+          Retention: until you unsubscribe. Every message, including the confirmation message, has an
+          unsubscribe link, and unsubscribing deletes the data immediately. An unconfirmed subscription
+          is kept until it is confirmed or cancelled.
+          Storage: Cloudflare Workers KV. Delivery: Resend.</dd>
+        <dt>Disruption notifications in the browser (web push)</dt>
+        <dd>Data: the address of your browser's push service (a device-specific identifier), message
+          encryption keys, followed lines, city, language and subscription time. No IP address.
+          Legal basis: consent, given when you allow notifications in your browser.
+          Retention: until you turn notifications off in settings or your browser's push subscription
+          expires, at which point the record is deleted. Messages travel through the browser vendor's
+          push service (for example Google, Mozilla or Apple) with end-to-end encryption, so the
+          intermediary cannot read the content.</dd>
+        <dt>Departure reminder</dt>
+        <dd>Data: push address and encryption keys, the reminder time, and its title and text (line and
+          stop). Legal basis: consent, since you request the reminder yourself.
+          Retention: deleted once the reminder has been sent, and at the latest two hours after its time.</dd>
+        <dt>Feedback</dt>
+        <dd>Data: your message, the topic you chose, optional contact details, the address of the page
+          the feedback was sent from (it may include the route or stop you looked up), city, browser
+          identifier (User-Agent) and time. Legal basis: legitimate interest (Article 6(1)(f)), namely
+          handling feedback and fixing defects. Contact details are used only to reply.
+          Retention: 90 days, after which the data is deleted automatically. Feedback can be read only
+          with the controller's key.</dd>
+        <dt>Usage statistics</dt>
+        <dd>Data: event type (page view, line, stop or a search with no results), its value (for example
+          a line number or search term) and city. No IP address, no identifier, no cookie, and the
+          server stores no browser data. Events cannot be linked to a person. If Do Not Track is
+          enabled in your browser, no event is sent at all.
+          Storage: Cloudflare Analytics Engine, from which aggregates of at most 90 days are read.</dd>
+        <dt>Journey and stop searches</dt>
+        <dd>Journey searches, address searches and stop data are relayed to the Digitransit API through
+          a proxy (Cloudflare Worker). The query contains the addresses or coordinates you enter and,
+          if you allow location, your position. The proxy does not store queries or your IP address;
+          the IP address is held in memory for at most one minute to limit request volume. Digitransit
+          does not receive your IP address. Location is read in the browser only at your request, and
+          the permission is remembered in the browser's own storage.</dd>
+      </dl>
+      <h3>3. Cookies and data stored in the browser</h3>
+      <p>The service uses no cookies and no third-party tracking. Settings (theme, text size, contrast,
+        language), favourites, recent searches and the timetable cache are stored in your browser's
+        local storage (localStorage) and the app cache. They are never sent to the server, and you can
+        delete them in your browser settings. Usage statistics are anonymous and respect Do Not Track.
+        Assessment of 26 August 2026: because only data necessary for the service to function is stored
+        on the device, section 205 of the Finnish Act on Electronic Communications Services (917/2014)
+        does not require consent, which is why the service has no cookie notice. The administration
+        login page, used only by city staff at a different address, sets one session cookie that is
+        necessary for logging in.</p>
+      <h3>4. Processors and transfers</h3>
+      <ul>
+        <li>Cloudflare, Inc. (proxy, KV storage, usage statistics). A US company; data may be processed
+          outside the EU. The transfer is safeguarded by the standard contractual clauses in
+          Cloudflare's data processing agreement.</li>
+        <li>Resend (email delivery). A US company that receives your email address and the message
+          content for delivery. Safeguarded by standard contractual clauses.</li>
+        <li>Digitransit (journey and timetable API, Fintraffic). Receives the content of search queries,
+          not your IP address.</li>
+        <li>Your browser also connects directly to the following services, which see your IP address as
+          ordinary network traffic: GitHub Pages (site hosting), OpenStreetMap (map tiles when you open
+          a map), unpkg.com (map library download), mqtt.digitransit.fi (vehicle positions when you
+          open the live map) and rata.digitraffic.fi (trains view). They receive no other data about you.</li>
+      </ul>
+      <h3>5. Your rights</h3>
+      <p>You have the right to access your data, to request rectification or erasure, to restrict
+        processing, to object to processing based on legitimate interest, and to withdraw your consent
+        at any time. You can cancel email and push subscriptions yourself: from the unsubscribe link or
+        in settings. For anything else, contact
+        <a href="mailto:${esc(LEGAL_PROVIDER.email)}">${esc(LEGAL_PROVIDER.email)}</a>.
+        If you believe your data is being processed unlawfully, you can lodge a complaint with the
+        Office of the Data Protection Ombudsman of Finland
+        (<a href="https://tietosuoja.fi/en" target="_blank" rel="noopener">tietosuoja.fi</a>).</p>
+      <h3>6. Changes</h3>
+      <p>This notice is updated when processing changes. The date of the latest change is shown at the
+        top. See also the <a href="#/kayttoehdot">terms of use</a>.</p>`,
+    termsTitle: "Terms of use",
+    terms: () => `
+      <p class="muted">Updated ${LEGAL_UPDATED}.</p>
+      <h3>1. What this service is</h3>
+      <p>demo.reittari.fi is the public demonstration version (demo) of the Reittari product. It is
+        provided by ${legalProviderHtml()}. The service is neither produced nor endorsed by any city,
+        transit operator or public authority. The purpose of the demo is to show what Reittari looks
+        like with real data.</p>
+      <h3>2. No service level</h3>
+      <p>The demo is provided as is. No availability, response time, accuracy or continuity is
+        promised. The demo may change, be interrupted or end without notice. You use it at your own
+        risk.</p>
+      <h3>3. Timetable data</h3>
+      <p>Timetables, departures, disruption alerts and journey plans come from the open data of Waltti
+        cities via the Digitransit API. The data may be incomplete, outdated or incorrect. Check your
+        journey in the operator's official channel. Fare information is indicative.</p>
+      <h3>4. What the demo may not be used for</h3>
+      <ul>
+        <li>Using it as, or presenting it as, the official information channel of a city or operator.</li>
+        <li>Linking to it from a public authority's or city's website, signage or announcements.</li>
+        <li>Printing timetables, posters or booklets from it for distribution to the public, at stops
+          or in service points.</li>
+        <li>Embedding it in another website or using its interfaces in your own applications.</li>
+      </ul>
+      <p>For your own journey planning and for getting to know the product, the demo is free to use.</p>
+      <h3>5. Copyright and data</h3>
+      <p>The layout, structure, texts and source code of the printouts, views and user interface are
+        protected by copyright (${esc(LEGAL_PROVIDER.name)}, all rights reserved). They may not be
+        copied or reproduced without permission. Timetable and real-time data is the open data of Waltti
+        cities via the Digitransit API, licensed under
+        <a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener" target="_blank">Creative Commons Attribution 4.0 (CC BY 4.0)</a>.
+        The data is not covered by these terms and is available directly from its source under the
+        licence.</p>
+      <h3>6. Contract customers</h3>
+      <p>If a city or operator has procured Reittari, its use is governed by a separate agreement, not
+        by these terms. These terms apply to the demo only.</p>
+      <h3>7. Accessibility</h3>
+      <p>The demo is a private operator's own demonstration and falls outside the scope of the Finnish
+        Act on the Provision of Digital Services (306/2019). It therefore has no statutory
+        accessibility statement. The demo is nevertheless built to WCAG 2.1 AA, and the product
+        includes the city's own <a href="#/saavutettavuus">accessibility statement</a>, which the city
+        publishes from the administration when the service goes into official use.</p>
+      <h3>8. Personal data</h3>
+      <p>The processing of personal data is described in the <a href="#/tietosuoja">privacy notice</a>.</p>
+      <h3>9. Limitation of liability</h3>
+      <p>The service provider is not liable for damage arising from use of the demo, from incorrect data
+        or from interruption of the service, except where mandatory law provides otherwise.</p>
+      <h3>10. Changes and governing law</h3>
+      <p>These terms may be changed; the current version is always on this page. The terms are governed
+        by Finnish law.</p>`,
+  },
+  sv: {
+    privacyTitle: "Dataskyddsbeskrivning",
+    privacy: () => `
+      <p class="muted">Uppdaterad ${LEGAL_UPDATED}. Gäller tjänsten demo.reittari.fi (även
+        veikkoville.github.io/lsl-aikataulut) och alla dess stadsvyer.</p>
+      <h3>1. Personuppgiftsansvarig</h3>
+      <p>${legalProviderHtml()}.${LEGAL_PROVIDER.businessId ? "" : " FO-nummer läggs till när företaget har registrerats."}</p>
+      <h3>2. Vilka uppgifter behandlas och varför</h3>
+      <p>Tidtabeller, avgångar, reseplanering och kartor fungerar utan registrering, och användningen
+        av dem lagrar inga uppgifter om dig på servern. Personuppgifter behandlas bara om du använder
+        de valfria funktionerna nedan.</p>
+      <dl>
+        <dt>Störningsmeddelanden via e-post</dt>
+        <dd>Uppgifter: e-postadress, valda linjer, stad, språk, tidpunkt för prenumeration och
+          bekräftelse samt en slumpmässig kod som bekräftelse- och avslutningslänkarna använder.
+          Rättslig grund: samtycke (dataskyddsförordningen artikel 6.1 a). Prenumerationen aktiveras
+          först när du bekräftar den via länken som skickats till din e-post.
+          Lagringstid: tills du avslutar prenumerationen. Varje meddelande, även bekräftelsen, har en
+          avslutningslänk, och avslutning raderar uppgifterna genast. En obekräftad prenumeration
+          sparas tills den bekräftas eller avslutas.
+          Lagring: Cloudflare Workers KV. Utskick: Resend.</dd>
+        <dt>Störningsaviseringar i webbläsaren (web push)</dt>
+        <dd>Uppgifter: adressen till webbläsarens push-tjänst (en enhetsspecifik identifierare),
+          krypteringsnycklar för meddelanden, följda linjer, stad, språk och tidpunkt för
+          prenumeration. Ingen IP-adress.
+          Rättslig grund: samtycke, som du ger när du tillåter aviseringar i webbläsaren.
+          Lagringstid: tills du stänger av aviseringarna i inställningarna eller webbläsarens
+          push-prenumeration går ut, varvid uppgiften raderas. Meddelandena går via
+          webbläsartillverkarens push-tjänst (till exempel Google, Mozilla eller Apple) med
+          totalsträckskryptering, så förmedlaren kan inte läsa innehållet.</dd>
+        <dt>Avgångspåminnelse</dt>
+        <dd>Uppgifter: push-adress och krypteringsnycklar, påminnelsens tidpunkt samt dess rubrik och
+          text (linje och hållplats). Rättslig grund: samtycke, eftersom du själv begär påminnelsen.
+          Lagringstid: raderas när påminnelsen har skickats, senast två timmar efter tidpunkten.</dd>
+        <dt>Respons</dt>
+        <dd>Uppgifter: ditt meddelande, valt ämne, frivillig kontaktuppgift, adressen till sidan som
+          responsen skickades från (kan innehålla den rutt eller hållplats du sökte), stad,
+          webbläsarens identifierare (User-Agent) och tidpunkt. Rättslig grund: berättigat intresse
+          (artikel 6.1 f), det vill säga hantering av respons och rättelse av fel. Kontaktuppgiften
+          används bara för att svara.
+          Lagringstid: 90 dygn, varefter uppgiften raderas automatiskt. Responsen kan läsas bara med
+          den personuppgiftsansvariges nyckel.</dd>
+        <dt>Användningsstatistik</dt>
+        <dd>Uppgifter: händelsetyp (sidvisning, linje, hållplats eller sökning utan träffar), dess
+          värde (till exempel linjenummer eller sökord) och stad. Ingen IP-adress, ingen identifierare,
+          ingen kaka, och servern lagrar inga webbläsaruppgifter. Händelserna kan inte kopplas till en
+          person. Om Do Not Track är aktiverat i din webbläsare skickas ingen händelse alls.
+          Lagring: Cloudflare Analytics Engine, från vilken sammanställningar för högst 90 dagar läses.</dd>
+        <dt>Rese- och hållplatssökningar</dt>
+        <dd>Resesökningar, adressökningar och hållplatsuppgifter förmedlas till Digitransit-gränssnittet
+          via en proxy (Cloudflare Worker). Förfrågan innehåller de adresser eller koordinater du anger
+          och, om du tillåter positionering, din position. Proxyn lagrar varken förfrågningar eller din
+          IP-adress; IP-adressen hålls i minnet högst en minut för att begränsa antalet anrop.
+          Digitransit får inte din IP-adress. Positionering görs i webbläsaren bara på din begäran, och
+          tillståndet sparas i webbläsarens eget minne.</dd>
+      </dl>
+      <h3>3. Kakor och uppgifter som sparas i webbläsaren</h3>
+      <p>Tjänsten använder varken kakor eller spårning från tredje part. Inställningar (tema,
+        textstorlek, kontrast, språk), favoriter, senaste sökningar och tidtabellscachen sparas i
+        webbläsarens lokala minne (localStorage) och i appens cache. De skickas aldrig till servern,
+        och du kan radera dem i webbläsarens inställningar. Användningsstatistiken är anonym och
+        respekterar Do Not Track. Bedömning 26.8.2026: eftersom bara uppgifter som är nödvändiga för
+        tjänstens funktion sparas på enheten kräver 205 § i lagen om tjänster inom elektronisk
+        kommunikation (917/2014) inget samtycke, och tjänsten har därför ingen kakmeddelande.
+        Administrationens inloggningssida, som bara stadens personal använder på en annan adress,
+        sätter en sessionskaka som är nödvändig för inloggningen.</p>
+      <h3>4. Personuppgiftsbiträden och överföringar</h3>
+      <ul>
+        <li>Cloudflare, Inc. (proxy, KV-lagring, användningsstatistik). Amerikanskt bolag; uppgifter
+          kan behandlas utanför EU. Överföringen skyddas av standardavtalsklausulerna i Cloudflares
+          personuppgiftsbiträdesavtal.</li>
+        <li>Resend (e-postutskick). Amerikanskt bolag som får din e-postadress och meddelandets
+          innehåll för utskicket. Skyddas av standardavtalsklausuler.</li>
+        <li>Digitransit (rese- och tidtabellsgränssnitt, Fintraffic). Får innehållet i sökförfrågningar,
+          inte din IP-adress.</li>
+        <li>Din webbläsare ansluter dessutom direkt till följande tjänster, som ser din IP-adress som
+          vanlig nättrafik: GitHub Pages (webbplatsens distribution), OpenStreetMap (kartrutor när du
+          öppnar en karta), unpkg.com (nedladdning av kartbiblioteket), mqtt.digitransit.fi
+          (fordonspositioner när du öppnar livekartan) och rata.digitraffic.fi (tågvyn). De får inga
+          andra uppgifter om dig.</li>
+      </ul>
+      <h3>5. Dina rättigheter</h3>
+      <p>Du har rätt att få tillgång till dina uppgifter, begära rättelse eller radering, begränsa
+        behandlingen, invända mot behandling som grundar sig på berättigat intresse och när som helst
+        återkalla ditt samtycke. E-post- och push-prenumerationer kan du avsluta själv: via
+        avslutningslänken eller i inställningarna. I övriga ärenden, kontakta
+        <a href="mailto:${esc(LEGAL_PROVIDER.email)}">${esc(LEGAL_PROVIDER.email)}</a>.
+        Om du anser att dina uppgifter behandlas lagstridigt kan du lämna in ett klagomål till
+        dataombudsmannens byrå
+        (<a href="https://tietosuoja.fi/sv" target="_blank" rel="noopener">tietosuoja.fi</a>).</p>
+      <h3>6. Ändringar</h3>
+      <p>Beskrivningen uppdateras när behandlingen ändras. Datumet för senaste ändring visas överst.
+        Se även <a href="#/kayttoehdot">användarvillkoren</a>.</p>`,
+    termsTitle: "Användarvillkor",
+    terms: () => `
+      <p class="muted">Uppdaterade ${LEGAL_UPDATED}.</p>
+      <h3>1. Vad tjänsten är</h3>
+      <p>demo.reittari.fi är den offentliga demoversionen av produkten Reittari. Den tillhandahålls av
+        ${legalProviderHtml()}. Tjänsten är varken producerad eller godkänd av någon stad, något
+        trafikbolag eller någon myndighet. Demons syfte är att visa hur Reittari ser ut med riktiga data.</p>
+      <h3>2. Ingen servicenivå</h3>
+      <p>Demon tillhandahålls i befintligt skick. Ingen tillgänglighet, svarstid, felfrihet eller
+        kontinuitet utlovas. Demon kan ändras, avbrytas eller upphöra utan förvarning. Du använder den
+        på egen risk.</p>
+      <h3>3. Tidtabellsuppgifter</h3>
+      <p>Tidtabeller, avgångar, störningsmeddelanden och reseförslag hämtas från Waltti-städernas
+        öppna data via Digitransit-gränssnittet. Uppgifterna kan vara ofullständiga, föråldrade eller
+        felaktiga. Kontrollera din resa i trafikbolagets officiella kanal. Prisuppgifterna är
+        riktgivande.</p>
+      <h3>4. Vad demon inte får användas till</h3>
+      <ul>
+        <li>Att användas som, eller framställas som, en stads eller ett trafikbolags officiella
+          informationskanal.</li>
+        <li>Att länkas till från en myndighets eller stads webbplats, skyltar eller meddelanden.</li>
+        <li>Att skriva ut tidtabeller, affischer eller häften från den för spridning till allmänheten,
+          på hållplatser eller vid serviceställen.</li>
+        <li>Att bäddas in på en annan webbplats eller att dess gränssnitt används i egna
+          applikationer.</li>
+      </ul>
+      <p>För egen reseplanering och för att bekanta sig med produkten får demon användas fritt.</p>
+      <h3>5. Upphovsrätt och data</h3>
+      <p>Utskrifternas, vyernas och användargränssnittets utseende, struktur, texter och källkod är
+        skyddade av upphovsrätt (${esc(LEGAL_PROVIDER.name)}, alla rättigheter förbehålls). De får inte
+        kopieras eller återges utan tillstånd. Tidtabells- och realtidsdata är Waltti-städernas öppna
+        data via Digitransit-gränssnittet, licens
+        <a href="https://creativecommons.org/licenses/by/4.0/deed.sv" rel="license noopener" target="_blank">Creative Commons Erkännande 4.0 (CC BY 4.0)</a>.
+        Dessa data omfattas inte av villkoren och kan användas direkt från källan på licensens villkor.</p>
+      <h3>6. Avtalskunder</h3>
+      <p>Om en stad eller ett trafikbolag har anskaffat Reittari styrs användningen av ett separat
+        avtal, inte av dessa villkor. Dessa villkor gäller bara demon.</p>
+      <h3>7. Tillgänglighet</h3>
+      <p>Demon är en privat aktörs egen demoversion och omfattas inte av lagen om tillhandahållande av
+        digitala tjänster (306/2019). Den har därför inget lagstadgat tillgänglighetsutlåtande. Demon
+        är ändå byggd enligt WCAG 2.1 AA, och till produkten hör stadens eget
+        <a href="#/saavutettavuus">tillgänglighetsutlåtande</a>, som staden publicerar från
+        administrationen när tjänsten tas i officiellt bruk.</p>
+      <h3>8. Personuppgifter</h3>
+      <p>Behandlingen av personuppgifter beskrivs i <a href="#/tietosuoja">dataskyddsbeskrivningen</a>.</p>
+      <h3>9. Ansvarsbegränsning</h3>
+      <p>Tjänsteleverantören ansvarar inte för skada som orsakas av användningen av demon, av felaktiga
+        uppgifter eller av avbrott i tjänsten, om inte tvingande lagstiftning föreskriver annat.</p>
+      <h3>10. Ändringar och tillämplig lag</h3>
+      <p>Villkoren kan ändras; den gällande versionen finns alltid på denna sida. På villkoren
+        tillämpas finsk lag.</p>`,
+  },
+};
+
+function legalPage(kind, id) {
+  const L = LEGAL[lang] || LEGAL.fi;
+  const l = LEGAL[lang] ? lang : "fi";
+  setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <div class="card legal" id="${id}" lang="${l}">
+      <h2>${L[kind + "Title"]}</h2>
+      ${L[kind]()}
+    </div>`);
+}
+function viewPrivacy() { legalPage("privacy", "legalPrivacy"); }
+function viewTerms() { legalPage("terms", "legalTerms"); }
+
 /* ---------- Router ---------- */
 
 // Asettaa tulostussivun suunnan (@page). Vaaka tarvitaan koko pysäkkimatriisille
@@ -11383,6 +11871,8 @@ async function route() {
     else if (parts[0] === "sahkoposti") viewEmailSub();
     else if (parts[0] === "palvelutiski") await viewServiceDesk();
     else if (parts[0] === "saavutettavuus") viewAccessibilityStatement();
+    else if (parts[0] === "tietosuoja") viewPrivacy();
+    else if (parts[0] === "kayttoehdot") viewTerms();
     // Vanhat reitit ohjautuvat yhdistettyyn keskukseen oikealle välilehdelle (QR-yhteensopivuus):
     // #/tulosta = vihko-välilehti; bare #/tulosteet = julisteet (entinen sisältö); välilehti
     // myös polusta (#/tulosteet/<tab>) tai kyselystä (?tab=<tab>).
