@@ -252,6 +252,11 @@ async function printHygiene(page, label) {
     ["Kauppatorilta Asemalle", "Kauppatori", "Asema", null],
     ["Salosta Turkuun klo 9", "Salo", "Turku", "09:00"],
     ["haluan mennä Kauppatorilta Asemalle", "Kauppatori", "Asema", null],
+    // puhutut SV/EN-muodot (mikrofoni tiskillä): käänteinen to/from, kohteliaisuudet, intent-alut
+    ["how do I get to Kauppatori from Matkakeskus", "Matkakeskus", "Kauppatori", null],
+    ["I need to get from Matkakeskus to Kauppatori please", "Matkakeskus", "Kauppatori", null],
+    ["hur kommer jag till Kauppatori från Matkakeskus", "Matkakeskus", "Kauppatori", null],
+    ["jag ska åka från Matkakeskus till Kauppatori tack", "Matkakeskus", "Kauppatori", null],
   ];
   let nlPass = 0;
   for (const [snt, ef, et, etime] of nlCases) {
@@ -292,6 +297,21 @@ async function printHygiene(page, label) {
     !!document.getElementById("deskFrom") && !!document.getElementById("deskTo") && !!document.getElementById("deskStop"));
   deskOk ? ok("palvelutiski: koko ruudun näkymä + kentät latautuvat")
          : fail("palvelutiski: näkymä/kentät puuttuvat");
+  // Puheen kieli FI/SV/EN: valinta muistetaan ja ohjaa mikrofonin localea + ääneenluvun kieltä
+  const sl = await page.evaluate(() => {
+    const btns = [...document.querySelectorAll(".desk .nl-field .nl-langs button")];
+    const before = btns.find(b => b.getAttribute("aria-pressed") === "true")?.dataset.slang;
+    btns.find(b => b.dataset.slang === "sv")?.click();
+    const pressedSv = btns.find(b => b.dataset.slang === "sv")?.getAttribute("aria-pressed") === "true";
+    const stored = localStorage.getItem("speechLang");
+    const locale = SPEECH_LOCALE[currentSpeechLang()];
+    const spoken = tIn(currentSpeechLang(), "speakNow");
+    setSpeechLang("");                                  // palauta oletus: seuraa UI-kieltä
+    return { n: btns.length, before, pressedSv, stored, locale, spoken, after: localStorage.getItem("speechLang") };
+  });
+  (sl.n === 3 && sl.before === "fi" && sl.pressedSv && sl.stored === "sv" && sl.locale === "sv-SE" && sl.spoken === "avgår nu" && sl.after === null)
+    ? ok("palvelutiski: puheen kieli FI/SV/EN (SV → sv-SE, ääneenluku ruotsiksi, muistetaan, palautuu)")
+    : fail("palvelutiski: puheen kielivalinta pielessä: " + JSON.stringify(sl));
   // Tiskin aksentti: Lahdella ei ole CONFIG.brandColoria, joten se pysyy .desk-lohkon
   // oletussinisessä. Pari Vaasan tarkistukselle alempana: brändiväri saa vaihtaa tämän,
   // mutta ei brändittömässä kaupungissa.
