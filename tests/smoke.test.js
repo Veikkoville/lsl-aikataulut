@@ -880,6 +880,46 @@ async function printHygiene(page, label) {
         ? ok(`pysäkkijuliste: tuntikaavio kootaan (${days} päiväblokkia)`)
         : fail(`pysäkkijuliste: tuntikaaviota ei muodostunut (päiväblokkeja ${days})`);
       await printHygiene(page, "Lahti");
+
+      // Yhden arkin tiivis juliste (Vaasa 26.8.2026): kaikki päivätyypit samalla A4:llä.
+      // Vartija mittaa PDF:n sivumäärän print-medialla: tiivis versio on aidosti lyhyempi
+      // kuin päivätyyppi-per-arkki, tuntikaavion rivit pysyvät samanmittaisina ja
+      // fitPosterSheet on merkinnyt tiukennusasteen. Sivumäärä luetaan PDF:n
+      // /Type /Page -objekteista, ei oletuksesta.
+      const pdfPages = async () => {
+        const buf = await page.pdf({ format: "A4", preferCSSPageSize: true });
+        return (Buffer.from(buf).toString("latin1").match(/\/Type\s*\/Page(?!s)/g) || []).length;
+      };
+      if (posterOk && await page.$("#posterCompactCb")) {
+        const loosePages = await pdfPages();
+        await page.evaluate(() => { document.getElementById("posterCompactCb").checked = true; });
+        await page.click("#stopPosterBtn");
+        const compactOk = await page.waitForFunction(
+          () => !!document.querySelector("#stopPrintOut .poster-compact .poster-stop[data-fit] .hourgrid tr"),
+          { timeout: 20000 }).then(() => true).catch(() => false);
+        const cp = await page.evaluate(() => {
+          const bad = [];
+          document.querySelectorAll("#stopPrintOut .hourgrid").forEach((g, i) => {
+            const counts = [...new Set([...g.querySelectorAll("tr")].map(tr => tr.children.length))];
+            if (counts.length > 1) bad.push({ i, counts });
+          });
+          return {
+            fit: document.querySelector("#stopPrintOut .poster-stop")?.dataset.fit,
+            days: document.querySelectorAll("#stopPrintOut .poster-day").length,
+            pageStyle: document.getElementById("pageOrient")?.textContent || "",
+            bad,
+          };
+        });
+        const compactPages = compactOk ? await pdfPages() : -1;
+        const shorter = cp.days >= 2 ? compactPages < loosePages : compactPages <= loosePages;
+        (compactOk && cp.fit != null && /margin: 7mm/.test(cp.pageStyle) && !cp.bad.length && compactPages >= 1 && shorter)
+          ? ok(`pysäkkijuliste (yksi arkki): ${loosePages} → ${compactPages} sivua, ${cp.days} päivätyyppiä, tiukennus ${cp.fit}, rivit samanmittaisia`)
+          : fail(`pysäkkijuliste (yksi arkki): ${JSON.stringify({ compactOk, loosePages, compactPages, ...cp })}`);
+        await printHygiene(page, "Lahti, yksi arkki");
+        await page.evaluate(() => { document.getElementById("posterCompactCb").checked = false; });
+      } else if (posterOk) {
+        fail("pysäkkijuliste (yksi arkki): valintaa #posterCompactCb ei löytynyt");
+      }
     }
     // QR-koodi: laiska kirjastolataus + canvas + lataus-linkki
     if (await page.$("#stopQrBtn")) {
@@ -1319,6 +1359,46 @@ async function printHygiene(page, label) {
    diffProbe.muutokset.some(s => /Tevi P/.test(s)) && diffProbe.muutokset.some(s => /84|87/.test(s)))
     ? ok(`uusintapainatus: muutosvertailu tuottaa syyn (${diffProbe.muutokset.length} riviä, muuttumaton = 0)`)
     : fail("uusintapainatus: muutosvertailu ei toimi: " + JSON.stringify(diffProbe));
+
+  // --- Ulkoinen reittiopas (CONFIG.externalPlanner, Raasepori) ---
+  // Reittihaku ohjataan kaupungin omaan Digitransit-reittioppaaseen: etusivun A->B-kentät
+  // korvautuvat linkillä, #/reitti näyttää linkin, ja palvelutiski säilyttää oman hakunsa.
+  // Assertio vaatii molemmat suunnat: Raaseporissa kenttiä EI ole ja linkki ON; Lahdessa
+  // kentät ovat yhä (regressio), jotta liian innokas piilotus ei mene läpi.
+  await page.goto(BASE + "/?city=raasepori#/", { waitUntil: "networkidle2" });
+  await page.waitForSelector("#extPlannerLink", { timeout: 15000 }).catch(() => {});
+  const extHome = await page.evaluate(() => ({
+    link: document.getElementById("extPlannerLink")?.getAttribute("href") || "",
+    blank: document.getElementById("extPlannerLink")?.getAttribute("target") === "_blank",
+    fields: !!document.getElementById("homeFromInput"),
+    nav: [...document.querySelectorAll("a")].some(a => /bosse\.digitransit\.fi/.test(a.href) && !a.id),
+    hash: location.hash, view: (document.getElementById("app")?.textContent || "").replace(/\s+/g, " ").slice(0, 120),
+  }));
+  (/^https:\/\/bosse\.digitransit\.fi/.test(extHome.link) && extHome.blank && !extHome.fields && extHome.nav)
+    ? ok("ulkoinen reittiopas (Raasepori): etusivu linkittää bosse.digitransit.fi:hin, omia A->B-kenttiä ei ole")
+    : fail("ulkoinen reittiopas (Raasepori): " + JSON.stringify(extHome));
+  await page.goto(BASE + "/?city=raasepori#/reitti", { waitUntil: "networkidle2" });
+  await page.waitForSelector("#extPlannerLink", { timeout: 15000 }).catch(() => {});
+  const extPlan = await page.evaluate(() => ({
+    link: document.getElementById("extPlannerLink")?.getAttribute("href") || "",
+    form: !!document.getElementById("planForm"),
+  }));
+  (/^https:\/\/bosse\.digitransit\.fi/.test(extPlan.link) && !extPlan.form)
+    ? ok("ulkoinen reittiopas (Raasepori): #/reitti näyttää linkin, ei omaa hakulomaketta")
+    : fail("ulkoinen reittiopas (Raasepori): #/reitti: " + JSON.stringify(extPlan));
+  await page.goto(BASE + "/?city=raasepori#/palvelutiski", { waitUntil: "networkidle2" });
+  await page.waitForSelector("#deskFrom", { timeout: 15000 }).catch(() => {});
+  const extDesk = await page.evaluate(() => !!document.querySelector("#app h2") &&
+    !!document.getElementById("deskFrom") && !!document.getElementById("deskTo") && !!document.getElementById("deskNlInput"));
+  extDesk ? ok("ulkoinen reittiopas (Raasepori): palvelutiski säilyttää oman reittihakunsa")
+          : fail("ulkoinen reittiopas (Raasepori): palvelutiskin reittihaku katosi");
+  await page.goto(BASE + "/?city=lahti#/", { waitUntil: "networkidle2" });
+  await page.waitForSelector("#homeFromInput", { timeout: 15000 }).catch(() => {});
+  const extLahti = await page.evaluate(() => ({
+    fields: !!document.getElementById("homeFromInput"), link: !!document.getElementById("extPlannerLink") }));
+  (extLahti.fields && !extLahti.link)
+    ? ok("ulkoinen reittiopas: Lahdella omat A->B-kentät ennallaan (regressio)")
+    : fail("ulkoinen reittiopas: Lahti: " + JSON.stringify(extLahti));
 
   // --- Konsolivirheet ---
   const realErrors = consoleErrors.filter(e => !e.includes("favicon"));
