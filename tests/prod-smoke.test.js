@@ -452,9 +452,18 @@ function writeReport() {
         const opts = encodeURIComponent(new URLSearchParams({ t: cityT }).toString());
         await page.goto(url(`#/reitti/${enc(eps.from)}/${enc(eps.to)}/${opts}`),
           { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
-        const itinOk = await page.waitForSelector("details.itin[data-itin]", { timeout: 45000 })
+        // Ulkoinen reittiopas (CONFIG.externalPlanner, Raasepori 27.8.2026): #/reitti näyttää linkin
+        // kaupungin omaan reittioppaaseen eikä omaa hakua. Silloin vartija on linkki, ei ehdotukset.
+        const extLink = await page.waitForSelector("#extPlannerLink, details.itin[data-itin]", { timeout: 45000 })
+          .then(() => page.evaluate(() => document.getElementById("extPlannerLink")?.href || ""))
+          .catch(() => "");
+        const itinOk = extLink ? false : await page.waitForSelector("details.itin[data-itin]", { timeout: 45000 })
           .then(() => true).catch(() => false);
-        if (!itinOk) {
+        if (extLink) {
+          /^https:\/\//.test(extLink)
+            ? pass(city.key, "reittihaku", `ulkoinen reittiopas: ${extLink.replace(/\/reitti\/.*$/, "")} (ei omaa hakua)`)
+            : fail(city.key, "reittihaku", "ulkoisen reittioppaan linkki ei ole https: " + extLink);
+        } else if (!itinOk) {
           fail(city.key, "reittihaku", `ei reittiehdotuksia (${eps.from.name} → ${eps.to.name}, t=${cityT})`);
         } else {
           const times = await page.evaluate(() =>
@@ -680,8 +689,13 @@ function writeReport() {
               daytypes: document.querySelectorAll("#corridorOut h4.daytype").length,
               dirs: document.querySelectorAll("#corridorOut .corridor-dir").length,
               sorted, secMissing,
+              // Reittikaavio (.print-map, 27.8.2026) on tarkoituksellinen SVG: viivat + tekstiä, ei kuvia.
+              // Se rajataan puhdas-teksti-vartijan ulkopuolelle ja tarkistetaan omana rivinään.
               nonText: [...document.querySelectorAll("#corridorOut svg, #corridorOut canvas, #corridorOut img")]
-                .filter(el => !el.closest(".no-print")).length,
+                .filter(el => !el.closest(".no-print") && !el.closest(".print-map")).length,
+              mapPaths: document.querySelectorAll("#corridorOut .print-map svg path").length,
+              mapTexts: document.querySelectorAll("#corridorOut .print-map svg text").length,
+              mapImgs: document.querySelectorAll("#corridorOut .print-map img, #corridorOut .print-map image").length,
               dots: [...document.querySelectorAll("#corridorOut td")].filter(td => td.textContent.trim() === "·").length,
               legend: !!document.querySelector("#corridorOut .matrix-legend"),
             };
@@ -695,8 +709,15 @@ function writeReport() {
                 { rows: corr.rows, linjat: corr.distinctLines, suunnat: corr.dirs, daytypes: corr.daytypes,
                   sorted: corr.sorted, secMissing: corr.secMissing }));
           corr.nonText === 0
-            ? pass(city.key, "käytävä-tuloste", "puhdasta tekstiä (0 svg/canvas/img)")
+            ? pass(city.key, "käytävä-tuloste", "puhdasta tekstiä reittikaavion ulkopuolella (0 svg/canvas/img)")
             : fail(city.key, "käytävä-tuloste", corr.nonText + " ei-tekstielementtiä tulosteessa");
+          if (corr.mapPaths || corr.mapTexts || corr.mapImgs) {
+            (corr.mapPaths > 0 && corr.mapTexts > 0 && corr.mapImgs === 0)
+              ? pass(city.key, "reittikaavio", `${corr.mapPaths} viivaa, ${corr.mapTexts} nimilappua tekstinä, 0 kuvaa`)
+              : fail(city.key, "reittikaavio", "kaavio vajaa: " + JSON.stringify({ viivat: corr.mapPaths, tekstit: corr.mapTexts, kuvat: corr.mapImgs }));
+          } else {
+            info(city.key, "reittikaavio", "ei kaaviota käytävätulosteessa");
+          }
           if (corr.dots > 0) {
             corr.legend ? pass(city.key, "legenda (käytävä)", `${corr.dots} ·-solua + selite`)
                         : fail(city.key, "legenda (käytävä)", `${corr.dots} ·-solua ilman selitettä`);
