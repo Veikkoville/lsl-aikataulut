@@ -1253,6 +1253,12 @@
   /* Kuuntelutila: staattinen korostus (ei animaatiokikkoja) */
   .nl-mic.listening { background: var(--sev-severe); color: #fff; border-color: var(--sev-severe); }
   .nl-hint { font-size: 0.82rem; margin: 0.35rem 0 0; }
+  /* Puheen kieli FI/SV/EN (mikrofoni + lue ääneen): pillinapit, valittu täytetty */
+  .nl-langs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0.45rem 0 0; font-size: 0.85rem; }
+  .nl-langs button { padding: 0.2rem 0.6rem; min-width: 2.5rem; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--chip); color: var(--text); font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+  .nl-langs button[aria-pressed="true"] { background: var(--accent, var(--blue)); color: #fff; border-color: transparent; }
+  .speak-hint { font-size: 0.85rem; margin: 0.3rem 0 0; }
   /* "— tai —" -erotin NL-kentän ja Mistä/Minne-lomakkeen välissä */
   .nl-sep { display: flex; align-items: center; gap: 0.6rem; color: var(--muted);
     font-size: 0.85rem; margin: 0.7rem 0; }
@@ -2730,6 +2736,8 @@ const STRINGS = {
     nlMicStart: "Puhu matka",
     nlMicStop: "Lopeta kuuntelu",
     nlListening: "Kuuntelee…",
+    nlLangLabel: "Puheen kieli",
+    speakNoVoice: "Laitteessa ei ole puheääntä kielelle {lang}, luetaan oletusäänellä.",
     nlNeedOrigin: "En saanut kiinni lähtöpaikasta, täydennä tähän.",
     nlNeedDest: "En saanut kiinni määränpäästä, täydennä tähän.",
     nlNeedBoth: "En saanut kiinni lähtöä ja määränpäätä. Kokeile esim. \"{exFrom} → {exTo}\".",
@@ -3229,6 +3237,8 @@ const STRINGS = {
     nlMicStart: "Speak your trip",
     nlMicStop: "Stop listening",
     nlListening: "Listening…",
+    nlLangLabel: "Speech language",
+    speakNoVoice: "This device has no {lang} voice, so the default voice is used.",
     nlNeedOrigin: "I didn't catch the origin, please add it here.",
     nlNeedDest: "I didn't catch the destination, please add it here.",
     nlNeedBoth: "I couldn't catch the origin and destination. Try e.g. \"from {exFrom} to {exTo}\".",
@@ -3702,6 +3712,8 @@ const STRINGS = {
     nlMicStart: "Tala in din resa",
     nlMicStop: "Sluta lyssna",
     nlListening: "Lyssnar…",
+    nlLangLabel: "Talspråk",
+    speakNoVoice: "Enheten saknar röst för {lang}, standardrösten används.",
     nlNeedOrigin: "Jag uppfattade inte startplatsen, fyll i den här.",
     nlNeedDest: "Jag uppfattade inte destinationen, fyll i den här.",
     nlNeedBoth: "Jag uppfattade inte start och destination. Försök t.ex. \"från {exFrom} till {exTo}\".",
@@ -4154,6 +4166,44 @@ const STRINGS = {
 
 let lang = localStorage.getItem("lang") || "fi";
 if (!STRINGS[lang]) lang = "fi";
+// Puheen kieli (mikrofoni + lue ääneen) voi poiketa käyttöliittymän kielestä: tiskillä
+// virkailijan UI on suomeksi, mutta asiakas puhuu ruotsia tai englantia. Selaimen
+// SpeechRecognition tunnistaa yhden kielen per kuuntelu eikä arvaa kieltä, ja Chrome sallii
+// vain yhden aktiivisen tunnistuksen → automaattitunnistus ei ole mahdollinen, kieli valitaan.
+// "" = seuraa käyttöliittymän kieltä (oletus, matkustajan oma puhelin).
+let speechLang = "";
+try { speechLang = localStorage.getItem("speechLang") || ""; } catch (e) {}
+if (speechLang && !STRINGS[speechLang]) speechLang = "";
+const SPEECH_LOCALE = { fi: "fi-FI", sv: "sv-SE", en: "en-GB" };
+function currentSpeechLang() { return speechLang || lang; }
+function speechLangName(l) { return (LANG_OPTIONS.find(o => o[0] === l) || [l, l])[1]; }
+function setSpeechLang(v) {
+  speechLang = STRINGS[v] ? v : "";
+  try { if (speechLang) localStorage.setItem("speechLang", speechLang); else localStorage.removeItem("speechLang"); } catch (e) {}
+  document.querySelectorAll(".nl-langs button").forEach(b =>
+    b.setAttribute("aria-pressed", b.dataset.slang === currentSpeechLang() ? "true" : "false"));
+}
+// Kielivalitsin FI/SV/EN mikrofonin ja ääneenluvun kielelle (tiski). Nappeja ei sidota tässä:
+// bindNlMic kytkee ne, jotta valinta elää samassa .nl-field-lohkossa mikrofonin kanssa.
+function speechLangHtml() {
+  return `<div class="nl-langs" role="group" aria-label="${esc(t("nlLangLabel"))}"><span class="muted">${esc(t("nlLangLabel"))}:</span>`
+    + LANG_OPTIONS.map(([k, n]) => `<button type="button" data-slang="${k}" aria-pressed="${k === currentSpeechLang() ? "true" : "false"}" title="${esc(n)}" aria-label="${esc(n)}">${k.toUpperCase()}</button>`).join("")
+    + `</div>`;
+}
+// Puheääni kielelle: tarkka locale-osuma (paikallinen ensin), sitten sama kieli toisella
+// alueella (sv-FI, en-US). null = laitteessa ei ole kielen ääntä → luetaan oletusäänellä
+// ja kerrotaan se käyttäjälle, ei hiljaista väärän kielen ääntämistä.
+function pickVoice(locale) {
+  const synth = window.speechSynthesis;
+  if (!synth) return null;
+  const vs = synth.getVoices() || [];
+  const norm = v => (v.lang || "").replace("_", "-").toLowerCase();
+  const want = locale.toLowerCase(), base = want.split("-")[0] + "-";
+  return vs.find(v => norm(v) === want && v.localService) || vs.find(v => norm(v) === want)
+      || vs.find(v => norm(v).startsWith(base) && v.localService) || vs.find(v => norm(v).startsWith(base)) || null;
+}
+// Chrome täyttää äänilistan asynkronisesti: lämmitä heti, jotta 1. "Lue ääneen" löytää äänen.
+try { window.speechSynthesis?.getVoices(); window.speechSynthesis?.addEventListener?.("voiceschanged", () => {}); } catch (e) {}
 
 // Kuntalaiselle näkyvä joukkoliikenneverkon ilmaus (esim. "Kajaanin joukkoliikenteessä").
 // Oletus johdetaan kaupungin genetiivistä/nimestä; CONFIG.network (per kieli) ylikirjoittaa
@@ -4181,8 +4231,10 @@ function nlExample(i) {
   return n[0] || (h && h.name) || cityName();
 }
 
-function t(key, params) {
-  let s = STRINGS[lang][key] ?? STRINGS.fi[key] ?? key;
+function t(key, params) { return tIn(lang, key, params); }
+// Käännös annetulla kielellä (lue ääneen puhekielellä, joka voi poiketa UI-kielestä)
+function tIn(l, key, params) {
+  let s = (STRINGS[l] || STRINGS.fi)[key] ?? STRINGS.fi[key] ?? key;
   const all = { city: cityName(), cityGen: cityGenName(),
                 operator: CONFIG.operator, operatorShort: CONFIG.operatorShort,
                 network: networkPhrase(),
@@ -7757,16 +7809,31 @@ function speakDepartures(stop) {
   const sts = (stop.stoptimesWithoutPatterns || []).slice(0, 5);
   if (!sts.length) return;
   const now = Date.now();
+  // Luetaan PUHEkielellä (tiskin FI/SV/EN-valinta), ei välttämättä UI-kielellä
+  const sl = currentSpeechLang();
+  const T = (k, p) => tIn(sl, k, p);
   const parts = sts.map(st => {
     const r = st.trip?.route || {};
     const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
     const mins = Math.round(((st.serviceDay + dep) * 1000 - now) / 60000);
-    const when = mins <= 0 ? t("speakNow")
-      : mins < 60 ? t("speakInMin", { n: mins }) : t("speakAt", { time: fmtSec(dep) });
-    return t("speakLine", { line: r.shortName || "", dest: st.headsign || "", when });
+    const when = mins <= 0 ? T("speakNow")
+      : mins < 60 ? T("speakInMin", { n: mins }) : T("speakAt", { time: fmtSec(dep) });
+    return T("speakLine", { line: r.shortName || "", dest: st.headsign || "", when });
   });
-  const u = new SpeechSynthesisUtterance(t("speakIntro", { stop: stop.name }) + " " + parts.join(" "));
-  u.lang = lang === "fi" ? "fi-FI" : lang === "sv" ? "sv-SE" : "en-GB";
+  const u = new SpeechSynthesisUtterance(T("speakIntro", { stop: stop.name }) + " " + parts.join(" "));
+  u.lang = SPEECH_LOCALE[sl] || "fi-FI";
+  const voice = pickVoice(u.lang);
+  if (voice) u.voice = voice;
+  // Vihje napin viereen: ilman kielen ääntä selain lukee oletusäänellä (esim. ruotsia
+  // suomalaisella äänellä). Käyttäjän pitää tietää miksi se kuulostaa oudolta.
+  const btn = document.getElementById("speakBtn");
+  if (btn) {
+    let hint = btn.parentElement?.querySelector(".speak-hint");
+    if (!voice) {
+      if (!hint) { hint = document.createElement("p"); hint.className = "muted speak-hint"; btn.insertAdjacentElement("afterend", hint); }
+      hint.textContent = t("speakNoVoice", { lang: speechLangName(sl) });
+    } else if (hint) hint.remove();
+  }
   synth.cancel();
   synth.speak(u);
 }
@@ -9205,15 +9272,19 @@ function parseNlTrip(raw) {
     out.time = String(Math.min(23, parseInt(tm[1], 10))).padStart(2, "0") + ":" + (tm[2] || "00");
     s = s.replace(tm[0], " ");
   }
-  s = s.replace(/\b(nyt|now|nu)\b/gi, " ").replace(/\s+/g, " ").trim();
-  // Intent-/verbietuliitteet pois
-  s = s.replace(/^(?:haluan|haluaisin|asiakas haluaa|menen|miten p[aä][aä]sen|kuinka p[aä][aä]sen|i want to go|i would like to go|how (?:do|can) i get|jag vill (?:åka|resa))\b/i, "").trim();
+  s = s.replace(/\b(nyt|now|nu|please|tack|kiitos)\b/gi, " ").replace(/\s+/g, " ").trim();
+  // Intent-/verbietuliitteet pois (puhutut muodot: "how do I get to", "hur kommer jag till",
+  // "I need to get", "jag ska åka", "take me", "vi ska")
+  s = s.replace(/^(?:haluan|haluaisin|asiakas haluaa|menen|miten p[aä][aä]sen|kuinka p[aä][aä]sen|i want to go|i would like to go|i'?d like to go|i need to (?:go|get)|i'?m going|i am going|take me|get me|can i (?:go|get)|how (?:do|can|could) i (?:get|go|travel)|which bus goes|jag vill (?:åka|resa)|jag ska(?: åka| resa)?|jag beh[öo]ver (?:åka|komma)|vi ska(?: åka)?|hur (?:kommer|tar|åker) jag(?: mig)?|kan jag (?:åka|komma)|vilken buss går)\b/i, "").trim();
   // Matkaverbi heti alusta (intent-etuliitteen jälkeen); \b ei toimi suomen ä/ö-päätteissä → ^-ankkuri
   s = s.replace(/^(?:menn[äa]|menen|to go|åka|resa)\s+/i, "").replace(/\s+/g, " ").trim();
   const clean = v => v.replace(/^[\s,;:.\-]+|[\s,;:.\-]+$/g, "").trim();
   // 1) Nuoli
   let m = s.match(/^(.+?)\s*(?:->|→|=>|–>)\s*(.+)$/);
   if (m) { out.from = clean(m[1]); out.to = clean(m[2]); return out; }
+  // 2a) Käänteinen järjestys "to X from Y" / "till X från Y" (puhuttu: "how do I get to X from Y")
+  m = s.match(/^(?:to|till)\s+(.+?)\s+\b(?:from|från)\s+(.+)$/i);
+  if (m) { out.from = clean(m[2]); out.to = clean(m[1]); return out; }
   // 2) Eksplisiittiset liittimet (from/to, från/till, paikasta/paikkaan…)
   m = s.match(/\b(?:from|från)\s+(.+?)\s+\b(?:to|till)\s+(.+)$/i)
     || s.match(/\b(?:paikasta|pys[aä]kilt[äa]|osoitteesta|kohteesta)\s+(.+?)\s+\b(?:paikkaan|pys[aä]kille|osoitteeseen|kohteeseen)\s+(.+)$/i);
@@ -9278,13 +9349,16 @@ function bindNlMic(micBtn, input, c) {
     micBtn.setAttribute("aria-pressed", on ? "true" : "false");
     micBtn.setAttribute("aria-label", on ? t("nlMicStop") : t("nlMicStart"));
     micBtn.title = on ? t("nlMicStop") : t("nlMicStart");
-    if (on) c.msg.innerHTML = `<p class="muted">${esc(t("nlListening"))}</p>`;
+    if (on) c.msg.innerHTML = `<p class="muted">${esc(t("nlListening"))} (${esc(speechLangName(currentSpeechLang()))})</p>`;
   };
+  // FI/SV/EN-napit samassa .nl-field-lohkossa (tiski): valinta muistetaan (localStorage)
+  micBtn.closest(".nl-field")?.querySelectorAll(".nl-langs button").forEach(b =>
+    b.addEventListener("click", () => setSpeechLang(b.dataset.slang)));
   micBtn.addEventListener("click", () => {
     if (listening && rec) { try { rec.stop(); } catch (e) {} return; }
     try {
       rec = new SR();
-      rec.lang = lang === "sv" ? "sv-SE" : lang === "en" ? "en-GB" : "fi-FI";
+      rec.lang = SPEECH_LOCALE[currentSpeechLang()] || "fi-FI";
       rec.interimResults = false; rec.maxAlternatives = 1;
       rec.onresult = ev => { const txt = ev.results?.[0]?.[0]?.transcript || ""; if (txt) { input.value = txt; runNlTrip(txt, c); } };
       rec.onerror = () => { setState(false); c.msg.innerHTML = `<p class="muted">${esc(t("nlMicError"))}</p>`; };
@@ -9644,6 +9718,7 @@ async function viewServiceDesk() {
               <input type="text" id="deskNlInput" autocomplete="off" placeholder="${t("nlPlaceholder")}">
               <button type="button" id="deskNlMic" class="secondary nl-mic" aria-label="${t("nlMicStart")}" title="${t("nlMicStart")}">${icon("mic")}</button>
             </div>
+            ${speechLangHtml()}
             <p class="muted nl-hint">${t("nlHint")}</p>
             <div id="deskNlMsg" role="status"></div>
           </div>
