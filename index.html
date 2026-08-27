@@ -813,6 +813,39 @@
   .poster-qrwrap { text-align: center; flex: none; }
   img.poster-qr { width: 120px; height: 120px; image-rendering: pixelated; display: block; }
   .poster-qrcap { font-size: 0.7rem; color: var(--muted); }
+  /* Yhden arkin tiivis pysäkkijuliste (Vaasa 26.8.2026: juliste on A4 ja siihen halutaan
+     mahdollisimman paljon tietoa). Päivätyypit samalla arkilla, otsikko ja QR vain kerran,
+     jokainen pysäkki omalle arkilleen. data-fit 0..3 = fitPosterSheetin tiukennusaste:
+     1 selite pois + pienempi QR, 2 tuntikaavio 8 pt, 3 tuntikaavio 7,5 pt (lattia).
+     Lähtöjä ei pudoteta koskaan; jos 3 ei riitä, juliste jatkuu toiselle arkille. */
+  .poster-compact .poster-stop { display: flex; flex-wrap: wrap; gap: 0 1.2rem; align-items: flex-start; }
+  .poster-compact .poster-stop > .poster-head { flex: 1 1 100%; margin-bottom: 0.2rem; }
+  .poster-compact .poster-day { flex: 1 1 auto; break-before: auto; padding: 0; margin: 0 0 1.5mm; border: none; box-shadow: none; }
+  .poster-compact .poster-stop + .poster-stop { break-before: page; }
+  .poster-compact .poster-head h2 { margin: 0 0 0.1rem; font-size: 1.25rem; }
+  .poster-compact .poster-sub { font-size: 0.9rem; margin: 0.35rem 0 0.15rem; padding-bottom: 0.05rem; border-bottom: 1px solid currentColor; }
+  .poster-compact .poster-lines { gap: 0.2rem 0.9rem; }
+  .poster-compact .poster-line { min-width: 8.5rem; }
+  .poster-compact .poster-line h4 { font-size: 0.8rem; margin: 0 0 0.05rem; }
+  .poster-compact table.hourgrid { font-size: 9pt; }
+  .poster-compact table.hourgrid th[scope="row"], .poster-compact table.hourgrid td { padding: 0 0.3rem 0 0; line-height: 1.15; letter-spacing: 0.02em; }
+  .poster-compact img.poster-qr { width: 90px; height: 90px; }
+  .poster-compact .poster-stop[data-fit="1"] .poster-head p.muted,
+  .poster-compact .poster-stop[data-fit="2"] .poster-head p.muted,
+  .poster-compact .poster-stop[data-fit="3"] .poster-head p.muted { display: none; }
+  .poster-compact .poster-stop[data-fit="1"] img.poster-qr,
+  .poster-compact .poster-stop[data-fit="2"] img.poster-qr,
+  .poster-compact .poster-stop[data-fit="3"] img.poster-qr { width: 70px; height: 70px; }
+  .poster-compact .poster-stop[data-fit="2"] table.hourgrid,
+  .poster-compact .poster-stop[data-fit="3"] table.hourgrid { font-size: 8pt; }
+  .poster-compact .poster-stop[data-fit="2"] .poster-line h4,
+  .poster-compact .poster-stop[data-fit="3"] .poster-line h4 { font-size: 0.72rem; }
+  .poster-compact .poster-stop[data-fit="3"] table.hourgrid { font-size: 7.5pt; }
+  .poster-compact .poster-stop[data-fit="3"] .poster-lines { gap: 0.1rem 0.6rem; }
+  /* Mittauslaatikko: arkin levyinen, näkymätön, ruudun ulkopuolella. Sama CSS kuin paperilla. */
+  .poster-measure { position: absolute; left: -9999px; top: 0; width: 196mm; visibility: hidden;
+    display: block; font-size: 16px; }
+  .poster-measure .print-only { display: block; }
   .dtopt { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
   .dtopt input { width: 1.3rem; height: 1.3rem; }
   /* Kokoa-painike pysyy näkyvissä pitkää linjalistaa selatessa */
@@ -1919,6 +1952,9 @@ const CONFIGS = {
     feedMatch: /vaasa/i,
     rail: "VS",
     heroEmphasis: "layer",
+    // Vaasan pysäkkijuliste on A4 ja siihen halutaan mahdollisimman paljon tietoa (tapaaminen
+    // 26.8.2026). Oletus: kaikki päivätyypit samalla arkilla (ks. fitPosterSheet).
+    posterCompact: true,
     // Ydinkeskustan solmupysäkit: palvelutiskin oletuspysäkki + "Keskustan linjat"
     // -pikavalinta vihossa. Mitattu feedistä 13.8.2026: "Vaasanpuistikko / matkakeskus P"
     // 9 linjaa ja lähtöjä (matkakeskus = se paikka jossa tiski oikeasti on),
@@ -2131,6 +2167,12 @@ const CONFIGS = {
     // → @L-lokalisointi pyytää FI:n eksplisiittisesti (localizeQuery/localizePlanNode).
     feedLang: "sv",
     heroEmphasis: "layer",
+    // Reittihaku ohjataan kaupungin omaan reittioppaaseen (Teresian kysymys 27.8.2026: miten
+    // perustella lautakunnalle palvelu, josta osa on jo Waltin reittioppaassa). Kun tämä on
+    // asetettu, etusivun A->B-kentät ja #/reitti korvautuvat linkillä bosse.digitransit.fi:hin,
+    // eli palvelussa ei ole omaa julkista reittihakua. Palvelutiski säilyttää hakunsa: se on
+    // henkilöstön työkalu, ei kuntalaisen reittiopas.
+    externalPlanner: { url: "https://bosse.digitransit.fi", name: "BOSSE" },
     // Keskustan solmupysäkit (mitattu feedistä 14.8.2026, ajopäivä 17.8.): kunnan kaksi
     // taajamaa saavat kumpikin oman asemansa — Ekenäs busstation 20 linjaa / 46 lähtöä ja
     // Karis Resecenter 17 linjaa / 32 lähtöä. Nimet ovat feedin natiivikielellä (sv), koska
@@ -2652,6 +2694,9 @@ const STRINGS = {
     heroTagline: "Hae nopein bussireitti perille reaaliaikaisilla lähtöajoilla.",
     heroLayerTitle: "Aikataulut selkeästi, ja vähän enemmän",
     heroJourneyHeading: "Reittihaku",
+    extPlannerLead: "Reittihaku on {name}-reittioppaassa. Se käyttää samaa aikataulutietoa kuin tämä palvelu.",
+    extPlannerOpen: "Avaa {name}-reittiopas",
+    extPlannerTo: "Määränpää: {place}",
     heroHlBilingual: "Myös ruotsiksi",
     heroHlBilingualDesc: "Vaihda kieli yhdellä napautuksella",
     heroHlPrint: "Tulosteet ja näytöt",
@@ -2951,6 +2996,8 @@ const STRINGS = {
     printBtn: "Tulosta", printTitle: "Tulosta tai tallenna PDF:nä",
     printStopPoster: "Tulosta pysäkkijuliste",
     posterAllLinesNote: "Kaikki pysäkiltä lähtevät linjat. Lue: vasemmalla tunti, oikealla minuutit.",
+    posterCompactOpt: "Yksi arkki (kaikki päivätyypit samalla A4:llä)",
+    posterSheets: "Ei mahdu yhdelle arkille: {n} arkkia",
     loadingDeps: "Haetaan lähtöjä…",
     fullTimetableTitle: "Koko aikataulu pysäkeittäin",
     fullTimetableShow: "Näytä koko aikataulu",
@@ -3140,6 +3187,9 @@ const STRINGS = {
     heroTagline: "Find the fastest bus route with real-time departures.",
     heroLayerTitle: "Timetables made clear, and a bit more",
     heroJourneyHeading: "Journey search",
+    extPlannerLead: "Journey search is in the {name} journey planner. It uses the same timetable data as this service.",
+    extPlannerOpen: "Open the {name} journey planner",
+    extPlannerTo: "Destination: {place}",
     heroHlBilingual: "Also in Swedish",
     heroHlBilingualDesc: "Switch language with one tap",
     heroHlPrint: "Printing & displays",
@@ -3421,6 +3471,8 @@ const STRINGS = {
     printBtn: "Print", printTitle: "Print or save as PDF",
     printStopPoster: "Print stop poster",
     posterAllLinesNote: "All lines departing from this stop. Read: hour on the left, minutes on the right.",
+    posterCompactOpt: "One sheet (all day types on one A4)",
+    posterSheets: "Does not fit on one sheet: {n} sheets",
     loadingDeps: "Loading departures…",
     fullTimetableTitle: "Full timetable by stop",
     fullTimetableShow: "Show full timetable",
@@ -3602,6 +3654,9 @@ const STRINGS = {
     heroTagline: "Hitta den snabbaste bussrutten med avgångar i realtid.",
     heroLayerTitle: "Tidtabeller tydligt, och lite mer",
     heroJourneyHeading: "Reseökning",
+    extPlannerLead: "Resesökningen finns i {name}-reseguiden. Den använder samma tidtabellsdata som den här tjänsten.",
+    extPlannerOpen: "Öppna {name}-reseguiden",
+    extPlannerTo: "Destination: {place}",
     heroHlBilingual: "Också på finska",
     heroHlBilingualDesc: "Byt språk med en knapptryckning",
     heroHlPrint: "Utskrifter & skärmar",
@@ -3885,6 +3940,8 @@ const STRINGS = {
     printBtn: "Skriv ut", printTitle: "Skriv ut eller spara som PDF",
     printStopPoster: "Skriv ut hållplatsaffisch",
     posterAllLinesNote: "Alla linjer som avgår från hållplatsen. Läs: timme till vänster, minuter till höger.",
+    posterCompactOpt: "Ett ark (alla dagtyper på samma A4)",
+    posterSheets: "Ryms inte på ett ark: {n} ark",
     loadingDeps: "Hämtar avgångar…",
     fullTimetableTitle: "Hela tidtabellen per hållplats",
     fullTimetableShow: "Visa hela tidtabellen",
@@ -4143,7 +4200,9 @@ function updateChrome() {
       </div>
       <nav class="foot-col" aria-label="${t("footColService")}">
         <h4>${t("footColService")}</h4>
-        <a href="#/reitti">${t("planTitle")}</a>
+        ${CONFIG.externalPlanner
+          ? `<a href="${esc(extPlannerUrl())}" target="_blank" rel="noopener">${t("planTitle")} ↗</a>`
+          : `<a href="#/reitti">${t("planTitle")}</a>`}
         <a href="#/linjasto">${t("netMapLink")}</a>
         ${CONFIG.hubs ? `<a href="#/laiturit">${t("hubLink")}</a>` : ""}
         ${CONFIG.fares ? `<a href="#/liput">${t("faresLink")}</a>` : ""}
@@ -6443,13 +6502,95 @@ function heroFieldsHtml(extraClass = "") {
       </div>`;
 }
 
+// Ulkoinen reittiopas (CONFIG.externalPlanner). Digitransit-osoitemuoto: /reitti/{mistä}/{mihin},
+// segmentti "nimi::lat,lon" ja "-" = tyhjä. Määränpää välitetään kun se on tiedossa (osoiteklikkaus
+// etusivulla), muuten linkki vie reittioppaan etusivulle.
+function extPlannerUrl(to) {
+  const ep = CONFIG.externalPlanner;
+  if (!ep) return "";
+  const base = String(ep.url || "").replace(/\/$/, "");
+  if (to && to.lat != null && to.lon != null)
+    return base + "/reitti/-/" + encodeURIComponent(`${to.name || ""}::${to.lat},${to.lon}`);
+  return base;
+}
+function heroExtPlannerHtml() {
+  const name = CONFIG.externalPlanner.name || CONFIG.operatorShort || "";
+  return `<div class="hero-journey">
+        <h3 class="hero-journey-h">${icon("route")} ${t("heroJourneyHeading")} <span class="ab-badge">A → B</span></h3>
+        <p class="muted">${t("extPlannerLead", { name })}</p>
+        <p><a class="btnlink" id="extPlannerLink" href="${esc(extPlannerUrl(planState.to))}" target="_blank" rel="noopener">${icon("route")} ${t("extPlannerOpen", { name })} ↗</a></p>
+        <div class="sc-extra">
+          <button type="button" id="nearbyBtn2" class="secondary">${icon("pin")} ${t("showNearby")}</button>
+        </div>
+        <!-- Samat säiliöt kuin heroFieldsHtml:ssä: etusivu kirjoittaa niihin (lähipysäkit,
+             viimeisin haku) riippumatta siitä, onko A->B-kenttiä. -->
+        <div id="heroMsg" role="status"></div>
+        <div id="homeNlMsg" role="status"></div>
+        <div id="nearbyBody"></div>
+        <div id="lastPlanRow"></div>
+      </div>`;
+}
+
+// Yhden arkin tiivis pysäkkijuliste: valinta ruudulta (checkbox) tai CONFIG.posterCompact.
+function posterCompactOn(cbId) {
+  const cb = cbId ? document.getElementById(cbId) : null;
+  return cb ? cb.checked : !!CONFIG.posterCompact;
+}
+// Tiivis asettelu: yksi otsikko (pysäkki, selite, QR) lohkon alkuun ja päivätyypit omiksi
+// sarakkeikseen (Ma-Pe | La | Su rinnakkain kun mahtuvat, muuten allekkain). Kutsujat
+// rakentavat otsikon jokaiseen päivätyyppiosioon (tavallinen juliste = osio per arkki), joten
+// tässä nostetaan ensimmäinen otsikko ylös ja muista jätetään vain päivätyypin nimi.
+function compactPosterDom(po) {
+  po.querySelectorAll(".poster-compact .poster-stop").forEach(st => {
+    st.querySelectorAll(".poster-day").forEach((day, i) => {
+      const head = day.querySelector(".poster-head");
+      if (!head) return;
+      const sub = head.querySelector(".poster-sub");
+      if (sub) day.insertBefore(sub, day.firstChild);
+      if (i === 0) st.insertBefore(head, st.firstChild); else head.remove();
+    });
+  });
+}
+// A4 pysty, 7 mm marginaalit (setPageOrientation "compact"), alaviitteelle 30 px.
+const POSTER_SHEET_PX = Math.round((297 - 14) * 96 / 25.4) - 30;
+// Sovittaa jokaisen .poster-stop-lohkon yhdelle arkille: mittaa arkin levyisessä
+// piilolaatikossa ja tiukentaa asteittain (data-fit 0..3, ks. CSS). Lähtöjä ei pudoteta:
+// jos 7,5 pt ei riitä, lohko jatkuu toiselle arkille ja paluuarvo kertoo arkkimäärän.
+// Mittaus on ruudun CSS:llä, ei print-medialla, joten se on varovainen: suuri tekstikoko
+// näytöllä tiukentaa aikaisemmin kuin paperi vaatisi, ei koskaan myöhemmin.
+function fitPosterSheet(po) {
+  compactPosterDom(po);
+  const stops = [...po.querySelectorAll(".poster-compact .poster-stop")];
+  if (!stops.length) return { sheets: 1, fit: 0 };
+  const box = document.createElement("div");
+  box.className = "poster-measure poster-compact";
+  document.body.appendChild(box);
+  let sheets = 0, maxFit = 0;
+  try {
+    for (const st of stops) {
+      let fit = 0, h = 0;
+      for (fit = 0; fit <= 3; fit++) {
+        st.dataset.fit = String(fit);
+        box.innerHTML = "";
+        box.appendChild(st.cloneNode(true));
+        h = box.firstChild.getBoundingClientRect().height;
+        if (h <= POSTER_SHEET_PX) break;
+      }
+      if (fit > 3) { fit = 3; st.dataset.fit = "3"; }
+      sheets += Math.max(1, Math.ceil(h / POSTER_SHEET_PX));
+      maxFit = Math.max(maxFit, fit);
+    }
+  } finally { box.remove(); }
+  return { sheets, fit: maxFit };
+}
+
 // Journey-hero (greenfield: A->B ensisijaisena). REILA F5: ilmava soft-accent-hero-kaista
 // (H1 + alaotsikko) + hakukortti limittyy kaistaan (sc-hero). Kentät/ID:t ennallaan.
 function heroJourneyHtml() {
   return `<section class="reila-hero no-print">
       <h1 class="reila-hero-h1">${t("heroTitle")}</h1>
       <p class="reila-hero-sub">${t("heroTagline")}</p>
-    </section>${heroFieldsHtml("sc-hero")}`;
+    </section>${CONFIG.externalPlanner ? heroExtPlannerHtml() : heroFieldsHtml("sc-hero")}`;
 }
 
 // Layer-hero (reittiopaskaupungit): korostaa erottuvaa kerrosta (kaksikielisyys + tulosteet/näytöt
@@ -6458,9 +6599,9 @@ function heroLayerHtml() {
   return `<section class="reila-hero hero-layer no-print">
       <h1 class="reila-hero-h1">${t("heroLayerTitle")}</h1>
       <p class="reila-hero-sub">${t("heroTagline")}</p>
-      <div class="hero-journey">
+      ${CONFIG.externalPlanner ? heroExtPlannerHtml() : `<div class="hero-journey">
         <h3 class="hero-journey-h">${icon("route")} ${t("heroJourneyHeading")} <span class="ab-badge">A → B</span></h3>${heroFieldsHtml()}
-      </div>
+      </div>`}
       <!-- Nostot A->B-haun ALAPUOLELLA (13.8.2026): kuntalaisen ykköstehtävä on "milloin
            seuraava lähtee", ja se ansaitsee ensimmäisen ruudullisen. Nostot jäävät heroon
            (arvolupaus on demon myyntikärki), mutta eivät enää työnnä hakua alas. -->
@@ -6528,6 +6669,8 @@ function viewRoutes() {
   // (luonnollinen kieli) ja sen sisäinen mic puhuttaa matkan — sama planConnection-haku.
   const homeFrom = document.getElementById("homeFromInput");
   const homeTo = document.getElementById("homeToInput");
+  // Ulkoinen reittiopas (CONFIG.externalPlanner): kenttiä ei ole, joten sidonnat ohitetaan.
+  if (homeFrom && homeTo) {
   const nlCtx = {
     msg: document.getElementById("homeNlMsg"),
     fromInput: homeFrom, toInput: homeTo,
@@ -6557,6 +6700,7 @@ function viewRoutes() {
     homeFrom.value = planState.from?.name || "";
     homeTo.value = planState.to?.name || "";
   });
+  }
   // Layer-heron kaksikielisyys-nosto: vaihtaa kielen FI↔SV yhdellä napautuksella (demonstroi suoraan)
   document.getElementById("hlBilingual")?.addEventListener("click", () => setLanguage(lang === "sv" ? "fi" : "sv"));
 
@@ -7540,6 +7684,7 @@ async function viewStop(stopId) {
       <p class="muted"><span class="rt">●</span> ${t("rtLegendStop")}</p>
       <p class="no-print" style="margin:0.6rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center">
         <button type="button" id="stopPosterBtn">${icon("print")} ${t("printStopPoster")}</button>
+        <label class="dtopt"><input type="checkbox" id="posterCompactCb"${CONFIG.posterCompact ? " checked" : ""}> ${t("posterCompactOpt")}</label>
         <a class="btnlink secondary" href="#/monitori/${encodeURIComponent(stopId)}">${icon("monitor")} ${t("monitorLink")}</a>
         ${("speechSynthesis" in window) ? `<button type="button" id="speakBtn" class="secondary">${icon("speaker")} ${t("speakAloud")}</button>` : ""}
         <button type="button" id="stopQrBtn" class="secondary">${icon("qr")} ${t("qrButton")}</button>
@@ -7668,10 +7813,17 @@ async function viewStop(stopId) {
              ${stopPosterHtml(b.lines)}
            </section>`).join("")
       : `<section class="card poster-day">${head("")}<p class="muted">${t("bookletNoData")}</p></section>`;
-    po.innerHTML = `<div class="print-only">${sections}
+    const compact = posterCompactOn("posterCompactCb");
+    po.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}"><div class="poster-stop">${sections}</div>
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
-    setPageOrientation("portrait");
     if (stEl) stEl.textContent = "";
+    if (compact) {
+      const fit = fitPosterSheet(po);
+      if (stEl && fit.sheets > 1) stEl.textContent = t("posterSheets", { n: fit.sheets });
+      setPageOrientation("compact");
+    } else {
+      setPageOrientation("portrait");
+    }
     window.print();
   });
 
@@ -8567,10 +8719,17 @@ function bindPostersTab(routes) {
           : `<section class="card poster-day">${head(routeObj?.shortName || "")}
               <p class="muted">${t("bookletNoData")}</p></section>`;
       });
-      out.innerHTML = `<div class="print-only">${sections.join("")}
+      const compact = posterCompactOn("batchCompactCb");
+      out.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}">${sections.map(sec => `<div class="poster-stop">${sec}</div>`).join("")}
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
-      setPageOrientation("portrait");
       st.textContent = "";
+      if (compact) {
+        const fit = fitPosterSheet(out);
+        if (fit.sheets > stops.length) st.textContent = t("posterSheets", { n: fit.sheets });
+        setPageOrientation("compact");
+      } else {
+        setPageOrientation("portrait");
+      }
       window.print();
     } catch (e) { st.textContent = esc(e.message); }
   });
@@ -9459,10 +9618,15 @@ async function viewServiceDesk() {
              <p class="poster-sub">${esc(sub)}</p>
              <p class="muted">${t("posterAllLinesNote")}</p>
            </div>${qrImg}</div>`;
-      po.innerHTML = `<div class="print-only">${blocks.map(b =>
-          `<section class="card poster-day">${head(b.label)}${stopPosterHtml(b.lines)}</section>`).join("")}
+      const compact = posterCompactOn(null);
+      po.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}"><div class="poster-stop">${blocks.map(b =>
+          `<section class="card poster-day">${head(b.label)}${stopPosterHtml(b.lines)}</section>`).join("")}</div>
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
       if (stEl) stEl.textContent = "";
+      if (compact) {
+        const fit = fitPosterSheet(po);
+        if (stEl && fit.sheets > 1) stEl.textContent = t("posterSheets", { n: fit.sheets });
+      }
       runPrintJob(t("preparingPrint"), () => {
         setPageOrientation("rack");
         const done = () => { setPageOrientation("portrait"); hidePrintPrep(); window.removeEventListener("afterprint", done); };
@@ -9920,6 +10084,23 @@ async function drawItineraryMap(elId, node) {
 
 async function viewPlan(parts) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  // Ulkoinen reittiopas: #/reitti (myös osoiteklikkauksesta ja vanhoista linkeistä) näyttää
+  // linkin kaupungin omaan reittioppaaseen, määränpää mukana kun se on tiedossa.
+  if (CONFIG.externalPlanner) {
+    const name = CONFIG.externalPlanner.name || CONFIG.operatorShort || "";
+    const to = planState.to;
+    setView(`
+    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    <section class="reila-hero no-print">
+      <h1 class="reila-hero-h1">${t("planTitle")}</h1>
+      <p class="reila-hero-sub">${t("extPlannerLead", { name })}</p>
+    </section>
+    <div class="card">
+      ${to ? `<p>${t("extPlannerTo", { place: esc(to.name || "") })}</p>` : ""}
+      <p><a class="btnlink" id="extPlannerLink" href="${esc(extPlannerUrl(to))}" target="_blank" rel="noopener">${icon("route")} ${t("extPlannerOpen", { name })} ↗</a></p>
+    </div>`);
+    return;
+  }
   const fromUrl = parts && parts[1] ? parsePlanParams(parts) : false;
   const tmDep = planState.timeMode !== "arr";
   setView(`
@@ -10369,6 +10550,8 @@ function setPageOrientation(orient) {
     ? "@page { size: A4 landscape; margin: 0; }"   // vihko: 2× A5/arkki, reunaan asti
     : orient === "rack"
     ? "@page { size: A4 portrait; margin: 8mm; }"  // lehtiteline: tiukat marginaalit, max tila
+    : orient === "compact"
+    ? "@page { size: A4 portrait; margin: 7mm; }"  // yhden arkin juliste: max tietotiheys
     : "@page { size: A4 portrait; margin: 12mm; }";
 }
 
@@ -11182,6 +11365,7 @@ async function viewPrintCenter(tab) {
         <p class="muted">${t("batchPosterIntro")}</p>
         <label class="embed-field">${t("batchChooseLine")}
           <select id="batchLine"><option value="">-</option></select></label>
+        <p><label class="dtopt"><input type="checkbox" id="batchCompactCb"${CONFIG.posterCompact ? " checked" : ""}> ${t("posterCompactOpt")}</label></p>
         <p><button type="button" id="batchGo">${t("batchGenerate")}</button>
           <span id="batchStatus" class="muted" role="status"></span></p>
       </div>

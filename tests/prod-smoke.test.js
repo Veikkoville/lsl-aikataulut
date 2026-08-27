@@ -158,7 +158,7 @@ const info = (c, k, d) => record(c, k, "INFO", d);
 //      taulukko vuotaa sivun oikean reunan yli.
 // Ikkunan koko palautetaan jokaisen mittauksen jälkeen, jotta muut tarkistukset
 // näkevät saman näkymän kuin ennenkin.
-const PRINT_MM = { portrait: 210 - 24, rack: 210 - 16, landscape: 297 - 16 };
+const PRINT_MM = { portrait: 210 - 24, rack: 210 - 16, landscape: 297 - 16, compact: 210 - 14 };
 const mmPx = mm => Math.round(mm * 96 / 25.4);
 async function asetteluTarkistus(page, cityKey, tuote, rootSel, tyyppi) {
   const vp = page.viewport();
@@ -608,7 +608,10 @@ function writeReport() {
               outText: (document.getElementById("stopPrintOut")?.textContent || "").trim().slice(0, 80),
             };
           });
-          if (posterOk) await asetteluTarkistus(page, city.key, "pysäkkijuliste", "#stopPrintOut", "portrait");
+          // Yhden arkin tiivis juliste (CONFIG.posterCompact, esim. Vaasa): mitataan sen
+          // omalla marginaalilla (7 mm), muuten portrait (12 mm).
+          const posterCompact = await page.evaluate(() => !!document.querySelector("#stopPrintOut .poster-compact"));
+          if (posterOk) await asetteluTarkistus(page, city.key, "pysäkkijuliste", "#stopPrintOut", posterCompact ? "compact" : "portrait");
           posterOk && poster.days >= 1
             ? pass(city.key, "pysäkkijuliste", `${poster.days} päiväblokkia (${posterStop})`)
             : fail(city.key, "pysäkkijuliste", `tuntikaaviota ei muodostunut (${posterStop}, ` +
