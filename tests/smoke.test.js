@@ -1110,6 +1110,17 @@ async function printHygiene(page, label) {
         document.querySelectorAll("#bookletOut .booklet-line h4.daytype").length);
       days >= 1 ? ok(`tulostusvihko: viikonpäivätyypit (${days} taulukkoa/linja)`)
                 : fail("tulostusvihko: päivätyyppejä ei löytynyt");
+      // Reittikaavio linjan otsikon alla: SVG-viiva + nimilaput tekstinä, ei kuvia
+      const bm = await page.evaluate(() => {
+        const fig = document.querySelector("#bookletOut .booklet-line .print-map");
+        return { has: !!fig, paths: fig ? fig.querySelectorAll("svg path").length : 0,
+                 texts: fig ? fig.querySelectorAll("svg text").length : 0,
+                 imgs: fig ? fig.querySelectorAll("img, image").length : 0,
+                 afterH2: !!fig && fig.previousElementSibling?.tagName === "H2" };
+      });
+      (bm.has && bm.paths >= 1 && bm.texts >= 3 && bm.imgs === 0 && bm.afterH2)
+        ? ok(`tulostusvihko: reittikaavio linjan alla (${bm.paths} viivaa, ${bm.texts} tekstiä)`)
+        : fail("tulostusvihko: reittikaavio puuttuu tai pielessä: " + JSON.stringify(bm));
     }
     // Isot pysäkit -rajaus (pickKeyStops): liikaa timepointteja → 10; ≤12 ennallaan; hub pakotettu; sananraja
     const cap = await page.evaluate(() => {
@@ -1198,15 +1209,22 @@ async function printHygiene(page, label) {
         sorted, secMissing,
         // tulostuva sisältö: .no-print-lohkot (esim. tulostusnappi ikoneineen) eivät päädy paperille
         nonText: [...document.querySelectorAll("#corridorOut svg, #corridorOut canvas, #corridorOut img")]
-          .filter(el => !el.closest(".no-print")).length,
+          .filter(el => !el.closest(".no-print") && !el.closest(".print-map")).length,
+        // reittikaavio: viivat + oikeaa tekstiä (nimilaput), ei kuvia/tiiliä
+        mapPaths: document.querySelectorAll("#corridorOut .print-map svg path").length,
+        mapTexts: document.querySelectorAll("#corridorOut .print-map svg text").length,
+        mapImgs: document.querySelectorAll("#corridorOut .print-map img, #corridorOut .print-map image").length,
       };
     });
     (corr.distinctLines >= 2 && corr.daytypes >= 1 && corr.dirs >= 2 && corr.sorted && corr.secMissing === 0)
       ? ok(`yhdistetyt suunnat: ${corr.rows} lähtöä, ${corr.distinctLines} linjaa yhdessä taulukossa, ${corr.dirs} suuntaa, aikajärjestys OK`)
       : fail("yhdistetyt suunnat: yhdistetty taulukko pielessä: " + JSON.stringify(corr));
     corr.nonText === 0
-      ? ok("yhdistetyt suunnat: tuloste puhdasta tekstiä (0 svg/canvas/img)")
+      ? ok("yhdistetyt suunnat: tuloste puhdasta tekstiä (0 svg/canvas/img reittikaavion ulkopuolella)")
       : fail(`yhdistetyt suunnat: ei-tekstielementtejä tulosteessa (${corr.nonText} kpl)`);
+    (corr.mapPaths >= 2 && corr.mapTexts >= 3 && corr.mapImgs === 0)
+      ? ok(`yhdistetyt suunnat: reittikaavio (${corr.mapPaths} viivaa, ${corr.mapTexts} tekstiä, 0 kuvaa)`)
+      : fail("yhdistetyt suunnat: reittikaavio puuttuu tai ei ole tekstiä: " + JSON.stringify(corr));
     // Rivikorkeusvartija (25.8.2026): määränpääsarake oli print-CSS:ssä vain 26 % leveä,
     // jolloin pitkä määränpää ("Gerby / Tallmarksvägen 3") rivittyi kahdelle riville ja
     // vain osa riveistä oli kaksinkertaisen korkuisia. Sarakkeet olivat linjassa, mutta

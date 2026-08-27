@@ -756,6 +756,10 @@
   table.booklet { font-size: 0.95rem; }
   table.booklet th, table.booklet td { padding: 0.3rem 0.6rem; }
   .booklet-line h3 { font-size: 1rem; margin: 0.6rem 0 0.2rem; }
+  /* Reittikaavio (vihko + yhdistetyt suunnat): vektori, skaalautuu leveyteen, korkeus rajattu.
+     Aina valkoinen pohja ja musta viiva riippumatta teemasta (tuloste-artefakti). */
+  .print-map { margin: 0.5rem 0 0.75rem; }
+  .print-map svg { display: block; width: 100%; height: auto; max-height: 440px; background: #fff; border-radius: 6px; }
   .booklet-toc { margin-top: 0.6rem; }
   .booklet-toc h3 { font-size: 1rem; margin: 0 0 0.3rem; }
   .booklet-toc ul { margin: 0; padding-left: 1.2rem; columns: 2; column-gap: 1.5rem; }
@@ -1551,6 +1555,9 @@
        myös 1. linja (→ sisällysluettelo jää yksin omalle sivulleen). Jokainen SUUNTA
        ("X → Y") omalle sivulle (paluusuunta uudelta sivulta), paitsi linjan 1. suunta
        joka alkaa linjan omalta sivulta. Päivätyypit (h4.daytype) virtaavat ennallaan. */
+    .print-map { break-inside: avoid; page-break-inside: avoid; margin: 4pt 0 8pt; }
+    .print-map svg { max-height: 125mm; border-radius: 0; }
+    #vihkoPrint .print-map svg { max-height: 95mm; }
     .booklet-line { break-before: page; page-break-before: always; }
     .booklet-line > h3 { break-before: page; page-break-before: always;
                          break-after: avoid; page-break-after: avoid; }
@@ -2980,6 +2987,8 @@ const STRINGS = {
     bookletDateHint: "Aikataulukausi (kesä/talvi) määräytyy tämän päivän mukaan. Jätä tämänpäiväiseksi nykyiselle aikataululle tai valitse tuleva päivä, jos haluat tulostaa seuraavan kauden aikataulun.",
     bookletPeriodNote: "Tuloste vastaa {date} voimassa olevaa aikataulua. Aikataulu päivittyy rajapinnasta automaattisesti, joten tulosta tämä uudelleen kausivaihdoksen jälkeen.",
     bookletKeyStopsNote: "Kellonajat näytetään vain reitin isoilla pysäkillä.",
+    printMapAria: "Reittikaavio",
+    mapNorth: "P",
     bookletDir: "Suunta",
     bookletNoData: "Ei lähtöjä valittuna päivänä.",
     backToSelection: "← Muokkaa valintaa",
@@ -3448,6 +3457,8 @@ const STRINGS = {
     bookletDateHint: "The timetable season (summer/winter) is determined by this date. Keep it as today for the current timetable, or pick a future date to print the next season's timetable.",
     bookletPeriodNote: "This printout reflects the timetable in effect on {date}. The timetable updates automatically from the data source, so print this again after a seasonal change.",
     bookletKeyStopsNote: "Times are shown only at the route's major stops.",
+    printMapAria: "Route map",
+    mapNorth: "N",
     bookletDir: "Direction",
     bookletNoData: "No departures on the selected day.",
     backToSelection: "← Edit selection",
@@ -3912,6 +3923,8 @@ const STRINGS = {
     bookletDateHint: "Tidtabellsperioden (sommar/vinter) bestäms av detta datum. Lämna det som i dag för den aktuella tidtabellen, eller välj ett framtida datum för att skriva ut nästa periods tidtabell.",
     bookletPeriodNote: "Utskriften motsvarar tidtabellen som gäller {date}. Tidtabellen uppdateras automatiskt från datakällan, så skriv ut den här på nytt efter ett periodbyte.",
     bookletKeyStopsNote: "Tiderna visas endast vid linjens stora hållplatser.",
+    printMapAria: "Linjekarta",
+    mapNorth: "N",
     bookletDir: "Riktning",
     bookletNoData: "Inga avgångar den valda dagen.",
     backToSelection: "← Ändra val",
@@ -4876,6 +4889,170 @@ function decodePolyline(str) {
     coords.push([lat / 1e5, lng / 1e5]);
   }
   return coords;
+}
+
+/* ---------- Tulostettava reittikaavio (SVG) ----------
+   Mustavalkokestävä ja pohjakartaton: viivat = OTP:n patternGeometry (GTFS shapes),
+   pisteet = pysäkit, nimilaput = päätepisteet + hubit + avainpysäkit tekstinä.
+   Ei tiiliä/kuvia → tulostuu terävänä vektorina, toimii offline, ei OSM-tiilipolitiikkaa.
+   Suunnat erotetaan nuolilla, linjat viivatyypillä (ei värillä; mv-tuloste). Kaikki
+   tekstit ovat oikeaa SVG-tekstiä (valittavissa/muokattavissa PDF:ssä). */
+const PM_DASHES = ["", "12 6", "3 5", "12 5 3 5", "6 4", "1 4"];
+function printMapSvg(lines, opts = {}) {
+  // lines: [{ shortName, dirs: [{ points: [[lat,lon]…], stops: [{gtfsId,name,lat,lon}] }] }]
+  const allPts = [];
+  for (const l of lines) for (const d of l.dirs || []) {
+    for (const p of d.points || []) allPts.push(p);
+    for (const s of d.stops || []) if (s.lat != null && s.lon != null) allPts.push([s.lat, s.lon]);
+  }
+  if (allPts.length < 2) return "";
+  let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+  for (const [la, lo] of allPts) {
+    if (la < minLat) minLat = la; if (la > maxLat) maxLat = la;
+    if (lo < minLon) minLon = lo; if (lo > maxLon) maxLon = lo;
+  }
+  const M = 111320, kx = M * Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
+  const wM = Math.max(300, (maxLon - minLon) * kx), hM = Math.max(300, (maxLat - minLat) * M);
+  const W = 640, PAD = 30;
+  // korkeus seuraa alueen muotoa: vaaka-alue matalana, pystyalue ei liian pitkänä
+  const H = Math.round(Math.min(W * 1.1, Math.max(W * 0.5, W * hM / wM)));
+  const sc = Math.min((W - 2 * PAD) / wM, (H - 2 * PAD) / hM);
+  const ox = (W - wM * sc) / 2, oy = (H - hM * sc) / 2;
+  const X = lo => ox + (lo - minLon) * kx * sc, Y = la => oy + (maxLat - la) * M * sc;
+  const f = n => (Math.round(n * 10) / 10).toString();
+  // Korkea kartta (pystyalue) tulostuu max-height-rajan takia kapeampana → kasvata
+  // tekstit, pisteet ja viivat samassa suhteessa, jotta A4:llä nimilappu on ≥ 8 pt.
+  const k = Math.max(1, H / 440);
+  const out = [];
+  out.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#fff" stroke="#999" stroke-width="1"/>`);
+
+  // 1) reittiviivat + suuntanuolet
+  const arrows = [];
+  lines.forEach((l, li) => {
+    const dash = PM_DASHES[li % PM_DASHES.length];
+    for (const d of l.dirs || []) {
+      const pts = (d.points || []).filter(p => p && p.length === 2);
+      if (pts.length < 2) continue;
+      const path = pts.map((p, i) => (i ? "L" : "M") + f(X(p[1])) + " " + f(Y(p[0]))).join("");
+      out.push(`<path d="${path}" fill="none" stroke="#000" stroke-width="${f(3.2 * k)}" stroke-linejoin="round" stroke-linecap="round"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`);
+      // Käytävässä (monta linjaa) nuolet vain 1. linjalle: yhteisellä rungolla nuolet kasautuisivat.
+      if (lines.length > 1 && li > 0) continue;
+      // nuolet ~30 % ja ~70 % matkasta (kulma viivan suunnasta)
+      const seg = [0];
+      for (let i = 1; i < pts.length; i++)
+        seg.push(seg[i - 1] + Math.hypot(X(pts[i][1]) - X(pts[i - 1][1]), Y(pts[i][0]) - Y(pts[i - 1][0])));
+      const total = seg[seg.length - 1];
+      if (total < 60) continue;
+      for (const fr of [0.3, 0.7]) {
+        const target = total * fr;
+        let i = 1; while (i < seg.length - 1 && seg[i] < target) i++;
+        const a = pts[i - 1], b = pts[i];
+        const ax = X(a[1]), ay = Y(a[0]), bx = X(b[1]), by = Y(b[0]);
+        const r = seg[i] === seg[i - 1] ? 0 : (target - seg[i - 1]) / (seg[i] - seg[i - 1]);
+        const x = ax + (bx - ax) * r, y = ay + (by - ay) * r;
+        const ang = Math.atan2(by - ay, bx - ax) * 180 / Math.PI;
+        arrows.push(`<polygon points="-7,-6 9,0 -7,6" fill="#000" stroke="#fff" stroke-width="1.5" transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)}) scale(${f(k)})"/>`);
+      }
+    }
+  });
+
+  // 2) pysäkkipisteet (sama paikka vain kerran)
+  const seenPos = new Set();
+  const dots = [];
+  for (const l of lines) for (const d of l.dirs || []) for (const s of d.stops || []) {
+    if (s.lat == null || s.lon == null) continue;
+    const x = X(s.lon), y = Y(s.lat);
+    const pk = Math.round(x / 4) + ":" + Math.round(y / 4);
+    if (seenPos.has(pk)) continue;
+    seenPos.add(pk);
+    dots.push(`<circle cx="${f(x)}" cy="${f(y)}" r="${f(2.6 * k)}" fill="#fff" stroke="#000" stroke-width="${f(1.2 * k)}"/>`);
+  }
+
+  // 3) nimilaput: prioriteetti päätepisteet > hubit/avainpysäkit > tasavälit; ahne törmäyskarsinta
+  const hubTokens = (CONFIG.hubs || []).map(hb => normHubName(hb.name).split(" ").filter(Boolean)).filter(a => a.length);
+  const keyNames = opts.keyNames || new Set();
+  // Perusnimi: sulkulisäke ("(kääntöpaikka)"), laiturikirjain ("Trio E") ja pelkkä
+  // juokseva numero ("Kanavasillantie 1") pois → sama paikka yhtenä lappuna kuten
+  // painetussa vihossa (KOIVULA, KARHULA), ei kahtena laiturina.
+  const baseName = n => (n || "").replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+(?:[A-ZÅÄÖ]|\d{1,2})$/u, "").trim() || n;
+  const cand = new Map();  // normalisoitu perusnimi → {name,x,y,pri}
+  const add = (s, pri) => {
+    if (!s || s.lat == null || s.lon == null || !s.name) return;
+    const name = baseName(s.name);
+    const key = normHubName(name);
+    const prev = cand.get(key);
+    if (!prev || prev.pri < pri) cand.set(key, { name, x: X(s.lon), y: Y(s.lat), pri });
+  };
+  for (const l of lines) for (const d of l.dirs || []) {
+    const st = (d.stops || []).filter(s => s.lat != null);
+    if (!st.length) continue;
+    add(st[0], 3); add(st[st.length - 1], 3);
+    for (const s of st) {
+      if (keyNames.has(normHubName(s.name)) || keyNames.has(normHubName(baseName(s.name)))) add(s, 2);
+      else if (hubTokens.length && stopMatchesHub(s.name, hubTokens)) add(s, 2);
+    }
+    const even = opts.evenLabels ?? 3;
+    for (let k = 1; k <= even; k++) add(st[Math.round(k * (st.length - 1) / (even + 1))], 1);
+  }
+  const FS = Math.round(11 * k), LH = Math.round(16 * k);
+  const placed = [];  // {x,y,w,h}: varatut alueet (selite, pohjoisnuoli, mittakaava, laput)
+  const scaleM = [100, 200, 500, 1000, 2000, 5000, 10000].filter(m => m * sc <= W * 0.22).pop() || 100;
+  const sx = 14, sy = H - 14, sw = scaleM * sc;
+  placed.push({ x: sx - 6, y: sy - 20 - 8 * k, w: sw + 12, h: 27 + 8 * k });
+  const nx = W - 22;
+  placed.push({ x: nx - 12, y: 6, w: 24, h: 46 + 10 * k });
+  const legendW = lines.length > 1 ? Math.max(...lines.map(l => (l.shortName || "").length)) * 7 * k + 56 * k : 0;
+  const legendH = lines.length > 1 ? lines.length * 16 * k + 8 * k : 0;
+  if (lines.length > 1) placed.push({ x: 6, y: 6, w: legendW, h: legendH });
+  const overlaps = (b) => b.x < 2 || b.y < 2 || b.x + b.w > W - 2 || b.y + b.h > H - 2
+    || placed.some(p => !(b.x + b.w + 3 < p.x || p.x + p.w + 3 < b.x || b.y + b.h + 3 < p.y || p.y + p.h + 3 < b.y));
+  const labels = [];
+  const list = [...cand.values()].sort((a, b) => b.pri - a.pri || a.y - b.y);
+  const maxLabels = opts.maxLabels ?? 12;
+  for (const c of list) {
+    if (labels.length >= maxLabels) break;
+    let name = c.name;
+    if (name.length > 30) name = name.slice(0, 29) + "…";
+    const w = Math.round(name.length * FS * 0.58 + 10), hgt = LH;
+    const tries = [[7, -hgt / 2], [-w - 7, -hgt / 2], [-w / 2, -hgt - 6], [-w / 2, 7]];
+    for (const [dx, dy] of tries) {
+      const b = { x: c.x + dx, y: c.y + dy, w, h: hgt };
+      if (overlaps(b)) continue;
+      placed.push(b);
+      labels.push(`<g class="pm-label"><rect x="${f(b.x)}" y="${f(b.y)}" width="${w}" height="${hgt}" rx="2" fill="#fff" stroke="#000" stroke-width="${f(0.9 * k)}"/>`
+        + `<text x="${f(b.x + 5)}" y="${f(b.y + hgt * 0.72)}" font-size="${FS}" font-weight="600" fill="#000">${esc(name)}</text></g>`);
+      break;
+    }
+  }
+
+  // 4) mittakaava (vasen ala), pohjoisnuoli (oikea ylä), linjaselite (vasen ylä) jos linjoja > 1
+  const extras = [];
+  extras.push(`<g class="pm-scale"><rect x="${sx - 6}" y="${f(sy - 20 - 8 * k)}" width="${f(sw + 12)}" height="${f(27 + 8 * k)}" fill="#fff" fill-opacity="0.85"/>`
+    + `<path d="M${sx} ${sy - 4}V${sy}H${f(sx + sw)}V${sy - 4}" fill="none" stroke="#000" stroke-width="${f(1.5 * k)}"/>`
+    + `<text x="${f(sx + sw / 2)}" y="${f(sy - 7)}" font-size="${f(10 * k)}" text-anchor="middle" fill="#000">${scaleM >= 1000 ? (scaleM / 1000) + " km" : scaleM + " m"}</text></g>`);
+  extras.push(`<g class="pm-north"><path d="M${nx} 42V20" stroke="#000" stroke-width="${f(1.5 * k)}"/><polygon points="${nx - 5},22 ${nx},12 ${nx + 5},22" fill="#000"/>`
+    + `<text x="${nx}" y="${f(46 + 10 * k)}" font-size="${f(11 * k)}" font-weight="700" text-anchor="middle" fill="#000">${esc(t("mapNorth"))}</text></g>`);
+  if (lines.length > 1) {
+    const rh = 16 * k;
+    const rows = lines.map((l, i) => `<path d="M12 ${f(18 * k + i * rh)}H${f(40 * k)}" stroke="#000" stroke-width="${f(3.2 * k)}" stroke-linecap="round"${PM_DASHES[i % PM_DASHES.length] ? ` stroke-dasharray="${PM_DASHES[i % PM_DASHES.length]}"` : ""}/>`
+      + `<text x="${f(46 * k)}" y="${f(22 * k + i * rh)}" font-size="${FS}" font-weight="700" fill="#000">${esc(l.shortName || "")}</text>`).join("");
+    extras.push(`<g class="pm-legend"><rect x="6" y="6" width="${f(legendW)}" height="${f(legendH)}" fill="#fff" stroke="#000" stroke-width="0.8"/>${rows}</g>`);
+  }
+
+  const aria = esc(opts.aria || t("printMapAria"));
+  return `<figure class="print-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${aria}" font-family="system-ui, Arial, sans-serif">`
+    + `<title>${aria}</title>${out.join("")}${dots.join("")}${arrows.join("")}${labels.join("")}${extras.join("")}</svg></figure>`;
+}
+
+// Suunnan pisin geometria patterneista (ruutukartan sääntö) → { points, stops }
+function printMapDir(patterns) {
+  let best = null;
+  for (const p of patterns || []) {
+    if (!p.patternGeometry || !p.patternGeometry.points) continue;
+    if (!best || (p.patternGeometry.length || 0) > (best.patternGeometry.length || 0)) best = p;
+  }
+  if (!best) return null;
+  return { points: decodePolyline(best.patternGeometry.points), stops: best.stops || [] };
 }
 
 /* ---------- Lazy loading: Leaflet ja MQTT haetaan vasta tarvittaessa ---------- */
@@ -8489,10 +8666,20 @@ function bindCorridorTab(routes, today) {
     const allLines = [...new Map(dirs.flatMap(d => d.lines).map(r => [r.gtfsId, r])).values()];
     const exNote = res.excluded.length
       ? `<p class="muted">${t("corridorExcluded", { lines: esc(res.excluded.join(", ")) })}</p>` : "";
+    // Reittikaavio koko käytävästä: jokainen linja omalla viivatyypillä, yhteiset
+    // pysäkit nimilappuina (mv-kestävä, ei värejä).
+    const mapLines = allLines.map(r => ({
+      shortName: r.shortName,
+      dirs: dirs.flatMap(d => d.members.filter(m => m.route.gtfsId === r.gtfsId))
+        .map(m => printMapDir(m.patterns)).filter(Boolean),
+    })).filter(l => l.dirs.length);
+    const keyNames = new Set(dirs.flatMap(d => d.keyStops.map(s => normHubName(s.name))));
+    const mapHtml = mapLines.length ? printMapSvg(mapLines, { keyNames, evenLabels: 0, maxLabels: 12 }) : "";
     out.innerHTML = `
       <div class="card corridor-head">
         <h2>${t("corridorTitle")}${preset ? `: ${esc(corridorName(preset))}` : ""}</h2>
         <p>${allLines.map(r => badgeHtml(r)).join(" ")}</p>
+        ${mapHtml}
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
         <p class="muted">${t("printDaysNote")}</p>
         ${exNote}
@@ -10422,6 +10609,7 @@ function vkCollectAtoms(out) {
       if (tag === "H2") { lineLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h2">${node.innerHTML}</div>`, keepWithNext: true }); }
       else if (tag === "H3") { dirLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h3">${node.innerHTML}</div>`, keepWithNext: true }); }
       else if (tag === "H4") atoms.push({ html: `<div class="vk-h4">${node.innerHTML}</div>`, keepWithNext: true });
+      else if (tag === "FIGURE") atoms.push({ html: node.outerHTML });   // reittikaavio (SVG) sellaisenaan
       else {
         const src = tag === "TABLE" ? node : node.querySelector("table");
         const table = src ? vkNarrowTable(src) : null;
@@ -10627,7 +10815,7 @@ async function corridorFetchLines(routeIds) {
         `query ($ids: [String]) {
            routes(ids: $ids) {
              gtfsId shortName longName@L color textColor
-             patterns { code name directionId ${probeAliases} stops { gtfsId name@L } }
+             patterns { code name directionId ${probeAliases} patternGeometry { length points } stops { gtfsId name@L lat lon } }
            }
          }`, { ids });
       const arr = (data.routes || []).filter(Boolean);
@@ -10778,6 +10966,9 @@ async function corridorBuild(routeIds, dateISO) {
       label: `${shared[0].name} → ${shared[shared.length - 1].name}`,
       sharedCount: shared.length, keyStops, groups,
       lines: b.members.map(m => m.line.route),
+      // reittikaaviota varten: kunkin jäsenlinjan tämän suunnan patternit (geometria mukana)
+      members: b.members.map(m => ({ route: m.line.route,
+        patterns: m.line.byDir.get(m.pattern.directionId ?? 0) || [m.pattern] })),
     });
   }
   return { dirs, excluded };
@@ -11288,7 +11479,7 @@ function bindBookletTab(routes, today) {
           `query ($ids: [String]) {
              routes(ids: $ids) {
                gtfsId shortName longName@L color textColor
-               patterns { code name directionId ${probeAliases} stops { gtfsId name@L } }
+               patterns { code name directionId ${probeAliases} patternGeometry { length points } stops { gtfsId name@L lat lon } }
              }
            }`, { ids });
         const routesArr = (data.routes || []).filter(Boolean);
@@ -11323,10 +11514,14 @@ function bindBookletTab(routes, today) {
             : `<p class="muted">${t("bookletNoData")}</p>`;
           return `<h3>${esc(label)}</h3>${dayTables}`;
         }));
+        // Reittikaavio (kuten Kotkan vihossa): tulostettavien suuntien pisin geometria
+        const mapDirs = primaries.map(p => printMapDir(byDir.get(p.directionId ?? 0) || [p])).filter(Boolean);
+        const mapHtml = mapDirs.length ? printMapSvg([{ shortName: route.shortName, dirs: mapDirs }]) : "";
         return {
           label: `${route.shortName || ""} ${route.longName}`.trim(),
           html: `<section class="card booklet-line">
             <h2>${badgeHtml(route)} ${esc(route.longName)}</h2>
+            ${mapHtml}
             ${dirs.join("")}
           </section>`,
         };
