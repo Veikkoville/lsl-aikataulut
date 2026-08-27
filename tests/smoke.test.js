@@ -69,7 +69,10 @@ async function printHygiene(page, label) {
 
   const browser = await puppeteer.launch({
     headless: "new",
-    args: ["--no-sandbox", "--disable-dev-shm-usage"],
+    // CHROME_ARGS: valinnaiset lisäliput rinnakkaisajoihin (esim. --proxy-server, kun portti 8000
+    // on toisen worktreen käytössä ja workerin ALLOWED_ORIGINS sallii vain localhost:8000).
+    args: ["--no-sandbox", "--disable-dev-shm-usage",
+           ...(process.env.CHROME_ARGS || "").split(/\s+/).filter(Boolean)],
   });
   const page = await browser.newPage();
   await browser.defaultBrowserContext().overridePermissions(BASE, ["geolocation"]);
@@ -1299,6 +1302,47 @@ async function printHygiene(page, label) {
   // --- Saavutettavuusseloste ---
   await page.goto(BASE + "/#/saavutettavuus", { waitUntil: "networkidle2" });
   await expect(".card h2", "saavutettavuusseloste avautuu");
+
+  // --- Tietosuojaseloste + käyttöehdot (demo.reittari.fi:n lakisääteiset sivut) ---
+  // Assertoidaan rakennetta, ei sanamuotoa: molemmat reitit renderöityvät kaikilla kolmella
+  // kielellä (kortin lang-attribuutti = valittu kieli, useita osioita), footerissa on linkit,
+  // palveluntarjoaja ja CC BY 4.0 -lisenssilinkki, eikä sivu aseta evästeitä tai näytä
+  // evästebanneria (selosteen evästearvio nojaa tähän). Kieli on globaali → palautetaan FI.
+  for (const lg of ["fi", "en", "sv"]) {
+    await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+    await page.click(`[data-lang-opt="${lg}"]`);
+    await page.waitForFunction(l => document.documentElement.lang === l, { timeout: 10000 }, lg);
+    for (const [hash, id] of [["tietosuoja", "legalPrivacy"], ["kayttoehdot", "legalTerms"]]) {
+      await page.goto(BASE + "/#/" + hash, { waitUntil: "networkidle2" });
+      await sleep(150);
+      const st = await page.evaluate(i => {
+        const el = document.getElementById(i);
+        return { on: !!el, lang: el && el.getAttribute("lang"), h2: !!(el && el.querySelector("h2")),
+                 sections: el ? el.querySelectorAll("h3").length : 0,
+                 crumb: !!document.querySelector('nav.crumb a[href="#/"]') };
+      }, id);
+      (st.on && st.lang === lg && st.h2 && st.crumb && st.sections >= 5)
+        ? ok(`${hash} (${lg}): sivu renderöityy kielellä ${lg} (${st.sections} osiota)`)
+        : fail(`${hash} (${lg}): näkymä vajaa: ${JSON.stringify(st)}`);
+    }
+  }
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  await page.click('[data-lang-opt="fi"]'); // palauta oletuskieli seuraaville testeille
+  await page.waitForFunction(() => document.documentElement.lang === "fi", { timeout: 10000 });
+  const legalFoot = await page.evaluate(() => ({
+    tietosuoja: !!document.querySelector('#appFooter a[href="#/tietosuoja"]'),
+    kayttoehdot: !!document.querySelector('#appFooter a[href="#/kayttoehdot"]'),
+    tarjoaja: !!document.querySelector('#appFooter #footProvider a[href^="mailto:"]'),
+    ccby: !!document.querySelector('#appFooter #footAttribution a[href*="creativecommons.org/licenses/by/4.0"]'),
+    evasteet: document.cookie,
+    banneri: !!document.querySelector('[id*="cookie" i], [class*="cookie" i], [id*="consent" i], [class*="consent" i]'),
+  }));
+  (legalFoot.tietosuoja && legalFoot.kayttoehdot && legalFoot.tarjoaja && legalFoot.ccby)
+    ? ok("footer: tietosuoja + käyttöehdot + palveluntarjoaja + CC BY 4.0 -linkki")
+    : fail("footer: lakisääteiset linkit vajaat: " + JSON.stringify(legalFoot));
+  (legalFoot.evasteet === "" && !legalFoot.banneri)
+    ? ok("evästeet: sivu ei aseta evästeitä eikä näytä evästebanneria")
+    : fail("evästeet: " + JSON.stringify({ evasteet: legalFoot.evasteet, banneri: legalFoot.banneri }));
 
   // --- Vanha #/tulosteet (bare) ohjautuu julisteet-välilehdelle; #/tulosteet/<tab> osoitteistettu ---
   await page.goto(BASE + "/#/tulosteet", { waitUntil: "networkidle2" });
