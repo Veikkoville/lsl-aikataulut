@@ -27,6 +27,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write   # CI:n kaynnistys agentin haaralle (workflow_dispatch)
 
 concurrency:
   group: auto-kehitys
@@ -88,7 +89,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: >-
-            --max-turns 60
+            --max-turns 80
             --allowedTools "Bash(git:*),Bash(gh pr create:*),Bash(node:*),Bash(npm test:*),Bash(npm run:*),Read,Edit,Write,Glob,Grep"
           prompt: |
             Olet Reittarin (lsl-aikataulut) auto-kehitysagentti. Teet YHDEN rajatun tehtävän ja avaat PR:n.
@@ -113,3 +114,14 @@ jobs:
                pushaa haara ja avaa PR: gh pr create --base master --title "auto: <aihe>" --body jossa on
                Mitä / Miksi (backlog-rivi) / Miten todennettu / Mitä EI tehty / Riskit.
             7. ÄLÄ mergaa, älä pushaa masteriin, älä koske muihin backlog-riveihin.
+
+      # GITHUB_TOKENilla avattu PR ei laukaise pull_request-tapahtumaa, joten CI kaynnistetaan
+      # erikseen agentin haaralle. Tarkistukset nakyvat PR:ssa head-SHA:n kautta.
+      - name: Käynnistä CI agentin haaralle
+        if: ${{ steps.backlog.outputs.tehtavia == '1' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          haara=$(gh pr list --state open --search "head:auto/" --json headRefName,createdAt             --jq 'sort_by(.createdAt) | last | .headRefName')
+          if [ -z "$haara" ] || [ "$haara" = "null" ]; then echo "Ei uutta auto/-PR:ää, CI:tä ei käynnistetä."; exit 0; fi
+          gh workflow run ci.yml --ref "$haara" && echo "CI käynnistetty haaralle $haara"
