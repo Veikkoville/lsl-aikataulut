@@ -70,18 +70,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Onko backlogissa avointa tehtävää
-        id: backlog
-        run: |
-          if grep -qE '^- \[ \]' docs/AUTO-BACKLOG.md; then
-            echo "tehtavia=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "tehtavia=0" >> "$GITHUB_OUTPUT"
-            echo "Backlog tyhjä, ei ajoa."
-          fi
-
       - name: Agentti tekee yhden tehtävän ja avaa PR:n
-        if: ${{ steps.backlog.outputs.tehtavia == '1' }}
         uses: anthropics/claude-code-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -94,10 +83,19 @@ jobs:
             Olet Reittarin (lsl-aikataulut) auto-kehitysagentti. Teet YHDEN rajatun tehtävän ja avaat PR:n.
             Työskentelet repon juuressa, master on checkoutattuna.
 
-            1. Lue docs/AUTO-BACKLOG.md. Valitse YLIN avoin tehtävä (rivi joka alkaa "- [ ]").
-               Jos tehtävä on epäselvä tai vaatii päätöstä jota et voi tehdä, älä koodaa: avaa PR
-               joka muuttaa vain docs/AUTO-BACKLOG.md:tä lisäämällä tehtävän alle rivin
-               "  - ⚠️ EHDOTUS/KYSYMYS: ..." ja lopeta.
+            1. Lue docs/TUOTEPERIAATTEET.md ja docs/AUTO-BACKLOG.md.
+               a) Jos Avoimet-listalla on rivi "- [ ]": valitse YLIN. Jos se on epäselvä tai vaatii
+                  päätöstä jota et voi tehdä, älä koodaa: avaa PR joka muuttaa vain
+                  docs/AUTO-BACKLOG.md:tä lisäämällä tehtävän alle rivin "  - ⚠️ EHDOTUS/KYSYMYS: ..."
+                  ja lopeta.
+               b) Jos Avoimet on tyhjä: IDEOI ENSIN. Lue TUOTEPERIAATTEET.md:n lähdejärjestys
+                  (Signaalit-lohko ensin), README.md, docs/, testit ja git log -30. Kirjoita KOLME
+                  backlog-riviä Avoimet-listaan järjestyksessä arvo per työmäärä, jokainen
+                  TUOTEPERIAATTEET.md:n "Hyvän backlog-rivin muoto" mukaan ja sallittujen tiedostojen
+                  sisällä. Merkitse jokaiseen "(agentin ehdotus <pvm>, lähde: <signaali/testi/koodi>)".
+                  Signaalit-lohkon havainto, jonka muutit riviksi, merkitään "→ backlog <pvm>".
+                  Jatka sitten toteuttamalla ylin näistä. PR-runkoon oma osio "Ehdotetut backlog-rivit"
+                  perusteluineen, jotta ihminen voi hylätä ehdotuksen sulkemalla PR:n.
             2. Luo haara: git checkout -b auto/<pvm>-<lyhyt-aihe>.
             3. Toteuta tehtävä. Sallitut tiedostot: index.html, tests/**, worker/**, docs/**, README.md.
                KIELLETTY: sw.js:n cache-versio, CONFIGS-avaimien lisäys tai poisto, hinnat tai myyntitekstit,
@@ -117,7 +115,6 @@ jobs:
       # GITHUB_TOKENilla avattu PR ei laukaise pull_request-tapahtumaa, joten CI kaynnistetaan
       # erikseen agentin haaralle. Tarkistukset nakyvat PR:ssa head-SHA:n kautta.
       - name: Käynnistä CI agentin haaralle
-        if: ${{ steps.backlog.outputs.tehtavia == '1' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
