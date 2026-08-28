@@ -22,6 +22,12 @@ signaalin "→ backlog <pvm>".
   tehty PR #3.)
 - 2026-08-24, kaupungin tekninen johto: kysyivät, missä data sijaitsee ja mitä tapahtuu jos
   toimittaja katoaa. Tuotteen on kestettävä tämä kysymys ilman erillistä paperia.
+- 2026-08-26, kaupungin joukkoliikennetiimi: pyysivät ryhmäkuljetusten tilausten käsittelyä
+  (koulut ja päiväkodit varaavat auton, törmäystarkistus) ja palveluliikenteen kuljettajanäkymää
+  (kuljettaja näkee päivän tilaukset). Kaupunki lähettää tarkemmat tiedot sähköpostilla.
+  **Ei agentin tehtäväksi**: tämä on oma moduuli (ks. TUOTEPERIAATTEET.md), jonka rajaus ja
+  tietosuoja päätetään ihmisen kanssa; kun tiedot tulevat, ylläpitäjä kirjoittaa osatehtävät
+  Avoimet-listaan ja agentti toteuttaa ne yksi kerrallaan.
 
 ## Avoimet
 
