@@ -4,6 +4,8 @@ on:
   push:
     branches: [master]
   pull_request:
+  # auto-kehitys kaynnistaa taman GITHUB_TOKENilla avatulle PR:lle (se ei laukaise pull_request-tapahtumaa)
+  workflow_dispatch:
 
 jobs:
   worker:
