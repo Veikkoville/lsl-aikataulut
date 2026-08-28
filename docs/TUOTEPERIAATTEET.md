@@ -37,15 +37,27 @@ ei käsin ylläpidettävää aikataulua missään.
 - **Smoke on sopimus.** Uusi käyttäytyminen saa smoke-tarkistuksen; smoke ei saa hyväksyä
   virhetilan varajärjestelyä ("ei lähtöjä") onnistumisena.
 
-## Mitä ei rakenneta (älä ehdota)
+## Mitä agentti ei ehdota itse
+
+Kaksi luokkaa. Ensimmäinen on asioita, joita ei rakenneta lainkaan:
 
 - Reittiopasta: reittihaku ohjataan kaupungin omaan tai Digitransitin reittioppaaseen.
 - Lippujen myyntiä, maksamista, matkakortteja.
-- Reaaliaikaista ajojärjestelyä, kuljettajasovellusta, tilausliikennettä.
+- Reaaliaikaista ajojärjestelyä tai reittioptimointia (kutsuohjausjärjestelmien scope).
 - Natiivisovellusta tai sovelluskauppajakelua (PWA riittää).
 - Mainoksia, seurantaa, analytiikkaa, evästebannereita.
-- Hintojen, myyntitekstien tai esitteiden muutoksia.
-- sw.js:n cache-version muutoksia (tehdään käsin julkaisun yhteydessä).
+
+Toinen on asioita, jotka **rakennetaan, mutta erikseen päätettynä hankkeena**, ei yöllisen
+agentin omana ehdotuksena, koska niiden rajaus, tietosuoja ja hinnoittelu päätetään ihmisen
+kanssa ennen ensimmäistä riviä:
+
+- **Tilausmoduuli ja kuljettajanäkymä** (ryhmäkuljetusten varaukset törmäystarkistuksella,
+  kuljettajan päivälista): kaupungin pyytämä, oma moduuli samalla alustalla. Kun se on
+  päätetty ja rajattu, sen osatehtävät tulevat backlogiin ylläpitäjän kirjoittamina, ja
+  agentti toteuttaa ne kuten muutkin rivit.
+
+Lisäksi agentti ei koskaan muuta hintoja, myyntitekstejä tai esitteitä, eikä sw.js:n
+cache-versiota (tehdään käsin julkaisun yhteydessä).
 
 ## Mistä ideat haetaan, tässä järjestyksessä
 
