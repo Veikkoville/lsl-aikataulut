@@ -1,0 +1,115 @@
+# Auto-kehitys: agentti tekee yhden rajatun backlog-tehtävän haaralle ja avaa PR:n.
+# Ei koskaan mergeä eikä deployta: master päivittyy vain ihmisen mergestä.
+#
+# Tilat (workflow_dispatch input "mode"):
+#   koeajo  = ei agenttia. Avaa triviaalin PR:n GITHUB_TOKENilla ja todentaa PR-putken
+#             (vaatii repoasetuksen Settings > Actions > General >
+#             "Allow GitHub Actions to create and approve pull requests").
+#   kehitys = Claude Code -agentti lukee docs/AUTO-BACKLOG.md:n, valitsee ylimmän avoimen
+#             tehtävän, toteuttaa sen, ajaa worker-yksikkötestit ja avaa PR:n.
+#             Vaatii secretin CLAUDE_CODE_OAUTH_TOKEN (claude setup-token) tai ANTHROPIC_API_KEY.
+#
+# Ajastus on tarkoituksella pois päältä kunnes koeajo ja ensimmäinen kehitysajo on katsottu.
+# Kytkentä: poista kommentti schedule-lohkosta.
+
+name: auto-kehitys
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'koeajo | kehitys'
+        required: true
+        default: 'koeajo'
+  # schedule:
+  #   - cron: '0 1 * * 2-6'   # ti-la 01:00 UTC = 04:00 Suomen aikaa, ei ma (smoke/kausivalidointi)
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-kehitys
+  cancel-in-progress: false
+
+jobs:
+  koeajo:
+    if: ${{ github.event.inputs.mode == 'koeajo' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Avaa triviaali PR (suljetaan mergaamatta)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          git config user.name "reittari-auto[bot]"
+          git config user.email "actions@users.noreply.github.com"
+          haara="auto/koeajo-$(date -u +%Y%m%d-%H%M)"
+          git checkout -b "$haara"
+          printf 'Actions-PR-putken koeajo %s. Tama PR suljetaan mergaamatta ja haara poistetaan.\n' "$(date -u +%FT%TZ)" > EGRESS-KOEAJO.md
+          git add EGRESS-KOEAJO.md
+          git commit -m "koeajo: Actions avaa PR:n (suljetaan mergaamatta)"
+          git push -u origin "$haara"
+          gh pr create --base master --head "$haara" \
+            --title "koeajo: auto-kehitys PR-putki (ALA MERGAA)" \
+            --body "Tekninen koeajo: todentaa etta auto-kehitys-workflow voi avata PR:n. Suljetaan mergaamatta, haara poistetaan. Ei koske tuotantoa."
+
+  kehitys:
+    if: ${{ github.event.inputs.mode == 'kehitys' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Onko backlogissa avointa tehtävää
+        id: backlog
+        run: |
+          if grep -qE '^- \[ \]' docs/AUTO-BACKLOG.md; then
+            echo "tehtavia=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "tehtavia=0" >> "$GITHUB_OUTPUT"
+            echo "Backlog tyhjä, ei ajoa."
+          fi
+
+      - name: Agentti tekee yhden tehtävän ja avaa PR:n
+        if: ${{ steps.backlog.outputs.tehtavia == '1' }}
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: >-
+            --max-turns 60
+            --allowedTools "Bash(git:*),Bash(gh pr create:*),Bash(node:*),Bash(npm test:*),Bash(npm run:*),Read,Edit,Write,Glob,Grep"
+          prompt: |
+            Olet Reittarin (lsl-aikataulut) auto-kehitysagentti. Teet YHDEN rajatun tehtävän ja avaat PR:n.
+            Työskentelet repon juuressa, master on checkoutattuna.
+
+            1. Lue docs/AUTO-BACKLOG.md. Valitse YLIN avoin tehtävä (rivi joka alkaa "- [ ]").
+               Jos tehtävä on epäselvä tai vaatii päätöstä jota et voi tehdä, älä koodaa: avaa PR
+               joka muuttaa vain docs/AUTO-BACKLOG.md:tä lisäämällä tehtävän alle rivin
+               "  - ⚠️ EHDOTUS/KYSYMYS: ..." ja lopeta.
+            2. Luo haara: git checkout -b auto/<pvm>-<lyhyt-aihe>.
+            3. Toteuta tehtävä. Sallitut tiedostot: index.html, tests/**, worker/**, docs/**, README.md.
+               KIELLETTY: sw.js:n cache-versio, CONFIGS-avaimien lisäys tai poisto, hinnat tai myyntitekstit,
+               uudet npm-riippuvuudet, .github/**, secretit, mikä tahansa deploy-komento (wrangler).
+               Max noin 300 muutettua riviä. Ei em dashia (—) tekstiin.
+            4. Todenna: aja worker-yksikkötestit
+               (cd worker && node webpush.test.js && node push-logic.test.js && node email-logic.test.js).
+               Jos muutit tests/smoke.test.js:ää, tarkista syntaksi: node --check tests/smoke.test.js
+               (selainsmoke ei ole ajettavissa täällä; CI ajaa sen PR:lle automaattisesti).
+               Jos muutit index.html:n skriptiä, poimi skriptilohko ja aja sille node --check.
+            5. Merkitse tehtävä backlogissa "- [x]" ja lisää perään " (PR, <pvm>)".
+            6. Committaa (git config user.name "reittari-auto[bot]", user.email "actions@users.noreply.github.com"),
+               pushaa haara ja avaa PR: gh pr create --base master --title "auto: <aihe>" --body jossa on
+               Mitä / Miksi (backlog-rivi) / Miten todennettu / Mitä EI tehty / Riskit.
+            7. ÄLÄ mergaa, älä pushaa masteriin, älä koske muihin backlog-riveihin.
