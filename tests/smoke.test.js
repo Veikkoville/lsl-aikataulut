@@ -1464,6 +1464,26 @@ async function printHygiene(page, label) {
     ? ok("ulkoinen reittiopas: Lahdella omat A->B-kentät ennallaan (regressio)")
     : fail("ulkoinen reittiopas: Lahti: " + JSON.stringify(extLahti));
 
+  // --- Livekartan tyhjätila (CONFIG.vehicleRealtime === false, Raasepori) ---
+  // Raaseporin feedistä ei tule GTFS-RT-ajoneuvopositioita: livekartta näyttää heti tilatekstin
+  // eikä "Yhdistetään reaaliaikadataan..." -jäämää. Lahdessa (jolla on reaaliaikaseuranta)
+  // tekstiä ei saa näkyä, jotta liian innokas piilotus ei mene läpi (regressio).
+  await page.goto(BASE + "/?city=raasepori#/kartta", { waitUntil: "networkidle2" });
+  await expect("#liveMap.leaflet-container", "livekartan tyhjätila: kartta latautuu (Raasepori)");
+  const noRtState = await page.evaluate(() => ({
+    count: document.getElementById("liveCount")?.textContent || "",
+    hint: !!document.querySelector(".card p.muted .rt"),
+  }));
+  (/reaaliaikaseurantaa/.test(noRtState.count) && !noRtState.hint)
+    ? ok("livekartan tyhjätila: tilateksti näkyy heti eikä bussivihjettä näytetä (Raasepori)")
+    : fail("livekartan tyhjätila (Raasepori): " + JSON.stringify(noRtState));
+  await page.goto(BASE + "/?city=lahti#/kartta", { waitUntil: "networkidle2" });
+  await expect("#liveMap.leaflet-container", "livekartan tyhjätila: kartta latautuu (Lahti)");
+  const rtState = await page.evaluate(() => document.getElementById("liveCount")?.textContent || "");
+  !/reaaliaikaseurantaa/.test(rtState)
+    ? ok("livekartan tyhjätila: Lahdessa tilatekstiä ei näytetä (regressio)")
+    : fail("livekartan tyhjätila: Lahdessa näkyi virheellisesti tyhjätilateksti: " + rtState);
+
   // --- Konsolivirheet ---
   const realErrors = consoleErrors.filter(e => !e.includes("favicon"));
   realErrors.length
