@@ -9,8 +9,7 @@
 #             tehtävän, toteuttaa sen, ajaa worker-yksikkötestit ja avaa PR:n.
 #             Vaatii secretin CLAUDE_CODE_OAUTH_TOKEN (claude setup-token) tai ANTHROPIC_API_KEY.
 #
-# Ajastus on tarkoituksella pois päältä kunnes koeajo ja ensimmäinen kehitysajo on katsottu.
-# Kytkentä: poista kommentti schedule-lohkosta.
+# Ajastus kytketty 28.8.2026 (1. kehitysajo PR #3 hyväksytty). Tyhjä backlog = ajo lopettaa heti.
 
 name: auto-kehitys
 
@@ -21,8 +20,8 @@ on:
         description: 'koeajo | kehitys'
         required: true
         default: 'koeajo'
-  # schedule:
-  #   - cron: '0 1 * * 2-6'   # ti-la 01:00 UTC = 04:00 Suomen aikaa, ei ma (smoke/kausivalidointi)
+  schedule:
+    - cron: '0 1 * * 2-6'   # ti-la 01:00 UTC = 04:00 Suomen aikaa, ei ma (smoke/kausivalidointi)
 
 permissions:
   contents: write
@@ -59,7 +58,7 @@ jobs:
             --body "Tekninen koeajo: todentaa etta auto-kehitys-workflow voi avata PR:n. Suljetaan mergaamatta, haara poistetaan. Ei koske tuotantoa."
 
   kehitys:
-    if: ${{ github.event.inputs.mode == 'kehitys' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.mode == 'kehitys' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
