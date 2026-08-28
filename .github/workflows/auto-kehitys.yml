@@ -97,9 +97,12 @@ jobs:
                   Jatka sitten toteuttamalla ylin näistä. PR-runkoon oma osio "Ehdotetut backlog-rivit"
                   perusteluineen, jotta ihminen voi hylätä ehdotuksen sulkemalla PR:n.
             2. Luo haara: git checkout -b auto/<pvm>-<lyhyt-aihe>.
-            3. Toteuta tehtävä. Sallitut tiedostot: index.html, tests/**, worker/**, docs/**, README.md.
-               KIELLETTY: sw.js:n cache-versio, CONFIGS-avaimien lisäys tai poisto, hinnat tai myyntitekstit,
-               uudet npm-riippuvuudet, .github/**, secretit, mikä tahansa deploy-komento (wrangler).
+            3. Toteuta tehtävä. Sallitut tiedostot: index.html, tests/**, worker/**, docs/AUTO-BACKLOG.md, README.md.
+               KIELLETTY: docs/TUOTEPERIAATTEET.md (vain ihminen muuttaa periaatteita), sw.js:n cache-versio,
+               uusien kaupunkien lisäys tai poisto CONFIGS-objektiin ja käytäväpresettien muutos ilman
+               feedimittausta (olemassa olevan kaupungin sisäinen tekninen lippu, kuten vehicleRealtime, on
+               sallittu), hinnat tai myyntitekstit, uudet npm-riippuvuudet, .github/**, secretit, mikä tahansa
+               deploy-komento (wrangler).
                Max noin 300 muutettua riviä. Ei em dashia (—) tekstiin.
             4. Todenna: aja worker-yksikkötestit
                (cd worker && node webpush.test.js && node push-logic.test.js && node email-logic.test.js).
