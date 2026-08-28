@@ -2237,6 +2237,11 @@ const CONFIGS = {
       rect: { minLat: 59.85, maxLat: 60.33, minLon: 22.85, maxLon: 24.05 },
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
+    // Raaseporin feedistä ei tule GTFS-RT-ajoneuvopositioita: MQTT-tilaus /gtfsrt/vp/raasepori/#
+    // ei koskaan tuota viestejä, joten livekartta (#/kartta) näyttäisi aina tyhjän kartan.
+    // vehicleRealtime: false ohittaa MQTT-yrityksen ja näyttää tilatekstin heti (viewLiveMap).
+    // Puuttuessaan (muut kaupungit) oletus on true.
+    vehicleRealtime: false,
     // Lippu- ja hintatiedot (raseborg.fi liput-ja-hinnat, tarkistettu suoraan sivulta
     // 10.7.2026; sivun oma "Päivitetty: 11.06.26", hinnat 1.1.2025 alkaen). Tasataksa,
     // Waltti-järjestelmä (Bosse-sovellus/-matkakortti), EI lähimaksua (contactless
@@ -2828,6 +2833,7 @@ const STRINGS = {
     fbRequired: "Kirjoita viesti ennen lähettämistä.",
     liveConnecting: "Yhdistetään reaaliaikadataan…",
     liveCount: "{n} bussia kartalla", liveNone: "Ei busseja juuri nyt.",
+    liveMapNoRealtime: "Tässä kaupungissa ei ole ajoneuvojen reaaliaikaseurantaa.",
     // liput ja hinnat — vain geneeriset avaimet; kaupunkikohtainen copy
     // (hintaryhmät, maksutavat, ostopaikat, lähdeviitteet) tulee CONFIG.fares.i18n:stä
     // (ks. faresText), jotta yhden kaupungin tekstit eivät vuoda toisille.
@@ -3324,6 +3330,7 @@ const STRINGS = {
     fbRequired: "Please write a message before sending.",
     liveConnecting: "Connecting to real-time data…",
     liveCount: "{n} buses on the map", liveNone: "No buses right now.",
+    liveMapNoRealtime: "This city has no real-time vehicle tracking.",
     faresLink: "Tickets and fares",
     faresTitle: "Tickets and fares",
     faresSingleTitle: "Single tickets",
@@ -3799,6 +3806,7 @@ const STRINGS = {
     fbRequired: "Skriv ett meddelande innan du skickar.",
     liveConnecting: "Ansluter till realtidsdata…",
     liveCount: "{n} bussar på kartan", liveNone: "Inga bussar just nu.",
+    liveMapNoRealtime: "Den här staden har ingen realtidsuppföljning av fordon.",
     faresLink: "Biljetter och priser",
     faresTitle: "Biljetter och priser",
     faresSingleTitle: "Engångsbiljetter",
@@ -8245,19 +8253,24 @@ async function viewMonitor(stopId) {
 
 async function viewLiveMap() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  // CONFIG.vehicleRealtime === false (esim. Raasepori): feedistä ei koskaan tule GTFS-RT-
+  // ajoneuvopositioita, joten MQTT-yritys jätetään kokonaan tekemättä ja tilateksti näytetään
+  // heti. Kartta jää silti näkyviin (pysäkit ja kadut näkyvät pohjakartasta).
+  const noRealtime = CONFIG.vehicleRealtime === false;
   setView(`
     <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
     <div class="card">
       <h2>${icon("map")} ${t("liveMapTitle")}</h2>
-      <p class="muted" id="liveCount" role="status">${t("liveConnecting")}</p>
+      <p class="muted" id="liveCount" role="status">${noRealtime ? t("liveMapNoRealtime") : t("liveConnecting")}</p>
       <div id="liveMap" class="map bigmap" aria-label="${t("liveMapAria")}"></div>
-      <p class="muted"><span class="rt">●</span> ${t("liveMapHint")}</p>
+      ${noRealtime ? "" : `<p class="muted"><span class="rt">●</span> ${t("liveMapHint")}</p>`}
     </div>`);
   const mySeq = viewSeq;
   try {
     await ensureLeaflet();
     if (mySeq !== viewSeq || !document.getElementById("liveMap")) return;
     const map = makeMap("liveMap", [AREA.focus.lat, AREA.focus.lon], 12);
+    if (noRealtime) return;
     // Täydellinen route_id -> reitti -kartta KAIKISTA bussireiteistä (kaikki suunnat + operaattori-
     // duplikaatit), jotta jokaisen ajoneuvon route_id resolvoituu shortNameen. loadRoutesin ryhmitelty/
     // dedupattu lista jättäisi ei-primäärit suunnat ja pudotetut dupet pois → raaka route_id näkyviin.
