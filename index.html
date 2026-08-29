@@ -2167,8 +2167,10 @@ const CONFIGS = {
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
   },
-  // Raasepori-demo (?city=raasepori). Layer-kaupunki kuten Vaasa/Kotka: oma moderni
-  // reittiopas (bosse.digitransit.fi, brändi "BOSSE") → heroEmphasis "layer". Kaikki
+  // Raasepori-demo (?city=raasepori). Layer-kaupunki kuten Vaasa/Kotka: kaupungilla on oma
+  // moderni reittiopas (bosse.digitransit.fi, brändi "BOSSE") → heroEmphasis "layer". Oma
+  // A->B-haku on käytössä (29.8.2026, Villen päätös): ulos ohjaaminen sai palvelun näyttämään
+  // ohuemmalta kuin se on, ja haku toimii samalla avoimella datalla. Kaikki
   // sisältö avoimesta Waltti/Digitransit-GTFS:stä. feedId "Raasepori" varmennettu
   // feeds-kyselyllä proxyn kautta 9.7.2026 (14 BUS-linjaa; nykyinen feed = kesäkausi
   // 25.6.–11.8.2026 → tarkista presetit talvifeedillä). Kaksikielinen, ruotsienemmistöinen
@@ -2196,7 +2198,6 @@ const CONFIGS = {
     // asetettu, etusivun A->B-kentät ja #/reitti korvautuvat linkillä bosse.digitransit.fi:hin,
     // eli palvelussa ei ole omaa julkista reittihakua. Palvelutiski säilyttää hakunsa: se on
     // henkilöstön työkalu, ei kuntalaisen reittiopas.
-    externalPlanner: { url: "https://bosse.digitransit.fi", name: "BOSSE" },
     // Keskustan solmupysäkit (mitattu feedistä 14.8.2026, ajopäivä 17.8.): kunnan kaksi
     // taajamaa saavat kumpikin oman asemansa — Ekenäs busstation 20 linjaa / 46 lähtöä ja
     // Karis Resecenter 17 linjaa / 32 lähtöä. Nimet ovat feedin natiivikielellä (sv), koska
@@ -2693,7 +2694,6 @@ const CONFIGS = {
     feedMatch: /^FOLI$/i,          // ankkuroitu: FUNI (Föri + funikulaari) on eri feed
     rail: "TKU",                    // Turku asema (rata.digitraffic)
     heroEmphasis: "layer",
-    externalPlanner: { url: "https://reittiopas.foli.fi", name: "Föli" },  // "{name}-reittiopas"
     centerStopNames: ["Kauppatori"],
     hubs: [
       { key: "kauppatori", name: "Kauppatori", center: { lat: 60.45100, lon: 22.26750 } },

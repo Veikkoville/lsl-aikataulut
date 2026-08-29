@@ -1442,45 +1442,44 @@ async function printHygiene(page, label) {
     ? ok(`uusintapainatus: muutosvertailu tuottaa syyn (${diffProbe.muutokset.length} riviä, muuttumaton = 0)`)
     : fail("uusintapainatus: muutosvertailu ei toimi: " + JSON.stringify(diffProbe));
 
-  // --- Ulkoinen reittiopas (CONFIG.externalPlanner, Raasepori) ---
-  // Reittihaku ohjataan kaupungin omaan Digitransit-reittioppaaseen: etusivun A->B-kentät
-  // korvautuvat linkillä, #/reitti näyttää linkin, ja palvelutiski säilyttää oman hakunsa.
-  // Assertio vaatii molemmat suunnat: Raaseporissa kenttiä EI ole ja linkki ON; Lahdessa
-  // kentät ovat yhä (regressio), jotta liian innokas piilotus ei mene läpi.
+  // --- Oma reittihaku layer-kaupungeissa (Raasepori, 29.8.2026) ---
+  // Raasepori ja Turku ohjasivat aiemmin kaupungin omaan reittioppaaseen
+  // (CONFIG.externalPlanner). Ulos ohjaaminen sai palvelun näyttämään ohuemmalta kuin se on,
+  // joten oma A->B-haku on käytössä kuten Vaasassa ja Kotkassa. Assertio vartioi molempia
+  // suuntia: omat kentät OVAT olemassa eikä ulkoista linkkiä jää roikkumaan mihinkään.
   await page.goto(BASE + "/?city=raasepori#/", { waitUntil: "networkidle2" });
-  await page.waitForSelector("#extPlannerLink", { timeout: 15000 }).catch(() => {});
+  await page.waitForSelector("#homeFromInput", { timeout: 15000 }).catch(() => {});
   const extHome = await page.evaluate(() => ({
     link: document.getElementById("extPlannerLink")?.getAttribute("href") || "",
-    blank: document.getElementById("extPlannerLink")?.getAttribute("target") === "_blank",
-    fields: !!document.getElementById("homeFromInput"),
-    nav: [...document.querySelectorAll("a")].some(a => /bosse\.digitransit\.fi/.test(a.href) && !a.id),
+    fields: !!document.getElementById("homeFromInput") && !!document.getElementById("homeToInput"),
+    nav: [...document.querySelectorAll("a")].some(a => /bosse\.digitransit\.fi/.test(a.href)),
     hash: location.hash, view: (document.getElementById("app")?.textContent || "").replace(/\s+/g, " ").slice(0, 120),
   }));
-  (/^https:\/\/bosse\.digitransit\.fi/.test(extHome.link) && extHome.blank && !extHome.fields && extHome.nav)
-    ? ok("ulkoinen reittiopas (Raasepori): etusivu linkittää bosse.digitransit.fi:hin, omia A->B-kenttiä ei ole")
-    : fail("ulkoinen reittiopas (Raasepori): " + JSON.stringify(extHome));
+  (extHome.fields && !extHome.link && !extHome.nav)
+    ? ok("oma reittihaku (Raasepori): etusivulla omat A->B-kentät, ei ulkoista reittiopaslinkkiä")
+    : fail("oma reittihaku (Raasepori): " + JSON.stringify(extHome));
   await page.goto(BASE + "/?city=raasepori#/reitti", { waitUntil: "networkidle2" });
-  await page.waitForSelector("#extPlannerLink", { timeout: 15000 }).catch(() => {});
+  await page.waitForSelector("#planForm", { timeout: 15000 }).catch(() => {});
   const extPlan = await page.evaluate(() => ({
     link: document.getElementById("extPlannerLink")?.getAttribute("href") || "",
     form: !!document.getElementById("planForm"),
   }));
-  (/^https:\/\/bosse\.digitransit\.fi/.test(extPlan.link) && !extPlan.form)
-    ? ok("ulkoinen reittiopas (Raasepori): #/reitti näyttää linkin, ei omaa hakulomaketta")
-    : fail("ulkoinen reittiopas (Raasepori): #/reitti: " + JSON.stringify(extPlan));
+  (extPlan.form && !extPlan.link)
+    ? ok("oma reittihaku (Raasepori): #/reitti näyttää oman hakulomakkeen")
+    : fail("oma reittihaku (Raasepori): #/reitti: " + JSON.stringify(extPlan));
   await page.goto(BASE + "/?city=raasepori#/palvelutiski", { waitUntil: "networkidle2" });
   await page.waitForSelector("#deskFrom", { timeout: 15000 }).catch(() => {});
   const extDesk = await page.evaluate(() => !!document.querySelector("#app h2") &&
     !!document.getElementById("deskFrom") && !!document.getElementById("deskTo") && !!document.getElementById("deskNlInput"));
-  extDesk ? ok("ulkoinen reittiopas (Raasepori): palvelutiski säilyttää oman reittihakunsa")
-          : fail("ulkoinen reittiopas (Raasepori): palvelutiskin reittihaku katosi");
+  extDesk ? ok("oma reittihaku (Raasepori): palvelutiskin reittihaku ennallaan")
+          : fail("oma reittihaku (Raasepori): palvelutiskin reittihaku katosi");
   await page.goto(BASE + "/?city=lahti#/", { waitUntil: "networkidle2" });
   await page.waitForSelector("#homeFromInput", { timeout: 15000 }).catch(() => {});
   const extLahti = await page.evaluate(() => ({
     fields: !!document.getElementById("homeFromInput"), link: !!document.getElementById("extPlannerLink") }));
   (extLahti.fields && !extLahti.link)
-    ? ok("ulkoinen reittiopas: Lahdella omat A->B-kentät ennallaan (regressio)")
-    : fail("ulkoinen reittiopas: Lahti: " + JSON.stringify(extLahti));
+    ? ok("oma reittihaku: Lahdella omat A->B-kentät ennallaan (regressio)")
+    : fail("oma reittihaku: Lahti: " + JSON.stringify(extLahti));
 
   // --- Livekartan tyhjätila (CONFIG.vehicleRealtime === false, Raasepori) ---
   // Raaseporin feedistä ei tule GTFS-RT-ajoneuvopositioita: livekartta näyttää heti tilatekstin
