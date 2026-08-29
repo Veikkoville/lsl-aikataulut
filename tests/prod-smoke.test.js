@@ -121,6 +121,9 @@ let CITIES = [ // let eika const: SMOKE_CITIES suodattaa taman eraajossa
   { key: "oulu", gen: "Oulun" },
   { key: "pori", gen: "Porin" },
   { key: "rovaniemi", gen: "Rovaniemen", corridorDirs: 1 },
+  // Turku/Föli 29.8.2026: suurin kaupunki (141 linjaa, 26-laiturinen Kauppatori). Erä 2.
+  // Presetit talvidatalla; kesäkoetus puuttuu (feed 14.8.-21.11.), kausivalidointi vahtii.
+  { key: "turku", gen: "Turun", svTitle: "Busstidtabeller i Åbo" },
 ];
 
 // Erarajaus. Tuntematon kaupunkiavain on kirjoitusvirhe eika tyhja era: se kaadetaan

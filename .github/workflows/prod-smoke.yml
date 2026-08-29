@@ -41,8 +41,8 @@ jobs:
           # CONFIG-jarjestysta vaan seurantatarvetta, ja se paivitetaan kasin tarpeen
           # mukaan. Tekninen ehto: kumpikin erä pysyy alle kiintiörajan yksin ajettuna.
           era1='{"era":1,"cities":"lahti,kuopio,vaasa,raasepori,kouvola,mikkeli","delay":"0"}'
-          era2='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi","delay":"0"}'
-          era2_viiveella='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi","delay":"600000"}'
+          era2='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi,turku","delay":"0"}'
+          era2_viiveella='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi,turku","delay":"600000"}'
           case "$LAUKAISIN" in
             # Torstai-ilta: era 2 yksin.
             "0 18 * * 4") mukaan="[$era2]" ;;
