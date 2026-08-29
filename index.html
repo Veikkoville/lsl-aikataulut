@@ -2703,7 +2703,12 @@ const PROXY_URL = CONFIG.proxyUrl;
 // Web Push -palvelimen (saman workerin) VAPID-julkinen avain. Tyhjä → taustapush
 // pois käytöstä, ilmoitukset toimivat vain etualalla (sovellus auki).
 const VAPID_PUBLIC_KEY = "BL0Ah2TowfE75fO8V6b8hncoh4Au-br_ycKHLGD1C6ohfXZV3Jpr863PHFWWd3qpU4wASUdJsuBLwhufuZMKx74";
-const API_URL = PROXY_URL || "https://api.digitransit.fi/routing/v2/waltti/gtfs/v1";
+// CONFIG.router: "waltti" (oletus) tai "finland" (valtakunnallinen router ei-Waltti-kunnille).
+// Proxylle välitetään ?router=, ilman proxya valitaan Digitransitin osoite suoraan.
+const ROUTER = CONFIG.router || "waltti";
+const API_URL = PROXY_URL
+  ? (ROUTER === "waltti" ? PROXY_URL : PROXY_URL + (PROXY_URL.includes("?") ? "&" : "?") + "router=" + ROUTER)
+  : "https://api.digitransit.fi/routing/v2/" + ROUTER + "/gtfs/v1";
 const GEOCODING_URL = PROXY_URL
   ? PROXY_URL.replace(/\/$/, "") + "/geocoding"
   : "https://api.digitransit.fi/geocoding/v1";

@@ -6,7 +6,17 @@
 import { sendPush } from "./webpush.js";
 import { ADMIN_HTML } from "./admin-page.js";
 
-const ROUTING_UPSTREAM = "https://api.digitransit.fi/routing/v2/waltti/gtfs/v1";
+// Reititysrajapinnat: waltti (oletus, Waltti-kaupungit) ja finland (valtakunnallinen: ELY-,
+// Matkahuolto- ja VR-data, ei-Waltti-kunnat kuten Inkoo). Client valitsee `?router=` -parametrilla;
+// vain tämän listan avaimet kelpaavat, muut putoavat oletukseen (ei avointa välityspalvelinta).
+const ROUTING_UPSTREAMS = {
+  waltti: "https://api.digitransit.fi/routing/v2/waltti/gtfs/v1",
+  finland: "https://api.digitransit.fi/routing/v2/finland/gtfs/v1",
+};
+const ROUTING_UPSTREAM = ROUTING_UPSTREAMS.waltti;
+export function routingUpstream(router) {
+  return ROUTING_UPSTREAMS[String(router || "").toLowerCase()] || ROUTING_UPSTREAM;
+}
 const GEOCODING_UPSTREAM = "https://api.digitransit.fi/geocoding/v1";
 
 const ALLOWED_ORIGINS = new Set([
@@ -1240,7 +1250,7 @@ export default {
     }
     const gate = quotaGate(request, origin);
     if (gate) return gate;
-    const upstream = await fetch(ROUTING_UPSTREAM, {
+    const upstream = await fetch(routingUpstream(url.searchParams.get("router")), {
       method: "POST",
       headers: {
         "Content-Type": request.headers.get("Content-Type") || "application/json",
