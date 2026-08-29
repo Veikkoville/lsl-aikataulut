@@ -986,6 +986,19 @@ async function printHygiene(page, label) {
       document.body.classList.contains("monitor-mode") && !!document.getElementById("mClock"));
     monMode ? ok("monitori: kioskitila päällä (kello + monitor-mode)")
             : fail("monitori: kioskitila ei aktivoitunut");
+    // Yhteyskatko: taulu ei saa väittää "päivittyy reaaliajassa" vanhalla datalla, vaan
+    // näyttää ei yhteyttä -tilan ja säilyttää viimeksi ladatut lähdöt (ei tyhjää, ei valehtele).
+    const rowsBefore = await page.$$eval("#mRows tr", trs => trs.length).catch(() => 0);
+    await page.setOfflineMode(true);
+    await page.evaluate(() => refreshNow());
+    await page.setOfflineMode(false);
+    const staleShown = await page.waitForFunction(
+      () => { const el = document.querySelector("#mLive"); return el && !el.querySelector(".rt") && !!el.querySelector("svg"); },
+      { timeout: 5000 }).then(() => true).catch(() => false);
+    const rowsAfter = await page.$$eval("#mRows tr", trs => trs.length).catch(() => 0);
+    (staleShown && rowsAfter === rowsBefore && rowsAfter > 0)
+      ? ok("monitori: yhteyskatkolla näkyy ei yhteyttä -tila, lähdöt säilyvät")
+      : fail("monitori: yhteyskatkolla monitori väittää yhä olevansa reaaliaikainen tai lähdöt katosivat");
     // Poistuttaessa kioskitila puretaan
     await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
     const exited = await page.evaluate(() => !document.body.classList.contains("monitor-mode"));

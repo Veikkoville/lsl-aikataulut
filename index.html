@@ -4400,13 +4400,16 @@ async function cachedGql(key, query, variables) {
   }
 }
 
-function staleNoteHtml(ts) {
+function staleWhenText(ts) {
   const d = new Date(ts);
   const time = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
   const sameDay = d.toDateString() === new Date().toDateString();
-  const when = sameDay ? time
+  return sameDay ? time
     : t("dateAt", { date: d.toLocaleDateString(lang === "fi" ? "fi-FI" : lang === "sv" ? "sv-FI" : "en-GB"), time });
-  return `<p class="muted">${icon("warning")} ${t("staleNote", { when })}</p>`;
+}
+
+function staleNoteHtml(ts) {
+  return `<p class="muted">${icon("warning")} ${t("staleNote", { when: staleWhenText(ts) })}</p>`;
 }
 
 // Käynnistyssiivous: vanhentuneet ja ylimääräiset cache-avaimet pois
@@ -8176,7 +8179,7 @@ async function viewMonitor(stopId) {
   setView(`<p class="muted">${t("loadingStopDeps")}</p>`);
 
   const fetchStop = async () => {
-    const { data } = await cachedGql("monitor:" + stopId,
+    const { data, cachedAt } = await cachedGql("monitor:" + stopId,
       `query ($id: String!) {
          stop(id: $id) {
            name@L code
@@ -8188,8 +8191,14 @@ async function viewMonitor(stopId) {
        }`, { id: stopId });
     if (!data.stop) throw new Error(t("errStopNotFound") + stopId);
     dedupStopDuplicates(data.stop);
-    return data.stop;
+    return { stop: data.stop, cachedAt };
   };
+  // Kioskinäyttö on ilman valvojaa: jos verkko katkeaa, taulu EI saa jäädä väittämään
+  // "päivittyy reaaliajassa" vanhalla datalla (lähtöjen minuuttilaskuri jäätyisi hetkeen
+  // jolloin yhteys katkesi). cachedGql palauttaa cachedAt:n kun se tarjoilee välimuistia.
+  const liveStatusHtml = cachedAt => cachedAt
+    ? `${icon("warning")} ${t("staleNote", { when: staleWhenText(cachedAt) })}`
+    : `<span class="rt">●</span> ${t("monitorLive")}`;
 
   const rowsHtml = stop => {
     const sts = stop.stoptimesWithoutPatterns || [];
@@ -8206,8 +8215,8 @@ async function viewMonitor(stopId) {
     }).join("");
   };
 
-  let stop;
-  try { stop = await fetchStop(); }
+  let stop, cachedAt;
+  try { ({ stop, cachedAt } = await fetchStop()); }
   catch (err) { showError(err); return; }
 
   document.body.classList.add("monitor-mode");
@@ -8223,7 +8232,7 @@ async function viewMonitor(stopId) {
       </table>
       <div class="m-foot">
         <a href="#/pysakki/${encodeURIComponent(stopId)}" class="m-exit">✕ ${t("monitorExit")}</a>
-        <span class="muted"><span class="rt">●</span> ${t("monitorLive")}</span>
+        <span class="muted" id="mLive">${liveStatusHtml(cachedAt)}</span>
       </div>
     </div>`);
 
@@ -8243,8 +8252,10 @@ async function viewMonitor(stopId) {
     try {
       const fresh = await fetchStop();
       const tbody = document.getElementById("mRows");
-      if (tbody) tbody.innerHTML = rowsHtml(fresh);
-    } catch (err) { /* verkkohikka: säilytetään edelliset, yritetään 30 s päästä */ }
+      if (tbody) tbody.innerHTML = rowsHtml(fresh.stop);
+      const live = document.getElementById("mLive");
+      if (live) live.innerHTML = liveStatusHtml(fresh.cachedAt);
+    } catch (err) { /* verkkohikka ilman cachea: säilytetään edelliset, yritetään 30 s päästä */ }
   };
   refreshTimer = setInterval(refreshNow, 30000);
 }
