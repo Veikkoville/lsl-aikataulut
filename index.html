@@ -2678,6 +2678,42 @@ const CONFIGS = {
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
   },
+  // Turku / Föli (lisätty 29.8.2026, Villen pyyntö; ohittaa aiemman "iso kaupunki" -rajauksen).
+  // Feed FOLI Waltti-routerissa: 141 linjaa, ~4 360 vuoroa/arkipäivä, 3 573 pysäkkiä, koko
+  // seudun viranomaisliikenne (Turku, Kaarina, Raisio, Naantali, Lieto, Rusko).
+  // Presetit valittu talvi 2026 -datalla (feed 14.8.–21.11.), kesä todentamatta.
+  // Ei fares-lohkoa ennen kuin hinnat on varmennettu foli.fi:stä.
+  turku: {
+    city: "Turku",
+    cityGenitive: "Turun",
+    cityNames: { sv: "Åbo" },
+    cityGenitives: { sv: "Åbo" },
+    operator: "Föli, Turun seudun joukkoliikenne",
+    operatorShort: "Föli",
+    feedMatch: /^FOLI$/i,          // ankkuroitu: FUNI (Föri + funikulaari) on eri feed
+    rail: "TKU",                    // Turku asema (rata.digitraffic)
+    heroEmphasis: "layer",
+    externalPlanner: { url: "https://reittiopas.foli.fi", name: "Fölin reittiopas" },
+    centerStopNames: ["Kauppatori"],
+    hubs: [
+      { key: "kauppatori", name: "Kauppatori", center: { lat: 60.45100, lon: 22.26750 } },
+    ],
+    // Käytävät mitattu 29.8.2026 talvidatasta: yhteinen pysäkkijakso molemmissa suunnissa
+    // 6+6A 36/34, 5+5A 32/31, 9+9A 33/32 (vuorot/pv 111+110, 151+111, 93+88).
+    corridors: [
+      { key: "naantali", name: { fi: "Naantalin suunta", sv: "Riktning Nådendal", en: "Naantali direction" }, lines: ["6", "6A"] },
+      { key: "haarla", name: { fi: "Ylioppilaskylä–Haarla", sv: "Studentbyn–Haarla", en: "Ylioppilaskylä–Haarla" }, lines: ["5", "5A"] },
+      { key: "uittamo", name: { fi: "Uittamon suunta", sv: "Riktning Uittamo", en: "Uittamo direction" }, lines: ["9", "9A"] },
+    ],
+    brandColor: "#e8aa27",          // reittiopas.foli.fi theme-color (Föli-keltainen)
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      focus: { lat: 60.4518, lon: 22.2666 },
+      // Naantalin saaristo (Velkua) lännessä, Lieto idässä, Rusko pohjoisessa
+      rect: { minLat: 60.30, maxLat: 60.62, minLon: 21.55, maxLon: 22.60 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
 };
 
 const cityKey = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();
