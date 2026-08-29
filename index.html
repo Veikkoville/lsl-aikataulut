@@ -2693,7 +2693,7 @@ const CONFIGS = {
     feedMatch: /^FOLI$/i,          // ankkuroitu: FUNI (Föri + funikulaari) on eri feed
     rail: "TKU",                    // Turku asema (rata.digitraffic)
     heroEmphasis: "layer",
-    externalPlanner: { url: "https://reittiopas.foli.fi", name: "Fölin reittiopas" },
+    externalPlanner: { url: "https://reittiopas.foli.fi", name: "Föli" },  // "{name}-reittiopas"
     centerStopNames: ["Kauppatori"],
     hubs: [
       { key: "kauppatori", name: "Kauppatori", center: { lat: 60.45100, lon: 22.26750 } },
@@ -2713,6 +2713,41 @@ const CONFIGS = {
       rect: { minLat: 60.30, maxLat: 60.62, minLon: 21.55, maxLon: 22.60 },
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
+  },
+  // Inkoo / Ingå (lisätty 29.8.2026): ensimmäinen ei-Waltti-kunta. Liikenne on ELY:n ostamaa ja
+  // markkinaehtoista, joten data tulee Fintrafficin valtakunnallisesta MATKA-feedistä
+  // `finland`-routerin kautta (CONFIG.router). MATKA kattaa koko Suomen (1 800 linjaa), joten
+  // linjajoukko rajataan kunnan alueeseen (`areaScoped`) eikä feediin: alueella pysähtyvät
+  // linjat haetaan yhdellä bbox-kyselyllä, jolloin rajaus seuraa dataa eikä käsin ylläpidettyä
+  // listaa. Mitattu 29.8.: 233 pysäkkiä, 54 MATKA-linjaa, joista 51 liikennöi.
+  // Junat tulevat rata.digitraffic-integraatiosta (`rail`), eivät GTFS-feedistä.
+  // EI reaaliaikaa (MATKA-feedissä ei GTFS-RT:tä) eikä Inkyyti-kutsuliikennettä (ei ole GTFS).
+  // Ei fares-lohkoa: hinnat ovat ELY:n ja liikennöitsijöiden, ei kunnan, eikä niitä ole varmennettu.
+  inkoo: {
+    city: "Inkoo",
+    cityGenitive: "Inkoon",
+    cityNames: { sv: "Ingå" },
+    cityGenitives: { sv: "Ingå" },
+    operator: "Uudenmaan ELY-keskus ja alueen liikennöitsijät",
+    operatorShort: "Inkoo",
+    dataSource: "Fintraffic",
+    router: "finland",
+    feedMatch: /^MATKA$/,
+    areaScoped: true,
+    rail: "IKO", // Inkoon asema, Hanko-rata (HL-juna Helsinki-Hanko)
+    centerStopNames: ["Inkoo"],
+    hubs: [
+      { key: "inkoo", name: "Inkoo", center: { lat: 60.04270, lon: 24.00621 } },
+    ],
+    brandColor: "#1c576f", // inkoo.fi:n hallitseva väri (vaakunan sininen); ei virallista brändiohjetta
+    proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
+    area: {
+      focus: { lat: 60.045, lon: 24.007 },
+      // Degerby, Tähtelä, Barösund, Inkoonportti ja asema mahtuvat; mitattu 29.8.
+      rect: { minLat: 59.93, maxLat: 60.16, minLon: 23.80, maxLon: 24.20 },
+    },
+    mqttUrl: "wss://mqtt.digitransit.fi:443/",
+    vehicleRealtime: false,
   },
 };
 
@@ -2789,7 +2824,7 @@ const STRINGS = {
     nlNeedBoth: "En saanut kiinni lähtöä ja määränpäätä. Kokeile esim. \"{exFrom} → {exTo}\".",
     nlMicError: "Puheentunnistus ei onnistunut. Voit kirjoittaa matkan.",
     footerNote: "Tämä on epävirallinen esittelyversio (demo), joka ei ole liikennöitsijän ({operator}) tuottama eikä hyväksymä.",
-    footData: 'Aikataulu- ja reaaliaikadata: {operatorShort} / Waltti avoin data Digitransit-rajapinnan kautta, lisenssi <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="license noopener" target="_blank">CC BY 4.0</a>.',
+    footData: 'Aikataulu- ja reaaliaikadata: {operatorShort} / {dataSource} avoin data Digitransit-rajapinnan kautta, lisenssi <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="license noopener" target="_blank">CC BY 4.0</a>.',
     footColService: "Palvelu",
     footColInfo: "Tietoa",
     footProvider: "Palveluntarjoaja",
@@ -3291,7 +3326,7 @@ const STRINGS = {
     nlNeedBoth: "I couldn't catch the origin and destination. Try e.g. \"from {exFrom} to {exTo}\".",
     nlMicError: "Speech recognition failed. You can type the trip instead.",
     footerNote: "This is an unofficial demo, neither produced nor endorsed by the transit authority ({operator}).",
-    footData: 'Timetable and real-time data: {operatorShort} / Waltti open data via the Digitransit API, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener" target="_blank">CC BY 4.0</a>.',
+    footData: 'Timetable and real-time data: {operatorShort} / {dataSource} open data via the Digitransit API, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener" target="_blank">CC BY 4.0</a>.',
     footColService: "Service",
     footColInfo: "About",
     footProvider: "Service provider",
@@ -3767,7 +3802,7 @@ const STRINGS = {
     nlNeedBoth: "Jag uppfattade inte start och destination. Försök t.ex. \"från {exFrom} till {exTo}\".",
     nlMicError: "Taligenkänningen misslyckades. Du kan skriva resan istället.",
     footerNote: "Detta är en inofficiell demoversion som varken har producerats eller godkänts av trafikbolaget ({operator}).",
-    footData: 'Tidtabells- och realtidsdata: {operatorShort} / Waltti öppna data via Digitransit-gränssnittet, licens <a href="https://creativecommons.org/licenses/by/4.0/deed.sv" rel="license noopener" target="_blank">CC BY 4.0</a>.',
+    footData: 'Tidtabells- och realtidsdata: {operatorShort} / {dataSource} öppna data via Digitransit-gränssnittet, licens <a href="https://creativecommons.org/licenses/by/4.0/deed.sv" rel="license noopener" target="_blank">CC BY 4.0</a>.',
     footColService: "Tjänst",
     footColInfo: "Information",
     footProvider: "Tjänsteleverantör",
@@ -4286,6 +4321,9 @@ function tIn(l, key, params) {
   let s = (STRINGS[l] || STRINGS.fi)[key] ?? STRINGS.fi[key] ?? key;
   const all = { city: cityName(), cityGen: cityGenName(),
                 operator: CONFIG.operator, operatorShort: CONFIG.operatorShort,
+                // Avoimen datan lähde: Waltti-kaupungeissa Waltti, valtakunnallisella
+                // feedillä (ei-Waltti-kunnat) Fintraffic. Attribuution on oltava oikein.
+                dataSource: CONFIG.dataSource || "Waltti",
                 network: networkPhrase(),
                 exFrom: nlExample(0), exTo: nlExample(1), ...params };
   return s.replace(/\{(\w+)\}/g, (_, k) => all[k] ?? "");
@@ -4383,7 +4421,10 @@ function localizeQuery(query) {
   return query.replace(/@L\b/g, lang === FEED_LANG ? "" : `(language: "${lang}")`);
 }
 
-async function gql(query, variables) {
+// opts.allowPartial: hyväksy vastaus, jossa on sekä dataa että kenttäkohtaisia virheitä.
+// Tarvitaan finland-routerissa: osalla feedeistä ei ole FeedInfoa, jolloin publisher-kenttä
+// virhettää yksitellen vaikka feeds-lista itsessään on täysin käyttökelpoinen.
+async function gql(query, variables, opts) {
   const headers = { "Content-Type": "application/json" };
   if (!PROXY_URL) headers["digitransit-subscription-key"] = apiKey;
   const res = await fetch(API_URL, {
@@ -4396,7 +4437,8 @@ async function gql(query, variables) {
   }
   if (!res.ok) throw new Error(t("errApi") + "HTTP " + res.status);
   const json = await res.json();
-  if (json.errors) throw new Error(t("errApi") + json.errors.map(e => e.message).join("; "));
+  if (json.errors && !(opts && opts.allowPartial && json.data))
+    throw new Error(t("errApi") + json.errors.map(e => e.message).join("; "));
   return json.data;
 }
 
@@ -4472,8 +4514,8 @@ function staleNoteHtml(ts) {
 
 async function findFeed() {
   if (feedId) return feedId;
-  const data = await gql(`{ feeds { feedId publisher { name } } }`);
-  const hit = data.feeds.find(f =>
+  const data = await gql(`{ feeds { feedId publisher { name } } }`, null, { allowPartial: true });
+  const hit = (data.feeds || []).find(f =>
     CONFIG.feedMatch.test(f.feedId) || CONFIG.feedMatch.test(f.publisher?.name || ""));
   if (!hit) throw new Error(t("errFeedNotFound"));
   feedId = hit.feedId;
@@ -4500,6 +4542,24 @@ function activeProbeDates() {
 // ettei SV-lista palauta FI-longNameja. FI = oletus → avain ennallaan.
 function routesCacheKey() { return "routesCache4" + (lang === "fi" ? "" : ":" + lang); }
 
+// CONFIG.areaScoped: kunnan alueella pysähtyvien linjojen id:t (yksi kysely, ~80 ms).
+// Suodatus feed-etuliitteellä pitää tuloksen yhdessä feedissä: sama linja on usein sekä
+// MATKA- että kaupunkifeedissä (Inkoossa 191 ja 192), ja tupla näkyisi listassa kahdesti.
+async function areaRouteIds(feed) {
+  const r = AREA.rect;
+  const box = await gql(
+    `query ($minLat: Float!, $minLon: Float!, $maxLat: Float!, $maxLon: Float!) {
+       stopsByBbox(minLat: $minLat, minLon: $minLon, maxLat: $maxLat, maxLon: $maxLon) {
+         routes { gtfsId }
+       }
+     }`, { minLat: r.minLat, minLon: r.minLon, maxLat: r.maxLat, maxLon: r.maxLon });
+  const ids = [...new Set((box.stopsByBbox || [])
+    .flatMap(s => (s.routes || []).map(x => x.gtfsId)))]
+    .filter(id => id.startsWith(feed + ":"));
+  if (!ids.length) throw new Error(t("errFeedNotFound"));
+  return ids;
+}
+
 async function loadRoutes() {
   if (routesCache) return routesCache;
   try {
@@ -4515,10 +4575,19 @@ async function loadRoutes() {
   // tulevia lähtöjä (esim. talvi-/koululinjat kesällä).
   const dates = activeProbeDates();
   const aliases = dates.map((d, i) => `d${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
-  const data = await gql(
-    `query ($feeds: [String]) {
-       routes(feeds: $feeds) { gtfsId shortName longName@L mode color textColor patterns { ${aliases} } }
-     }`, { feeds: [feed] });
+  // Valtakunnallinen feed (MATKA = koko Suomi, 1 800 linjaa) ei rajaa kuntaa, joten
+  // CONFIG.areaScoped-kaupungeissa linjajoukko rajataan alueeseen: yksi bbox-kysely antaa
+  // alueen pysäkit ja niillä liikennöivät linjat, ja vain ne haetaan. Rajaus seuraa dataa,
+  // joten uusi linja alueelle ilmestyy itsestään eikä linjanumeron muutos riko listaa.
+  const data = CONFIG.areaScoped
+    ? await gql(
+        `query ($ids: [String]) {
+           routes(ids: $ids) { gtfsId shortName longName@L mode color textColor patterns { ${aliases} } }
+         }`, { ids: await areaRouteIds(feed) })
+    : await gql(
+        `query ($feeds: [String]) {
+           routes(feeds: $feeds) { gtfsId shortName longName@L mode color textColor patterns { ${aliases} } }
+         }`, { feeds: [feed] });
   const tripCount = r => (r.patterns || []).reduce((n, p) => n + dates.reduce((m, _, i) => m + (p["d" + i] || []).length, 0), 0);
   const isActive = r => tripCount(r) > 0;
   // varakeino: jos jostain syystä mikään linja ei näytä aktiiviselta, näytetään kaikki
@@ -6641,6 +6710,9 @@ function dominantRouteColor(routes) {
 
 // Linjan virallinen brändiväri badgessa, kun syöte sen kertoo
 function badgeHtml(route, fallback) {
+  // Numerottomat linjat (ELY-vuorot MATKA-feedissä: "Karjaa - Inkoo") jätetään ilman
+  // merkkiä; tyhjä värillinen laatikko näyttäisi rikkinäiseltä.
+  if (!route?.shortName && !fallback) return "";
   const style = route?.color
     ? ` style="background:#${route.color};color:${badgeText(route.color, route.textColor)}"` : "";
   return `<span class="badge"${style}>${esc(route?.shortName || fallback || "")}</span>`;
@@ -7041,7 +7113,7 @@ function viewRoutes() {
             ? ` style="--rc:#${r.color};--rt:${badgeText(r.color, r.textColor)}"` : "";
           return `<li><a class="route-tile" href="#/linja/${encodeURIComponent(r.gtfsId)}"${style}
               title="${esc(r.longName || "")}" aria-label="${esc((r.shortName || "") + " " + (r.longName || ""))}">
-              <span class="rt-badge${special ? " special" : ""}">${esc(r.shortName || "")}</span>
+              ${r.shortName ? `<span class="rt-badge${special ? " special" : ""}">${esc(r.shortName)}</span>` : ""}
               <span class="rt-name">${esc(r.longName || "")}</span></a></li>`;
         })
         .join("") || `<li style="grid-column:1/-1"><p class="muted">${t("noMatches")}</p></li>`;

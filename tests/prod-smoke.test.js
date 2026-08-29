@@ -124,6 +124,10 @@ let CITIES = [ // let eika const: SMOKE_CITIES suodattaa taman eraajossa
   // Turku/Föli 29.8.2026: suurin kaupunki (141 linjaa, 26-laiturinen Kauppatori). Erä 2.
   // Presetit talvidatalla; kesäkoetus puuttuu (feed 14.8.-21.11.), kausivalidointi vahtii.
   { key: "turku", gen: "Turun", svTitle: "Busstidtabeller i Åbo" },
+  // Inkoo 29.8.2026: ensimmäinen ei-Waltti-kunta (MATKA-feed, finland-router, aluerajattu
+  // linjajoukko). Ei käytäväpresettejä: linjat ovat kaukoliikennettä, joten käytävätaulukko
+  // kattaisi koko linjan (192+192M = 183 yhteistä pysäkkiä) eikä mahtuisi tulosteeseen.
+  { key: "inkoo", gen: "Inkoon", svTitle: "Busstidtabeller i Ingå", noCorridors: true },
 ];
 
 // Erarajaus. Tuntematon kaupunkiavain on kirjoitusvirhe eika tyhja era: se kaadetaan
@@ -645,12 +649,21 @@ function writeReport() {
       // --- 6) Yhdistetyt suunnat (käytävä): presetti → monen linjan yhteinen taulukko,
       //        ≥2 suuntaa (silmukkaverkossa city.corridorDirs), aikajärjestys,
       //        tuloste puhdasta tekstiä + legenda ---
+      // Kunnissa joissa käytäväpresettejä ei ole (city.noCorridors) tarkistus ohitetaan tietoisesti:
+      // puuttuva presetti on CONFIGin päätös, ei regressio. Kaikki muut tarkistukset ajetaan.
+      if (city.noCorridors) {
+        info(city.key, "yhdistetyt suunnat", "ei käytäväpresettejä (CONFIG) - tarkistus ohitettu");
+      } else {
       await page.goto(url("#/tulosteet/kaytava"), { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
       const preOk = await page.waitForSelector("[data-corridor]", { timeout: 30000 }).then(() => true).catch(() => false);
       if (!preOk) {
         fail(city.key, "yhdistetyt suunnat", "käytäväpresettejä ei löytynyt");
       } else {
         await page.click("[data-corridor]");
+        // #corrGo ilmestyy vasta kun linjalista on ladattu. Ilman odotusta klikkaus kaatuu
+        // ajoittain harness-virheeseen ("No element found for selector: #corrGo"), mikä
+        // punaisi viikkoajon ilman todellista regressiota (todettu Raaseporilla 29.8.2026).
+        await page.waitForSelector("#corrGo", { timeout: 60000 });
         await page.click("#corrGo");
         const corrOk = await page.waitForFunction(
           () => document.querySelectorAll("#corridorOut table.corridor tbody tr").length >= 1,
@@ -740,6 +753,7 @@ function writeReport() {
                 `määränpää leikkautuu tulosteessa: ${clipped.join(" | ")}`);
         }
       }
+      } // city.noCorridors
 
       // --- 6a) Palvelutiski (#/palvelutiski): oletuspysäkki avautuu ja siinä on linjoja.
       //         Pariteettivahti: oletuspysäkki nojaa CONFIG.centerStopNames/hubs-kenttiin,
