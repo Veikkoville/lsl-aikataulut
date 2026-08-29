@@ -21,7 +21,7 @@ on:
         required: true
         default: 'koeajo'
   schedule:
-    - cron: '0 1 * * 2-6'   # ti-la 01:00 UTC = 04:00 Suomen aikaa, ei ma (smoke/kausivalidointi)
+    - cron: '17 1 * * 2-6'  # ti-la 01:17 UTC = 04:17 Suomen aikaa, ei ma (smoke/kausivalidointi); ei taystuntia, GitHub ohittaa niita
 
 permissions:
   contents: write
