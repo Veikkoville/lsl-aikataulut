@@ -2224,7 +2224,15 @@ const CONFIGS = {
     // 192T:n primaripatternit sen sijaan ajavat koko Tammisaari-ketjun.
     // Kaksikieliset nimet (SV-kärki): corridorName() valitsee kielen mukaan.
     corridors: [
-      { key: "tammisaari", name: { fi: "Tammisaaren suunta", sv: "Riktning Ekenäs", en: "Ekenäs direction" }, lines: ["201", "201s", "192T"] },
+      // Preset korjattu 29.8.2026. Vanha valinta 201+201s+192T tuotti vain YHDEN suunnan, koska
+      // 201s ajaa vain suuntaan 1: kolmen linjan yhteinen pysäkkijakso katosi toisesta suunnasta.
+      // Uusi valinta on mitattu sovelluksen omalla corridorBuildilla arkipäivälle (ma 31.8.), ei
+      // pelkalla pysakkijoukon leikkauksella: käytävä vaatii yhteisen jakson SAMASSA JÄRJESTYKSESSÄ,
+      // joten setti-mittaus antaa harhaanjohtavan hyvän tuloksen (201+192T näytti 24/25 mutta antoi
+      // 0 suuntaa). Tulokset: 201+192V = 2 suuntaa, 11/14 riviä, otsikot Tammisaari <-> Karjaa;
+      // 201+192V+111H = 2 suuntaa, 12/16 riviä (hylätty: kolmen linjan preset on hauraampi, juuri
+      // sellainen hajosi nyt). Kausivalidointi vahtii jatkossa.
+      { key: "tammisaari", name: { fi: "Tammisaaren suunta", sv: "Riktning Ekenäs", en: "Ekenäs direction" }, lines: ["201", "192V"] },
       { key: "fiskars", name: { fi: "Fiskarsin suunta", sv: "Riktning Fiskars", en: "Fiskars direction" }, lines: ["134", "134n"] },
     ],
     // BOSSE-vihreä = reittioppaan oma teemaväri (bosse.digitransit.fi meta theme-color,
