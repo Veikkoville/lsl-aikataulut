@@ -659,6 +659,14 @@ function writeReport() {
       if (!preOk) {
         fail(city.key, "yhdistetyt suunnat", "käytäväpresettejä ei löytynyt");
       } else {
+        // Käytävätarkistus ajetaan samalle arkipäivälle kuin muutkin tarkistukset
+        // (searchTimeHelsinki ohittaa viikonlopun). Ilman tätä kaytava kaytti "tanaan":
+        // 29.8.2026 lauantaina Raaseporin presetista ajoi vain 201 (192T ja 201s eivat
+        // lainkaan), jolloin taulukkoon tuli 1 suunta ja ajo punasi taysin aiheetta.
+        await page.evaluate(pvm => {
+          const el = document.getElementById("corrDate");
+          if (el) { el.value = pvm; el.dispatchEvent(new Event("change", { bubbles: true })); }
+        }, searchTime.slice(0, 10));
         await page.click("[data-corridor]");
         // #corrGo ilmestyy vasta kun linjalista on ladattu. Ilman odotusta klikkaus kaatuu
         // ajoittain harness-virheeseen ("No element found for selector: #corrGo"), mikä
