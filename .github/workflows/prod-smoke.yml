@@ -11,15 +11,10 @@ on:
     - cron: "0 4 * * 1"
     # Erä 2 (laaja kattavuus) torstaisin 18:00 UTC (21:00 Suomen kesäaikaa).
     # ILTA ON TARKOITUKSELLINEN: 10.8. klo 17:43 UTC ajo oli täysin vihreä samalla
-    # kuormalla joka kaatui aamulla, ja 04:00 UTC on sama minuutti kuin talvifeed-ikkunan
+    # kuormalla joka kaatui aamulla, ja 04:00 UTC on sama minuutti kuin eran 1
     # ajo → aamuun sijoitettuna erät kuluttaisivat kiintiötä yhtä aikaa kahdessa
     # rinnakkaisessa RUNissa, mitä max-parallel EI estä (se koskee vain saman runin matriisia).
     - cron: "0 18 * * 4"
-    # ⚠️ TALVIFEED-IKKUNA: päivittäin 8.–15.8. klo 04:00 UTC, VAIN erä 1. LSL:n talvifeed
-    # vaihtuu 10.8.2026 ja KOUL/LOMA-validointi on 12.8.2026 — tihennetty ajo vahtii vaihtoa.
-    # POISTA TÄMÄ RIVI ikkunan jälkeen (elokuun 2026 lopussa): cron ei tunne vuotta,
-    # joten rivi laukeaisi uudelleen joka elokuu (2027, 2028, ...).
-    - cron: "0 4 8-15 8 *"
 
 permissions:
   contents: read
@@ -41,15 +36,15 @@ jobs:
           # CONFIG-jarjestysta vaan seurantatarvetta, ja se paivitetaan kasin tarpeen
           # mukaan. Tekninen ehto: kumpikin erä pysyy alle kiintiörajan yksin ajettuna.
           era1='{"era":1,"cities":"lahti,kuopio,vaasa,raasepori,kouvola,mikkeli","delay":"0"}'
-          era2='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi,turku","delay":"0"}'
-          era2_viiveella='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi,turku","delay":"600000"}'
+          era2='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi,turku,inkoo","delay":"0"}'
+          era2_viiveella='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi,turku,inkoo","delay":"600000"}'
           case "$LAUKAISIN" in
             # Torstai-ilta: era 2 yksin.
             "0 18 * * 4") mukaan="[$era2]" ;;
             # Tyhja = workflow_dispatch: molemmat erat sarjassa, 10 min valissa
             # (kasiajo halutaan taydelliseksi kattavuudeksi, ja se ajetaan valvotusti).
             "")           mukaan="[$era1,$era2_viiveella]" ;;
-            # Maanantai + talvifeed-ikkuna: era 1.
+            # Maanantai: era 1.
             *)            mukaan="[$era1]" ;;
           esac
           echo "matrix={\"include\":$mukaan}" >> "$GITHUB_OUTPUT"
