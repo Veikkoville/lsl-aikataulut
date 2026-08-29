@@ -667,12 +667,16 @@ function writeReport() {
           const el = document.getElementById("corrDate");
           if (el) { el.value = pvm; el.dispatchEvent(new Event("change", { bubbles: true })); }
         }, searchTime.slice(0, 10));
-        await page.click("[data-corridor]");
-        // #corrGo ilmestyy vasta kun linjalista on ladattu. Ilman odotusta klikkaus kaatuu
-        // ajoittain harness-virheeseen ("No element found for selector: #corrGo"), mikä
-        // punaisi viikkoajon ilman todellista regressiota (todettu Raaseporilla 29.8.2026).
+        // Klikataan DOMista eikä koordinaateista: Puppeteer laskee klikkauspisteen ennen
+        // lähetystä, ja käytäväsivun linjalista (Raaseporissa 40 valintaruutua) latautuu
+        // asynkronisesti, jolloin asettelu ehtii siirtyä välissä ja klikkaus osuu ohi.
+        // Oire 29.8.2026 tuotantoa vasten: sovellus siirtyi etusivulle ja #corrGo katosi,
+        // jolloin ajo punasi satunnaisesti ilman todellista regressiota (3/3 lapi kun
+        // klikkausta edelsi vieritys, kaatui ilman). el.click() on immuuni siirtymille.
+        await page.$eval("[data-corridor]", el => el.click());
+        // #corrGo ilmestyy vasta kun linjalista on ladattu.
         await page.waitForSelector("#corrGo", { timeout: 60000 });
-        await page.click("#corrGo");
+        await page.$eval("#corrGo", el => el.click());
         const corrOk = await page.waitForFunction(
           () => document.querySelectorAll("#corridorOut table.corridor tbody tr").length >= 1,
           { timeout: 120000 }).then(() => true).catch(() => false);
