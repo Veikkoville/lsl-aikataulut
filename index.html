@@ -2691,7 +2691,7 @@ const CONFIGS = {
   // Feed FOLI Waltti-routerissa: 141 linjaa, ~4 360 vuoroa/arkipäivä, 3 573 pysäkkiä, koko
   // seudun viranomaisliikenne (Turku, Kaarina, Raisio, Naantali, Lieto, Rusko).
   // Presetit valittu talvi 2026 -datalla (feed 14.8.–21.11.), kesä todentamatta.
-  // Ei fares-lohkoa ennen kuin hinnat on varmennettu foli.fi:stä.
+  // Hinnat varmennettu 29.8.2026 Fölin virallisesta hinnastosta (ks. fares-lohko).
   turku: {
     city: "Turku",
     cityGenitive: "Turun",
@@ -2706,6 +2706,93 @@ const CONFIGS = {
     hubs: [
       { key: "kauppatori", name: "Kauppatori", center: { lat: 60.45100, lon: 22.26750 } },
     ],
+    // Hinnasto varmennettu 29.8.2026 Fölin virallisesta hinnastosta (voimassa 1.1.2026 alkaen).
+    // Fölin rakenne poikkeaa Waltti-kaupungeista: matkakortin ARVO on halvin (2,60 €), erikseen
+    // ostettu kertalippu ja lähimaksu maksavat 3,15 € ja kuljettajalta käteisellä 4,50 €, joten
+    // käteinen on oma rivinsä (single.cash). Alennusryhmien hinnat edellyttävät matkakorttia ja
+    // kotikuntaa Föli-alueella; kertalipussa 15–19-vuotias maksaa aikuisen hinnan.
+    fares: {
+      checked: "29.8.2026",
+      url: "https://www.foli.fi/fi/liput",
+      // reduced = 15–19 v, opiskelijat, seniorit (yli 65 v) ja vammaiset. Hinnastossa nämä ovat
+      // kaksi eri saraketta, mutta jokainen hinta on molemmissa sama, joten ne yhdistetään.
+      single: {
+        cardApp: { adult: "2,60", child: "1,30", reduced: "1,90" },
+        contactless: "",
+        salespoint: { adult: "3,15", child: "1,55", reduced: "3,15" },
+        cash: { adult: "4,50", child: "2", reduced: "4,50" },
+      },
+      season: [
+        { d: "10", adult: "26", child: "13,50", reduced: "18,70" },
+        { d: "30", adult: "57", child: "28", reduced: "40" },
+        { d: "90", adult: "153,40", child: "76,70", reduced: "107,40" },
+        { d: "365", adult: "554,50", child: "277,80", reduced: "388,70" },
+      ],
+      // Vuorokausilipulla on yksi hinta ikäryhmästä riippumatta (hinnastossa yksi sarake) →
+      // sama luku molemmissa sarakkeissa, ja dayNote kertoo miksi.
+      day: [
+        { d: "1", adult: "8,30", child: "8,30" },
+        { d: "2", adult: "11,40", child: "11,40" },
+        { d: "3", adult: "14,60", child: "14,60" },
+        { d: "4", adult: "17,70", child: "17,70" },
+        { d: "5", adult: "20,80", child: "20,80" },
+        { d: "6", adult: "23,90", child: "23,90" },
+        { d: "7", adult: "27", child: "27" },
+      ],
+      capDay: "8,30", capWeek: "27", cardFee: "5,20",
+      i18n: {
+        flatTitle: { fi: "Yksi hinta koko Föli-alueella",
+          sv: "Ett pris i hela Föli-området", en: "One price across the whole Föli area" },
+        flatBody: {
+          fi: "Sama lippu kelpaa Turussa, Kaarinassa, Raisiossa, Naantalissa, Liedossa, Ruskolla ja Paimiossa, eikä matkan pituus vaikuta hintaan. Alle 7-vuotiaat matkustavat maksutta maksavan matkustajan seurassa. Alennushinnat edellyttävät matkakorttia ja kotikuntaa tai asunto-osoitetta Föli-alueella.",
+          sv: "Samma biljett gäller i Åbo, S:t Karins, Reso, Nådendal, Lundo, Rusko och Pemar, och resans längd påverkar inte priset. Barn under 7 år reser gratis i sällskap med en betalande passagerare. Rabattpriserna förutsätter resekort och hemkommun eller bostadsadress i Föli-området.",
+          en: "The same ticket is valid in Turku, Kaarina, Raisio, Naantali, Lieto, Rusko and Paimio, and journey length does not affect the price. Children under 7 travel free with a paying passenger. Discount fares require a travel card and a home municipality or address in the Föli area." },
+        transfer: {
+          fi: "Kertalipulla ja arvokortilla on 2 tunnin vaihtoaika. Taulukossa on arvokortin normaalihinta: yöhinta klo 23.00–04.00 on aikuiselta 3,60 €, lapselta 2,30 € ja alennusryhmältä 2,90 €, ja alennusryhmän päivähinta ma–pe klo 9.00–12.59 on 1,70 €. Kertalipun yölisä on 1 €.",
+          sv: "Engångsbiljetten och värdekortet har 2 timmars bytestid. Tabellen visar värdekortets normalpris: nattpriset kl. 23.00–04.00 är 3,60 € för vuxna, 2,30 € för barn och 2,90 € för rabattgrupper, och rabattgruppernas dagpris mån–fre kl. 9.00–12.59 är 1,70 €. Nattillägget för engångsbiljetten är 1 €.",
+          en: "Single tickets and travel card value include a 2-hour transfer window. The table shows the normal value-card price: the night price from 23.00 to 04.00 is 3.60 € for adults, 2.30 € for children and 2.90 € for discount groups, and the discount-group daytime price on weekdays from 9.00 to 12.59 is 1.70 €. The night surcharge on a single ticket is 1 €." },
+        colAdult: { fi: "Aikuinen (yli 20 v)", sv: "Vuxen (över 20 år)", en: "Adult (over 20)" },
+        colChild: { fi: "Lapsi (alle 15 v)", sv: "Barn (under 15 år)", en: "Child (under 15)" },
+        colReduced: { fi: "15–19 v / opiskelija / seniori (65+) / vammainen",
+          sv: "15–19 år / studerande / senior (65+) / handikappad",
+          en: "15–19 / student / senior (65+) / disabled" },
+        methodCardApp: { fi: "Arvokortti tai Föli-sovelluksen arvo",
+          sv: "Värdekort eller värde i Föli-appen", en: "Travel card value or Föli app value" },
+        methodSalespoint: { fi: "Kertalippu: sovellus, automaatti, palvelupiste, R-kioski tai lähimaksu",
+          sv: "Engångsbiljett: appen, biljettautomat, servicepunkt, R-kiosk eller närbetalning",
+          en: "Single ticket: app, ticket machine, service point, R-kioski or contactless" },
+        methodCash: { fi: "Käteisellä kuljettajalta", sv: "Kontant av föraren", en: "Cash from the driver" },
+        caps: { fi: "Lähimaksun hintakatto: {day} € / vrk ja {week} € / 7 vrk. Useammasta matkasta ei veloiteta enempää.",
+          sv: "Närbetalningens pristak: {day} € / dygn och {week} € / 7 dygn. Fler resor debiteras inte utöver detta.",
+          en: "Contactless price cap: {day} € per day and {week} € per 7 days. Additional journeys are not charged beyond this." },
+        cardFee: { fi: "Matkakortin lunastusmaksu {n} €.", sv: "Inlösningsavgift för resekortet {n} €.",
+          en: "Travel card issue fee {n} €." },
+        dayNote: { fi: "Vuorokausilipulla on sama hinta kaikille ikäryhmille, ja sen voi ostaa 1–7 vuorokaudeksi.",
+          sv: "Dygnsbiljetten kostar lika mycket för alla åldersgrupper och kan köpas för 1–7 dygn.",
+          en: "The day ticket costs the same for all age groups and can be bought for 1 to 7 days." },
+        where: {
+          fi: ["Föli-sovellus (kerta-, vuorokausi- ja kausiliput)",
+            "Fölikauppa (kauppa.foli.fi) ja lippuautomaatit",
+            "Palvelupisteet: Kauppatorin Monitori, Fiskari (Kaarina), Piikkiö, Raisio, Naantali, Lieto, Rusko, Paimio",
+            "R-kioskit ja Prismat Föli-alueella",
+            "Bussissa kuljettajalta lähimaksulla tai käteisellä"],
+          sv: ["Föli-appen (engångs-, dygns- och periodbiljetter)",
+            "Fölibutiken (kauppa.foli.fi) och biljettautomater",
+            "Servicepunkter: Salutorgets Monitori, Fiskari (S:t Karins), Pikis, Reso, Nådendal, Lundo, Rusko, Pemar",
+            "R-kiosker och Prisma-butiker i Föli-området",
+            "Av föraren i bussen med närbetalning eller kontant"],
+          en: ["Föli app (single, day and season tickets)",
+            "Föli shop (kauppa.foli.fi) and ticket machines",
+            "Service points: Monitori at the Market Square, Fiskari (Kaarina), Piikkiö, Raisio, Naantali, Lieto, Rusko, Paimio",
+            "R-kioski and Prisma stores in the Föli area",
+            "From the driver on the bus, contactless or cash"] },
+        sourceNote: {
+          fi: "Tiedot on koottu Fölin virallisesta hinnastosta (voimassa 1.1.2026 alkaen) ja tarkistettu {date}. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot osoitteesta foli.fi.",
+          sv: "Uppgifterna är sammanställda från Fölis officiella prislista (gäller från 1.1.2026) och kontrollerade {date}. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor på foli.fi.",
+          en: "This information is compiled from Föli's official price list (valid from 1 January 2026) and checked on {date}. This is an unofficial service: please confirm current prices and terms at foli.fi." },
+        sourceLink: { fi: "Virallinen hinnasto (foli.fi)", sv: "Officiell prislista (foli.fi)", en: "Official price list (foli.fi)" },
+      },
+    },
     // Käytävät mitattu 29.8.2026 talvidatasta: yhteinen pysäkkijakso molemmissa suunnissa
     // 6+6A 36/34, 5+5A 32/31, 9+9A 33/32 (vuorot/pv 111+110, 151+111, 93+88).
     corridors: [
@@ -2937,6 +3024,7 @@ const STRINGS = {
     faresMethodCardApp: "Kortti tai sovellus",
     faresMethodContactless: "Lähimaksu",
     faresMethodSalespoint: "Palvelupiste",
+    faresMethodCash: "Käteinen kuljettajalta",
     // asetukset
     themeTitle: "Ulkoasu", themeAria: "Teema",
     themeAuto: "Automaattinen", themeLight: "Vaalea", themeDark: "Tumma",
@@ -3431,6 +3519,7 @@ const STRINGS = {
     faresMethodCardApp: "Card or app",
     faresMethodContactless: "Contactless",
     faresMethodSalespoint: "Service point",
+    faresMethodCash: "Cash from the driver",
     themeTitle: "Appearance", themeAria: "Theme",
     themeAuto: "Automatic", themeLight: "Light", themeDark: "Dark",
     textSizeTitle: "Text size",
@@ -3907,6 +3996,7 @@ const STRINGS = {
     faresMethodCardApp: "Kort eller app",
     faresMethodContactless: "Närbetalning",
     faresMethodSalespoint: "Serviceställe",
+    faresMethodCash: "Kontant av föraren",
     themeTitle: "Utseende", themeAria: "Tema",
     themeAuto: "Automatiskt", themeLight: "Ljust", themeDark: "Mörkt",
     textSizeTitle: "Textstorlek",
@@ -8879,6 +8969,7 @@ async function viewFares() {
   const zoneLabel = z => (z.label ? String(z.label[lang] ?? z.label.fi) : "");
   const hasReduced = zones.some(z => has(z.single.cardApp.reduced)
     || has(z.single.salespoint && z.single.salespoint.reduced)
+    || has(z.single.cash && z.single.cash.reduced)
     || z.season.some(s => has(s.reduced)));
   const cells = vals => vals.map(v => `<td>${eur(v)}</td>`).join("");
   const grpVals = g => (hasReduced ? [g.adult, g.child, g.reduced] : [g.adult, g.child]);
@@ -8895,6 +8986,12 @@ async function viewFares() {
       : "",
     z.single.salespoint && grpVals(z.single.salespoint).some(has)
       ? row(ftx("methodSalespoint", null, "faresMethodSalespoint"), grpVals(z.single.salespoint))
+      : "",
+    // Käteinen on oma rivinsä siellä missä se on eri hinta eri ryhmille (Turku:
+    // aikuinen 4,50 €, lapsi 2 €). Lahdessa ja Raaseporissa kalliimpi hinta on
+    // ostopaikkahinta eikä käteishinta, joten kenttä jätetään niissä pois.
+    z.single.cash && grpVals(z.single.cash).some(has)
+      ? row(ftx("methodCash", null, "faresMethodCash"), grpVals(z.single.cash))
       : "",
   ].join("");
   const seasonRows = z => z.season.map(s =>
@@ -9610,7 +9707,8 @@ function deskFaresHtml(f) {
     : "";
   const body = methodBlock("methodCardApp", "faresMethodCardApp", z => z.single.cardApp)
     + contactlessRow
-    + methodBlock("methodSalespoint", "faresMethodSalespoint", z => z.single.salespoint);
+    + methodBlock("methodSalespoint", "faresMethodSalespoint", z => z.single.salespoint)
+    + methodBlock("methodCash", "faresMethodCash", z => z.single.cash);
   // Kaupunkikohtainen copy CONFIG.fares.i18n:stä; ryhmäotsikoille geneerinen
   // STRINGS-fallback, tasataksa-huomio ja hinnastolinkki pois jos copyä ei ole.
   const flatBody = faresText(f, "flatBody");
