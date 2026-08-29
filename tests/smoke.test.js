@@ -989,6 +989,7 @@ async function printHygiene(page, label) {
     // Yhteyskatko: taulu ei saa väittää "päivittyy reaaliajassa" vanhalla datalla, vaan
     // näyttää ei yhteyttä -tilan ja säilyttää viimeksi ladatut lähdöt (ei tyhjää, ei valehtele).
     const rowsBefore = await page.$$eval("#mRows tr", trs => trs.length).catch(() => 0);
+    const errsBeforeOffline = consoleErrors.length;
     await page.setOfflineMode(true);
     await page.evaluate(() => refreshNow());
     await page.setOfflineMode(false);
@@ -996,6 +997,10 @@ async function printHygiene(page, label) {
       () => { const el = document.querySelector("#mLive"); return el && !el.querySelector(".rt") && !!el.querySelector("svg"); },
       { timeout: 5000 }).then(() => true).catch(() => false);
     const rowsAfter = await page.$$eval("#mRows tr", trs => trs.length).catch(() => 0);
+    // Katkon aikana selain lokittaa ERR_INTERNET_DISCONNECTED: odotettu, ei konsolivirhelöydös
+    for (let i = consoleErrors.length - 1; i >= errsBeforeOffline; i--) {
+      if (consoleErrors[i].includes("ERR_INTERNET_DISCONNECTED")) consoleErrors.splice(i, 1);
+    }
     (staleShown && rowsAfter === rowsBefore && rowsAfter > 0)
       ? ok("monitori: yhteyskatkolla näkyy ei yhteyttä -tila, lähdöt säilyvät")
       : fail("monitori: yhteyskatkolla monitori väittää yhä olevansa reaaliaikainen tai lähdöt katosivat");
