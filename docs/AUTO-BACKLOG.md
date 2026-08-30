@@ -30,6 +30,17 @@ signaalin "→ backlog <pvm>".
   tietosuoja päätetään ihmisen kanssa; kun tiedot tulevat, ylläpitäjä kirjoittaa osatehtävät
   Avoimet-listaan ja agentti toteuttaa ne yksi kerrallaan.
 
+Markkinasignaalit tulevat automaattisesti HILMAn ennakoivista ilmoituksista
+(tietopyynnöt ja markkinavuoropuhelut). Ne kertovat mitä kunnat ovat ostamassa
+seuraavaksi: tietopyyntö edeltää tarjouspyyntöä mitatusti noin seitsemän kuukautta,
+eli signaalin ja lukittujen vaatimusten välissä on aikaa rakentaa. Agentti käsittelee
+nämä samoin kuin tapaamisista kirjatut signaalit.
+
+- 2026-08-28, markkinasignaali (HILMAn ennakoivat ilmoitukset, 3 eri hankintayksikköä 2022-2026): kuntien tietopyynnöissä ja markkinavuoropuheluissa toistuu aihe: tapahtuma- ja harrastuskalenterit kuntalaisille. Osuu tuotteeseen: Kalenteri (sama moottori, toinen data).
+- 2025-05-27, markkinasignaali (HILMAn ennakoivat ilmoitukset, 2 eri hankintayksikköä 2025): kuntien tietopyynnöissä ja markkinavuoropuheluissa toistuu aihe: ulko- ja sisätiloihin sijoitettavat infonäytöt ja niiden sisältö. Osuu tuotteeseen: Reittari, monitorinäkymä.
+- 2023-12-20, markkinasignaali (HILMAn ennakoivat ilmoitukset, 2 eri hankintayksikköä 2021-2023): kuntien tietopyynnöissä ja markkinavuoropuheluissa toistuu aihe: aikataulu- ja pysäkkitiedon jakaminen pysäkkinäytöille. Osuu tuotteeseen: Reittari.
+- 2026-08-28, markkinasignaali (sama hankintayksikkö kysynyt 2 kertaa, vuosina 2023 ja 2026): aihe ei ole ratkennut ostolla, eli tarjonta ei ole kelvannut. Aihe: tapahtuma- ja harrastuskalenterit kuntalaisille. Osuu tuotteeseen: Kalenteri (sama moottori, toinen data).
+
 ## Avoimet
 
 - [ ] README.md: lisää lyhyt kohta joka vastaa suoraan kysymykseen "missä data on ja mitä
