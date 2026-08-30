@@ -2188,7 +2188,12 @@ const CONFIGS = {
     operator: "Raaseporin joukkoliikenne",
     operatorShort: "BOSSE",
     feedMatch: /raasepori/i,
-    rail: "KR", // Karjaa = Raaseporin pääasema (rantarata + Hanko-rata)
+    // Kaksi asemaa, tiskin oletuspysäkin mukainen ensin. Tammisaari (TMS) on
+    // Ekenäs busstationin eli palvelutiskin oletuspysäkin asema, Karjaa (KR) on
+    // seudun kaukoliikenteen solmu. Mitattu 26.8.2026: TMS pelkkiä H-junia,
+    // KR IC + S + H. Yhdellä asemalla lista oli epäjohdonmukainen tiskin oman
+    // oletuspysäkin kanssa: tammisaarelainen kysyy tiskillä Tammisaaren junia.
+    rail: ["TMS", "KR"],
     // Feedin natiivikieli on RUOTSI (stops.txt-nimet sv, FI tulee translations.txt:stä)
     // → @L-lokalisointi pyytää FI:n eksplisiittisesti (localizeQuery/localizePlanNode).
     feedLang: "sv",
@@ -3294,6 +3299,7 @@ const STRINGS = {
     trainsLink: "Junien lähdöt",
     trainsTitle: "Junien lähdöt",
     trainsIntro: "Seuraavat lähtevät junat asemalta {station}. Ajat päivittyvät automaattisesti.",
+    trainsIntroMulti: "Seuraavat lähtevät junat asemilta {stations}. Ajat päivittyvät automaattisesti.",
     trainsTrain: "Juna", trainsTrack: "Raide",
     trainsEmpty: "Ei lähteviä junia lähitunteina.",
     trainsCancelled: "Peruttu",
@@ -3773,6 +3779,7 @@ const STRINGS = {
     trainsLink: "Train departures",
     trainsTitle: "Train departures",
     trainsIntro: "Next departing trains from {station}. Times update automatically.",
+    trainsIntroMulti: "Next departing trains from the stations {stations}. Times update automatically.",
     trainsTrain: "Train", trainsTrack: "Track",
     trainsEmpty: "No departing trains in the next few hours.",
     trainsCancelled: "Cancelled",
@@ -4252,6 +4259,7 @@ const STRINGS = {
     trainsLink: "Tågavgångar",
     trainsTitle: "Tågavgångar",
     trainsIntro: "Följande avgående tåg från {station}. Tiderna uppdateras automatiskt.",
+    trainsIntroMulti: "Följande avgående tåg från stationerna {stations}. Tiderna uppdateras automatiskt.",
     trainsTrain: "Tåg", trainsTrack: "Spår",
     trainsEmpty: "Inga avgående tåg under de närmaste timmarna.",
     trainsCancelled: "Inställt",
@@ -6934,7 +6942,7 @@ function homeToolGroupsHtml() {
     tool("#/poikkeukset", "calendar", t("exLink")),
     tool("#/tulosteet/vihko", "print", t("printCenterLink")),
     tool("#/uusintapainatus", "print", t("reprintLink")),
-    CONFIG.rail ? tool("#/junat", "train", t("trainsLink")) : "",
+    railCodes().length ? tool("#/junat", "train", t("trainsLink")) : "",
   ]) + group("groupTickets", [
     CONFIG.fares ? tool("#/liput", "ticket", t("faresLink")) : "",
     PROXY_URL ? tool("#/sahkoposti", "mail", t("emailSubLink")) : "",
@@ -8758,12 +8766,33 @@ function viewExceptions() {
 }
 
 /* ---------- Junien lähdöt (#/junat) — rata.digitraffic.fi (Fintraffic, CC BY 4.0) ---------- */
-// Vain rail-kaupungit (CONFIG.rail = asemakoodi). Data haetaan SUORAAN selaimesta:
+// Vain rail-kaupungit (CONFIG.rail = asemakoodi tai lista koodeja, ks. railCodes()).
+// Data haetaan SUORAAN selaimesta:
 // rajapinta on avoin, avaimeton ja palauttaa Access-Control-Allow-Origin: * →
 // proxya ei tarvita EIKÄ kutsu kuluta Digitransit-kiintiötä. Rajapinnan
 // Cache-Control on 30 s, joten 60 s päivitysväli ei kuormita sitä turhaan.
 
 const RAIL_API = "https://rata.digitraffic.fi/api/v1";
+
+// CONFIG.rail on joko yksi asemakoodi ("LH") tai lista koodeja (["TMS", "KR"]).
+// Lista tarvitaan siellä, missä palvelutiski ja seudun kaukoliikenteen solmu ovat eri
+// asemilla. Raasepori 26.8.2026: tiskin oletuspysäkki on Ekenäs busstation
+// (Tammisaari) mutta kaukojunat kulkevat Karjaan kautta. Mitattu rata.digitrafficista,
+// ei arvattu: TMS 15 lähtöä ja pelkkiä H-junia, KR 15 lähtöä ja IC + S + H. Listat
+// eivät voi täsmätä, koska asemat ovat noin 12 minuutin junamatkan päässä toisistaan,
+// ja tiskillä asioiva tammisaarelainen kysyy Tammisaaren junia.
+function railCodes() {
+  const r = CONFIG.rail;
+  return Array.isArray(r) ? r.filter(Boolean) : (r ? [r] : []);
+}
+
+// Hakee lähdöt kaikilta asemilta rinnakkain. Yhden aseman virhe EI saa kaataa muita:
+// rows === null tarkoittaa "tämän aseman haku epäonnistui", tyhjä taulukko "ei lähtöjä".
+async function loadTrainsAll(codes, names) {
+  return Promise.all(codes.map(async (code) => {
+    try { return { code, rows: await loadTrains(code, names) }; } catch (e) { return { code, rows: null }; }
+  }));
+}
 
 // Asemakoodi → nimi (563 asemaa) localStorage-välimuistiin 7 vrk:ksi. Avain on
 // tarkoituksella kaupunkijaon (ns()) ulkopuolella: sama data joka kaupungille.
@@ -8840,7 +8869,8 @@ function railTableHtml(rows, limit) {
 }
 
 async function viewTrains() {
-  if (!CONFIG.rail) { location.hash = "#/"; return; }
+  const codes = railCodes();
+  if (!codes.length) { location.hash = "#/"; return; }
   setView(`
     <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
     <div class="card">
@@ -8851,17 +8881,28 @@ async function viewTrains() {
     </div>`);
   const my = viewSeq;
   const draw = async () => {
-    let names, rows;
-    try { names = await railStationNames(); rows = await loadTrains(CONFIG.rail, names); }
+    let names, tulokset;
+    try { names = await railStationNames(); tulokset = await loadTrainsAll(codes, names); }
     catch (e) {
+      // Asemanimien haku on yhteinen kaikille asemille: jos se kaatuu, mitään ei voi näyttää.
       if (viewSeq === my) document.getElementById("trainsOut").innerHTML = `<div class="error">${t("trainsErr")}</div>`;
       return;
     }
     if (viewSeq !== my) return;
-    document.getElementById("trainsIntro").textContent = t("trainsIntro", { station: names[CONFIG.rail] || CONFIG.rail });
-    document.getElementById("trainsOut").innerHTML = rows.length
-      ? railTableHtml(rows)
-      : `<p>${t("trainsEmpty")}</p>`;
+    const nimi = (c) => names[c] || c;
+    document.getElementById("trainsIntro").textContent = codes.length > 1
+      ? t("trainsIntroMulti", { stations: codes.map(nimi).join(" · ") })
+      : t("trainsIntro", { station: nimi(codes[0]) });
+    // Yhden aseman kaupungeissa ulkoasu pysyy ennallaan (ei asemaotsikkoa). Usean
+    // aseman kaupungissa jokainen asema on oma lohkonsa, koska rivit eivät ole
+    // vertailukelpoisia keskenään: ne lähtevät eri paikasta.
+    document.getElementById("trainsOut").innerHTML = tulokset.every((x) => x.rows === null)
+      ? `<div class="error">${t("trainsErr")}</div>`
+      : tulokset.map(({ code, rows }) => {
+        const sisalto = rows === null ? `<p class="muted">${t("trainsErr")}</p>`
+          : rows.length ? railTableHtml(rows) : `<p>${t("trainsEmpty")}</p>`;
+        return codes.length > 1 ? `<h3>${esc(nimi(code))}</h3>${sisalto}` : sisalto;
+      }).join("");
   };
   await draw();
   refreshNow = () => { draw().catch(() => {}); };
@@ -9985,7 +10026,7 @@ async function viewServiceDesk() {
           <h2 id="deskAlertsH">${icon("warning")} ${t("deskAlertsTitle")}</h2>
           <div id="deskAlerts"><p class="muted">${t("loadingAlerts")}</p></div>
         </section>
-        ${CONFIG.rail ? `<section class="desk-col" aria-labelledby="deskTrainsH">
+        ${railCodes().length ? `<section class="desk-col" aria-labelledby="deskTrainsH">
           <h2 id="deskTrainsH">${icon("train")} ${t("trainsTitle")}</h2>
           <div id="deskTrains" aria-live="polite"><p class="muted">…</p></div>
           <p class="muted">${t("trainsSrc")}</p>
@@ -9999,13 +10040,14 @@ async function viewServiceDesk() {
   // kysytään molempia. Data rata.digitraffic.fi:stä SUORAAN selaimesta (avoin, avaimeton,
   // CORS *) → ei kuluta Digitransit-kiintiötä eikä kulje proxyn kautta. Virhe ei saa
   // kaataa tiskiä: junalohko on lisätieto, bussilähdöt ovat näkymän ydin.
-  if (CONFIG.rail) {
+  const deskRail = railCodes();
+  if (deskRail.length) {
     const mySeq = viewSeq;
     const drawTrains = async () => {
-      let rows;
+      let names, tulokset;
       try {
-        const names = await railStationNames();
-        rows = await loadTrains(CONFIG.rail, names);
+        names = await railStationNames();
+        tulokset = await loadTrainsAll(deskRail, names);
       } catch (e) {
         const el = document.getElementById("deskTrains");
         if (el && mySeq === viewSeq) el.innerHTML = `<p class="muted">${t("trainsErr")}</p>`;
@@ -10013,7 +10055,16 @@ async function viewServiceDesk() {
       }
       const el = document.getElementById("deskTrains");
       if (!el || mySeq !== viewSeq) return;
-      el.innerHTML = rows.length ? railTableHtml(rows, 6) : `<p class="muted">${t("trainsEmpty")}</p>`;
+      // Sivupalsta on kapea: yhdellä asemalla mahtuu 6 riviä, kahdella 4 per asema,
+      // jotta junalohko ei työnnä hinta- ja häiriölohkoja näkyvistä.
+      const raja = deskRail.length > 1 ? 4 : 6;
+      el.innerHTML = tulokset.map(({ code, rows }) => {
+        const sisalto = rows === null ? `<p class="muted">${t("trainsErr")}</p>`
+          : rows.length ? railTableHtml(rows, raja) : `<p class="muted">${t("trainsEmpty")}</p>`;
+        return deskRail.length > 1
+          ? `<p class="muted" style="margin:0.4rem 0 0.2rem"><strong>${esc(names[code] || code)}</strong></p>${sisalto}`
+          : sisalto;
+      }).join("");
     };
     drawTrains();
     refreshNow = () => { drawTrains().catch(() => {}); };

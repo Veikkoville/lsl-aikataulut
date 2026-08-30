@@ -1501,6 +1501,37 @@ async function printHygiene(page, label) {
     ? ok("livekartan tyhjätila: Lahdessa tilatekstiä ei näytetä (regressio)")
     : fail("livekartan tyhjätila: Lahdessa näkyi virheellisesti tyhjätilateksti: " + rtState);
 
+  // --- Junanaytto: kaksi asemaa (Raasepori) ---
+  // Raaseporin palvelutiskin oletuspysakki on Ekenas busstation (Tammisaari), mutta
+  // junalohko naytti aiemmin vain Karjaan, koska CONFIG.rail oli yksi asemakoodi.
+  // Nyt rail voi olla lista. Tarkistus assertoi RAKENNETTA (kaksi asemaotsikkoa, kaksi
+  // taulukkoa, ei virhelohkoa) eika asemien nimia tai lahtojen sisaltoa: junatarjonta
+  // vaihtuu vuorokaudenajan mukaan, mutta asemien maara ei.
+  await page.goto(BASE + "/?city=raasepori#/junat", { waitUntil: "networkidle2" });
+  await expect("#trainsOut table", "junanaytto (Raasepori): junalahdot renderoityvat");
+  const railTwo = await page.evaluate(() => ({
+    otsikot: [...document.querySelectorAll("#trainsOut h3")].map(h => h.textContent.trim()),
+    taulukot: document.querySelectorAll("#trainsOut table").length,
+    virhe: !!document.querySelector("#trainsOut .error"),
+    intro: document.getElementById("trainsIntro")?.textContent || "",
+  }));
+  (railTwo.otsikot.length === 2 && railTwo.otsikot[0] !== railTwo.otsikot[1]
+    && railTwo.taulukot === 2 && !railTwo.virhe && railTwo.intro.length > 0)
+    ? ok(`junanaytto (Raasepori): kaksi asemaa omina lohkoinaan (${railTwo.otsikot.join(" + ")})`)
+    : fail("junanaytto (Raasepori): " + JSON.stringify(railTwo));
+
+  // Regressio: yhden aseman kaupungissa ulkoasu ei saa muuttua (ei asemaotsikkoa).
+  await page.goto(BASE + "/?city=lahti#/junat", { waitUntil: "networkidle2" });
+  await expect("#trainsOut table", "junanaytto (Lahti): junalahdot renderoityvat");
+  const railOne = await page.evaluate(() => ({
+    otsikot: document.querySelectorAll("#trainsOut h3").length,
+    taulukot: document.querySelectorAll("#trainsOut table").length,
+    virhe: !!document.querySelector("#trainsOut .error"),
+  }));
+  (railOne.otsikot === 0 && railOne.taulukot === 1 && !railOne.virhe)
+    ? ok("junanaytto: yhden aseman kaupunki ennallaan, ei asemaotsikkoa (regressio)")
+    : fail("junanaytto (Lahti): " + JSON.stringify(railOne));
+
   // --- Konsolivirheet ---
   const realErrors = consoleErrors.filter(e => !e.includes("favicon"));
   realErrors.length
