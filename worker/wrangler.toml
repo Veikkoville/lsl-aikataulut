@@ -11,8 +11,9 @@ VAPID_SUBJECT = "mailto:vvsaarinen@gmail.com"
 # Sähköpostipohjainen häiriötilaus (Resend). Nämä ovat SALAISUUKSIA (wrangler secret),
 # EIVÄT [vars]:issa (vältetään secret/var-nimikläshi):
 #   npx wrangler secret put RESEND_API_KEY     (Resendin API-avain)
-#   npx wrangler secret put EMAIL_FROM          (lähettäjäosoite, esim. hairiotiedote@aikataulut.selkoturva.fi;
-#                                                domain todennetaan Resendiin OMANA domaininaan, ei juuri-selkoturva.fi.
+#   npx wrangler secret put EMAIL_FROM          (lähettäjäosoite, esim. hairiotiedote@aikataulut.reittari.fi;
+#                                                domain todennetaan Resendiin OMANA domaininaan, ei juuri-reittari.fi
+#                                                (juuressa on ville@reittari.fi -postin MX+SPF, jota ei saa hairita).
 #                                                Tuotantokaupan yhteydessä vaihdetaan kaupungin domainiin tällä, ei koodiin.)
 # EMAIL_LINK_BASE: workerin julkinen URL confirm/unsubscribe-linkkeihin (cronissa ei ole request-URLia).
 EMAIL_LINK_BASE = "https://lsl-aikataulut-proxy.veikkoville.workers.dev"

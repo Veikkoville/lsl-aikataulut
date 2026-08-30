@@ -52,7 +52,7 @@ const env = {
   PUSH_KV: mockKV(),
   DIGITRANSIT_KEY: "test",
   RESEND_API_KEY: "test-resend",
-  EMAIL_FROM: "hairiotiedote@aikataulut.selkoturva.fi",
+  EMAIL_FROM: "hairiotiedote@aikataulut.reittari.fi",
   EMAIL_LINK_BASE: "https://worker.test",
   APP_BASE: "https://app.test/lsl",
 };
