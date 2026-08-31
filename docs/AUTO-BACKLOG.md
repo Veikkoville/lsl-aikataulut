@@ -55,6 +55,17 @@ nämä samoin kuin tapaamisista kirjatut signaalit.
       yksikkötestirivi worker/*.test.js:ään, joka hyväksyy kelvollisen JWT:n oikealla `aud`:lla
       ja hylkää väärän `aud`:n tai peukaloidun allekirjoituksen.
       (agentin ehdotus 2026-08-29, lähde: koodi/TODO)
+- [ ] `tests/kausivalidointi.js`: serviceId-luokitin tuntee vain koulun ja loman
+      (`/koul/i`, `KP`, `/loma/i`, `LP`), joten kausi- ja viikonpaivavariantit
+      putoavat luokittelemattomiksi ja jokainen kausivaihdos tuottaa WARN-riveja joita ei voi
+      erottaa aidosta muutoksesta. Ajossa 2026-08-25 tuli 7 WARNia, 22 uutta serviceId:ta,
+      joista 15 ilman luokkaa. Lisaa luokat "kausi" (talvi, kesa, syksy, kevat) ja "viikonpaiva"
+      (la-su, ma-pe, ma-to, MaPe, MaTo, La, Su) ja jata WARN vain sille mika jaa yha
+      tuntemattomaksi. Todennus: uusi yksikkotesti joka syottaa luokittimelle 2026-08-25 ajon
+      oikeat serviceId:t fixtureina ja odottaa, etta jouluaatto ja joulupaiva luokittuvat
+      lomaksi, talvi- ja la-su-variantit uusiin luokkiin, ja tuntemattomien maara putoaa
+      15:sta korkeintaan kahteen.
+      (tutkimuskierros 2026-08-31, lahde: kausivalidointi-ajo 2026-08-25, run 32812513577)
 
 ## Tehdyt
 
