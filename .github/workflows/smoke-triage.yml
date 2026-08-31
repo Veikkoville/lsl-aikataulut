@@ -1,0 +1,94 @@
+# Smoke-triage: punainen Tuotanto-smoke luetaan automaattisesti ja luokitellaan.
+#
+# MIKSI: 31.8.2026 punainen ajo (11 FAILia, kaikki Mikkelissa) oli kokonaan
+# Digitransitin kiintiota (429), mutta raportti nimesi juurisyiksi sisaltovikoja.
+# Punainen ajo jai lisaksi odottamaan etta ihminen avaa lokin. Tama workflow lukee
+# raportin heti ja tekee yhden asian: joko toteaa kuormaksi (ei tikettia) tai avaa
+# YHDEN issuen juurisyysta.
+#
+# EI KOSKAAN: ei koodimuutosta, ei PR:aa, ei mergea, ei deployta. Token saa vain
+# lukea repon ja kirjoittaa issueita.
+#
+# Kustannus: julkinen repo = ilmaiset Actions-minuutit. Agentti ajaa
+# CLAUDE_CODE_OAUTH_TOKENilla eli Max-tilauksen kiintiosta, ei API-laskutuksesta.
+
+name: smoke-triage
+
+on:
+  workflow_run:
+    workflows: ["Tuotanto-smoke"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: smoke-triage-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      # Raportit tulevat siita ajosta joka kaatui, eivat tasta ajosta.
+      # if-no-files-found ei riita: jos smoke kaatui ennen arkistointia, jatketaan
+      # ilman tiedostoja ja agentti lukee lokin.
+      - name: Hae kaatuneen ajon raportit
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          pattern: prod-smoke-report-*
+          path: raportit
+          merge-multiple: true
+
+      - name: Luokittele ja avaa tarvittaessa issue
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: >-
+            --max-turns 25
+            --allowedTools "Read,Grep,Glob,Bash(ls:*),Bash(cat:*),Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh issue comment:*),Bash(gh run view:*)"
+          prompt: |
+            Tuotanto-smoke kaatui. Luokittele syy ja tee KORKEINTAAN yksi asia: avaa issue tai ala avaa.
+            Ajo: ${{ github.event.workflow_run.html_url }} (id ${{ github.event.workflow_run.id }}). Raportit ovat kansiossa raportit/ (prod-smoke-report-era*.txt ja .json).
+            Jos kansio on tyhja, lue loki: gh run view ${{ github.event.workflow_run.id }} --log-failed.
+
+            ET saa muuttaa yhtaan tiedostoa, avata PR:aa, mergata mitaan etka ajaa mitaan deployta.
+            Ainoa sallittu kirjoitustoimi on GitHub-issue.
+
+            0. Tarkista ensin MIKA job kaatui: gh run view ${{ github.event.workflow_run.id }}.
+               Tuotanto-smoke sisaltaa kaksi eri vahtia. Jos punaisuus tulee jobista
+               full-smoke-prod eika prod-smoke-jobista (eli era-raporteissa on 0 FAILia),
+               ALA avaa issuea: prod-smoke.yml:n oman perustelun mukaan punainen full-smoke
+               voi olla ajoituskohinaa ja se ajetaan ensin uudelleen. Tulosta lokiin rivi
+               "FULL-SMOKE punainen, prod-smoke vihrea, ei tikettia" ja lopeta.
+            1. Lue jokaisen eran JSON. Kentta quotaCollapsed kertoo mitka kaupungit tiivistettiin
+               kiintion (429) takia, retriedCities kertoo uusinnat.
+            2. LUOKITTELU. FAIL on kuormaa jos sen check on "kiintio (429)" tai sen detail sisaltaa
+               luvun 429. Kaikki muut FAILit ovat ehdokkaita aidoksi viaksi.
+               a) Jos KAIKKI FAILit ovat kuormaa: ALA avaa issuea. Tulosta lokiin yksi rivi
+                  "KUORMA: <kaupungit>, ei tikettia" ja lopeta. Kiintioloppu ei ole vika koodissa.
+               b) Jos yksikin FAIL ei ole kuormaa: jatka kohtaan 3.
+            3. Tarkista onko sama vika jo tiedossa:
+               gh issue list --state open --search "smoke:" --json number,title
+               Jos avoin issue kasittelee samaa tarkistusta samassa kaupungissa, lisaa siihen
+               kommentti (ajon linkki + mika muuttui) ALAKA avaa uutta.
+            4. Muuten avaa YKSI issue:
+               otsikko: "smoke: <kaupunki> <tarkistus> (<pvm>)"
+               runko: Mika kaatui (tarkistus- ja kaupunkikohtaisesti) / Onko regressio vai kuormaa
+               ja mihin paattelet sen / Milloin sama tarkistus oli viimeksi vihrea jos loydat sen
+               lokeista / Ehdotettu backlog-rivi docs/AUTO-BACKLOG.md:n Avoimet-listalle
+               TUOTEPERIAATTEET.md:n muodossa / Ajon linkki.
+               Ala arvaa juurisyyta. Jos et pysty erottamaan kuormaa sisaltovirheesta, sano se
+               issuessa suoraan ja ehdota yhden kaupungin kasiajoa
+               (SMOKE_CITIES=<kaupunki> BASE=https://demo.reittari.fi node prod-smoke.test.js).
+            5. Ala kayta em dashia. Kirjoita suomeksi ja lyhyesti.
