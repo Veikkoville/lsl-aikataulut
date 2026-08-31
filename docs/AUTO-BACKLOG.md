@@ -66,6 +66,17 @@ nämä samoin kuin tapaamisista kirjatut signaalit.
       lomaksi, talvi- ja la-su-variantit uusiin luokkiin, ja tuntemattomien maara putoaa
       15:sta korkeintaan kahteen.
       (tutkimuskierros 2026-08-31, lahde: kausivalidointi-ajo 2026-08-25, run 32812513577)
+- [ ] Pysakkijuliste: linjasuodatin ennen tulostusta. Juliste ottaa nyt aina kaikki pysakilta lahtevat
+      linjat (i18n-teksti `posterAllLinesNote`: "Kaikki pysakilta lahtevat linjat"), joten vilkkaalla
+      pysakilla juliste on tayteen ahdettu vaikka lukija valittaisi kahdesta linjasta. Lisaa julisteen
+      valintoihin sama linjavalinta jota linjatuloste jo kayttaa (`.lineCb`): oletuksena kaikki valittuna,
+      ja valitsematta jattaminen pudottaa linjan julisteesta. Ala muuta tiivista tilaa
+      (`CONFIG.posterCompact`) eika sen mitoituslogiikkaa. Vertailukohta: Digitransitin pysakkisivulla on
+      "Valitut linjat" -suodatin, meilla ei ole.
+      Todennus: smoke avaa vilkkaan pysakin julisteen, poistaa yhden linjan valinnasta ja odottaa etta
+      kyseisen linjan tuntikaavio katoaa julisteesta muiden sailyessa; oletustilassa (kaikki valittuna)
+      julisteen sisalto ei muutu nykyisesta.
+      (Villen paatos 2026-08-31, lahde: lahti.digitransit.fi-vertailu)
 
 ## Tehdyt
 
