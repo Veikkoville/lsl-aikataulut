@@ -255,6 +255,11 @@ const cityDone = new Set();
 // Rovaniemi olivat kaatuneet kiintiöön ja menneet läpi vasta jäähdytyksen jälkeen.
 // Uusinta on kiintiön ryömimisen mittari, ja juuri se mittausketju on katkennut kolmesti.
 const cityRetried = new Map();
+// Kaupungit joiden viimeinen yritys jai kiintion (429) pilaamaksi: kaikki sen jalkeen
+// mitattu on OIRE, ei havainto, joten kierroksen FAIL-rivit tiivistetaan yhdeksi
+// juurisyyksi. Avain = kaupunki, arvo = { attempt, checks: [{check, detail}] }.
+// Alkuperaiset rivit sailyvat JSON-raportissa (quotaCollapsed), jotta mitaan ei katoa.
+const cityQuotaCollapsed = new Map();
 
 // Raportti kirjoitetaan myös silloin kun ajo kaatuu kesken: muuten harness-virhe
 // jättää jälkeensä pelkän exit-koodin eikä tiedetä mikä ehti mennä läpi.
@@ -275,6 +280,14 @@ function writeReport() {
       + [...cityRetried].map(([k, n]) => `${k} ×${n}`).join(", ")
     : `0/${CITIES.length} kaupunkia vaati uusinnan`);
 
+  // Koonnit nakyviin ajotasolla: triage-agentti (ja ihminen) nakee yhdesta rivista,
+  // etta punaisuus on kuormaa eika regressiota, ilman etta joutuu lukemaan koko listan.
+  if (cityQuotaCollapsed.size) {
+    info("(ajo)", "kiintion koonnit",
+      `${cityQuotaCollapsed.size}/${CITIES.length} kaupunkia raportoitu yhtena juurisyyna (429): `
+      + [...cityQuotaCollapsed].map(([k, v]) => `${k} (${v.checks.length} tarkistusta)`).join(", "));
+  }
+
   const failures = results.filter(r => r.status === "FAIL");
   const lines = [];
   lines.push("Tuotanto-smoke-vahti · " + BASE + " · " + new Date().toISOString());
@@ -293,7 +306,8 @@ function writeReport() {
   fs.writeFileSync(path.join(__dirname, `prod-smoke-report${jalkiliite}.json`), JSON.stringify({
     base: BASE, generatedAt: new Date().toISOString(), searchTime,
     cities: CITIES.map(c => c.key), failures: failures.length,
-    retriedCities: Object.fromEntries(cityRetried), results,
+    retriedCities: Object.fromEntries(cityRetried),
+    quotaCollapsed: Object.fromEntries(cityQuotaCollapsed), results,
   }, null, 2) + "\n");
   console.log("\n" + lines[lines.length - 1]);
   return failures.length;
@@ -1044,6 +1058,26 @@ function writeReport() {
       console.log(`  ↻ [${city.key}] Digitransit 429 → uusinta jonon lopussa `
         + `(yritys ${job.attempt + 1}/${MAX_ATTEMPTS}, jäähdytys ${RETRY_COOLDOWN_MS / 1000} s)\n`);
     } else {
+      // Viimeinen yritys ja kiintio hajotti kierroksen: yksi juurisyy-FAIL, ei kymmenta
+      // johdannaista. 31.8.2026 Mikkeli tuotti 11 FAILia, ja raportti nimesi juurisyiksi
+      // sisaltovikoja ("tarkista CONFIG.centerStopNames (tyhja)") vaikka arvo oli
+      // paikallaan ja kaupunki oli vihrea 24.8. ja 28.8. Vaara juurisyy on pahempi kuin
+      // ei juurisyyta: se ohjaa korjaamaan tervetta koodia.
+      // Ajo pysyy punaisena — 429 ei muutu PASSiksi eika INFOksi — ja PASS/INFO-rivit
+      // sailyvat, koska ne ovat oikeita havaintoja (esim. junat tulevat eri rajapinnasta).
+      if (quotaBroke) {
+        const kept = results.slice(mark).filter(r => r.status !== "FAIL");
+        cityQuotaCollapsed.set(city.key, {
+          attempt: job.attempt,
+          checks: roundFails.map(r => ({ check: r.check, detail: r.detail })),
+        });
+        results.length = mark;
+        results.push(...kept);
+        fail(city.key, "kiintio (429)",
+          `Digitransit-kiintio ei palautunut ${job.attempt}/${MAX_ATTEMPTS} yrityksella — `
+          + `${roundFails.length} tarkistusta jai mittaamatta, ei sisaltovirhe. Tiivistetyt: `
+          + roundFails.map(r => r.check).join(", ").slice(0, 220));
+      }
       cityDone.add(city.key);
       console.log("");
     }
