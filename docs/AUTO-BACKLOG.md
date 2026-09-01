@@ -42,13 +42,6 @@ nämä samoin kuin tapaamisista kirjatut signaalit.
 - 2026-08-28, markkinasignaali (sama hankintayksikkö kysynyt 2 kertaa, vuosina 2023 ja 2026): aihe ei ole ratkennut ostolla, eli tarjonta ei ole kelvannut. Aihe: tapahtuma- ja harrastuskalenterit kuntalaisille. Osuu tuotteeseen: Kalenteri (sama moottori, toinen data).
 
 ## Avoimet
-
-- [ ] README.md: lisää lyhyt kohta joka vastaa suoraan kysymykseen "missä data on ja mitä
-      tapahtuu jos toimittaja katoaa" (data luetaan aina suoraan kaupungin omasta
-      Digitransit/Waltti-GTFS-syötteestä avoimella standardilla, Reittari ei tallenna omaa
-      kopiota aikatauluista mihinkään, syötteen vaihto on `CONFIG`-muutos, ei koodimuutos).
-      Todennus: kohta näkyy README.md:ssä Tekniikka-osion yhteydessä.
-      (agentin ehdotus 2026-08-29, lähde: signaali 2026-08-24)
 - [ ] worker/worker.js: toteuta admin-kirjautumiselle Cloudflare Access -JWT-varmennus
       (`Cf-Access-Jwt-Assertion`) kun `env.ADMIN_ACCESS_AUD` on asetettu, nykyisen
       salasanaistunnon rinnalle (ks. TODO-kommentti `isAdmin`-funktiossa). Todennus: uusi
@@ -69,6 +62,12 @@ nämä samoin kuin tapaamisista kirjatut signaalit.
 
 ## Tehdyt
 
+- [x] README.md: lisää lyhyt kohta joka vastaa suoraan kysymykseen "missä data on ja mitä
+      tapahtuu jos toimittaja katoaa" (data luetaan aina suoraan kaupungin omasta
+      Digitransit/Waltti-GTFS-syötteestä avoimella standardilla, Reittari ei tallenna omaa
+      kopiota aikatauluista mihinkään, syötteen vaihto on `CONFIG`-muutos, ei koodimuutos).
+      Todennus: kohta näkyy README.md:ssä Tekniikka-osion yhteydessä.
+      (agentin ehdotus 2026-08-29, lähde: signaali 2026-08-24) (PR, 2026-09-01)
 - [x] Livekartan tyhjätila: kun kaupungin feedissä ei ole reaaliaikaa (esim. `?city=raasepori`),
       kartta näyttää nyt tyhjän ruudun. Näytä kartan päällä lyhyt tila "Tässä kaupungissa ei ole
       ajoneuvojen reaaliaikaseurantaa" ja pidä pysäkit näkyvissä. Todennus: smoke-lisäys joka
