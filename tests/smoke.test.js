@@ -161,8 +161,13 @@ async function printHygiene(page, label) {
     };
   });
   homeDisruptionCount = banner.disCount;
+  // Häiriöitä ei aina ole (2.9.2026 klo 22 Lahdella 0 häiriötä, 1 tiedote, sama tuotannossa):
+  // silloin häiriölohkoa ei saa olla, ja sääntö B todennetaan tiedotelohkosta. Kun häiriöitä on,
+  // lohkon on oltava auki.
   (banner.disCount > 0 && banner.disOpen === true)
     ? ok(`etusivu: kiireelliset häiriöt korostettu ja auki (${banner.disCount})`)
+    : (banner.disCount === 0 && banner.disOpen === null)
+    ? ok("etusivu: ei kiireellisiä häiriöitä juuri nyt, häiriölohkoa ei näytetä (datariippuva)")
     : fail("etusivu: häiriölohko (.alertsum) puuttuu tai ei oletuksena auki: " + JSON.stringify(banner));
   (banner.infCount > 0 && banner.infOpen === false)
     ? ok(`etusivu: informatiiviset tiedotteet vaimennettu ja kiinni (${banner.infCount})`)
@@ -315,13 +320,15 @@ async function printHygiene(page, label) {
   (sl.n === 3 && sl.before === "fi" && sl.pressedSv && sl.stored === "sv" && sl.locale === "sv-SE" && sl.spoken === "avgår nu" && sl.after === null)
     ? ok("palvelutiski: puheen kieli FI/SV/EN (SV → sv-SE, ääneenluku ruotsiksi, muistetaan, palautuu)")
     : fail("palvelutiski: puheen kielivalinta pielessä: " + JSON.stringify(sl));
-  // Tiskin aksentti: Lahdella ei ole CONFIG.brandColoria, joten se pysyy .desk-lohkon
-  // oletussinisessä. Pari Vaasan tarkistukselle alempana: brändiväri saa vaihtaa tämän,
-  // mutta ei brändittömässä kaupungissa.
+  // Tiskin aksentti: Lahdella on 2.9.2026 alkaen CONFIG.brandColor (LSL:n logon sininen
+  // #005cb6), joten tiski EI saa jäädä .desk-lohkon oletussiniseen (#0033cc) vaan käyttää
+  // brändiväriä. Pari Vaasan tarkistukselle alempana (Liftin pinkki). Väri luetaan CONFIGista,
+  // ei kovakoodata, jotta sävyn tarkennus ei kaada testiä.
   const lDeskAccent = await deskAccent();
-  (lDeskAccent === "#0033cc")
-    ? ok("palvelutiski (Lahti, ei brandColoria): aksentti pysyy oletussinisenä")
-    : fail(`palvelutiski (Lahti): odotettu oletussininen #0033cc, saatiin "${lDeskAccent}"`);
+  const lBrand = await page.evaluate(() => (CONFIG.brandColor || "").toLowerCase());
+  (lBrand && lDeskAccent !== "#0033cc" && lDeskAccent === lBrand)
+    ? ok(`palvelutiski (Lahti, brandColor ${lBrand}): tiski käyttää brändiväriä`)
+    : fail(`palvelutiski (Lahti): odotettu brandColor "${lBrand}", saatiin "${lDeskAccent}"`);
   // "Aktiiviset häiriöt" näyttää VAIN HÄIRIÖ-luokan (ei informatiivisia tiedotteita): määrän
   // on täsmättävä etusivun häiriölohkoon (ei etusivun tiedotelohkoa).
   await page.waitForFunction(() => {
@@ -913,9 +920,18 @@ async function printHygiene(page, label) {
         const buf = await page.pdf({ format: "A4", preferCSSPageSize: true });
         return (Buffer.from(buf).toString("latin1").match(/\/Type\s*\/Page(?!s)/g) || []).length;
       };
+      // Lahdella tiivis tila on 2.9.2026 alkaen CONFIG-oletus, joten kumpaakaan tilaa ei oleteta:
+      // väljä versio kootaan valinta pois päältä ja tiivis valinta päällä, ja tuloste tyhjennetään
+      // välissä, jotta odotus ei osu edelliseen koosteeseen. page.pdf laukaisee afterprintin, joka
+      // palauttaa @page-säännön oletukseen, siksi pageStyle luetaan vasta tiiviin koosteen jälkeen.
       if (posterOk && await page.$("#posterCompactCb")) {
+        await page.evaluate(() => { document.getElementById("posterCompactCb").checked = false; document.getElementById("stopPrintOut").innerHTML = ""; });
+        await page.click("#stopPosterBtn");
+        await page.waitForFunction(
+          () => !!document.querySelector("#stopPrintOut .hourgrid tr") && !document.querySelector("#stopPrintOut .poster-compact"),
+          { timeout: 20000 }).catch(() => {});
         const loosePages = await pdfPages();
-        await page.evaluate(() => { document.getElementById("posterCompactCb").checked = true; });
+        await page.evaluate(() => { document.getElementById("posterCompactCb").checked = true; document.getElementById("stopPrintOut").innerHTML = ""; });
         await page.click("#stopPosterBtn");
         const compactOk = await page.waitForFunction(
           () => !!document.querySelector("#stopPrintOut .poster-compact .poster-stop[data-fit] .hourgrid tr"),
@@ -939,7 +955,8 @@ async function printHygiene(page, label) {
           ? ok(`pysäkkijuliste (yksi arkki): ${loosePages} → ${compactPages} sivua, ${cp.days} päivätyyppiä, tiukennus ${cp.fit}, rivit samanmittaisia`)
           : fail(`pysäkkijuliste (yksi arkki): ${JSON.stringify({ compactOk, loosePages, compactPages, ...cp })}`);
         await printHygiene(page, "Lahti, yksi arkki");
-        await page.evaluate(() => { document.getElementById("posterCompactCb").checked = false; });
+        // palauta CONFIG-oletus, ettei valinta vuoda seuraaviin tarkistuksiin
+        await page.evaluate(() => { document.getElementById("posterCompactCb").checked = !!CONFIG.posterCompact; });
       } else if (posterOk) {
         fail("pysäkkijuliste (yksi arkki): valintaa #posterCompactCb ei löytynyt");
       }

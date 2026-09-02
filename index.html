@@ -872,8 +872,10 @@
   .poster-compact table.poster-matrix tbody tr:nth-child(even) th,
   .poster-compact table.poster-matrix tbody tr:nth-child(even) td { background: #e9ebef;
     -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .poster-compact .poster-foot { flex: 1 1 100%; font-size: 8pt; color: #333; margin: 1mm 0 0;
-    padding-top: 1mm; border-top: 0.25mm solid #999; }
+  /* Tulostuspäivä ja operaattori otsikkopalkin alarivinä (näkyy myös fit 3/4:ssä, toisin kuin lukuohje),
+     ei erillisenä alaviitteenä arkin alareunassa: alaviite jäi 2 arkin julisteessa yksin 3. arkille. */
+  .poster-compact .poster-head p.poster-printed { color: rgba(255,255,255,0.85); font-size: 7.5pt;
+    margin: 1mm 0 0; }
   .poster-compact > p.muted { display: none; }
   .poster-compact .poster-stop[data-fit="1"] { font-size: 11pt; }
   .poster-compact .poster-stop[data-fit="2"] { font-size: 10pt; }
@@ -1774,6 +1776,12 @@ const CONFIGS = {
     // asemat todennettu metadatasta 13.8.2026 (kaikilla 16 kaupungilla on asema).
     rail: "LH",
     heroEmphasis: "layer",                // on jo moderni reittiopas → korosta erottuvaa kerrosta
+    // LSL:n brändisininen: logo-PNG:n ainoa väri (lsl.fi/app/uploads/2020/11/82852c4f-horisontaali.png,
+    // mitattu 2.9.2026; lsl.fi:n ikonit käyttävät tummempaa #00387A). headerBgColor() pitää AA:n valkoiselle.
+    brandColor: "#005cb6",
+    // Yhden arkin tiivis pysäkkijuliste oletuksena (tunti × linja -matriisi, sama kuin Vaasassa 2.9.2026).
+    // Matkakeskus A (19 linjaa) menee 3 arkille, pienemmät pysäkit yhdelle. Ruudulta voi vaihtaa tavalliseen.
+    posterCompact: true,
     // Ydinkeskustan solmupysäkit: palvelutiskin oletuspysäkki + "Keskustan linjat"
     // -pikavalinta tulostusvihkossa. JÄRJESTYS RATKAISEE TISKIN OLETUKSEN:
     // deskFindDefaultStop ottaa ensimmäisen nimen jolta löytyy lähtöjä, joten
@@ -7181,16 +7189,19 @@ function compactPosterDom(po) {
     // pysäkkikatoksen tekstiä; se piilotetaan tiiviissä tilassa CSS:llä).
     const note = st.querySelector(".poster-head p.muted");
     if (note) note.textContent = t("posterMatrixNote");
-    if (!st.querySelector(".poster-foot")) {
-      const foot = document.createElement("p");
-      foot.className = "poster-foot";
-      foot.textContent = t("posterFoot", { date: fmtDateLong(todayISO()), operator: CONFIG.operator || "" });
-      st.appendChild(foot);
+    const head = st.querySelector(".poster-head");
+    if (head && !head.querySelector(".poster-printed")) {
+      const printed = document.createElement("p");
+      printed.className = "poster-printed";
+      printed.textContent = t("posterFoot", { date: fmtDateLong(todayISO()), operator: CONFIG.operator || "" });
+      (head.querySelector("h2")?.parentElement || head).appendChild(printed); // otsikkosarake, ei QR-laatikko
     }
   });
 }
-// A4 pysty, 7 mm marginaalit (setPageOrientation "compact"), alaviitteelle 30 px.
-const POSTER_SHEET_PX = Math.round((297 - 14) * 96 / 25.4) - 30;
+// A4 pysty, 7 mm marginaalit (setPageOrientation "compact"). Tulostuspäivä on otsikkopalkissa, ei
+// erillisenä alaviitteenä: virtaava alaviite putosi Lahden Matkakeskuksessa (2 arkkia) yksin
+// kolmannelle arkille 2.9.2026, ja position:fixed ei asemoidu luotettavasti sivun alareunaan PDF:ssä.
+const POSTER_SHEET_PX = Math.round((297 - 14) * 96 / 25.4) - 8;
 const POSTER_FIT_MAX = 4;
 // Sovittaa jokaisen .poster-stop-lohkon yhdelle arkille: mittaa arkin levyisessä
 // piilolaatikossa ja tiukentaa asteittain (data-fit 0..4, ks. CSS: 12 → 11 → 10 → 9 → 8 pt).
