@@ -3,6 +3,9 @@ name: CI
 on:
   push:
     branches: [master]
+    # Muutosvahdin datacommit (docs/muutosvahti/*.json) ei muuta koodia eikä tarvitse smokea
+    paths-ignore:
+      - "docs/muutosvahti/**"
   pull_request:
   # auto-kehitys kaynnistaa taman GITHUB_TOKENilla avatulle PR:lle (se ei laukaise pull_request-tapahtumaa)
   workflow_dispatch:

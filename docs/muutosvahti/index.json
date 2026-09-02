@@ -1,0 +1,21 @@
+{
+ "kaupungit": {
+  "vaasa": {
+   "ajettu": "2026-09-02T07:33:24.042Z",
+   "pysakkeja": 545,
+   "tulossa": 0,
+   "muuttunut": 0,
+   "poikkeus": 274,
+   "voimaan": null
+  },
+  "lahti": {
+   "ajettu": "2026-09-02T07:40:58.861Z",
+   "pysakkeja": 2267,
+   "tulossa": 0,
+   "muuttunut": 0,
+   "poikkeus": 1716,
+   "voimaan": null
+  }
+ },
+ "ajettu": "2026-09-02T07:41:06.871Z"
+}

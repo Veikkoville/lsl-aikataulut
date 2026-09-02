@@ -49,6 +49,13 @@ tasalla ilman ylläpitoa.
 - Linjan bussit liikkuvat kartalla reaaliajassa (Waltti GTFS-RT,
   mqtt.digitransit.fi)
 - Tulostettava / PDF:ksi tallennettava linja-aikataulu
+- **Tulostekeskus kaupungin omaan työhön**: pysäkkijulisteet (yhden arkin A4-matriisi tai
+  päivätyyppi per arkki, koko linjan pysäkit yhdellä napilla), aikatauluvihot (A4 ja taitettava A5),
+  yhdistetyt suunta-aikataulut ja palvelutiskin näkymä, kaikki suoraan kaupungin Waltti-feedistä
+- **Muutosvahti**: viikoittainen ajo (`tests/muutosvahti.js`, GitHub Actions) laskee jokaisen pysäkin
+  julisteen sisällön tunnisteen ensi viikolle ja neljän viikon päähän, ja tulostekeskus näyttää mitkä
+  julisteet ovat vanhentuneet tai vanhenemassa ja tulostaa juuri ne. Yhden viikon poikkeukset (esim.
+  syysloma) eivät hälytä, koska juliste hoitaa ne koulupäivälohkoillaan
 - Asennettavissa puhelimen kotinäytölle (PWA)
 
 ## Käyttöönotto

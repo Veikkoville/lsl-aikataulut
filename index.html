@@ -1221,6 +1221,16 @@
      eikä valu kortin reunan yli — myös sarakkeen ollessa kapea (flex/grid-lapsi). */
   .hl-t { font-weight: var(--wmed); color: var(--text); min-width: 0; overflow-wrap: anywhere; }
   .hl-d { font-size: 0.85rem; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+  /* Layer-hero: kaupungin työ ensin (isot kortit), matkustajan nostot pienempinä, A->B alimpana */
+  .hero-primary { margin-top: 1rem; }
+  @media (min-width: 600px) { .hero-primary { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 900px) { .hero-primary { grid-template-columns: repeat(4, 1fr); } }
+  .hero-primary .hl { padding: 1rem 1rem 0.9rem; gap: 0.3rem; border-width: 2px; }
+  .hero-primary .hl .ic { width: 1.9em; height: 1.9em; color: var(--blue); }
+  .hero-primary .hl-t { font-size: 1.12rem; }
+  .hero-secondary .hl { flex-direction: row; align-items: center; gap: 0.5rem; padding: 0.55rem 0.8rem; }
+  .hero-secondary .hl .ic { width: 1.2em; height: 1.2em; }
+  .hero-secondary .hl-d { font-size: 0.8rem; }
   .hero-journey { border-top: 1px solid var(--border); padding-top: 0.8rem; }
   .hero-journey-h { display: flex; align-items: center; gap: 0.4rem; font-size: 1.05rem;
     font-weight: var(--wmed); margin: 0 0 0.5rem; color: var(--muted); }
@@ -2929,7 +2939,36 @@ const STRINGS = {
     headerSub: "Aikataulut ja reitit selkeästi, avoimesta datasta",
     heroTitle: "Mihin matka?",
     heroTagline: "Hae nopein bussireitti perille reaaliaikaisilla lähtöajoilla.",
-    heroLayerTitle: "Aikataulut selkeästi, ja vähän enemmän",
+    heroLayerTitle: "Aikataulut paperille ja tiskille, suoraan kaupungin omasta datasta",
+    heroLayerSub: "Pysäkkijulisteet, aikatauluvihot ja palvelutiskin näkymä syntyvät Waltti-aikataulusta ja pysyvät ajan tasalla ilman käsityötä. Reittihaku on edelleen kaupungin reittioppaassa.",
+    heroHlPosters: "Pysäkkijulisteet",
+    heroHlPostersDesc: "Kaikki pysäkit yhdellä napilla, A4",
+    heroHlBooklet: "Aikatauluvihot",
+    heroHlBookletDesc: "Linjoittain, A4 tai taitettava A5",
+    heroHlDesk: "Palvelutiski",
+    heroHlDeskDesc: "Lähdöt ja tulosteet tiskille",
+    heroHlWatch: "Muutosvahti",
+    heroHlWatchDesc: "Mitkä julisteet pitää tulostaa uudelleen",
+    heroHlWatchNow: "{n} julistetta on vanhentunut, tulosta uudelleen",
+    heroHlWatchSoon: "{n} julistetta vanhenee {date}",
+    heroHlWatchOk: "Tarkistettu {date}: julisteet ovat ajan tasalla",
+    tabChanges: "Muutosvahti",
+    changesTitle: "Muutosvahti: mitkä julisteet pitää tulostaa uudelleen",
+    changesIntro: "Vahti vertaa jokaisen pysäkin julisteen sisältöä viikoittain: ensi viikko, neljän viikon päästä ja edellinen tarkistus. Yhden viikon poikkeukset (esimerkiksi syysloma) eivät laukaise hälytystä, koska juliste hoitaa ne koulupäivälohkoillaan.",
+    changesLoading: "Haetaan muutosvahdin tulosta…",
+    changesNone: "Muutosvahtia ei ole vielä ajettu tälle kaupungille.",
+    changesSummary: "Tarkistettu {date}: {n} pysäkkiä. Vanhentuneita julisteita {now}, vanhenemassa {soon}{eff}.{week}",
+    changesWeek: " Yhden viikon poikkeus {date}: {n} pysäkkiä (juliste hoitaa sen koulupäivälohkoilla, ei tulosteta uudelleen).",
+    changesEffective: " (voimaan {date})",
+    changesBadgeNow: "tulosta nyt",
+    changesBadgeSoon: "vanhenee {date}",
+    changesBadgeWeek: "poikkeusviikko",
+    changesSelectNow: "Valitse vanhentuneet",
+    changesSelectSoon: "Valitse vanhenevat",
+    changesSelectNone: "Tyhjennä",
+    changesPrint: "Tulosta valitut julisteet",
+    changesNoSelection: "Valitse ensin pysäkit.",
+    changesDeps: "{n} lähtöä (ti, la, su)",
     heroJourneyHeading: "Reittihaku",
     extPlannerLead: "Reittihaku on {name}-reittioppaassa. Se käyttää samaa aikataulutietoa kuin tämä palvelu.",
     extPlannerOpen: "Avaa {name}-reittiopas",
@@ -3435,7 +3474,36 @@ const STRINGS = {
     headerSub: "Timetables and routes made clear, from open data",
     heroTitle: "Where to?",
     heroTagline: "Find the fastest bus route with real-time departures.",
-    heroLayerTitle: "Timetables made clear, and a bit more",
+    heroLayerTitle: "Timetables on paper and at the desk, straight from the city's own data",
+    heroLayerSub: "Stop posters, timetable booklets and the service desk view are generated from the Waltti timetable and stay current without manual work. Journey search remains in the city's journey planner.",
+    heroHlPosters: "Stop posters",
+    heroHlPostersDesc: "Every stop with one click, A4",
+    heroHlBooklet: "Timetable booklets",
+    heroHlBookletDesc: "Per line, A4 or folded A5",
+    heroHlDesk: "Service desk",
+    heroHlDeskDesc: "Departures and printouts at the counter",
+    heroHlWatch: "Change watch",
+    heroHlWatchDesc: "Which posters need reprinting",
+    heroHlWatchNow: "{n} posters are out of date, reprint them",
+    heroHlWatchSoon: "{n} posters expire on {date}",
+    heroHlWatchOk: "Checked {date}: posters are up to date",
+    tabChanges: "Change watch",
+    changesTitle: "Change watch: which posters need reprinting",
+    changesIntro: "The watch compares every stop's poster content weekly: next week, four weeks ahead and the previous check. Single-week exceptions (such as autumn break) do not raise an alert, because the poster handles them with its school-day blocks.",
+    changesLoading: "Loading the change watch result…",
+    changesNone: "The change watch has not run for this city yet.",
+    changesSummary: "Checked {date}: {n} stops. Out-of-date posters {now}, expiring {soon}{eff}.{week}",
+    changesWeek: " Single-week exception {date}: {n} stops (the poster covers it with school-day blocks, no reprint needed).",
+    changesEffective: " (effective {date})",
+    changesBadgeNow: "reprint now",
+    changesBadgeSoon: "expires {date}",
+    changesBadgeWeek: "exception week",
+    changesSelectNow: "Select out of date",
+    changesSelectSoon: "Select expiring",
+    changesSelectNone: "Clear",
+    changesPrint: "Print selected posters",
+    changesNoSelection: "Select stops first.",
+    changesDeps: "{n} departures (Tue, Sat, Sun)",
     heroJourneyHeading: "Journey search",
     extPlannerLead: "Journey search is in the {name} journey planner. It uses the same timetable data as this service.",
     extPlannerOpen: "Open the {name} journey planner",
@@ -3915,7 +3983,36 @@ const STRINGS = {
     headerSub: "Tidtabeller och rutter tydligt, från öppna data",
     heroTitle: "Vart vill du?",
     heroTagline: "Hitta den snabbaste bussrutten med avgångar i realtid.",
-    heroLayerTitle: "Tidtabeller tydligt, och lite mer",
+    heroLayerTitle: "Tidtabeller på papper och vid disken, direkt från stadens egna data",
+    heroLayerSub: "Hållplatsaffischer, tidtabellshäften och servicediskens vy skapas ur Waltti-tidtabellen och hålls aktuella utan handarbete. Resesökningen finns fortfarande i stadens reseplanerare.",
+    heroHlPosters: "Hållplatsaffischer",
+    heroHlPostersDesc: "Alla hållplatser med ett klick, A4",
+    heroHlBooklet: "Tidtabellshäften",
+    heroHlBookletDesc: "Per linje, A4 eller vikt A5",
+    heroHlDesk: "Servicedisk",
+    heroHlDeskDesc: "Avgångar och utskrifter vid disken",
+    heroHlWatch: "Ändringsvakt",
+    heroHlWatchDesc: "Vilka affischer måste skrivas ut på nytt",
+    heroHlWatchNow: "{n} affischer är föråldrade, skriv ut dem på nytt",
+    heroHlWatchSoon: "{n} affischer föråldras {date}",
+    heroHlWatchOk: "Kontrollerat {date}: affischerna är aktuella",
+    tabChanges: "Ändringsvakt",
+    changesTitle: "Ändringsvakt: vilka affischer måste skrivas ut på nytt",
+    changesIntro: "Vakten jämför varje hållplats affischinnehåll veckovis: nästa vecka, fyra veckor framåt och föregående kontroll. Undantag på en vecka (till exempel höstlovet) utlöser inget larm, eftersom affischen hanterar dem med sina skoldagsblock.",
+    changesLoading: "Hämtar ändringsvaktens resultat…",
+    changesNone: "Ändringsvakten har inte körts för den här staden ännu.",
+    changesSummary: "Kontrollerat {date}: {n} hållplatser. Föråldrade affischer {now}, föråldras snart {soon}{eff}.{week}",
+    changesWeek: " Undantag på en vecka {date}: {n} hållplatser (affischen täcker det med skoldagsblock, ingen ny utskrift behövs).",
+    changesEffective: " (gäller från {date})",
+    changesBadgeNow: "skriv ut nu",
+    changesBadgeSoon: "föråldras {date}",
+    changesBadgeWeek: "undantagsvecka",
+    changesSelectNow: "Välj föråldrade",
+    changesSelectSoon: "Välj de som föråldras",
+    changesSelectNone: "Töm",
+    changesPrint: "Skriv ut valda affischer",
+    changesNoSelection: "Välj hållplatser först.",
+    changesDeps: "{n} avgångar (ti, lö, sö)",
     heroJourneyHeading: "Reseökning",
     extPlannerLead: "Resesökningen finns i {name}-reseguiden. Den använder samma tidtabellsdata som den här tjänsten.",
     extPlannerOpen: "Öppna {name}-reseguiden",
@@ -7182,25 +7279,54 @@ function heroJourneyHtml() {
 
 // Layer-hero (reittiopaskaupungit): korostaa erottuvaa kerrosta (kaksikielisyys + tulosteet/näytöt
 // + häiriöt sähköpostiin); A->B-reittihaku säilyy toissijaisena alaosiona samoilla ID:illä.
+// Layer-kaupunki = kaupunki jolla on jo reittiopas (kaikki Waltti-kaupungit). Ostaja luokittelee
+// palvelun ensimmäisen ruudullisen perusteella, ja kolme kaupunkia (Salo 3.7., Kotka, Vaasa 2.9.2026)
+// vastasi samalla lauseella "meillä on jo reittiopas", kun ensimmäinen ruutu oli A→B-haku.
+// Siksi ensimmäinen ruutu on kaupungin oma työ: julisteet, vihot, tiski ja muutosvahti.
+// Matkustajan reittihaku säilyy alempana samoilla kentillä (smoke: .hero-journey #homeFromInput),
+// tai linkkinä kaupungin reittioppaaseen kun CONFIG.externalPlanner on asetettu.
 function heroLayerHtml() {
   return `<section class="reila-hero hero-layer no-print">
       <h1 class="reila-hero-h1">${t("heroLayerTitle")}</h1>
-      <p class="reila-hero-sub">${t("heroTagline")}</p>
-      ${CONFIG.externalPlanner ? heroExtPlannerHtml() : `<div class="hero-journey">
-        <h3 class="hero-journey-h">${icon("route")} ${t("heroJourneyHeading")} <span class="ab-badge">A → B</span></h3>${heroFieldsHtml()}
-      </div>`}
-      <!-- Nostot A->B-haun ALAPUOLELLA (13.8.2026): kuntalaisen ykköstehtävä on "milloin
-           seuraava lähtee", ja se ansaitsee ensimmäisen ruudullisen. Nostot jäävät heroon
-           (arvolupaus on demon myyntikärki), mutta eivät enää työnnä hakua alas. -->
-      <div class="hero-highlights hero-highlights--below">
+      <p class="reila-hero-sub">${t("heroLayerSub")}</p>
+      <div class="hero-highlights hero-primary">
+        <a class="hl" href="#/tulosteet/julisteet">
+          ${icon("print")}<span class="hl-t">${t("heroHlPosters")}</span><span class="hl-d">${t("heroHlPostersDesc")}</span></a>
+        <a class="hl" href="#/tulosteet/vihko">
+          ${icon("print")}<span class="hl-t">${t("heroHlBooklet")}</span><span class="hl-d">${t("heroHlBookletDesc")}</span></a>
+        ${PROXY_URL ? `<a class="hl" href="#/palvelutiski">
+          ${icon("info")}<span class="hl-t">${t("heroHlDesk")}</span><span class="hl-d">${t("heroHlDeskDesc")}</span></a>` : ""}
+        <a class="hl" href="#/tulosteet/muutokset" id="hlWatch">
+          ${icon("calendar")}<span class="hl-t">${t("heroHlWatch")}</span><span class="hl-d" id="hlWatchDesc">${t("heroHlWatchDesc")}</span></a>
+      </div>
+      <div class="hero-highlights hero-secondary">
         <button type="button" class="hl" id="hlBilingual">
           ${icon("info")}<span class="hl-t">${t("heroHlBilingual")}</span><span class="hl-d">${t("heroHlBilingualDesc")}</span></button>
-        <a class="hl" href="#/tulosteet/vihko">
-          ${icon("print")}<span class="hl-t">${t("heroHlPrint")}</span><span class="hl-d">${t("heroHlPrintDesc")}</span></a>
         ${PROXY_URL ? `<a class="hl" href="#/sahkoposti">
           ${icon("mail")}<span class="hl-t">${t("heroHlEmail")}</span><span class="hl-d">${t("heroHlEmailDesc")}</span></a>` : ""}
       </div>
+      ${CONFIG.externalPlanner ? heroExtPlannerHtml() : `<div class="hero-journey">
+        <h3 class="hero-journey-h">${icon("route")} ${t("heroJourneyHeading")} <span class="ab-badge">A → B</span></h3>${heroFieldsHtml()}
+      </div>`}
     </section>`;
+}
+
+// Etusivun muutosvahti-nosto: lukee viikkoajon yhteenvedon (docs/muutosvahti/index.json, sama
+// origin, ei proxya). Puuttuva tiedosto = vahtia ei ole ajettu, nosto jää yleistekstiin.
+async function fillWatchHighlight() {
+  const el = document.getElementById("hlWatchDesc");
+  if (!el) return;
+  try {
+    const r = await fetch("docs/muutosvahti/index.json", { cache: "no-cache" });
+    if (!r.ok) return;
+    const j = await r.json();
+    const c = j.kaupungit?.[cityKey];
+    if (!c || !document.getElementById("hlWatchDesc")) return;
+    const d = fmtDateLong((c.ajettu || "").slice(0, 10));
+    el.textContent = c.muuttunut ? t("heroHlWatchNow", { n: c.muuttunut })
+      : c.tulossa ? t("heroHlWatchSoon", { n: c.tulossa, date: c.voimaan ? fmtDateLong(c.voimaan) : "" })
+      : t("heroHlWatchOk", { date: d });
+  } catch (e) { /* nosto ei ole kriittinen */ }
 }
 
 function viewRoutes() {
@@ -7246,6 +7372,7 @@ function viewRoutes() {
            <span class="muted">${t("lastSearch")}</span></a></p>`;
     }
   } catch (e) { /* rikkinäinen merkintä ohitetaan */ }
+  fillWatchHighlight();
   initNearby(document.getElementById("nearbyBody"));
   document.getElementById("nearbyBtn2")?.addEventListener("click", () => nearbyLocate
     ? nearbyLocate()
@@ -9392,6 +9519,15 @@ function bindPostersTab(routes) {
       for (const r of (data.routes || [])) for (const p of (r?.patterns || [])) for (const s of (p.stops || []))
         if (!seen.has(s.gtfsId)) { seen.add(s.gtfsId); stops.push(s); }
       if (!stops.length) { st.textContent = t("batchNoStops"); return; }
+      await printPosterBatch(stops, routeObj?.shortName || "", posterCompactOn("batchCompactCb"), st, out);
+    } catch (e) { st.textContent = esc(e.message); }
+  });
+}
+
+// Pysäkkijulisteiden erätulostus annetulle pysäkkilistalle. Käyttäjät: linjan kaikki pysäkit
+// (bindPostersTab) ja muutosvahdin valitsemat pysäkit (bindChangesTab). subPrefix = julisteen
+// alaotsikon etuliite (linjan tunnus), tyhjä kun pysäkit eivät ole yhden linjan.
+async function printPosterBatch(stops, subPrefix, compact, st, out) {
       const today = todayISO();
       const ptdMemo = new Map();   // jaettu pattern-välimuisti: naapuripysäkit jakavat samat patternit
       // Pysäkkien patternit etukäteen yhdellä kyselyllä per 40 pysäkkiä (ks.
@@ -9401,7 +9537,6 @@ function bindPostersTab(routes) {
       // yhden kutsun jokaisesta eri patternista, mikä oli 13.8.2026 vian pääerä.
       await patternTripsMany([...patsByStop.values()].flat().map(p => p.code), ptdMemo);
       let done = 0;
-      const compact = posterCompactOn("batchCompactCb");
       const sections = await mapLimit(stops, 2, async (s) => {
         // Virhe heittää → koko erä keskeytyy ulompaan catchiin (status näyttää syyn).
         // Vajaa/tyhjä pysäkkijuliste virhetilassa olisi pahempi kuin uusi yritys.
@@ -9415,9 +9550,9 @@ function bindPostersTab(routes) {
           </div></div>`;
         return blocks.length
           ? blocks.map(b => `<section class="card poster-day">
-              ${head((routeObj?.shortName ? routeObj.shortName + " · " : "") + b.label)}
+              ${head((subPrefix ? subPrefix + " · " : "") + b.label)}
               ${stopPosterHtml(b.lines, compact)}</section>`).join("")
-          : `<section class="card poster-day">${head(routeObj?.shortName || "")}
+          : `<section class="card poster-day">${head(subPrefix)}
               <p class="muted">${t("bookletNoData")}</p></section>`;
       });
       out.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}">${sections.map(sec => `<div class="poster-stop">${sec}</div>`).join("")}
@@ -9431,7 +9566,60 @@ function bindPostersTab(routes) {
         setPageOrientation("portrait");
       }
       window.print();
-    } catch (e) { st.textContent = esc(e.message); }
+}
+
+// Muutosvahti-välilehti: lukee viikkoajon tuloksen (docs/muutosvahti/<city>.json, sama origin)
+// ja tarjoaa vanhentuneiden tai vanhenevien julisteiden erätulostuksen. Tiedosto puuttuu →
+// "ei vielä ajettu"; se ei ole virhe eikä estä muita välilehtiä.
+function bindChangesTab() {
+  const list = document.getElementById("chgList");
+  const sum = document.getElementById("chgSummary");
+  if (!list || !sum) return;
+  const st = document.getElementById("chgStatus");
+  const out = document.getElementById("chgOut");
+  let rows = [];
+  const cbs = () => [...list.querySelectorAll(".chgCb")];
+  (async () => {
+    try {
+      // Yhteenveto ensin: kaupunkitiedostoa haetaan vain jos vahti on ajanut sen. Suora haku
+      // puuttuvasta tiedostosta lokittaisi 404-konsolivirheen, jonka smoke laskee viaksi.
+      const ix = await fetch("docs/muutosvahti/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
+      if (!ix?.kaupungit?.[cityKey]) { sum.textContent = t("changesNone"); return; }
+      const r = await fetch("docs/muutosvahti/" + encodeURIComponent(cityKey) + ".json", { cache: "no-cache" });
+      if (!r.ok) { sum.textContent = t("changesNone"); return; }
+      const j = await r.json();
+      rows = (j.pysakit || []).slice().sort((a, b) =>
+        (b.muuttunut - a.muuttunut) || (b.tulossa - a.tulossa) || a.name.localeCompare(b.name, "fi"));
+      const y = j.yhteenveto || {};
+      sum.textContent = t("changesSummary", {
+        date: fmtDateLong((j.ajettu || "").slice(0, 10)), n: y.pysakkeja ?? rows.length,
+        now: y.muuttunut ?? 0, soon: y.tulossa ?? 0,
+        eff: y.voimaan ? t("changesEffective", { date: fmtDateLong(y.voimaan) }) : "",
+        week: ["near", "far"].map(k => y.poikkeusviikot?.[k]?.n
+          ? t("changesWeek", { date: fmtDateLong(y.poikkeusviikot[k].pvm), n: y.poikkeusviikot[k].n }) : "").join("") });
+      const soonDate = y.voimaan ? fmtDateLong(y.voimaan) : "";
+      list.innerHTML = rows.map(s => `<li><label class="item" style="cursor:pointer;align-items:center">
+          <input type="checkbox" class="chgCb" value="${esc(s.id)}" data-now="${s.muuttunut ? 1 : 0}" data-soon="${s.tulossa ? 1 : 0}"
+                 style="width:1.4rem;height:1.4rem;flex:none">
+          <span>${esc(s.name)} <span class="muted">${esc(s.code || "")}</span></span>
+          <span class="muted">${(s.lines || []).map(esc).join(", ")}</span>
+          <span class="muted">${s.muuttunut ? `<span class="badge">${t("changesBadgeNow")}</span> ` : ""}${s.tulossa ? `<span class="badge">${t("changesBadgeSoon", { date: soonDate })}</span> ` : ""}${s.poikkeus ? `${t("changesBadgeWeek")} ` : ""}${t("changesDeps", { n: s.depsNear })}</span></label></li>`).join("");
+    } catch (e) { sum.textContent = t("changesNone"); }
+  })();
+  document.getElementById("chgFilter").addEventListener("input", e => {
+    const f = e.target.value.toLowerCase();
+    list.querySelectorAll("li").forEach(li => { li.hidden = f && !li.textContent.toLowerCase().includes(f); });
+  });
+  document.getElementById("chgSelNow").addEventListener("click", () => cbs().forEach(c => { c.checked = c.dataset.now === "1"; }));
+  document.getElementById("chgSelSoon").addEventListener("click", () => cbs().forEach(c => { c.checked = c.dataset.soon === "1"; }));
+  document.getElementById("chgSelNone").addEventListener("click", () => cbs().forEach(c => { c.checked = false; }));
+  document.getElementById("chgGo").addEventListener("click", async () => {
+    const ids = new Set(cbs().filter(c => c.checked).map(c => c.value));
+    const stops = rows.filter(r => ids.has(r.id)).map(r => ({ gtfsId: r.id, name: r.name, code: r.code }));
+    if (!stops.length) { st.textContent = t("changesNoSelection"); return; }
+    st.textContent = t("preparingPrint");
+    try { await printPosterBatch(stops, "", posterCompactOn("chgCompactCb"), st, out); }
+    catch (e) { st.textContent = esc(e.message); }
   });
 }
 
@@ -12440,7 +12628,7 @@ async function viewReprint() {
 // ohjautuvat oikealle välilehdelle (route()); välilehdet ovat URL-osoitettavia (#/tulosteet/<tab>
 // tai ?tab=<tab>). Kaikki kolme paneelia ovat DOMissa → sidonnat toimivat tabista riippumatta;
 // välilehden vaihto ei piirrä näkymää uudelleen (history.replaceState → lomaketila säilyy).
-const PRINT_TABS = ["vihko", "kaytava", "julisteet", "naytot"];
+const PRINT_TABS = ["vihko", "kaytava", "julisteet", "muutokset", "naytot"];
 async function viewPrintCenter(tab) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   tab = PRINT_TABS.includes(tab) ? tab : "vihko";
@@ -12456,6 +12644,7 @@ async function viewPrintCenter(tab) {
         <button type="button" class="ptab" data-ptab="vihko" aria-pressed="false">${t("tabBooklet")}</button>
         <button type="button" class="ptab" data-ptab="kaytava" aria-pressed="false">${t("tabCorridor")}</button>
         <button type="button" class="ptab" data-ptab="julisteet" aria-pressed="false">${t("tabPosters")}</button>
+        <button type="button" class="ptab" data-ptab="muutokset" aria-pressed="false">${t("tabChanges")}</button>
         <button type="button" class="ptab" data-ptab="naytot" aria-pressed="false">${t("tabScreens")}</button>
       </div>
     </div>
@@ -12554,6 +12743,25 @@ async function viewPrintCenter(tab) {
       <div id="batchOut"></div>
     </div>
 
+    <div class="ppanel" data-ppanel="muutokset" hidden>
+      <div class="card no-print">
+        <h2>${icon("calendar")} ${t("changesTitle")}</h2>
+        <p class="muted">${t("changesIntro")}</p>
+        <p class="muted" id="chgSummary" role="status">${t("changesLoading")}</p>
+        <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
+          <input type="search" id="chgFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
+          <button type="button" id="chgSelNow" class="linkish">${t("changesSelectNow")}</button>
+          <button type="button" id="chgSelSoon" class="linkish">${t("changesSelectSoon")}</button>
+          <button type="button" id="chgSelNone" class="linkish">${t("changesSelectNone")}</button>
+        </div>
+        <p><label class="dtopt"><input type="checkbox" id="chgCompactCb"${CONFIG.posterCompact ? " checked" : ""}> ${t("posterCompactOpt")}</label></p>
+        <p class="buildbar"><button type="button" id="chgGo">${t("changesPrint")}</button>
+          <span id="chgStatus" class="muted" role="status"></span></p>
+        <ul class="plain" id="chgList"></ul>
+      </div>
+      <div id="chgOut"></div>
+    </div>
+
     <div class="ppanel" data-ppanel="naytot" hidden>
       <div class="card">
         <h2>${icon("monitor")} ${t("screenNetTitle")}</h2>
@@ -12578,6 +12786,7 @@ async function viewPrintCenter(tab) {
   bindBookletTab(routes, today);
   bindCorridorTab(routes, today);
   bindPostersTab(routes);
+  bindChangesTab();
   bindScreenNetTab();
   showTab(tab);
 }

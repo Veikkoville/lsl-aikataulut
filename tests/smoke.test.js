@@ -1175,9 +1175,35 @@ async function printHygiene(page, label) {
     active: document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab,
     booklet: !!document.getElementById("buildBtn"), batch: !!document.getElementById("batchGo"), hub: !!document.getElementById("hubStopSearch"),
   }));
-  (pc.tabs === 4 && pc.active === "vihko" && /#\/tulosteet\/vihko/.test(pc.hash) && pc.booklet && pc.batch && pc.hub)
-    ? ok(`tulosteet-keskus: #/tulosta ohjautuu vihko-välilehdelle, 4 välilehteä (${pc.hash})`)
+  (pc.tabs === 5 && pc.active === "vihko" && /#\/tulosteet\/vihko/.test(pc.hash) && pc.booklet && pc.batch && pc.hub)
+    ? ok(`tulosteet-keskus: #/tulosta ohjautuu vihko-välilehdelle, 5 välilehteä (${pc.hash})`)
     : fail("tulosteet-keskus: #/tulosta-ohjaus tai välilehdet pielessä: " + JSON.stringify(pc));
+  // Muutosvahti-välilehti: lukee viikkoajon tuloksen docs/muutosvahti/<city>.json (sama origin).
+  // Kaupunki jolle ajo on tehty (index.json listaa) → yhteenveto + pysäkkilista; muu → "ei vielä
+  // ajettu" ilman konsolivirhettä (puuttuvaa tiedostoa ei saa hakea, 404 olisi smoke-vika).
+  {
+    const ix = await page.evaluate(async () => {
+      try { const r = await fetch("docs/muutosvahti/index.json", { cache: "no-cache" }); return r.ok ? await r.json() : null; }
+      catch (e) { return null; }
+    });
+    const ajettu = ix?.kaupungit ? Object.keys(ix.kaupungit) : [];
+    const city = ajettu.includes("vaasa") ? "vaasa" : ajettu[0];
+    await page.goto(BASE + "/?city=" + (city || "lahti") + "#/tulosteet/muutokset", { waitUntil: "networkidle2" });
+    const ready = await page.waitForFunction(() => {
+      const s = document.getElementById("chgSummary")?.textContent || "";
+      return s && !/Haetaan|Loading|Hämtar/.test(s);
+    }, { timeout: 20000 }).then(() => true).catch(() => false);
+    const chg = await page.evaluate(() => ({
+      sum: (document.getElementById("chgSummary")?.textContent || "").slice(0, 80),
+      rows: document.querySelectorAll("#chgList li").length,
+      go: !!document.getElementById("chgGo"),
+      active: document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab,
+    }));
+    const expectRows = !!city;
+    (ready && chg.go && chg.active === "muutokset" && (expectRows ? chg.rows > 0 && /\d/.test(chg.sum) : chg.rows === 0))
+      ? ok(`muutosvahti-välilehti (${city || "ei ajettu"}): ${chg.rows} pysäkkiä, "${chg.sum}…"`)
+      : fail("muutosvahti-välilehti: " + JSON.stringify({ city, ready, ...chg }));
+  }
   if (await expect(".lineCb", "tulostusvihko: linjavalinta latautuu")) {
     await page.evaluate(() => { document.querySelector(".lineCb").checked = true; });
     await page.click("#buildBtn");

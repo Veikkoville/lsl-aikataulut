@@ -17,7 +17,13 @@ signaalin "→ backlog <pvm>".
 
 - 2026-08-26, kaupungin joukkoliikennetiimi tapaamisessa: pysäkkijuliste on heillä A4 ja siihen
   halutaan mahdollisimman paljon tietoa yhdelle arkille; he eivät tarjoa nyt painettavaa lainkaan.
-  (Yhden arkin A4 on tehty 27.8.; tiheys ja luettavuus ovat auki.)
+  (Yhden arkin A4 tehty 27.8.; 2.9. rakennettu uusiksi tunti × linja -matriisiksi, 8 linjaa 12 pt:llä
+  yhdellä arkilla. → tehty 2.9.)
+- 2026-09-02, kolmas kaupunki peräkkäin (Salo 3.7., Kotka, Vaasa 2.9.) vastasi samalla lauseella
+  "meillä on jo reittiopas, jossa pitkälti samat ominaisuudet". Ensimmäinen ruutu oli A→B-haku, ja
+  ostaja luokitteli palvelun sen mukaan. (→ tehty 2.9.: layer-kaupungin etusivu avaa julisteet, vihot,
+  tiskin ja muutosvahdin; A→B alimpana. Muutosvahti (tests/muutosvahti.js + tulostekeskuksen välilehti)
+  vastaa kysymykseen jota reittiopas ei tee: mitkä julisteet pitää tulostaa uudelleen.)
 - 2026-08-27, kaupunki jossa ei ole reaaliaikadataa: livekartta näytti tyhjää. (→ backlog 28.8.,
   tehty PR #3.)
 - 2026-08-24, kaupungin tekninen johto: kysyivät, missä data sijaitsee ja mitä tapahtuu jos

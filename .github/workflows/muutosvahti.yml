@@ -1,0 +1,59 @@
+# Muutosvahti: viikoittainen ajo joka laskee jokaiselle kaupungin pysäkille julisteen
+# sisällön tunnisteen ja kertoo mitkä julisteet ovat vanhentuneet tai vanhenemassa
+# (tests/muutosvahti.js). Tulos committoidaan docs/muutosvahti/*.json, josta sovellus
+# lukee sen tulostekeskuksen Muutosvahti-välilehdelle ja etusivun nostoon.
+#
+# KIINTIÖKURI: pelkkiä GraphQL-kutsuja aliasnipuissa, tauot kyselyjen välissä. Ajastus eri
+# päivälle kuin Tuotanto-smoke (ma/to) ja Kausivalidointi (ti): sunnuntaiaamu.
+# Datacommit ei laukaise CI:tä (ci.yml paths-ignore), koska koodi ei muutu.
+name: Muutosvahti
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 0" # su 03:00 UTC = 06:00 Suomen kesäaikaa
+
+permissions:
+  contents: write
+
+concurrency:
+  group: muutosvahti
+  cancel-in-progress: false
+
+jobs:
+  muutosvahti:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Aja muutosvahti (kaikki CONFIGS-kaupungit)
+        run: |
+          set -o pipefail
+          node tests/muutosvahti.js 2>&1 | tee muutosvahti-loki.txt || true
+      - name: Yhteenveto
+        if: always()
+        run: |
+          echo '## Muutosvahti' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^(OK|INFO|FAIL|YHTEENVETO)" muutosvahti-loki.txt >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Committaa tulos (vain docs/muutosvahti)
+        if: always()
+        run: |
+          git config user.name "muutosvahti"
+          git config user.email "muutosvahti@users.noreply.github.com"
+          git add docs/muutosvahti
+          if git diff --cached --quiet; then echo "ei muutoksia"; exit 0; fi
+          git commit -m "data(muutosvahti): viikkoajo $(date -u +%Y-%m-%d)"
+          git pull --rebase origin master
+          git push origin HEAD:master
+      - name: Arkistoi loki
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: muutosvahti-loki
+          path: muutosvahti-loki.txt
+          retention-days: 90
