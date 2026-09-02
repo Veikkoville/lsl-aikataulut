@@ -1658,6 +1658,24 @@
     /* Yhdistetty suunta-aikataulu: osiot virtaavat, suuntaotsikko kiinni taulussa */
     .corridor-head, .corridor-dir { break-inside: auto; page-break-inside: auto; }
     .corridor-dir > h3 { break-after: avoid; page-break-after: avoid; }
+    /* Brändipalkki tulosteiden otsikkoon (käytävä, vihko, lehtiteline, linjatuloste, 2.9.2026): sama
+       ilme kuin tiiviissä pysäkkijulisteessa. Vain print-mediassa: ruudulla otsikot pysyvät korttien
+       tavallisina otsikoina. Väri pakotetaan print-color-adjustilla (Chromen taustagrafiikka on
+       oletuksena pois, ja valkoinen otsikko katoaisi valkoiselle). */
+    .print-brandhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 6mm;
+      background: var(--header-bg, #333); color: #fff; padding: 2.5mm 4mm; border-radius: 1.5mm;
+      margin: 0 0 3mm; break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print-brandhead h2 { margin: 0; color: #fff; font-size: 17pt; line-height: 1.15; }
+    .print-brandhead h2 .badge { background: #fff; color: var(--header-bg, #333); border: 1px solid #fff;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print-brandhead p { margin: 1mm 0 0; color: rgba(255,255,255,0.9); font-size: 9.5pt; }
+    .print-brandhead .print-brandhead-meta { font-size: 7.5pt; color: rgba(255,255,255,0.8); }
+    .print-brandhead img.rack-qr { background: #fff; padding: 1mm; border-radius: 1.5mm; }
+    .rackprint .rack-head.print-brandhead { border-bottom: 0; padding: 2.5mm 4mm; margin-bottom: 3mm; }
+    .rackprint .rack-head.print-brandhead h2 { color: #fff; }
+    .rackprint .rack-head.print-brandhead .rack-sub { color: #fff; }
+    .rackprint .rack-head.print-brandhead .rack-period { color: rgba(255,255,255,0.85); }
     /* Määränpää-sarake: table-layout:fixed jakaa sarakkeet tasalevyisiksi ja
        overflow:hidden + nowrap leikkaisi pitkän määränpään kesken sanan ilman
        merkkiä katkeamisesta ("Myllykoski" → "Myllykosk") → sallitaan rivitys
@@ -3296,6 +3314,8 @@ const STRINGS = {
     posterSheets: "Ei mahdu yhdelle arkille: {n} arkkia",
     posterMatrixNote: "Kaikki pysäkiltä lähtevät linjat. Tunti vasemmalla, lähtöminuutit linjan sarakkeessa.",
     posterFoot: "Tulostettu {date} · {operator} · Ajantasaiset lähdöt QR-koodilla",
+    printMeta: "Tulostettu {date} · {operator}",
+    printMetaDate: "Tulostettu {date}",
     loadingDeps: "Haetaan lähtöjä…",
     fullTimetableTitle: "Koko aikataulu pysäkeittäin",
     fullTimetableShow: "Näytä koko aikataulu",
@@ -3813,6 +3833,8 @@ const STRINGS = {
     posterSheets: "Does not fit on one sheet: {n} sheets",
     posterMatrixNote: "All lines departing from this stop. Hour on the left, departure minutes in the line's column.",
     posterFoot: "Printed {date} · {operator} · Live departures via the QR code",
+    printMeta: "Printed {date} · {operator}",
+    printMetaDate: "Printed {date}",
     loadingDeps: "Loading departures…",
     fullTimetableTitle: "Full timetable by stop",
     fullTimetableShow: "Show full timetable",
@@ -4324,6 +4346,8 @@ const STRINGS = {
     posterSheets: "Ryms inte på ett ark: {n} ark",
     posterMatrixNote: "Alla linjer som avgår från hållplatsen. Timme till vänster, avgångsminuter i linjens kolumn.",
     posterFoot: "Utskriven {date} · {operator} · Avgångar i realtid via QR-koden",
+    printMeta: "Utskriven {date} · {operator}",
+    printMetaDate: "Utskriven {date}",
     loadingDeps: "Hämtar avgångar…",
     fullTimetableTitle: "Hela tidtabellen per hållplats",
     fullTimetableShow: "Visa hela tidtabellen",
@@ -7166,6 +7190,17 @@ function heroExtPlannerHtml() {
       </div>`;
 }
 
+// Tulosteiden yhteinen otsikkopalkki (käytävä, vihko, lehtiteline, linjatuloste): sama brändi-ilme
+// kuin tiiviissä pysäkkijulisteessa. Ruudulla tavallinen otsikko, print-mediassa CSS värittää palkin
+// CONFIG.brandColorista (--header-bg). meta: "full" = "Tulostettu pvm · operaattori", "date" = vain pvm
+// (kun operaattori on jo otsikossa), false = ei metariviä (kun tuloste kertoo päivän muualla).
+function printBrandHead({ title, sub = "", meta = "full", extra = "" } = {}) {
+  const metaTxt = meta === "full" ? t("printMeta", { date: fmtDateLong(todayISO()), operator: CONFIG.operator || "" })
+    : meta === "date" ? t("printMetaDate", { date: fmtDateLong(todayISO()) }) : "";
+  return `<div class="print-brandhead"><div class="print-brandhead-text">
+      <h2>${title}</h2>${sub ? `<p class="print-brandhead-sub">${sub}</p>` : ""}${metaTxt ? `<p class="print-brandhead-meta">${esc(metaTxt)}</p>` : ""}
+    </div>${extra}</div>`;
+}
 // Yhden arkin tiivis pysäkkijuliste: valinta ruudulta (checkbox) tai CONFIG.posterCompact.
 function posterCompactOn(cbId) {
   const cb = cbId ? document.getElementById(cbId) : null;
@@ -8234,7 +8269,7 @@ async function viewRoute(routeId, patternCode, date) {
             : bookletTableHtml(g.trips))).join("")
       : `<p class="muted">${t("bookletNoData")}</p>`;
     po.innerHTML = `<div class="card">
-        <h2>${esc(route.shortName || "")} ${esc(patternLabel(current))}</h2>
+        ${printBrandHead({ title: `${esc(route.shortName || "")} ${esc(patternLabel(current))}` })}
         <p class="muted">${t("printDaysNote")}</p>${tables}</div>`;
     setPageOrientation(mode === "all" ? "landscape" : "portrait");
     if (st) st.textContent = "";
@@ -8270,8 +8305,8 @@ async function viewRoute(routeId, patternCode, date) {
       qrHtml = `<img class="rack-qr" alt="${esc(t("qrCaptionLine"))}" src="${cv.toDataURL("image/png")}">`;
     } catch (e) { /* QR ei pakollinen */ }
     po.innerHTML = `<div class="rackprint">
-      <div class="rack-head">
-        <div class="rack-head-main">
+      <div class="rack-head print-brandhead">
+        <div class="rack-head-main print-brandhead-text">
           <h2>${badgeHtml(route)} ${esc(route.longName)}</h2>
           <p class="rack-sub">${esc(primaries.map(patternLabel).join("    "))}</p>
           <p class="rack-period">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
@@ -9484,7 +9519,7 @@ function bindCorridorTab(routes, today) {
     const mapHtml = mapLines.length ? printMapSvg(mapLines, { keyNames, evenLabels: 0, maxLabels: 12 }) : "";
     out.innerHTML = `
       <div class="card corridor-head">
-        <h2>${t("corridorTitle")}${preset ? `: ${esc(corridorName(preset))}` : ""}</h2>
+        ${printBrandHead({ title: `${t("corridorTitle")}${preset ? `: ${esc(corridorName(preset))}` : ""}` })}
         <p>${allLines.map(r => badgeHtml(r)).join(" ")}</p>
         ${mapHtml}
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
@@ -12937,8 +12972,8 @@ function bindBookletTab(routes, today) {
     const out = document.getElementById("bookletOut");
     out.innerHTML = `
       <div class="card booklet-head">
-        <h2>${esc(CONFIG.operator)} · ${t("bookletCoverTitle")}</h2>
-        <p>${dts.map(d => esc(d.label)).join(" · ")}. ${t("bookletKeyStopsNote")}</p>
+        ${printBrandHead({ title: `${esc(CONFIG.operator)} · ${t("bookletCoverTitle")}`,
+          sub: `${dts.map(d => esc(d.label)).join(" · ")}. ${t("bookletKeyStopsNote")}`, meta: "date" })}
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
         <p class="muted">${t("printDaysNote")}</p>
         <p class="no-print buildbar"><button type="button" id="bookletPrint">${icon("print")} ${t("bookletPrintBtn")}</button>
