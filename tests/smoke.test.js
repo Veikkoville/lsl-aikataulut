@@ -1203,6 +1203,10 @@ async function printHygiene(page, label) {
     (ready && chg.go && chg.active === "muutokset" && (expectRows ? chg.rows > 0 && /\d/.test(chg.sum) : chg.rows === 0))
       ? ok(`muutosvahti-välilehti (${city || "ei ajettu"}): ${chg.rows} pysäkkiä, "${chg.sum}…"`)
       : fail("muutosvahti-välilehti: " + JSON.stringify({ city, ready, ...chg }));
+    // Smoke on peräkkäinen ja tilallinen: palauta oletuskaupunki ja vihko-välilehti, muuten seuraava
+    // tarkistus klikkaa piilotetun paneelin nappia (CI 2.9.2026: "Node is either not clickable").
+    await page.goto(BASE + "/#/tulosteet/vihko", { waitUntil: "networkidle2" });
+    await sleep(400);
   }
   if (await expect(".lineCb", "tulostusvihko: linjavalinta latautuu")) {
     await page.evaluate(() => { document.querySelector(".lineCb").checked = true; });
