@@ -55,7 +55,8 @@ tasalla ilman ylläpitoa.
 - **Muutosvahti**: viikoittainen ajo (`tests/muutosvahti.js`, GitHub Actions) laskee jokaisen pysäkin
   julisteen sisällön tunnisteen ensi viikolle ja neljän viikon päähän, ja tulostekeskus näyttää mitkä
   julisteet ovat vanhentuneet tai vanhenemassa ja tulostaa juuri ne. Yhden viikon poikkeukset (esim.
-  syysloma) eivät hälytä, koska juliste hoitaa ne koulupäivälohkoillaan
+  syysloma) eivät hälytä: ne eivät muuta julistetta pysyvästi, ja koulupäivien ja loma-ajan
+  vuorot tulostuvat omina lohkoinaan, kun ne osuvat tulostusikkunaan
 - Asennettavissa puhelimen kotinäytölle (PWA)
 
 ## Käyttöönotto

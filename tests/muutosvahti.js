@@ -191,19 +191,31 @@ async function runCity(key, cfg, feedsByRouter) {
   const prev = fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, "utf8")) : null;
   const prevHash = new Map(Object.entries(prev?.hashes || {}));
 
-  const baseSig = new Map(); // vakaa nykytila per pysäkki: W1 jos W1==W2, muuten W2 (W1 poikkeusviikko)
+  const baseSig = new Map(); // vakaa nykytila per pysäkki
+  const same = (a, b) => !!(a && b && a.hash === b.hash);
   const rows = ids.map(id => {
     const n1 = sigNear.get(id), n2 = sigNear2.get(id), f1 = sigFar.get(id), f2 = sigFar2.get(id);
-    const nearStable = !!(n1 && n2 && n1.hash === n2.hash);
-    const farStable = !!(f1 && f2 && f1.hash === f2.hash);
-    const base = nearStable ? n1 : n2;
+    const nearStable = same(n1, n2);
+    const farStable = same(f1, f2);
+    // Vakaa nykytila: jos W1 ja W2 eroavat, nykytila on se joka toistuu kaukopäässä; toinen on
+    // poikkeusviikko. Ilman kaukopään tukea oletetaan W1 poikkeavaksi (kuten ennen).
+    let base, poikkeus = "";
+    if (nearStable) base = n1;
+    else if (same(n2, f1) || same(n2, f2)) { base = n2; poikkeus = "near"; }
+    else if (same(n1, f1) || same(n1, f2)) { base = n1; poikkeus = "near2"; }
+    else { base = n2; poikkeus = "near"; }
     if (base) baseSig.set(id, base);
     const tulossa = !!(base && farStable && f1.hash !== base.hash);
-    // Poikkeusviikko: kumpi pää heilui. "near" = viikko near2 (W2) tai W1 poikkeaa, "far" = W5/W6.
-    const poikkeus = !nearStable ? "near" : !farStable ? "far" : "";
+    // Kaukopään poikkeusviikko: kumpi W5/W6 eroaa nykytilasta. Todennettu 2.9.2026 Lahdessa: vahti
+    // nimesi 13.10. poikkeusviikoksi, vaikka poikkeava viikko oli 20.10. (syysloma vk 43, serviceId "LP").
+    if (base && !farStable) {
+      if (same(f1, base)) poikkeus = poikkeus || "far2";
+      else poikkeus = poikkeus || "far"; // W5 eroaa (tai molemmat eroavat, ei vakaata uutta tilaa)
+    }
+    const farShown = farStable ? f1 : (poikkeus === "far2" ? f2 : f1); // poikkeusviikon oma lähtömäärä
     const muuttunut = !!(base && prevHash.has(id) && prevHash.get(id) !== base.hash);
     return { id, name: stops.get(id).name, code: stops.get(id).code, lines: base?.lines || [],
-      depsNear: base?.n ?? 0, depsFar: (farStable ? f1 : f2)?.n ?? 0, tulossa, muuttunut, poikkeus };
+      depsNear: base?.n ?? 0, depsFar: farShown?.n ?? 0, tulossa, muuttunut, poikkeus };
   }).filter(r => r.depsNear || r.depsFar); // pysäkit joilla ei ole lähtöjä kummallakaan → ei julistetta
 
   const changedIds = rows.filter(r => r.tulossa).map(r => r.id);
@@ -222,7 +234,9 @@ async function runCity(key, cfg, feedsByRouter) {
     yhteenveto: { pysakkeja: rows.length, tulossa: changedIds.length, muuttunut: rows.filter(r => r.muuttunut).length,
       poikkeus: rows.filter(r => r.poikkeus).length,
       poikkeusviikot: { near: { pvm: iso(near.tue), n: rows.filter(r => r.poikkeus === "near").length },
-                        far: { pvm: iso(far.tue), n: rows.filter(r => r.poikkeus === "far").length } },
+                        near2: { pvm: iso(near2.tue), n: rows.filter(r => r.poikkeus === "near2").length },
+                        far: { pvm: iso(far.tue), n: rows.filter(r => r.poikkeus === "far").length },
+                        far2: { pvm: iso(far2.tue), n: rows.filter(r => r.poikkeus === "far2").length } },
       voimaan },
     pysakit: rows,
     hashes,
