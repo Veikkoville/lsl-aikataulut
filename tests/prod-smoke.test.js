@@ -618,12 +618,12 @@ function writeReport() {
           await sleep(500);
           await page.click("#stopPosterBtn");
           let posterOk = await page.waitForFunction(
-            () => !!document.querySelector("#stopPrintOut .poster-day .poster-line .hourgrid tr"),
+            () => !!document.querySelector("#stopPrintOut .poster-day .hourgrid tr"),
             { timeout: 30000 }).then(() => true).catch(() => false);
           if (!posterOk) {
             await page.click("#stopPosterBtn").catch(() => {});
             posterOk = await page.waitForFunction(
-              () => !!document.querySelector("#stopPrintOut .poster-day .poster-line .hourgrid tr"),
+              () => !!document.querySelector("#stopPrintOut .poster-day .hourgrid tr"),
               { timeout: 60000 }).then(() => true).catch(() => false);
           }
           const poster = await page.evaluate(() => {
@@ -874,7 +874,7 @@ function writeReport() {
             await page.evaluate(() => { window.print = () => { window.__deskPrinted = true; }; });
             await page.click("#deskPrintBtn");
             const built = await page.waitForFunction(
-              () => !!document.querySelector("#deskPrintOut .poster-day .poster-line .hourgrid tr"),
+              () => !!document.querySelector("#deskPrintOut .poster-day .hourgrid tr"),
               { timeout: 90000 }).then(() => true).catch(() => false);
             if (!built) {
               // Tiski näyttää epäonnistuneen haun tilarivillä eikä tulosta tyhjää paperia.

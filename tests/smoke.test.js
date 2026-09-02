@@ -369,7 +369,7 @@ async function printHygiene(page, label) {
       await page.evaluate(() => { window.print = () => {}; });
       await page.click("#deskPrintBtn");
       const printed = await page.waitForFunction(
-        () => !!document.querySelector("#deskPrintOut .poster-day .poster-line .hourgrid tr"),
+        () => !!document.querySelector("#deskPrintOut .poster-day .hourgrid tr"),
         { timeout: 90000 }).then(() => true).catch(() => false);
       if (!printed) {
         fail("palvelutiski: tulostettava aikataulu ei koostunut 90 s kuluessa");
@@ -694,7 +694,7 @@ async function printHygiene(page, label) {
       await page.evaluate(() => { window.print = () => {}; });
       await page.click("#stopPosterBtn");
       const vPoster = await page.waitForFunction(
-        () => !!document.querySelector("#stopPrintOut .poster-day .poster-line .hourgrid tr"),
+        () => !!document.querySelector("#stopPrintOut .poster-day .hourgrid tr"),
         { timeout: 30000 }).then(() => true).catch(() => false);
       vPoster ? await printHygiene(page, "Vaasa")
               : fail("printtihygienia (Vaasa): julistetta ei saatu koottua → hygieniaa ei voi todeta");
@@ -877,7 +877,7 @@ async function printHygiene(page, label) {
       await page.evaluate(() => { window.print = () => {}; });
       await page.click("#stopPosterBtn");
       const posterOk = await page.waitForFunction(
-        () => !!document.querySelector("#stopPrintOut .poster-day .poster-line .hourgrid tr"),
+        () => !!document.querySelector("#stopPrintOut .poster-day .hourgrid tr"),
         { timeout: 20000 }).then(() => true).catch(() => false);
       const days = await page.evaluate(() =>
         document.querySelectorAll("#stopPrintOut .poster-day").length);

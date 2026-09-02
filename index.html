@@ -830,33 +830,62 @@
   .poster-qrcap { font-size: 0.7rem; color: var(--muted); }
   /* Yhden arkin tiivis pysäkkijuliste (Vaasa 26.8.2026: juliste on A4 ja siihen halutaan
      mahdollisimman paljon tietoa). Päivätyypit samalla arkilla, otsikko ja QR vain kerran,
-     jokainen pysäkki omalle arkilleen. data-fit 0..3 = fitPosterSheetin tiukennusaste:
-     1 selite pois + pienempi QR, 2 tuntikaavio 8 pt, 3 tuntikaavio 7,5 pt (lattia).
-     Lähtöjä ei pudoteta koskaan; jos 3 ei riitä, juliste jatkuu toiselle arkille. */
-  .poster-compact .poster-stop { display: flex; flex-wrap: wrap; gap: 0 1.2rem; align-items: flex-start; }
-  .poster-compact .poster-stop > .poster-head { flex: 1 1 100%; margin-bottom: 0.2rem; }
-  .poster-compact .poster-day { flex: 1 1 auto; break-before: auto; padding: 0; margin: 0 0 1.5mm; border: none; box-shadow: none; }
+     jokainen pysäkki omalle arkilleen. Päivätyyppi = tunti × linja -matriisi (stopPosterMatrixHtml),
+     ja lohkot latoutuvat vierekkäin kun mahtuvat (Ma–Pe koko leveys, La | Su rinnakkain).
+     Mitat pisteinä ja millimetreinä, ei rem: juliste on paperi, ei ruutu, eikä käyttäjän
+     tekstikoko saa muuttaa sitä. data-fit 0..4 = fitPosterSheetin tiukennusaste:
+     0 = 12 pt, 1 = 11 pt, 2 = 10 pt, 3 = 9 pt + selite pois + pienempi QR, 4 = 8 pt (lattia).
+     Lähtöjä ei pudoteta koskaan; jos 4 ei riitä, juliste jatkuu toiselle arkille.
+     Värit (otsikkopalkki, vuororaidat) pakotetaan print-color-adjustilla, koska Chromen
+     "taustagrafiikka"-valinta on oletuksena pois ja valkoinen otsikko katoaisi valkoiselle. */
+  .poster-compact .poster-stop { display: flex; flex-wrap: wrap; gap: 2.5mm 7mm; align-items: flex-start;
+    font-size: 12pt; line-height: 1.25; color: #000; }
   .poster-compact .poster-stop + .poster-stop { break-before: page; }
-  .poster-compact .poster-head h2 { margin: 0 0 0.1rem; font-size: 1.25rem; }
-  .poster-compact .poster-sub { font-size: 0.9rem; margin: 0.35rem 0 0.15rem; padding-bottom: 0.05rem; border-bottom: 1px solid currentColor; }
-  .poster-compact .poster-lines { gap: 0.2rem 0.9rem; }
-  .poster-compact .poster-line { min-width: 8.5rem; }
-  .poster-compact .poster-line h4 { font-size: 0.8rem; margin: 0 0 0.05rem; }
-  .poster-compact table.hourgrid { font-size: 9pt; }
-  .poster-compact table.hourgrid th[scope="row"], .poster-compact table.hourgrid td { padding: 0 0.3rem 0 0; line-height: 1.15; letter-spacing: 0.02em; }
-  .poster-compact img.poster-qr { width: 90px; height: 90px; }
-  .poster-compact .poster-stop[data-fit="1"] .poster-head p.muted,
-  .poster-compact .poster-stop[data-fit="2"] .poster-head p.muted,
-  .poster-compact .poster-stop[data-fit="3"] .poster-head p.muted { display: none; }
-  .poster-compact .poster-stop[data-fit="1"] img.poster-qr,
-  .poster-compact .poster-stop[data-fit="2"] img.poster-qr,
-  .poster-compact .poster-stop[data-fit="3"] img.poster-qr { width: 70px; height: 70px; }
-  .poster-compact .poster-stop[data-fit="2"] table.hourgrid,
-  .poster-compact .poster-stop[data-fit="3"] table.hourgrid { font-size: 8pt; }
-  .poster-compact .poster-stop[data-fit="2"] .poster-line h4,
-  .poster-compact .poster-stop[data-fit="3"] .poster-line h4 { font-size: 0.72rem; }
-  .poster-compact .poster-stop[data-fit="3"] table.hourgrid { font-size: 7.5pt; }
-  .poster-compact .poster-stop[data-fit="3"] .poster-lines { gap: 0.1rem 0.6rem; }
+  .poster-compact .poster-stop > .poster-head { flex: 1 1 100%; margin: 0 0 1mm; padding: 2.5mm 4mm;
+    background: var(--header-bg, #333); color: #fff; border-radius: 1.5mm;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .poster-compact .poster-head h2 { margin: 0; font-size: 21pt; line-height: 1.15; color: #fff; }
+  .poster-compact .poster-head h2 .muted { color: rgba(255,255,255,0.8); font-size: 0.6em; }
+  .poster-compact .poster-head p.muted { color: rgba(255,255,255,0.88); font-size: 8.5pt; margin: 1.5mm 0 0; }
+  .poster-compact .poster-qrwrap { background: #fff; padding: 1.5mm 1.5mm 1mm; border-radius: 1.5mm; }
+  .poster-compact .poster-qrcap { color: #222; font-size: 7pt; display: block; margin-top: 0.5mm; }
+  .poster-compact img.poster-qr { width: 20mm; height: 20mm; margin: 0 auto; }
+  .poster-compact .poster-day { flex: 0 1 auto; max-width: 100%; break-before: auto; break-inside: avoid;
+    padding: 0; margin: 0; border: none; box-shadow: none; }
+  .poster-compact .poster-day-split { flex: 1 1 100%; break-inside: auto; }
+  .poster-compact .poster-day-split table.poster-matrix { break-inside: avoid; margin-bottom: 2mm; }
+  .poster-compact .poster-sub { font-size: 1.05em; font-weight: 700; margin: 0 0 1.2mm; padding: 0 0 0.6mm;
+    border-bottom: 0.6mm solid var(--header-bg, #333); }
+  .poster-compact table.poster-matrix { border-collapse: collapse; font-size: 1em; width: auto; }
+  .poster-compact table.poster-matrix th, .poster-compact table.poster-matrix td { border: none; }
+  .poster-compact table.poster-matrix th.poster-line { text-align: left; vertical-align: bottom;
+    min-width: 0; padding: 0 2mm 1.2mm 1.5mm; border-left: 0.25mm solid #999; }
+  .poster-compact table.poster-matrix th.poster-line h4 { display: flex; flex-direction: column;
+    align-items: flex-start; gap: 0.6mm; margin: 0; font-size: 0.75em; font-weight: 600; line-height: 1.15;
+    white-space: normal; max-width: 28mm; }
+  .poster-compact table.poster-matrix th.poster-line h4 .badge { font-size: 1.3em; padding: 0.05em 0.4em;
+    background: var(--header-bg, #333); color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .poster-compact table.poster-matrix th[scope="row"] { text-align: right; padding: 0 1.5mm 0 0.5mm;
+    font-size: 1em; color: #000; font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: top; }
+  .poster-compact table.poster-matrix td { padding: 0 2mm 0 1.5mm; border-left: 0.25mm solid #999;
+    white-space: nowrap; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; vertical-align: top; }
+  .poster-compact table.poster-matrix tbody tr:nth-child(even) th,
+  .poster-compact table.poster-matrix tbody tr:nth-child(even) td { background: #e9ebef;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .poster-compact .poster-foot { flex: 1 1 100%; font-size: 8pt; color: #333; margin: 1mm 0 0;
+    padding-top: 1mm; border-top: 0.25mm solid #999; }
+  .poster-compact > p.muted { display: none; }
+  .poster-compact .poster-stop[data-fit="1"] { font-size: 11pt; }
+  .poster-compact .poster-stop[data-fit="2"] { font-size: 10pt; }
+  .poster-compact .poster-stop[data-fit="3"] { font-size: 9pt; }
+  .poster-compact .poster-stop[data-fit="4"] { font-size: 8pt; }
+  .poster-compact .poster-stop[data-fit="3"] .poster-head p.muted,
+  .poster-compact .poster-stop[data-fit="4"] .poster-head p.muted { display: none; }
+  .poster-compact .poster-stop[data-fit="3"] .poster-head h2,
+  .poster-compact .poster-stop[data-fit="4"] .poster-head h2 { font-size: 17pt; }
+  .poster-compact .poster-stop[data-fit="3"] img.poster-qr,
+  .poster-compact .poster-stop[data-fit="4"] img.poster-qr { width: 17mm; height: 17mm; }
+  .poster-compact .poster-stop[data-fit="4"] { gap: 1.5mm 5mm; line-height: 1.2; }
   /* Mittauslaatikko: arkin levyinen, näkymätön, ruudun ulkopuolella. Sama CSS kuin paperilla. */
   .poster-measure { position: absolute; left: -9999px; top: 0; width: 196mm; visibility: hidden;
     display: block; font-size: 16px; }
@@ -3214,6 +3243,8 @@ const STRINGS = {
     posterAllLinesNote: "Kaikki pysäkiltä lähtevät linjat. Lue: vasemmalla tunti, oikealla minuutit.",
     posterCompactOpt: "Yksi arkki (kaikki päivätyypit samalla A4:llä)",
     posterSheets: "Ei mahdu yhdelle arkille: {n} arkkia",
+    posterMatrixNote: "Kaikki pysäkiltä lähtevät linjat. Tunti vasemmalla, lähtöminuutit linjan sarakkeessa.",
+    posterFoot: "Tulostettu {date} · {operator} · Ajantasaiset lähdöt QR-koodilla",
     loadingDeps: "Haetaan lähtöjä…",
     fullTimetableTitle: "Koko aikataulu pysäkeittäin",
     fullTimetableShow: "Näytä koko aikataulu",
@@ -3700,6 +3731,8 @@ const STRINGS = {
     posterAllLinesNote: "All lines departing from this stop. Read: hour on the left, minutes on the right.",
     posterCompactOpt: "One sheet (all day types on one A4)",
     posterSheets: "Does not fit on one sheet: {n} sheets",
+    posterMatrixNote: "All lines departing from this stop. Hour on the left, departure minutes in the line's column.",
+    posterFoot: "Printed {date} · {operator} · Live departures via the QR code",
     loadingDeps: "Loading departures…",
     fullTimetableTitle: "Full timetable by stop",
     fullTimetableShow: "Show full timetable",
@@ -4180,6 +4213,8 @@ const STRINGS = {
     posterAllLinesNote: "Alla linjer som avgår från hållplatsen. Läs: timme till vänster, minuter till höger.",
     posterCompactOpt: "Ett ark (alla dagtyper på samma A4)",
     posterSheets: "Ryms inte på ett ark: {n} ark",
+    posterMatrixNote: "Alla linjer som avgår från hållplatsen. Timme till vänster, avgångsminuter i linjens kolumn.",
+    posterFoot: "Utskriven {date} · {operator} · Avgångar i realtid via QR-koden",
     loadingDeps: "Hämtar avgångar…",
     fullTimetableTitle: "Hela tidtabellen per hållplats",
     fullTimetableShow: "Visa hela tidtabellen",
@@ -7040,15 +7075,75 @@ function compactPosterDom(po) {
       if (sub) day.insertBefore(sub, day.firstChild);
       if (i === 0) st.insertBefore(head, st.firstChild); else head.remove();
     });
+    // Matriisin lukuohje otsikkopalkkiin ja matkustajalle suunnattu alaviite arkin alareunaan
+    // (yleinen "tulosta uudelleen kausivaihdoksen jälkeen" -nootti on ylläpitäjän ohje, ei
+    // pysäkkikatoksen tekstiä; se piilotetaan tiiviissä tilassa CSS:llä).
+    const note = st.querySelector(".poster-head p.muted");
+    if (note) note.textContent = t("posterMatrixNote");
+    if (!st.querySelector(".poster-foot")) {
+      const foot = document.createElement("p");
+      foot.className = "poster-foot";
+      foot.textContent = t("posterFoot", { date: fmtDateLong(todayISO()), operator: CONFIG.operator || "" });
+      st.appendChild(foot);
+    }
   });
 }
 // A4 pysty, 7 mm marginaalit (setPageOrientation "compact"), alaviitteelle 30 px.
 const POSTER_SHEET_PX = Math.round((297 - 14) * 96 / 25.4) - 30;
+const POSTER_FIT_MAX = 4;
 // Sovittaa jokaisen .poster-stop-lohkon yhdelle arkille: mittaa arkin levyisessä
-// piilolaatikossa ja tiukentaa asteittain (data-fit 0..3, ks. CSS). Lähtöjä ei pudoteta:
-// jos 7,5 pt ei riitä, lohko jatkuu toiselle arkille ja paluuarvo kertoo arkkimäärän.
+// piilolaatikossa ja tiukentaa asteittain (data-fit 0..4, ks. CSS: 12 → 11 → 10 → 9 → 8 pt).
+// Lähtöjä ei pudoteta: jos 8 pt ei riitä, lohko jatkuu toiselle arkille ja paluuarvo kertoo
+// arkkimäärän.
 // Mittaus on ruudun CSS:llä, ei print-medialla, joten se on varovainen: suuri tekstikoko
 // näytöllä tiukentaa aikaisemmin kuin paperi vaatisi, ei koskaan myöhemmin.
+// Arkkia leveämpi matriisi (Lahden Matkakeskus A: 20+ linjaa) paloitellaan sarakeryhmiin,
+// joista jokainen mahtuu arkin leveyteen: sarakeleveydet mitataan laatikossa ja pakataan
+// ahneesti. Jokainen pala saa oman tuntisarakkeen ja vain ne tunnit joilla palan linjoilla on
+// lähtöjä. Ilman tätä oikeanpuoleiset sarakkeet leikkautuisivat paperin reunaan ilman merkkiä.
+function splitWideMatrices(st, box) {
+  st.dataset.fit = "0";
+  box.innerHTML = "";
+  box.appendChild(st.cloneNode(true));
+  const limit = box.getBoundingClientRect().width;
+  const clones = [...box.querySelectorAll("table.poster-matrix")];
+  const originals = [...st.querySelectorAll("table.poster-matrix")];
+  clones.forEach((ct, i) => {
+    if (ct.getBoundingClientRect().width <= limit) return;
+    const ths = [...ct.tHead.rows[0].cells];
+    const hourW = ths[0].getBoundingClientRect().width;
+    const widths = ths.slice(1).map(c => c.getBoundingClientRect().width);
+    const groups = [];
+    let cur = [], w = hourW;
+    widths.forEach((cw, j) => {
+      if (cur.length && w + cw > limit) { groups.push(cur); cur = []; w = hourW; }
+      cur.push(j); w += cw;
+    });
+    if (cur.length) groups.push(cur);
+    if (groups.length < 2) return;
+    const ot = originals[i];
+    const headCells = [...ot.tHead.rows[0].cells];
+    const bodyRows = [...ot.tBodies[0].rows];
+    const parts = groups.map(g => {
+      const tbl = document.createElement("table");
+      tbl.className = ot.className;
+      const th = tbl.createTHead().insertRow();
+      th.appendChild(headCells[0].cloneNode(true));
+      g.forEach(j => th.appendChild(headCells[j + 1].cloneNode(true)));
+      const tb = tbl.createTBody();
+      for (const r of bodyRows) {
+        const cells = g.map(j => r.cells[j + 1]);
+        if (!cells.some(c => c && c.textContent.trim())) continue;
+        const nr = tb.insertRow();
+        nr.appendChild(r.cells[0].cloneNode(true));
+        cells.forEach(c => nr.appendChild(c.cloneNode(true)));
+      }
+      return tbl;
+    });
+    ot.replaceWith(...parts);
+    ot.closest(".poster-day")?.classList.add("poster-day-split");
+  });
+}
 function fitPosterSheet(po) {
   compactPosterDom(po);
   const stops = [...po.querySelectorAll(".poster-compact .poster-stop")];
@@ -7059,15 +7154,16 @@ function fitPosterSheet(po) {
   let sheets = 0, maxFit = 0;
   try {
     for (const st of stops) {
+      splitWideMatrices(st, box);
       let fit = 0, h = 0;
-      for (fit = 0; fit <= 3; fit++) {
+      for (fit = 0; fit <= POSTER_FIT_MAX; fit++) {
         st.dataset.fit = String(fit);
         box.innerHTML = "";
         box.appendChild(st.cloneNode(true));
         h = box.firstChild.getBoundingClientRect().height;
         if (h <= POSTER_SHEET_PX) break;
       }
-      if (fit > 3) { fit = 3; st.dataset.fit = "3"; }
+      if (fit > POSTER_FIT_MAX) { fit = POSTER_FIT_MAX; st.dataset.fit = String(POSTER_FIT_MAX); }
       sheets += Math.max(1, Math.ceil(h / POSTER_SHEET_PX));
       maxFit = Math.max(maxFit, fit);
     }
@@ -7305,10 +7401,11 @@ function stopMatrixHtml(stops, trips, opts) {
 // Pysäkkijuliste: yhdeltä pysäkiltä lähtevät linjat tuntikaaviona
 // (vasen sarake tunti, oikea minuutit) — kuten katoksen seinällä oleva
 // painettu aikataulu. lines = stopPosterBlocks-blokin linjat ({route, headsign, times}).
-function stopPosterHtml(lines) {
+function stopPosterHtml(lines, compact) {
   const sorted = [...(lines || [])].sort((a, b) =>
     (a.route.shortName || "").localeCompare(b.route.shortName || "", "fi", { numeric: true }));
   if (!sorted.length) return `<p class="muted">${t("bookletNoData")}</p>`;
+  if (compact) return stopPosterMatrixHtml(sorted);
   return `<div class="poster-lines">${sorted.map(L => {
     const times = [...new Set(L.times)].sort((a, b) => a - b);
     const byHour = new Map();
@@ -7334,6 +7431,35 @@ function stopPosterHtml(lines) {
         <table class="hourgrid"><tbody>${rows}</tbody></table>
       </div>`;
   }).join("")}</div>`;
+}
+
+// Yhden arkin juliste: päivätyypin kaikki linjat YHDESSÄ taulukossa, tunnit riveinä ja
+// linjat sarakkeina. Linjakohtaisissa tuntikaavioissa jokainen linja toisti tuntisarakkeen
+// ja alkoi omalta ensimmäiseltä tunniltaan, joten rivit eivät olleet linjassa keskenään ja
+// 8 linjan pysäkki (Vaasa, matkakeskus P) ei mahtunut arkille edes 7,5 pt:llä. Jaettu
+// tuntisarake vie yhden rivin per tunti riippumatta linjamäärästä, jolloin sama sisältö
+// mahtuu 10–12 pt:llä: pysäkillä seisova etsii tunnin kerran ja lukee rivin poikki.
+// Minuutit ovat solussa nousevasti; useampi lähtö samalla tunnilla on samassa solussa.
+// Vuorokauden ylittävät ajat (25:10 = 01:10 seuraavana yönä) tulevat taulukon loppuun.
+function stopPosterMatrixHtml(sorted) {
+  const cols = sorted.map(L => {
+    const byHour = new Map();
+    for (const sec of [...new Set(L.times)].sort((a, b) => a - b)) {
+      const h = Math.floor(sec / 3600);
+      if (!byHour.has(h)) byHour.set(h, []);
+      byHour.get(h).push(String(Math.floor((sec % 3600) / 60)).padStart(2, "0"));
+    }
+    return { L, byHour };
+  });
+  const hours = [...new Set(cols.flatMap(c => [...c.byHour.keys()]))].sort((a, b) => a - b);
+  const head = cols.map(c =>
+    `<th scope="col" class="poster-line"><h4>${badgeHtml(c.L.route)}<span>${esc(c.L.headsign)}</span></h4></th>`).join("");
+  const rows = hours.map(h =>
+    `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th>`
+    + cols.map(c => `<td>${(c.byHour.get(h) || []).join(" ")}</td>`).join("")
+    + `</tr>`).join("");
+  return `<table class="hourgrid poster-matrix"><thead><tr><th scope="col" class="hcol"></th>${head}</tr></thead>
+    <tbody>${rows}</tbody></table>`;
 }
 
 // Pysäkkien patternit YHDELLÄ kyselyllä (stops(ids:)). Erätulostus haki nämä aiemmin
@@ -7439,10 +7565,15 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
     }
   }
   const arr = [...blocks.values()].map(b => ({ ...b, lines: [...b.lines.values()] }));
-  // sama järjestys kuin groupTripsByDays: span alku nousevasti, laajempi ensin
+  // sama järjestys kuin groupTripsByDays: span alku nousevasti, laajempi ensin.
+  // Sama päiväjoukko kahdesti (Ma–Pe ja Ma–Pe · koulupäivinä): pääaikataulu ensin.
+  // Ilman tätä järjestys riippui siitä minkä linjan ryhmä sattui tulemaan ensin, ja
+  // Vaasan matkakeskus E:llä nelivuoroinen koulupäivälohko avasi julisteen (2.9.2026).
   arr.sort((a, b) => {
     const am = Math.min(...a.dows), bm = Math.min(...b.dows);
-    return am !== bm ? am - bm : b.dows.size - a.dows.size;
+    return am !== bm ? am - bm
+      : a.dows.size !== b.dows.size ? b.dows.size - a.dows.size
+      : (a.school ? 1 : 0) - (b.school ? 1 : 0);
   });
   return arr;
 }
@@ -8312,14 +8443,14 @@ async function viewStop(stopId) {
            </div>
            ${qrImg}
          </div>`;
+    const compact = posterCompactOn("posterCompactCb");
     const sections = blocks.length
       ? blocks.map(b =>
           `<section class="card poster-day">
              ${head(b.label)}
-             ${stopPosterHtml(b.lines)}
+             ${stopPosterHtml(b.lines, compact)}
            </section>`).join("")
       : `<section class="card poster-day">${head("")}<p class="muted">${t("bookletNoData")}</p></section>`;
-    const compact = posterCompactOn("posterCompactCb");
     po.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}"><div class="poster-stop">${sections}</div>
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
     if (stEl) stEl.textContent = "";
@@ -9270,6 +9401,7 @@ function bindPostersTab(routes) {
       // yhden kutsun jokaisesta eri patternista, mikä oli 13.8.2026 vian pääerä.
       await patternTripsMany([...patsByStop.values()].flat().map(p => p.code), ptdMemo);
       let done = 0;
+      const compact = posterCompactOn("batchCompactCb");
       const sections = await mapLimit(stops, 2, async (s) => {
         // Virhe heittää → koko erä keskeytyy ulompaan catchiin (status näyttää syyn).
         // Vajaa/tyhjä pysäkkijuliste virhetilassa olisi pahempi kuin uusi yritys.
@@ -9284,11 +9416,10 @@ function bindPostersTab(routes) {
         return blocks.length
           ? blocks.map(b => `<section class="card poster-day">
               ${head((routeObj?.shortName ? routeObj.shortName + " · " : "") + b.label)}
-              ${stopPosterHtml(b.lines)}</section>`).join("")
+              ${stopPosterHtml(b.lines, compact)}</section>`).join("")
           : `<section class="card poster-day">${head(routeObj?.shortName || "")}
               <p class="muted">${t("bookletNoData")}</p></section>`;
       });
-      const compact = posterCompactOn("batchCompactCb");
       out.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}">${sections.map(sec => `<div class="poster-stop">${sec}</div>`).join("")}
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
       st.textContent = "";
@@ -10208,7 +10339,7 @@ async function viewServiceDesk() {
            </div>${qrImg}</div>`;
       const compact = posterCompactOn(null);
       po.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}"><div class="poster-stop">${blocks.map(b =>
-          `<section class="card poster-day">${head(b.label)}${stopPosterHtml(b.lines)}</section>`).join("")}</div>
+          `<section class="card poster-day">${head(b.label)}${stopPosterHtml(b.lines, compact)}</section>`).join("")}</div>
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
       if (stEl) stEl.textContent = "";
       if (compact) {

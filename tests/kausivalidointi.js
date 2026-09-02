@@ -64,9 +64,12 @@ function extractConfigs() {
 }
 
 // --- GraphQL proxyn läpi (sama reitti kuin tuotteessa) ---
-async function gql(query, variables) {
+// router: "waltti" (oletus) tai "finland" (CONFIG.router, esim. Inkoo). Proxy valitsee
+// upstreamin `?router=`-parametrilla (worker.js routingUpstream) — sama reitti kuin tuotteessa.
+async function gql(query, variables, router) {
+  const target = router && router !== "waltti" ? PROXY + (PROXY.includes("?") ? "&" : "?") + "router=" + encodeURIComponent(router) : PROXY;
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const res = await fetch(PROXY, {
+    const res = await fetch(target, {
       method: "POST",
       // Origin vaaditaan: proxyn kiintiösuoja (worker.js quotaGate, 13.8.2026)
       // hylkää origin-headerittömät kutsut 403:lla
@@ -103,12 +106,21 @@ const log = (level, city, check, msg) => {
   console.log(`${level} [${city}] ${check} — ${msg}`);
 };
 
-async function runCity(key, cfg, feeds, baseline, dNear, dFar) {
+async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
+  // Ei-Waltti-kaupunki (CONFIG.router = "finland", esim. Inkoo 29.8.2026): feedilista ja kaikki
+  // kyselyt haetaan oikeasta routerista, muuten feedMatch ei osu (1.9.2026 ajo kaatui tähän).
+  const router = cfg.router || "waltti";
+  if (!feedsByRouter[router]) {
+    const fd = await gql(`{ feeds { feedId } }`, undefined, router);
+    feedsByRouter[router] = (fd.feeds || []).map(f => f.feedId);
+  }
+  const feeds = feedsByRouter[router];
+  const q = (query, variables) => gql(query, variables, router);
   const feed = feeds.find(f => cfg.feedMatch.test(f));
-  if (!feed) { log("FAIL", key, "feed", "feedMatch ei osu yhteenkään feediin"); return; }
+  if (!feed) { log("FAIL", key, "feed", `feedMatch ei osu yhteenkään feediin (router ${router}, ${feeds.length} feediä)`); return; }
 
   // 1) serviceId-inventaario
-  const inv = await gql(
+  const inv = await q(
     `query ($feeds: [String]) { routes(feeds: $feeds) { shortName trips { serviceId } } }`,
     { feeds: [feed] });
   const sids = [...new Set((inv.routes || []).flatMap(r => (r.trips || []).map(t => t.serviceId || "")))]
@@ -135,7 +147,7 @@ async function runCity(key, cfg, feeds, baseline, dNear, dFar) {
   for (const corr of (cfg.corridors || [])) {
     const perLine = new Map(); // line -> {near, far, stops:Set}
     for (const line of corr.lines) {
-      const d = await gql(
+      const d = await q(
         `query ($feeds: [String], $name: String) {
            routes(feeds: $feeds, name: $name) { shortName patterns {
              stops { gtfsId }
@@ -169,7 +181,7 @@ async function runCity(key, cfg, feeds, baseline, dNear, dFar) {
   // 3) solmupysäkin pulssi
   const stopName = (cfg.centerStopNames || [])[0];
   if (stopName) {
-    const d = await gql(
+    const d = await q(
       `query ($name: String) { stops(name: $name) { gtfsId
          near: stoptimesForServiceDate(date: "${dNear}", omitNonPickups: true) { stoptimes { scheduledDeparture } }
          far: stoptimesForServiceDate(date: "${dFar}", omitNonPickups: true) { stoptimes { scheduledDeparture } } } }`,
@@ -190,7 +202,7 @@ async function runCity(key, cfg, feeds, baseline, dNear, dFar) {
   // (laiturinäkymä yhdestä pysäkistä ei kerro laitureista mitään).
   for (const hub of (cfg.hubs || [])) {
     await sleep(QUERY_GAP_MS);
-    const d = await gql(
+    const d = await q(
       `query ($name: String!) { stops(name: $name) { gtfsId platformCode routes { gtfsId } } }`,
       { name: hub.name });
     const own = (d.stops || [])
@@ -213,13 +225,12 @@ async function runCity(key, cfg, feeds, baseline, dNear, dFar) {
   if (unknown.length) { console.error("tuntematon kaupunki: " + unknown.join(", ")); process.exit(2); }
 
   const baseline = fs.existsSync(BASELINE_PATH) ? JSON.parse(fs.readFileSync(BASELINE_PATH, "utf8")) : {};
-  const feedsData = await gql(`{ feeds { feedId } }`);
-  const feeds = (feedsData.feeds || []).map(f => f.feedId);
+  const feedsByRouter = {}; // täytetään laiskasti per router (waltti / finland)
   const dNear = compact(plusDays(7)), dFar = compact(plusDays(35));
   console.log(`kausivalidointi: ${cities.length} kaupunkia, päivät ${dNear} / ${dFar}, proxy ${PROXY}`);
 
   for (const key of cities) {
-    try { await runCity(key, configs[key], feeds, baseline, dNear, dFar); }
+    try { await runCity(key, configs[key], feedsByRouter, baseline, dNear, dFar); }
     catch (e) { log("FAIL", key, "ajo", "keskeytyi: " + e.message); }
     await sleep(CITY_GAP_MS);
   }
