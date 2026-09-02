@@ -75,6 +75,16 @@ tasalla ilman ylläpitoa.
 - Lahden GTFS-syöte tunnistetaan automaattisesti rajapinnan feed-listasta
 - Ei riippuvuuksia, ei buildia: yksi HTML-tiedosto
 
+### Missä data on ja mitä tapahtuu, jos toimittaja katoaa
+
+Reittari ei tallenna omaa kopiota aikatauluista, pysäkeistä tai linjoista mihinkään.
+Jokainen haku lukee tiedon suoraan kaupungin omasta Digitransit/Waltti-GTFS-syötteestä,
+avoimella GTFS/GTFS-RT-standardilla. Jos syöte katkeaa tai liikennöintitiedon
+toimittaja vaihtuu, sivu ei jää näyttämään vanhentunutta dataa: se kertoo, ettei
+lähtöjä ole saatavilla juuri nyt. Syötteen vaihto (esim. uusi rajapinta-osoite tai
+toinen liikennöitsijä) on yhden kaupungin `CONFIG`-muutos, ei koodimuutos eikä
+tietojen siirtoprojekti.
+
 ## Jatkokehitysideoita
 
 - Oikeat taustapush-ilmoitukset (vaatisi tilauksia säilövän palvelimen,
