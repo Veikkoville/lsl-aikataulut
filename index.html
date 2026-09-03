@@ -1318,7 +1318,10 @@
   /* Layer-hero: kaupungin työ ensin (isot kortit), matkustajan nostot pienempinä, A->B alimpana */
   .hero-primary { margin-top: 1rem; }
   @media (min-width: 600px) { .hero-primary { grid-template-columns: repeat(2, 1fr); } }
-  @media (min-width: 900px) { .hero-primary { grid-template-columns: repeat(4, 1fr); } }
+  /* Viisi nostoa (uusintapainatus lisatty 3.9.2026): 3+2 asettuu tasapainoisemmin kuin
+     4+1, jossa viides jai yksin riville. Yli 1200 px kaikki viisi mahtuvat riviin. */
+  @media (min-width: 900px) { .hero-primary { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1200px) { .hero-primary { grid-template-columns: repeat(5, 1fr); } }
   .hero-primary .hl { padding: 1rem 1rem 0.9rem; gap: 0.3rem; border-width: 2px; }
   .hero-primary .hl .ic { width: 1.9em; height: 1.9em; color: var(--blue); }
   .hero-primary .hl-t { font-size: 1.12rem; }
@@ -3073,7 +3076,9 @@ const STRINGS = {
     heroHlDesk: "Palvelutiski",
     heroHlDeskDesc: "Lähdöt ja tulosteet tiskille",
     heroHlWatch: "Muutosvahti",
-    heroHlWatchDesc: "Mitkä julisteet pitää tulostaa uudelleen",
+    heroHlWatchDesc: "Tulevat aikataulumuutokset ja milloin ne astuvat voimaan",
+    heroHlReprint: "Uusintapainatus",
+    heroHlReprintDesc: "Mitkä painamasi tulosteet ovat vanhentuneet",
     heroHlWatchNow: "{n} julistetta on vanhentunut, tulosta uudelleen",
     heroHlWatchSoon: "{n} julistetta vanhenee {date}",
     heroHlWatchOk: "Tarkistettu {date}: julisteet ovat ajan tasalla",
@@ -3629,7 +3634,9 @@ const STRINGS = {
     heroHlDesk: "Service desk",
     heroHlDeskDesc: "Departures and printouts at the counter",
     heroHlWatch: "Change watch",
-    heroHlWatchDesc: "Which posters need reprinting",
+    heroHlWatchDesc: "Upcoming timetable changes and when they take effect",
+    heroHlReprint: "Reprint list",
+    heroHlReprintDesc: "Which of your printed sheets are out of date",
     heroHlWatchNow: "{n} posters are out of date, reprint them",
     heroHlWatchSoon: "{n} posters expire on {date}",
     heroHlWatchOk: "Checked {date}: posters are up to date",
@@ -4159,7 +4166,9 @@ const STRINGS = {
     heroHlDesk: "Servicedisk",
     heroHlDeskDesc: "Avgångar och utskrifter vid disken",
     heroHlWatch: "Ändringsvakt",
-    heroHlWatchDesc: "Vilka affischer måste skrivas ut på nytt",
+    heroHlWatchDesc: "Kommande tidtabellsändringar och när de träder i kraft",
+    heroHlReprint: "Omtryck",
+    heroHlReprintDesc: "Vilka av dina utskrifter är föråldrade",
     heroHlWatchNow: "{n} affischer är föråldrade, skriv ut dem på nytt",
     heroHlWatchSoon: "{n} affischer föråldras {date}",
     heroHlWatchOk: "Kontrollerat {date}: affischerna är aktuella",
@@ -7507,6 +7516,8 @@ function heroLayerHtml() {
           ${icon("info")}<span class="hl-t">${t("heroHlDesk")}</span><span class="hl-d">${t("heroHlDeskDesc")}</span></a>` : ""}
         <a class="hl" href="#/tulosteet/muutokset" id="hlWatch">
           ${icon("calendar")}<span class="hl-t">${t("heroHlWatch")}</span><span class="hl-d" id="hlWatchDesc">${t("heroHlWatchDesc")}</span></a>
+        <a class="hl" href="#/uusintapainatus">
+          ${icon("print")}<span class="hl-t">${t("heroHlReprint")}</span><span class="hl-d">${t("heroHlReprintDesc")}</span></a>
       </div>
       <div class="hero-highlights hero-secondary">
         <button type="button" class="hl" id="hlBilingual">
