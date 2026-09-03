@@ -7202,9 +7202,12 @@ function printBrandHead({ title, sub = "", meta = "full", extra = "" } = {}) {
     </div>${extra}</div>`;
 }
 // Yhden arkin tiivis pysäkkijuliste: valinta ruudulta (checkbox) tai CONFIG.posterCompact.
+// 2.9.2026 alkaen tiivis tila on OLETUS kaikissa kaupungeissa (tavallinen päivätyyppi-per-arkki
+// -juliste oli Lahden Matkakeskuksessa 15 arkkia, tiivis 2); kaupunki voi kytkeä pois CONFIGissa
+// posterCompact: false, ja ruudulta valinta on aina käytettävissä.
 function posterCompactOn(cbId) {
   const cb = cbId ? document.getElementById(cbId) : null;
-  return cb ? cb.checked : !!CONFIG.posterCompact;
+  return cb ? cb.checked : CONFIG.posterCompact !== false;
 }
 // Tiivis asettelu: yksi otsikko (pysäkki, selite, QR) lohkon alkuun ja päivätyypit omiksi
 // sarakkeikseen (Ma-Pe | La | Su rinnakkain kun mahtuvat, muuten allekkain). Kutsujat
@@ -8498,7 +8501,7 @@ async function viewStop(stopId) {
       <p class="muted"><span class="rt">●</span> ${t("rtLegendStop")}</p>
       <p class="no-print" style="margin:0.6rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center">
         <button type="button" id="stopPosterBtn">${icon("print")} ${t("printStopPoster")}</button>
-        <label class="dtopt"><input type="checkbox" id="posterCompactCb"${CONFIG.posterCompact ? " checked" : ""}> ${t("posterCompactOpt")}</label>
+        <label class="dtopt"><input type="checkbox" id="posterCompactCb"${CONFIG.posterCompact !== false ? " checked" : ""}> ${t("posterCompactOpt")}</label>
         <a class="btnlink secondary" href="#/monitori/${encodeURIComponent(stopId)}">${icon("monitor")} ${t("monitorLink")}</a>
         ${("speechSynthesis" in window) ? `<button type="button" id="speakBtn" class="secondary">${icon("speaker")} ${t("speakAloud")}</button>` : ""}
         <button type="button" id="stopQrBtn" class="secondary">${icon("qr")} ${t("qrButton")}</button>
@@ -10585,7 +10588,7 @@ async function viewServiceDesk() {
         if (stEl && fit.sheets > 1) stEl.textContent = t("posterSheets", { n: fit.sheets });
       }
       runPrintJob(t("preparingPrint"), () => {
-        setPageOrientation("rack");
+        setPageOrientation(compact ? "compact" : "rack"); // tiivis: sama 7 mm kuin julisteessa (fitPosterSheet mittaa 196 mm)
         const done = () => { setPageOrientation("portrait"); hidePrintPrep(); window.removeEventListener("afterprint", done); };
         window.addEventListener("afterprint", done);
         window.print();
@@ -12786,7 +12789,7 @@ async function viewPrintCenter(tab) {
         <p class="muted">${t("batchPosterIntro")}</p>
         <label class="embed-field">${t("batchChooseLine")}
           <select id="batchLine"><option value="">-</option></select></label>
-        <p><label class="dtopt"><input type="checkbox" id="batchCompactCb"${CONFIG.posterCompact ? " checked" : ""}> ${t("posterCompactOpt")}</label></p>
+        <p><label class="dtopt"><input type="checkbox" id="batchCompactCb"${CONFIG.posterCompact !== false ? " checked" : ""}> ${t("posterCompactOpt")}</label></p>
         <p><button type="button" id="batchGo">${t("batchGenerate")}</button>
           <span id="batchStatus" class="muted" role="status"></span></p>
       </div>

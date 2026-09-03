@@ -894,12 +894,15 @@ function writeReport() {
                   .map(b => b.textContent.trim())).size,
                 orient: document.getElementById("pageOrient")?.textContent || "",
                 printed: !!window.__deskPrinted,
+                compact: !!document.querySelector("#deskPrintOut .poster-compact"),
               }));
-              await asetteluTarkistus(page, city.key, "tiskin tuloste", "#deskPrintOut", "rack");
+              // Tiivis juliste (oletus 3.9.2026 alkaen) tulostuu tiskiltä 7 mm:llä kuten
+              // pysäkkisivulta, tavallinen lehtitelineen 8 mm:llä; mitataan samalla leveydellä.
+              await asetteluTarkistus(page, city.key, "tiskin tuloste", "#deskPrintOut", dp.compact ? "compact" : "rack");
               dp.days >= 1 && dp.lines >= 1 && dp.printed
-                && /portrait/.test(dp.orient) && /8mm/.test(dp.orient)
+                && /portrait/.test(dp.orient) && (dp.compact ? /7mm/ : /8mm/).test(dp.orient)
                 ? pass(city.key, "tiskiltä tulostus",
-                    `${dp.days} päiväblokkia, ${dp.lines} linjaa, A4 pysty 8 mm`)
+                    `${dp.days} päiväblokkia, ${dp.lines} linjaa, A4 pysty ${dp.compact ? "7 mm (tiivis)" : "8 mm"}`)
                 : fail(city.key, "tiskiltä tulostus", `tuloste ei kelpaa: ${JSON.stringify(dp)}`);
             }
           }

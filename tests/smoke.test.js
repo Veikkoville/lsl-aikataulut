@@ -392,15 +392,18 @@ async function printHygiene(page, label) {
           paivablokit: document.querySelectorAll("#deskPrintOut .poster-day").length,
           linjat: new Set([...document.querySelectorAll("#deskPrintOut .poster-line h4 .badge")]
             .map(b => b.textContent.trim())).size,
-          // lehtitelineen mitoitus: sovellus asettaa @page-säännön itse
+          // sovellus asettaa @page-säännön itse: tiivis juliste 7 mm, lehtiteline 8 mm
           orient: document.getElementById("pageOrient")?.textContent || "",
+          compact: !!document.querySelector("#deskPrintOut .poster-compact"),
         }));
         (dp.paivablokit >= 1 && dp.linjat >= 1)
           ? ok(`palvelutiski: aikataulu tulostuu tiskiltä (${dp.paivablokit} päiväblokkia, ${dp.linjat} linjaa)`)
           : fail(`palvelutiski: tuloste tyhjä: ${JSON.stringify(dp)}`);
-        /portrait/.test(dp.orient) && /8mm/.test(dp.orient)
-          ? ok("palvelutiski: tuloste on lehtitelineen mitoituksessa (A4 pysty, tiukat marginaalit)")
-          : fail(`palvelutiski: väärä sivumitoitus: ${JSON.stringify(dp.orient)}`);
+        // Tiivis juliste (oletus 3.9.2026 alkaen) tulostuu 7 mm:llä kuten pysäkkisivultakin,
+        // tavallinen juliste lehtitelineen 8 mm:llä. Kumpikin on A4 pysty.
+        /portrait/.test(dp.orient) && (dp.compact ? /7mm/ : /8mm/).test(dp.orient)
+          ? ok(`palvelutiski: tuloste on ${dp.compact ? "tiiviin julisteen (A4 pysty 7 mm)" : "lehtitelineen (A4 pysty 8 mm)"} mitoituksessa`)
+          : fail(`palvelutiski: väärä sivumitoitus: ${JSON.stringify({ orient: dp.orient, compact: dp.compact })}`);
         // Printtihygienia: paperille ei saa mennä hakukenttiä eikä live-listaa
         await page.emulateMediaType("print");
         const hy = await page.evaluate(() => {
@@ -956,7 +959,7 @@ async function printHygiene(page, label) {
           : fail(`pysäkkijuliste (yksi arkki): ${JSON.stringify({ compactOk, loosePages, compactPages, ...cp })}`);
         await printHygiene(page, "Lahti, yksi arkki");
         // palauta CONFIG-oletus, ettei valinta vuoda seuraaviin tarkistuksiin
-        await page.evaluate(() => { document.getElementById("posterCompactCb").checked = !!CONFIG.posterCompact; });
+        await page.evaluate(() => { document.getElementById("posterCompactCb").checked = CONFIG.posterCompact !== false; });
       } else if (posterOk) {
         fail("pysäkkijuliste (yksi arkki): valintaa #posterCompactCb ei löytynyt");
       }
