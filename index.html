@@ -3367,6 +3367,9 @@ const STRINGS = {
     printDaysNote: "Ajopäivät luetaan suoraan aikataulusyötteestä; otsikko kertoo vuoron todelliset liikennöintipäivät. Juhlapyhät voivat poiketa.",
     dayEveryDay: "Joka päivä", schoolTerm: "koulupäivinä", schoolBreak: "loma-aikoina",
     printKeyStopsPort: "Isot pysäkit (pysty)", printAllStopsLand: "Kaikki pysäkit (vaaka)",
+    linePrintsTitle: "Linjatulosteet", linePrintsChoose: "Valitse linja",
+    linePrintsIntro: "Lehtiteline-, pysty- ja vaakatuloste yhdeltä linjalta. Valinta avaa linjan sivun ja tulostusikkunan.",
+    deskLinePrints: "Linjan tuloste:",
     rackPrintBtn: "Tulosta lehtitelineeseen",
     tabCorridor: "Yhdistetyt suunnat",
     corridorTitle: "Yhdistetty suunta-aikataulu",
@@ -3884,6 +3887,9 @@ const STRINGS = {
     printDaysNote: "Operating days are read straight from the schedule feed; each heading shows the trip's actual days of operation. Public holidays may differ.",
     dayEveryDay: "Daily", schoolTerm: "school days", schoolBreak: "school holidays",
     printKeyStopsPort: "Major stops (portrait)", printAllStopsLand: "All stops (landscape)",
+    linePrintsTitle: "Line printouts", linePrintsChoose: "Choose a line",
+    linePrintsIntro: "Rack, portrait and landscape printouts for one line. The choice opens the line page and the print dialog.",
+    deskLinePrints: "Line printout:",
     rackPrintBtn: "Print for leaflet rack",
     tabCorridor: "Combined directions",
     corridorTitle: "Combined direction timetable",
@@ -4397,6 +4403,9 @@ const STRINGS = {
     printDaysNote: "Trafikdagarna läses direkt från tidtabellsflödet; rubriken visar turens verkliga trafikdagar. Helgdagar kan avvika.",
     dayEveryDay: "Varje dag", schoolTerm: "skoldagar", schoolBreak: "skollov",
     printKeyStopsPort: "Stora hållplatser (stående)", printAllStopsLand: "Alla hållplatser (liggande)",
+    linePrintsTitle: "Linjeutskrifter", linePrintsChoose: "Välj linje",
+    linePrintsIntro: "Ställ-, stående och liggande utskrift för en linje. Valet öppnar linjesidan och utskriftsfönstret.",
+    deskLinePrints: "Linjens utskrift:",
     rackPrintBtn: "Skriv ut för broschyrställ",
     tabCorridor: "Kombinerade riktningar",
     corridorTitle: "Kombinerad riktningstidtabell",
@@ -7840,7 +7849,9 @@ async function viewRouteMap(routeId) {
   }
 }
 
-async function viewRoute(routeId, patternCode, date) {
+// autoPrint (?print=rack|key|all): tulosteet-sivu ja palvelutiski avaavat linjatulosteen suoraan
+// tästä näkymästä, jotta tulostuslogiikka on yhdessä paikassa eikä kahtena kopiona (3.9.2026).
+async function viewRoute(routeId, patternCode, date, autoPrint) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">${t("loadingRoute")}</p>`);
   date = date || todayISO();
@@ -8354,6 +8365,14 @@ async function viewRoute(routeId, patternCode, date) {
   document.getElementById("printRackBtn")?.addEventListener("click", printRack);
   document.getElementById("printKeyBtn")?.addEventListener("click", () => printLine("key"));
   document.getElementById("printAllBtn")?.addEventListener("click", () => printLine("all"));
+  // Suoratulostus: kysely pois hashista ensin, ettei sivun uudelleenlataus tulosta uudestaan.
+  if (autoPrint === "rack" || autoPrint === "key" || autoPrint === "all") {
+    // VAIN hashin kyselyosa pois: location.href.split("?") söisi myös ?city=-parametrin
+    // (todennettu 3.9.2026: hash tyhjeni ja kaupunki putosi oletukseen).
+    try { history.replaceState(null, "", location.pathname + location.search + location.hash.split("?")[0]); }
+    catch (e) { /* ei kriittinen */ }
+    if (autoPrint === "rack") printRack(); else printLine(autoPrint);
+  }
   document.getElementById("lineQrBtn")?.addEventListener("click", () => {
     const box = document.getElementById("lineQr");
     if (!box) return;
@@ -9570,6 +9589,17 @@ function bindCorridorTab(routes, today) {
 }
 
 function bindPostersTab(routes) {
+  // Linjatulosteet: sama linjajärjestys kuin erätulostuksen valikossa, ja napit vievät
+  // linjan sivulle ?print=-kyselyllä (yksi tulostustoteutus, ks. viewRoute/autoPrint).
+  const lpSel = document.getElementById("linePrintSel");
+  if (lpSel) {
+    lpSel.innerHTML = routes.slice()
+      .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }))
+      .map(r => `<option value="${esc(r.gtfsId)}">${esc(r.shortName || "")} ${esc(r.longName || "")}</option>`).join("");
+    document.querySelectorAll(".linePrintBtn").forEach(btn => btn.addEventListener("click", () => {
+      if (lpSel.value) location.hash = "#/linja/" + encodeURIComponent(lpSel.value) + "?print=" + btn.dataset.lp;
+    }));
+  }
   const lineSel = document.getElementById("batchLine");
   if (!lineSel) return;
   lineSel.innerHTML = `<option value="">-</option>` + routes
@@ -10070,7 +10100,7 @@ const DESK_STOP_QUERY = `query ($name: String!) {
 const DESK_DEPS_QUERY = `query ($id: String!) {
   stop(id: $id) {
     gtfsId name@L code wheelchairBoarding
-    routes { shortName }
+    routes { gtfsId shortName }
     stoptimesWithoutPatterns(numberOfDepartures: 8, omitNonPickups: true) {
       scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
       trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } }
@@ -10534,6 +10564,14 @@ async function viewServiceDesk() {
     // Päivitä linjat täydemmästä reittilistasta jos saatavilla (ei pakollinen, lines jo näkyvissä)
     const ln = document.getElementById("deskLines");
     if (ln && (stop.routes || []).length) ln.innerHTML = stopLinesHtml(stop.routes);
+    // Linjatulostevalikko: vain pysäkin omat linjat, ja vain jos niillä on tunniste
+    const lineSel = document.getElementById("deskLineSel");
+    const lineRow = document.getElementById("deskLinePrintRow");
+    if (lineSel && lineRow) {
+      const rs = (stop.routes || []).filter(r => r && r.gtfsId);
+      lineSel.innerHTML = rs.map(r => `<option value="${esc(r.gtfsId)}">${esc(r.shortName || r.gtfsId)}</option>`).join("");
+      lineRow.hidden = !rs.length;
+    }
   };
   const loadDeskDeps = async (gtfsId) => {
     try {
@@ -10563,7 +10601,21 @@ async function viewServiceDesk() {
       `<p class="desk-pin-row"><button type="button" id="deskPinBtn" class="linkish">${
         isPinned ? t("deskPinned") : t("deskPinBtn")}</button>
         <button type="button" id="deskPrintBtn" class="secondary">${icon("print")} ${t("deskPrintBtn")}</button>
-        <span id="deskPrintStatus" class="muted" role="status"></span></p>`;
+        <span id="deskPrintStatus" class="muted" role="status"></span></p>
+      <p class="desk-pin-row" id="deskLinePrintRow" hidden>
+        <span class="muted">${t("deskLinePrints")}</span>
+        <select id="deskLineSel" aria-label="${t("linePrintsChoose")}"></select>
+        <button type="button" class="deskLineBtn linkish" data-lp="rack">${t("rackPrintBtn")}</button>
+        <button type="button" class="deskLineBtn linkish" data-lp="key">${t("printKeyStopsPort")}</button>
+        <button type="button" class="deskLineBtn linkish" data-lp="all">${t("printAllStopsLand")}</button></p>`;
+    /* Linjatulosteet tiskiltä (3.9.2026): avataan UUTEEN välilehteen ?print=-kyselyllä,
+       jotta tiskinäkymä (kioski, kiinnitetty pysäkki, live-lähdöt) säilyy ennallaan
+       eikä asiakaspalvelija joudu navigoimaan takaisin. Sama tulostusfunktio kuin
+       linjasivulla — ei toista toteutusta. */
+    document.querySelectorAll(".deskLineBtn").forEach(b => b.addEventListener("click", () => {
+      const id = document.getElementById("deskLineSel")?.value;
+      if (id) window.open(appUrl("#/linja/" + encodeURIComponent(id) + "?print=" + b.dataset.lp), "_blank");
+    }));
     /* Asiakkaalle mukaan annettava aikataulu: sama pysäkkijulisteen moottori
        (stopPosterBlocks + stopPosterHtml) mutta lehtitelineen mitoituksella
        (setPageOrientation("rack") = A4 pysty, tiukat marginaalit), koska tämä
@@ -12812,6 +12864,21 @@ async function viewPrintCenter(tab) {
         <p><button type="button" id="batchGo">${t("batchGenerate")}</button>
           <span id="batchStatus" class="muted" role="status"></span></p>
       </div>
+      <!-- Linjatulosteet samasta paikasta (3.9.2026): ennen nämä löytyivät vain
+           etusivu → linja → linjasivu. Napit avaavat linjan sivun ?print=-kyselyllä,
+           joka ajaa saman tulostusfunktion kuin linjasivun omat napit. -->
+      <div class="card no-print">
+        <h2>${icon("print")} ${t("linePrintsTitle")}</h2>
+        <p class="muted">${t("linePrintsIntro")}</p>
+        <label class="embed-field">${t("linePrintsChoose")}
+          <select id="linePrintSel">${routes.map(r =>
+            `<option value="${esc(r.gtfsId)}">${esc(r.shortName || "")} ${esc(r.longName || "")}</option>`).join("")}</select></label>
+        <p class="row" style="flex-wrap:wrap;gap:0.4rem">
+          <button type="button" class="linePrintBtn" data-lp="rack">${icon("print")} ${t("rackPrintBtn")}</button>
+          <button type="button" class="linePrintBtn" data-lp="key">${icon("print")} ${t("printKeyStopsPort")}</button>
+          <button type="button" class="linePrintBtn" data-lp="all">${icon("print")} ${t("printAllStopsLand")}</button>
+        </p>
+      </div>
       <div id="batchOut"></div>
     </div>
 
@@ -13043,7 +13110,7 @@ async function route() {
     else if (parts[0] === "tulosta") await viewPrintCenter("vihko");
     else if (parts[0] === "tulosteet") await viewPrintCenter(query.get("tab") || parts[1] || "julisteet");
     else if (parts[0] === "reitti") await viewPlan(parts);
-    else if (parts[0] === "linja" && parts[1]) { track("line", stripFeed(parts[1])); await viewRoute(parts[1], parts[2], parts[3]); }
+    else if (parts[0] === "linja" && parts[1]) { track("line", stripFeed(parts[1])); await viewRoute(parts[1], parts[2], parts[3], query.get("print")); }
     else if (parts[0] === "linjakartta" && parts[1]) { track("line", stripFeed(parts[1])); await viewRouteMap(parts[1]); }
     else if (parts[0] === "monitori" && parts[1]) await viewMonitor(parts[1]);
     else if (parts[0] === "kartta") await viewLiveMap();

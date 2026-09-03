@@ -372,6 +372,21 @@ async function printHygiene(page, label) {
   await page.type("#deskStop", "Matkakeskus", { delay: 25 });
   if (await expect("#deskStopList button[data-s]", "palvelutiski: pysäkkiehdotus", 15000)) {
     await page.click("#deskStopList button[data-s]");
+    // Linjatulosteet myös tiskiltä (3.9.2026): rivi paljastuu kun pysäkin täysi reittilista
+    // on haettu (DESK_DEPS_QUERY routes.gtfsId). Napit avaavat uuden välilehden, joten
+    // klikkausta ei ajeta smokessa; tarkistetaan että valikko täyttyy ja napit ovat paikallaan.
+    const deskLp = await page.waitForFunction(
+      () => { const r = document.getElementById("deskLinePrintRow"); return r && !r.hidden ? true : null; },
+      { timeout: 30000 }).then(() => true).catch(() => false);
+    if (deskLp) {
+      const dl = await page.evaluate(() => ({
+        lines: document.querySelectorAll("#deskLineSel option").length,
+        btns: [...document.querySelectorAll(".deskLineBtn")].map(b => b.dataset.lp).join(","),
+      }));
+      (dl.lines >= 1 && dl.btns === "rack,key,all")
+        ? ok(`palvelutiski: linjatulosteet tiskiltä (${dl.lines} linjaa, napit ${dl.btns})`)
+        : fail("palvelutiski: linjatulosteiden valikko tai napit puuttuvat: " + JSON.stringify(dl));
+    } else fail("palvelutiski: linjatulosterivi ei paljastunut 30 s kuluessa");
     if (await expect("#deskPrintBtn", "palvelutiski: tulostusnappi näkyy pysäkin kohdalla", 15000)) {
       await page.evaluate(() => { window.print = () => {}; });
       await page.click("#deskPrintBtn");
@@ -1448,6 +1463,19 @@ async function printHygiene(page, label) {
     const opts = await page.evaluate(() => document.querySelectorAll("#batchLine option").length);
     opts > 1 ? ok(`tulosteet-keskus: linjavalinta täyttyy (${opts - 1} linjaa)`)
              : fail("tulosteet-keskus: linjavalinta jäi tyhjäksi");
+  }
+  // Linjatulosteet samalta sivulta (3.9.2026): ennen ne olivat vain linjasivulla, jonne
+  // pääsi etusivun kautta. Napit vievät #/linja/<id>?print=..., joka ajaa saman
+  // tulostusfunktion kuin linjasivun napit; tarkistetaan valikko, napit ja se että
+  // hashin kyselyosa siivotaan pois JA ?city= säilyy (regressio 3.9.: href.split("?") söi molemmat).
+  if (await expect("#linePrintSel", "tulosteet-keskus: linjatulosteet löytyvät samalta sivulta")) {
+    const lp = await page.evaluate(() => ({
+      lines: document.querySelectorAll("#linePrintSel option").length,
+      btns: [...document.querySelectorAll(".linePrintBtn")].map(b => b.dataset.lp).join(","),
+    }));
+    (lp.lines > 1 && lp.btns === "rack,key,all")
+      ? ok(`tulosteet-keskus: linjatulosteet (${lp.lines} linjaa, napit ${lp.btns})`)
+      : fail("tulosteet-keskus: linjatulosteiden valikko tai napit puuttuvat: " + JSON.stringify(lp));
   }
   // URL-osoitteistettu välilehti (?tab=) ja yksi etusivun nappi (ei enää kahta tulostenappia)
   await page.goto(BASE + "/#/tulosteet?tab=naytot", { waitUntil: "networkidle2" });
