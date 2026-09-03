@@ -907,6 +907,37 @@ function writeReport() {
             }
           }
         }
+
+        // --- 6a3) Tiskin Tulosteet-välilehti (Villen palaute 3.9.2026): jokainen palvelun
+        //          tuloste on saatava tiskiltä, eikä linjavalinta saa olla sidottu valittuun
+        //          pysäkkiin. Mittari on suhdeluku: valittavia linjoja on vähintään yhtä
+        //          monta kuin pysäkillä kulkee, ja kaikki tulostenapit ovat paikallaan.
+        //          Pelkkä DOM-luku: ei uusia proxy-kutsuja kiintiön päälle.
+        const dpTab = await page.$('.dtab[data-dtab="tulosteet"]');
+        if (!dpTab) {
+          fail(city.key, "tiskin tulostevälilehti", "Tulosteet-välilehteä ei ole tiskissä");
+        } else {
+          await dpTab.click();
+          const listaOk = await page.waitForFunction(
+            () => document.querySelectorAll("#deskLineList .deskLineCb").length > 0 ? true : null,
+            { timeout: 30000 }).then(() => true).catch(() => false);
+          const dpv = await page.evaluate(() => ({
+            linjoja: document.querySelectorAll("#deskLineList .deskLineCb").length,
+            pysakilla: document.querySelectorAll("#deskLines .badge").length,
+            ryhmat: document.querySelectorAll("#deskLineList .dp-head").length,
+            yksi: [...document.querySelectorAll(".deskLineBtn")].map(b => b.dataset.lp).join(","),
+            usea: [...document.querySelectorAll(".deskLinesBtn")].map(b => b.dataset.lp).join(","),
+            juliste: !!document.getElementById("deskStopPosterBtn"),
+            muutokset: !!document.getElementById("deskChangesBtn"),
+          }));
+          listaOk && dpv.linjoja >= Math.max(1, dpv.pysakilla) && dpv.yksi === "rack,key,all,batch"
+            && dpv.usea === "vihko,kaytava" && dpv.juliste && dpv.muutokset
+            ? pass(city.key, "tiskin tulostevälilehti",
+                `${dpv.linjoja} linjaa valittavissa (pysäkillä ${dpv.pysakilla}), ${dpv.ryhmat} ryhmää`)
+            : fail(city.key, "tiskin tulostevälilehti",
+                `valikko pysäkkisidonnainen tai tulosteita puuttuu: ${JSON.stringify(dpv)}`);
+          await page.click('.dtab[data-dtab="neuvonta"]').catch(() => {});
+        }
       }
 
       // --- 6d) Keskustan pysäkit (#/laiturit): vain kaupungeille joilla CONFIG.hubs.

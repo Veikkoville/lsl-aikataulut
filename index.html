@@ -1120,15 +1120,44 @@
      kontrasti — .desk ylikirjoittaa tokenit, joten ilme on sama riippumatta teemasta. */
   body.desk-mode header, body.desk-mode #appFooter { display: none; }
   body.desk-mode main { max-width: none; padding: 0; }
-  /* Linjatulosteet tiskillä: oma rajattu lohko, isot kosketuskohteet ja rivittyvä nappirivi.
-     Asiakaspalvelutilanteessa napin pitää osua kerralla eikä valikon saa hypätä leveyden mukaan. */
-  .desk-lineprint { margin: 0.8rem 0 0; padding: 0.7rem 0.8rem; border: 1px solid var(--border);
-    border-radius: 0.5rem; background: var(--chip); }
-  .desk-lineprint h3 { margin: 0 0 0.15rem; font-size: 1rem; display: flex; align-items: center; gap: 0.4rem; }
-  .desk-lineprint p.muted { margin: 0 0 0.5rem; font-size: 0.9em; }
-  .desk-lineprint select { width: 100%; max-width: 34rem; }
-  .desk-lineprint-btns { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.55rem; }
-  .desk-lineprint-btns button { flex: 1 1 12rem; min-height: 2.6rem; }
+  /* Tiskin tulostevälilehti: koko palvelun tulostevalikoima yhdessä paikassa (3.9.2026).
+     Vasemmalla linjavalinta (suodatin + lista), oikealla tulosteet neljänä ryhmänä
+     (pysäkki / yksi linja / usea linja / muut). 1024 px:llä molemmat sarakkeet mahtuvat
+     rinnakkain ilman vaakavieritystä; alle 900 px lohkot pinoutuvat. */
+  .desk-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .desk-tabs .dtab { min-height: 2.9rem; padding: 0 1.2rem; font-size: 1rem; font-weight: var(--wmed);
+    background: #fff; color: var(--blue); border: 2px solid var(--blue); border-radius: 0.5rem;
+    cursor: pointer; display: flex; align-items: center; gap: 0.4rem; }
+  .desk-tabs .dtab[aria-pressed="true"] { background: var(--blue); color: #fff; }
+  .desk-prints .dp-layout { display: grid; grid-template-columns: minmax(15rem, 21rem) 1fr;
+    gap: 1.2rem; align-items: start; }
+  @media (max-width: 900px) { .desk-prints .dp-layout { grid-template-columns: 1fr; } }
+  .desk-prints h3 { font-size: 0.95rem; margin: 0 0 0.4rem; text-transform: uppercase;
+    letter-spacing: 0.03em; color: var(--muted); }
+  .dp-pick input[type="search"] { width: 100%; min-height: 2.7rem; border: 2px solid var(--border);
+    font-size: 1em; }
+  ul#deskLineList { max-height: min(19rem, 34vh); overflow-y: auto; border: 2px solid var(--border);
+    border-radius: 0.4rem; margin: 0.45rem 0 0.45rem; padding: 0.2rem; background: #fff; }
+  ul#deskLineList li.dp-head { font-size: 0.82em; font-weight: var(--wmed); text-transform: uppercase;
+    letter-spacing: 0.03em; color: var(--muted); padding: 0.5rem 0.4rem 0.2rem; }
+  ul#deskLineList li label { display: flex; align-items: center; gap: 0.5rem; padding: 0.32rem 0.4rem;
+    cursor: pointer; border-radius: 0.3rem; }
+  ul#deskLineList li label:hover { background: var(--hover); }
+  ul#deskLineList input { width: 1.3rem; height: 1.3rem; flex: none; }
+  ul#deskLineList .dp-line-name { min-width: 0; overflow-wrap: anywhere; font-size: 0.92em; }
+  .dp-pick-foot { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; align-items: baseline; margin: 0; }
+  .dp-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr));
+    gap: 0.7rem; align-items: start; }
+  .dp-group { border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.6rem 0.75rem;
+    background: var(--chip); }
+  .dp-btns { display: flex; flex-direction: column; gap: 0.4rem; }
+  .dp-btns button { width: 100%; min-height: 2.55rem; text-align: left; font-size: 0.95em; }
+  .dp-btns button[disabled] { opacity: 0.45; cursor: not-allowed; }
+  .dp-target { font-weight: var(--wmed); margin: 0 0 0.5rem; font-size: 0.95em; }
+  .dp-note { font-size: 0.85em; margin: 0.35rem 0 0; }
+  /* Muutosvahti on eri asia kuin käytäväpresetit sen yllä: ohut viiva estää
+     lukemasta sitä kolmantena suuntana. */
+  .dp-btns.dp-sep { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
   .desk {
     --bg: #ffffff; --card: #ffffff; --text: #111111; --muted: #2f2f2f;
     --border: #1a1a1a; --hover: #eaf0fb; --chip: #e7edf6;
@@ -3378,10 +3407,23 @@ const STRINGS = {
     printKeyStopsPort: "Isot pysäkit (pysty)", printAllStopsLand: "Kaikki pysäkit (vaaka)",
     linePrintsTitle: "Linjatulosteet", linePrintsChoose: "Valitse linja",
     linePrintsIntro: "Lehtiteline-, pysty- ja vaakatuloste yhdeltä linjalta. Valinta avaa linjan sivun ja tulostusikkunan.",
-    deskLinePrints: "Linja", deskLineGroupStop: "Tämän pysäkin linjat", deskLineGroupAll: "Kaikki linjat",
-    deskLinePrintsTitle: "Linjan tulosteet asiakkaalle",
-    deskLinePrintsHint: "Valitse linja ja tuloste. Aukeaa uuteen välilehteen, tiski jää auki taustalle.",
+    deskTabAdvice: "Neuvonta", deskTabPrints: "Tulosteet",
+    deskLineGroupStop: "Tämän pysäkin linjat", deskLineGroupAll: "Muut linjat",
+    deskPrintsTitle: "Tulosteet asiakkaalle",
+    deskPrintsHint: "Valitse linjat vasemmalta ja tuloste oikealta. Tuloste aukeaa uuteen välilehteen, tiski jää auki taustalle.",
+    deskPrintsLines: "Linjat",
+    deskPrintsSelected: "{n} linjaa valittu", deskPrintsSelected1: "1 linja valittu",
+    deskPrintsNone: "Ei linjoja valittuna",
+    deskGroupStop: "Pysäkki", deskGroupLine: "Yksi linja", deskGroupLines: "Usea linja",
+    deskGroupOther: "Muut tulosteet",
+    deskNeedStop: "Valitse pysäkki Neuvonta-välilehdeltä.",
+    deskNeedOneLine: "Valitse yksi linja.", deskNeedOneOfMany: "Valittuna {n} linjaa: valitse yksi.",
+    deskNeedLines: "Valitse vähintään yksi linja.", deskNeedTwoLines: "Valitse vähintään kaksi linjaa.",
+    deskStopPoster: "Pysäkkijuliste (A4)",
     deskLineBooklet: "Vihko (A5, taitettava)", deskLineRack: "Koko linja yhdelle A4:lle",
+    deskLineBatch: "Julisteet linjan kaikille pysäkeille",
+    deskCorridorSel: "Yhdistetty suunta-aikataulu",
+    deskChangesBtn: "Muutosvahdin tuloste",
     rackPrintBtn: "Tulosta lehtitelineeseen",
     tabCorridor: "Yhdistetyt suunnat",
     corridorTitle: "Yhdistetty suunta-aikataulu",
@@ -3901,10 +3943,23 @@ const STRINGS = {
     printKeyStopsPort: "Major stops (portrait)", printAllStopsLand: "All stops (landscape)",
     linePrintsTitle: "Line printouts", linePrintsChoose: "Choose a line",
     linePrintsIntro: "Rack, portrait and landscape printouts for one line. The choice opens the line page and the print dialog.",
-    deskLinePrints: "Line", deskLineGroupStop: "Lines at this stop", deskLineGroupAll: "All lines",
-    deskLinePrintsTitle: "Line printouts for the customer",
-    deskLinePrintsHint: "Pick a line and a printout. Opens in a new tab, the desk stays open.",
+    deskTabAdvice: "Advice", deskTabPrints: "Printouts",
+    deskLineGroupStop: "Lines at this stop", deskLineGroupAll: "Other lines",
+    deskPrintsTitle: "Printouts for the customer",
+    deskPrintsHint: "Pick lines on the left and a printout on the right. It opens in a new tab, the desk stays open.",
+    deskPrintsLines: "Lines",
+    deskPrintsSelected: "{n} lines selected", deskPrintsSelected1: "1 line selected",
+    deskPrintsNone: "No lines selected",
+    deskGroupStop: "Stop", deskGroupLine: "One line", deskGroupLines: "Several lines",
+    deskGroupOther: "Other printouts",
+    deskNeedStop: "Choose a stop on the Advice tab.",
+    deskNeedOneLine: "Choose one line.", deskNeedOneOfMany: "{n} lines selected: choose one.",
+    deskNeedLines: "Choose at least one line.", deskNeedTwoLines: "Choose at least two lines.",
+    deskStopPoster: "Stop poster (A4)",
     deskLineBooklet: "Booklet (A5, folded)", deskLineRack: "Whole line on one A4",
+    deskLineBatch: "Posters for every stop on the line",
+    deskCorridorSel: "Combined direction timetable",
+    deskChangesBtn: "Change watch printout",
     rackPrintBtn: "Print for leaflet rack",
     tabCorridor: "Combined directions",
     corridorTitle: "Combined direction timetable",
@@ -4420,10 +4475,23 @@ const STRINGS = {
     printKeyStopsPort: "Stora hållplatser (stående)", printAllStopsLand: "Alla hållplatser (liggande)",
     linePrintsTitle: "Linjeutskrifter", linePrintsChoose: "Välj linje",
     linePrintsIntro: "Ställ-, stående och liggande utskrift för en linje. Valet öppnar linjesidan och utskriftsfönstret.",
-    deskLinePrints: "Linje", deskLineGroupStop: "Linjer vid denna hållplats", deskLineGroupAll: "Alla linjer",
-    deskLinePrintsTitle: "Linjeutskrifter åt kunden",
-    deskLinePrintsHint: "Välj linje och utskrift. Öppnas i en ny flik, disken förblir öppen.",
+    deskTabAdvice: "Rådgivning", deskTabPrints: "Utskrifter",
+    deskLineGroupStop: "Linjer vid denna hållplats", deskLineGroupAll: "Övriga linjer",
+    deskPrintsTitle: "Utskrifter åt kunden",
+    deskPrintsHint: "Välj linjer till vänster och utskrift till höger. Utskriften öppnas i en ny flik, disken förblir öppen.",
+    deskPrintsLines: "Linjer",
+    deskPrintsSelected: "{n} linjer valda", deskPrintsSelected1: "1 linje vald",
+    deskPrintsNone: "Inga linjer valda",
+    deskGroupStop: "Hållplats", deskGroupLine: "En linje", deskGroupLines: "Flera linjer",
+    deskGroupOther: "Övriga utskrifter",
+    deskNeedStop: "Välj en hållplats på fliken Rådgivning.",
+    deskNeedOneLine: "Välj en linje.", deskNeedOneOfMany: "{n} linjer valda: välj en.",
+    deskNeedLines: "Välj minst en linje.", deskNeedTwoLines: "Välj minst två linjer.",
+    deskStopPoster: "Hållplatsaffisch (A4)",
     deskLineBooklet: "Häfte (A5, vikbart)", deskLineRack: "Hela linjen på ett A4",
+    deskLineBatch: "Affischer för alla hållplatser på linjen",
+    deskCorridorSel: "Kombinerad riktningstidtabell",
+    deskChangesBtn: "Utskrift från ändringsvakten",
     rackPrintBtn: "Skriv ut för broschyrställ",
     tabCorridor: "Kombinerade riktningar",
     corridorTitle: "Kombinerad riktningstidtabell",
@@ -10425,8 +10493,13 @@ async function viewServiceDesk() {
     <div class="desk no-print"${deskAccentStyle()}>
       <div class="desk-top">
         <h1>${t("deskTitle")}</h1>
+        <div class="desk-tabs" role="group" aria-label="${t("deskTitle")}">
+          <button type="button" class="dtab" data-dtab="neuvonta" aria-pressed="true">${icon("bus")} ${t("deskTabAdvice")}</button>
+          <button type="button" class="dtab" data-dtab="tulosteet" aria-pressed="false">${icon("print")} ${t("deskTabPrints")}</button>
+        </div>
         <a class="btnlink secondary" href="#/">${t("deskExit")}</a>
       </div>
+      <div class="desk-panel" data-dpanel="neuvonta">
       <div class="desk-grid">
         <section class="desk-col desk-col--primary">
           <h2>${icon("bus")} ${t("deskDepsTitle")}</h2>
@@ -10461,23 +10534,6 @@ async function viewServiceDesk() {
           <p class="muted">${t("deskKbdHint")}</p>
           <div id="deskMsg" role="status"></div>
           <div id="deskResults"></div>
-          <!-- Linjatulosteet (Villen palaute 3.9.2026): EI sidottu valittuun pysäkkiin, koska
-               asiakaspalvelussa ei tiedetä ensin miltä pysäkiltä linja lähtee — valikossa on koko
-               linjasto ja valitun pysäkin linjat nousevat omaan ryhmäänsä kärkeen. Sijainti on
-               oikea sarake eikä lähtölista, jotta pysäkin lähdöt pysyvät ruudun yläosassa.
-               Napit avaavat uuden välilehden, joten tiski jää auki taustalle. -->
-          <div class="desk-lineprint" id="deskLinePrintRow">
-            <h3>${icon("print")} ${t("deskLinePrintsTitle")}</h3>
-            <p class="muted">${t("deskLinePrintsHint")}</p>
-            <div class="desk-field"><label for="deskLineSel">${t("deskLinePrints")}</label>
-              <select id="deskLineSel"></select></div>
-            <div class="desk-lineprint-btns">
-              <button type="button" class="deskLineBtn secondary" data-lp="vihko">${t("deskLineBooklet")}</button>
-              <button type="button" class="deskLineBtn secondary" data-lp="rack">${t("deskLineRack")}</button>
-              <button type="button" class="deskLineBtn secondary" data-lp="key">${t("printKeyStopsPort")}</button>
-              <button type="button" class="deskLineBtn secondary" data-lp="all">${t("printAllStopsLand")}</button>
-            </div>
-          </div>
         </section>
       </div>
       <div class="desk-aux">
@@ -10491,6 +10547,71 @@ async function viewServiceDesk() {
           <p class="muted">${t("trainsSrc")}</p>
         </section>` : ""}
         ${CONFIG.fares ? deskFaresHtml(CONFIG.fares) : ""}
+      </div>
+      </div>
+      <!-- Tulosteet-välilehti (Villen palaute 3.9.2026): tiskiltä on saatava JOKAINEN palvelun
+           tuloste ilman että tiskiltä poistutaan, eikä linjavalinta saa olla pysäkkisidonnainen.
+           Mitattu ennen korjausta (Lahti): valikossa oli 101 linjaa kahdessa ryhmässä, mutta
+           pysäkin 21 linjaa täyttivät natiivin valikon ensimmäisen ruudullisen, joten muut 80
+           jäivät käyttäjältä piiloon. Nyt lista on suodatettava monivalinta: vihko ja yhdistetty
+           suunta ovat monen linjan tuotteita, muut yhden. Tulostuslogiikkaa EI kopioida tänne:
+           napit avaavat linjasivun ?print= tai tulosteet-keskuksen ?lines=/?corridor=/?line=
+           uuteen välilehteen, joten tiski jää auki taustalle. -->
+      <div class="desk-panel" data-dpanel="tulosteet" hidden>
+        <section class="desk-col desk-prints">
+          <h2>${icon("print")} ${t("deskPrintsTitle")}</h2>
+          <p class="muted">${t("deskPrintsHint")}</p>
+          <div class="dp-layout">
+            <div class="dp-pick">
+              <h3 id="deskLinesH">${t("deskPrintsLines")}</h3>
+              <input type="search" id="deskLineFilter" autocomplete="off"
+                     placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
+              <ul class="plain" id="deskLineList" aria-labelledby="deskLinesH"></ul>
+              <p class="dp-pick-foot">
+                <button type="button" id="deskLinesStop" class="linkish">${t("deskLineGroupStop")}</button>
+                <button type="button" id="deskLinesNone" class="linkish">${t("clearLines")}</button>
+                <span id="deskLinesCount" class="muted" role="status">${t("deskPrintsNone")}</span>
+              </p>
+            </div>
+            <div class="dp-groups">
+              <div class="dp-group">
+                <h3>${t("deskGroupStop")}</h3>
+                <p class="dp-target" id="deskPrintsStop">${t("deskNeedStop")}</p>
+                <div class="dp-btns">
+                  <button type="button" id="deskStopPosterBtn" class="secondary" disabled>${t("deskStopPoster")}</button>
+                </div>
+                <p class="muted dp-note" id="deskStopPosterStatus" role="status"></p>
+              </div>
+              <div class="dp-group">
+                <h3>${t("deskGroupLine")}</h3>
+                <div class="dp-btns">
+                  <button type="button" class="deskLineBtn secondary" data-lp="rack" disabled>${t("deskLineRack")}</button>
+                  <button type="button" class="deskLineBtn secondary" data-lp="key" disabled>${t("printKeyStopsPort")}</button>
+                  <button type="button" class="deskLineBtn secondary" data-lp="all" disabled>${t("printAllStopsLand")}</button>
+                  <button type="button" class="deskLineBtn secondary" data-lp="batch" disabled>${t("deskLineBatch")}</button>
+                </div>
+                <p class="muted dp-note" id="deskLineNote">${t("deskNeedOneLine")}</p>
+              </div>
+              <div class="dp-group">
+                <h3>${t("deskGroupLines")}</h3>
+                <div class="dp-btns">
+                  <button type="button" class="deskLinesBtn secondary" data-lp="vihko" disabled>${t("deskLineBooklet")}</button>
+                  <button type="button" class="deskLinesBtn secondary" data-lp="kaytava" disabled>${t("deskCorridorSel")}</button>
+                </div>
+                <p class="muted dp-note" id="deskLinesNote">${t("deskNeedLines")}</p>
+              </div>
+              <div class="dp-group">
+                <h3>${t("deskGroupOther")}</h3>
+                ${(CONFIG.corridors || []).length ? `<p class="muted dp-note" style="margin:0 0 0.4rem">${t("corridorPresets")}</p>
+                <div class="dp-btns">${CONFIG.corridors.map(c =>
+                  `<button type="button" class="deskCorrBtn secondary" data-corr="${esc(c.key)}">${esc(corridorName(c))}</button>`).join("")}</div>` : ""}
+                <div class="dp-btns${(CONFIG.corridors || []).length ? " dp-sep" : ""}">
+                  <button type="button" id="deskChangesBtn" class="secondary">${t("deskChangesBtn")}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
     <div id="deskPrintOut"></div>`);
@@ -10577,37 +10698,147 @@ async function viewServiceDesk() {
   });
   fromEl.focus();
 
-  // Pysäkin reaaliaikaiset lähdöt (+ linjat) — palvelutiskin tärkein toiminto.
-  /* Linjatulosteet tiskiltä: sama tulostusfunktio kuin linjasivulla (?print=), avataan
-     uuteen välilehteen jotta tiskinäkymä, kiinnitetty pysäkki ja live-lähdöt säilyvät. */
-  const deskLineOpt = r => `<option value="${esc(r.gtfsId)}">${esc(r.shortName || "")} ${esc(r.longName || "")}</option>`;
+  // Tiskin välilehdet: molemmat paneelit pysyvät DOMissa, joten pysäkkivalinta, reittihaku
+  // ja linjavalinta säilyvät välilehteä vaihdettaessa (tiskiltä ei tarvitse poistua).
+  const deskPanels = [...document.querySelectorAll(".desk-panel")];
+  const deskTabs = [...document.querySelectorAll(".dtab")];
+  deskTabs.forEach(b => b.addEventListener("click", () => {
+    deskPanels.forEach(p => { p.hidden = p.dataset.dpanel !== b.dataset.dtab; });
+    deskTabs.forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  }));
+
+  /* Tulosteet-välilehden linjavalinta. Monivalinta siksi, että vihko ja yhdistetty suunta
+     ovat monen linjan tuotteita; yhden linjan tulosteet vaativat tasan yhden valinnan ja
+     ovat muuten pois päältä (nappi ei saa vain olla tekemättä mitään). Valinta säilyy
+     listan uudelleenpiirron yli, koska pysäkin vaihto järjestää ryhmät uudelleen. */
   const deskLineSort = list => list.slice()
     .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
-  let deskAllRoutes = [];
-  const fillDeskLines = (stopRoutes) => {
-    const sel = document.getElementById("deskLineSel");
-    if (!sel) return;
-    const ids = new Set((stopRoutes || []).filter(r => r && r.gtfsId).map(r => r.gtfsId));
-    // Pysäkin linjat ensin omaan ryhmäänsä, loput perään: valinta ei ole sidottu pysäkkiin,
-    // mutta yleisin tapaus (asiakas kysyy juuri tästä pysäkistä) on ylimpänä.
-    const stopList = deskLineSort(deskAllRoutes.filter(r => ids.has(r.gtfsId)));
-    const rest = deskLineSort(deskAllRoutes.filter(r => !ids.has(r.gtfsId)));
-    sel.innerHTML = (stopList.length
-      ? `<optgroup label="${esc(t("deskLineGroupStop"))}">${stopList.map(deskLineOpt).join("")}</optgroup>` +
-        `<optgroup label="${esc(t("deskLineGroupAll"))}">${rest.map(deskLineOpt).join("")}</optgroup>`
-      : deskLineSort(deskAllRoutes).map(deskLineOpt).join(""));
+  let deskAllRoutes = [], deskStopRouteIds = new Set(), deskPickedIds = new Set(), deskStopObj = null;
+  const deskPickedNow = () => new Set(
+    [...document.querySelectorAll(".deskLineCb")].filter(c => c.checked).map(c => c.value));
+  const deskFilterLines = () => {
+    const q = (document.getElementById("deskLineFilter")?.value || "").trim().toLowerCase();
+    document.querySelectorAll("#deskLineList li").forEach(li => {
+      li.hidden = !!q && (li.classList.contains("dp-head") || !li.textContent.toLowerCase().includes(q));
+    });
   };
+  const updateDeskPrints = () => {
+    deskPickedIds = deskPickedNow();
+    const n = deskPickedIds.size;
+    const cnt = document.getElementById("deskLinesCount");
+    if (cnt) cnt.textContent = n === 1 ? t("deskPrintsSelected1")
+      : n ? t("deskPrintsSelected", { n }) : t("deskPrintsNone");
+    document.querySelectorAll(".deskLineBtn").forEach(b => { b.disabled = n !== 1; });
+    document.querySelectorAll(".deskLinesBtn").forEach(b => {
+      b.disabled = b.dataset.lp === "kaytava" ? n < 2 : n < 1;
+    });
+    const one = document.getElementById("deskLineNote");
+    if (one) one.textContent = n === 1 ? "" : (n ? t("deskNeedOneOfMany", { n }) : t("deskNeedOneLine"));
+    const many = document.getElementById("deskLinesNote");
+    if (many) many.textContent = n >= 2 ? "" : (n === 1 ? t("deskNeedTwoLines") : t("deskNeedLines"));
+  };
+  const deskLineRow = r => `<li><label><input type="checkbox" class="deskLineCb" value="${esc(r.gtfsId)}"
+      data-short="${esc(r.shortName || "")}"${deskPickedIds.has(r.gtfsId) ? " checked" : ""}>
+      ${badgeHtml(r)} <span class="dp-line-name">${esc(r.longName || "")}</span></label></li>`;
+  const renderDeskLines = () => {
+    const ul = document.getElementById("deskLineList");
+    if (!ul) return;
+    const mine = deskLineSort(deskAllRoutes.filter(r => deskStopRouteIds.has(r.gtfsId)));
+    const rest = deskLineSort(deskAllRoutes.filter(r => !deskStopRouteIds.has(r.gtfsId)));
+    ul.innerHTML = mine.length
+      ? `<li class="dp-head">${esc(t("deskLineGroupStop"))}</li>${mine.map(deskLineRow).join("")}` +
+        `<li class="dp-head">${esc(t("deskLineGroupAll"))}</li>${rest.map(deskLineRow).join("")}`
+      : rest.map(deskLineRow).join("");
+    deskFilterLines();
+    updateDeskPrints();
+  };
+  document.getElementById("deskLineFilter")?.addEventListener("input", deskFilterLines);
+  document.getElementById("deskLineList")?.addEventListener("change", updateDeskPrints);
+  document.getElementById("deskLinesStop")?.addEventListener("click", () => {
+    document.querySelectorAll(".deskLineCb").forEach(c => { c.checked = deskStopRouteIds.has(c.value); });
+    updateDeskPrints();
+  });
+  document.getElementById("deskLinesNone")?.addEventListener("click", () => {
+    document.querySelectorAll(".deskLineCb").forEach(c => { c.checked = false; });
+    updateDeskPrints();
+  });
+
+  /* Tulosteiden avaus: yksi tulostustoteutus, tiskiltä vain esivalinta. Yhden linjan
+     tulosteet ajaa linjasivu (?print=rack|key|all), erätulostus ja monen linjan tuotteet
+     tulosteet-keskus (?line=/?lines=/?corridor= + &go=1). Uusi välilehti = tiski jää auki. */
+  const deskOpen = hash => window.open(appUrl(hash), "_blank");
+  const deskPickedList = () => [...deskPickedNow()];
   document.querySelectorAll(".deskLineBtn").forEach(btn => btn.addEventListener("click", () => {
-    const id = document.getElementById("deskLineSel")?.value;
-    if (!id) return;
-    // Vihko koostetaan tulosteet-sivun vihkovälilehdellä (mittaa-ja-jaa-sivutus asuu siellä):
-    // ?line=&go=1 valitsee linjan ja käynnistää koonnin, joten tiskiltä se on yksi klikkaus.
-    const hash = btn.dataset.lp === "vihko"
-      ? "#/tulosteet/vihko?line=" + encodeURIComponent(id) + "&go=1"
-      : "#/linja/" + encodeURIComponent(id) + "?print=" + btn.dataset.lp;
-    window.open(appUrl(hash), "_blank");
+    const ids = deskPickedList();
+    if (ids.length !== 1) return;
+    deskOpen(btn.dataset.lp === "batch"
+      ? "#/tulosteet/julisteet?line=" + encodeURIComponent(ids[0]) + "&go=1"
+      : "#/linja/" + encodeURIComponent(ids[0]) + "?print=" + btn.dataset.lp);
   }));
-  loadRoutes().then(rs => { deskAllRoutes = rs || []; fillDeskLines(null); }).catch(() => {});
+  document.querySelectorAll(".deskLinesBtn").forEach(btn => btn.addEventListener("click", () => {
+    const ids = deskPickedList();
+    if (btn.dataset.lp === "kaytava" ? ids.length < 2 : !ids.length) return;
+    deskOpen("#/tulosteet/" + (btn.dataset.lp === "kaytava" ? "kaytava" : "vihko") +
+      "?lines=" + ids.map(encodeURIComponent).join(",") + "&go=1");
+  }));
+  document.querySelectorAll(".deskCorrBtn").forEach(btn => btn.addEventListener("click", () =>
+    deskOpen("#/tulosteet/kaytava?corridor=" + encodeURIComponent(btn.dataset.corr) + "&go=1")));
+  document.getElementById("deskChangesBtn")?.addEventListener("click", () =>
+    deskOpen("#/tulosteet/muutokset"));
+  loadRoutes().then(rs => { deskAllRoutes = rs || []; renderDeskLines(); }).catch(() => {});
+
+  /* Asiakkaalle mukaan annettava pysäkkiaikataulu: sama pysäkkijulisteen moottori
+     (stopPosterBlocks + stopPosterHtml) kuin pysäkkisivulla. Tiivis juliste tulostuu
+     7 mm:llä, tavallinen lehtitelineen 8 mm:llä, koska tämä paperi ojennetaan tiskin
+     yli eikä teipata katokseen. Sama funktio molemmilta välilehdiltä (Neuvonta: pysäkin
+     kohdalla, Tulosteet: Pysäkki-ryhmässä), jotta toteutuksia on vain yksi. */
+  const deskPrintStopPoster = async (stop, stEl) => {
+    const po = document.getElementById("deskPrintOut");
+    if (!po || !stop) return;
+    if (stEl) stEl.textContent = t("preparingPrint");
+    const today = todayISO();
+    let blocks;
+    try { blocks = await stopPosterBlocks(stop.gtfsId, today); }
+    catch (e) {
+      // Haku epäonnistui: EI tulosteta. Tyhjä paperi asiakkaan käteen olisi pahempi
+      // kuin "yritä uudelleen": hän luulee ettei vuoroja ole.
+      if (stEl) stEl.textContent = esc(e.message);
+      return;
+    }
+    if (!blocks.length) { if (stEl) stEl.textContent = t("bookletNoData"); return; }
+    // QR pysäkin live-sivulle: mukaan otettavassa paperissa se on hyödyllisempi
+    // kuin katoksessa, koska asiakas kantaa puhelinta mukanaan. Ei pakollinen.
+    let qrImg = "";
+    try {
+      const u = await qrDataUrl(appUrl("#/pysakki/" + encodeURIComponent(stop.gtfsId)), 240);
+      qrImg = `<div class="poster-qrwrap"><img class="poster-qr" src="${u}" alt="">
+        <span class="poster-qrcap">${t("qrPosterHint")}</span></div>`;
+    } catch (e) { /* QR ei pakollinen tulosteelle */ }
+    const head = (sub) => `<div class="poster-head"><div>
+           <h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
+           <p class="poster-sub">${esc(sub)}</p>
+           <p class="muted">${t("posterAllLinesNote")}</p>
+         </div>${qrImg}</div>`;
+    const compact = posterCompactOn(null);
+    po.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}"><div class="poster-stop">${blocks.map(b =>
+        `<section class="card poster-day">${head(b.label)}${stopPosterHtml(b.lines, compact)}</section>`).join("")}</div>
+      <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
+    if (stEl) stEl.textContent = "";
+    if (compact) {
+      const fit = fitPosterSheet(po);
+      if (stEl && fit.sheets > 1) stEl.textContent = t("posterSheets", { n: fit.sheets });
+    }
+    runPrintJob(t("preparingPrint"), () => {
+      setPageOrientation(compact ? "compact" : "rack"); // tiivis: sama 7 mm kuin julisteessa (fitPosterSheet mittaa 196 mm)
+      const done = () => { setPageOrientation("portrait"); hidePrintPrep(); window.removeEventListener("afterprint", done); };
+      window.addEventListener("afterprint", done);
+      window.print();
+    });
+  };
+  document.getElementById("deskStopPosterBtn")?.addEventListener("click", () =>
+    deskPrintStopPoster(deskStopObj, document.getElementById("deskStopPosterStatus")));
+
+  // Pysäkin reaaliaikaiset lähdöt (+ linjat): palvelutiskin tärkein toiminto.
 
   const stopEl = document.getElementById("deskStop");
   const stopList = document.getElementById("deskStopList");
@@ -10630,7 +10861,9 @@ async function viewServiceDesk() {
     // Päivitä linjat täydemmästä reittilistasta jos saatavilla (ei pakollinen, lines jo näkyvissä)
     const ln = document.getElementById("deskLines");
     if (ln && (stop.routes || []).length) ln.innerHTML = stopLinesHtml(stop.routes);
-    fillDeskLines(stop.routes);   // pysäkin linjat kärkeen, koko linjasto silti valittavissa
+    // Pysäkin linjat listan kärkeen omaan ryhmäänsä; koko linjasto pysyy valittavissa.
+    deskStopRouteIds = new Set((stop.routes || []).filter(r => r && r.gtfsId).map(r => r.gtfsId));
+    renderDeskLines();
   };
   const loadDeskDeps = async (gtfsId) => {
     try {
@@ -10650,6 +10883,13 @@ async function viewServiceDesk() {
   const pickStop = (s, opts) => {
     if (!opts?.silent) { stopEl.value = s.name; stopList.hidden = true; }
     curStop = s.gtfsId;
+    // Sama pysäkki myös Tulosteet-välilehdelle: pysäkkijuliste ja "tämän pysäkin linjat"
+    // toimivat siellä ilman että pysäkkiä pitää etsiä uudestaan.
+    deskStopObj = s;
+    const psEl = document.getElementById("deskPrintsStop");
+    if (psEl) psEl.textContent = s.name + (s.code ? " (" + s.code + ")" : "");
+    const spBtn = document.getElementById("deskStopPosterBtn");
+    if (spBtn) spBtn.disabled = false;
     clearDeskDepTimer();
     // Linjat näkyviin HETI (synkroninen); live-lähdöt latautuvat omaan lohkoonsa perään.
     const pinned = deskPinnedStop();
@@ -10661,55 +10901,10 @@ async function viewServiceDesk() {
         isPinned ? t("deskPinned") : t("deskPinBtn")}</button>
         <button type="button" id="deskPrintBtn" class="secondary">${icon("print")} ${t("deskPrintBtn")}</button>
         <span id="deskPrintStatus" class="muted" role="status"></span></p>`;
-    /* Asiakkaalle mukaan annettava aikataulu: sama pysäkkijulisteen moottori
-       (stopPosterBlocks + stopPosterHtml) mutta lehtitelineen mitoituksella
-       (setPageOrientation("rack") = A4 pysty, tiukat marginaalit), koska tämä
-       paperi ojennetaan tiskin yli eikä teipata katokseen. Tiskiltä ei tarvitse
-       poistua: se oli koko pointti, ja 24.8.2026 asti se puuttui. */
-    document.getElementById("deskPrintBtn")?.addEventListener("click", async () => {
-      const stEl = document.getElementById("deskPrintStatus");
-      const po = document.getElementById("deskPrintOut");
-      if (!po) return;
-      if (stEl) stEl.textContent = t("preparingPrint");
-      const today = todayISO();
-      let blocks;
-      try { blocks = await stopPosterBlocks(s.gtfsId, today); }
-      catch (e) {
-        // Haku epäonnistui → EI tulosteta. Tyhjä paperi asiakkaan käteen olisi
-        // pahempi kuin "yritä uudelleen": hän luulee ettei vuoroja ole.
-        if (stEl) stEl.textContent = esc(e.message);
-        return;
-      }
-      if (!blocks.length) { if (stEl) stEl.textContent = t("bookletNoData"); return; }
-      // QR pysäkin live-sivulle: mukaan otettavassa paperissa se on hyödyllisempi
-      // kuin katoksessa, koska asiakas kantaa puhelinta mukanaan. Ei pakollinen.
-      let qrImg = "";
-      try {
-        const u = await qrDataUrl(appUrl("#/pysakki/" + encodeURIComponent(s.gtfsId)), 240);
-        qrImg = `<div class="poster-qrwrap"><img class="poster-qr" src="${u}" alt="">
-          <span class="poster-qrcap">${t("qrPosterHint")}</span></div>`;
-      } catch (e) { /* QR ei pakollinen tulosteelle */ }
-      const head = (sub) => `<div class="poster-head"><div>
-             <h2>${esc(s.name)} <span class="muted">${esc(s.code || "")}</span></h2>
-             <p class="poster-sub">${esc(sub)}</p>
-             <p class="muted">${t("posterAllLinesNote")}</p>
-           </div>${qrImg}</div>`;
-      const compact = posterCompactOn(null);
-      po.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}"><div class="poster-stop">${blocks.map(b =>
-          `<section class="card poster-day">${head(b.label)}${stopPosterHtml(b.lines, compact)}</section>`).join("")}</div>
-        <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
-      if (stEl) stEl.textContent = "";
-      if (compact) {
-        const fit = fitPosterSheet(po);
-        if (stEl && fit.sheets > 1) stEl.textContent = t("posterSheets", { n: fit.sheets });
-      }
-      runPrintJob(t("preparingPrint"), () => {
-        setPageOrientation(compact ? "compact" : "rack"); // tiivis: sama 7 mm kuin julisteessa (fitPosterSheet mittaa 196 mm)
-        const done = () => { setPageOrientation("portrait"); hidePrintPrep(); window.removeEventListener("afterprint", done); };
-        window.addEventListener("afterprint", done);
-        window.print();
-      });
-    });
+    // Sama pysäkkijuliste kuin Tulosteet-välilehdellä (deskPrintStopPoster): pysäkin
+    // kohdalla oleva nappi on nopein reitti, kun pysäkki on juuri valittu.
+    document.getElementById("deskPrintBtn")?.addEventListener("click", () =>
+      deskPrintStopPoster(s, document.getElementById("deskPrintStatus")));
     // Kiinnitys = tämä pysäkki avautuu jatkossa valmiiksi kun palvelutiski avataan.
     document.getElementById("deskPinBtn")?.addEventListener("click", (e) => {
       try { localStorage.setItem(deskPinKey(), JSON.stringify({ gtfsId: s.gtfsId, name: s.name })); }
@@ -12798,9 +12993,9 @@ async function viewReprint() {
 // tai ?tab=<tab>). Kaikki kolme paneelia ovat DOMissa → sidonnat toimivat tabista riippumatta;
 // välilehden vaihto ei piirrä näkymää uudelleen (history.replaceState → lomaketila säilyy).
 const PRINT_TABS = ["vihko", "kaytava", "julisteet", "muutokset", "naytot"];
-// query: valinnainen URLSearchParams. ?line=<gtfsId>&go=1 esivalitsee linjan vihkovälilehdellä
-// ja käynnistää koonnin — palvelutiskin "Vihko"-nappi käyttää tätä, jotta vihkologiikka on
-// vain yhdessä paikassa (3.9.2026).
+// query: valinnainen URLSearchParams, ks. applyPrintQuery. Palvelutiski ja QR-linkit
+// esivalitsevat linjat kyselyllä ja käynnistävät koonnin, jotta jokainen tuloste on
+// toteutettu vain kerran ja vain täällä (3.9.2026).
 async function viewPrintCenter(tab, query) {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   tab = PRINT_TABS.includes(tab) ? tab : "vihko";
@@ -12977,13 +13172,51 @@ async function viewPrintCenter(tab, query) {
   bindScreenNetTab();
   showTab(tab);
 
-  const qLine = query && query.get("line");
-  if (qLine) {
-    const cb = [...document.querySelectorAll(".lineCb")].find(c => c.value === qLine);
-    if (cb) {
+  applyPrintQuery(tab, query);
+}
+
+/* Tulosteet-keskuksen kyselyparametrit. Nämä ovat palvelutiskin (ja QR-linkkien) ainoa
+   tapa käynnistää koonti: tiski ei kokoa mitään itse vaan esivalitsee ja painaa nappia.
+     ?line=<gtfsId>      vihko: rastita linja  |  julisteet: valitse erätulostuksen linja
+     ?lines=<id>,<id>    vihko / kaytava: rastita nämä linjat
+     ?corridor=<key>     kaytava: käytäväpreset CONFIG.corridorsista
+     &go=1               käynnistä koonti heti (muuten vain esivalinta)
+   Tuntematon tai tyhjäksi jäävä valinta EI käynnistä koontia: puolikas tuloste olisi
+   pahempi kuin tekemätön, koska se näyttää valmiilta. */
+function applyPrintQuery(tab, query) {
+  if (!query) return;
+  const go = query.get("go") === "1";
+  const ids = (query.get("lines") || query.get("line") || "")
+    .split(",").map(x => x.trim()).filter(Boolean);
+  const check = (sel, wanted) => {
+    const cbs = [...document.querySelectorAll(sel)];
+    let n = 0;
+    wanted.forEach(id => {
+      const cb = cbs.find(c => c.value === id);
+      if (!cb) return;
       cb.checked = true;
-      cb.closest("li")?.scrollIntoView({ block: "center" });
-      if (query.get("go") === "1") document.getElementById("buildBtn")?.click();
+      if (!n) cb.closest("li")?.scrollIntoView({ block: "center" });
+      n++;
+    });
+    return n;
+  };
+  if (tab === "vihko") {
+    if (ids.length && check(".lineCb", ids) && go) document.getElementById("buildBtn")?.click();
+  } else if (tab === "kaytava") {
+    const key = query.get("corridor");
+    if (key) {
+      const btn = [...document.querySelectorAll("[data-corridor]")].find(b => b.dataset.corridor === key);
+      if (!btn) return;
+      btn.click();   // preset rastittaa linjat (bindCorridorTab)
+      if (go) document.getElementById("corrGo")?.click();
+    } else if (ids.length && check(".corrCb", ids) >= 2 && go) {
+      document.getElementById("corrGo")?.click();
+    }
+  } else if (tab === "julisteet" && ids.length) {
+    const sel = document.getElementById("batchLine");
+    if (sel && [...sel.options].some(o => o.value === ids[0])) {
+      sel.value = ids[0];
+      if (go) document.getElementById("batchGo")?.click();
     }
   }
 }

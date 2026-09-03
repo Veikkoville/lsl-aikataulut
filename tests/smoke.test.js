@@ -372,24 +372,101 @@ async function printHygiene(page, label) {
   await page.type("#deskStop", "Matkakeskus", { delay: 25 });
   if (await expect("#deskStopList button[data-s]", "palvelutiski: pysäkkiehdotus", 15000)) {
     await page.click("#deskStopList button[data-s]");
-    // Linjatulosteet myös tiskiltä (3.9.2026): rivi paljastuu kun pysäkin täysi reittilista
-    // on haettu (DESK_DEPS_QUERY routes.gtfsId). Napit avaavat uuden välilehden, joten
-    // klikkausta ei ajeta smokessa; tarkistetaan että valikko täyttyy ja napit ovat paikallaan.
+    // --- Tulosteet-välilehti tiskillä (Villen palaute 3.9.2026) ---
+    // Vaatimus: tiskiltä saa JOKAISEN palvelun tulosteen, eikä linjavalinta ole sidottu
+    // valittuun pysäkkiin. Ennen korjausta valikossa oli 101 linjaa kahdessa optgroupissa,
+    // mutta pysäkin 21 linjaa täyttivät natiivin valikon ensimmäisen ruudullisen, joten
+    // loput 80 jäivät käyttäjältä piiloon. Napit avaavat uuden välilehden, joten klikkausta
+    // ei ajeta loppuun: window.open kaapataan ja kohde-URL tarkistetaan (koonti itsessään
+    // tarkistetaan tulosteet-keskuksen kohdalla, ks. "tiskin tulostepolut").
     const deskLp = await page.waitForFunction(
-      () => { const r = document.getElementById("deskLinePrintRow"); return r && !r.hidden ? true : null; },
+      () => document.querySelectorAll("#deskLineList .deskLineCb").length > 10 ? true : null,
       { timeout: 30000 }).then(() => true).catch(() => false);
-    if (deskLp) {
+    if (!deskLp) fail("palvelutiski: tulosteet-välilehden linjalista ei täyttynyt 30 s kuluessa");
+    else {
+      await page.click('.dtab[data-dtab="tulosteet"]');
+      await page.waitForFunction(() => document.querySelector('[data-dpanel="tulosteet"]')?.hidden === false,
+        { timeout: 5000 }).catch(() => {});
       const dl = await page.evaluate(() => ({
-        lines: document.querySelectorAll("#deskLineSel option").length,
-        btns: [...document.querySelectorAll(".deskLineBtn")].map(b => b.dataset.lp).join(","),
-        groups: document.querySelectorAll("#deskLineSel optgroup").length,
+        panel: document.querySelector('[data-dpanel="tulosteet"]').hidden === false,
+        adviceHidden: document.querySelector('[data-dpanel="neuvonta"]').hidden === true,
+        lines: document.querySelectorAll("#deskLineList .deskLineCb").length,
+        ryhmat: document.querySelectorAll("#deskLineList .dp-head").length,
+        stopNimi: (document.getElementById("deskPrintsStop")?.textContent || "").trim(),
+        stopNappi: document.getElementById("deskStopPosterBtn")?.disabled === false,
       }));
-      // Valikko EI saa olla sidottu valittuun pysäkkiin (Villen palaute 3.9.): kaikki kaupungin
-      // linjat ovat valittavissa, pysäkin omat vain omana ryhmänään kärjessä.
-      (dl.lines > 10 && dl.btns === "vihko,rack,key,all" && dl.groups >= 2)
-        ? ok(`palvelutiski: linjatulosteet ilman pysäkkisidosta (${dl.lines} linjaa, ${dl.groups} ryhmää, napit ${dl.btns})`)  // vihko = tulosteet-sivun vihkovälilehti ?line=&go=1
-        : fail("palvelutiski: linjatulostevalikko puutteellinen tai pysäkkisidonnainen: " + JSON.stringify(dl));
-    } else fail("palvelutiski: linjatulosterivi ei paljastunut 30 s kuluessa");
+      // Pysäkin linjoja on aina vähemmän kuin koko linjastoa: jos ne olisivat sama luku,
+      // valikko olisi taas pysäkkisidonnainen.
+      (dl.panel && dl.adviceHidden && dl.lines > 10 && dl.ryhmat === 2 && dl.stopNappi && dl.stopNimi.length > 2)
+        ? ok(`palvelutiski: Tulosteet-välilehti (${dl.lines} linjaa, ${dl.ryhmat} ryhmää, pysäkki ${dl.stopNimi})`)
+        : fail("palvelutiski: tulostevälilehti puutteellinen tai pysäkkisidonnainen: " + JSON.stringify(dl));
+      // Nappien tilat: 0 valittua = kaikki pois, 1 = yhden linjan tulosteet + vihko,
+      // 2 = vihko + yhdistetty suunta mutta EI yhden linjan tulosteita. Nappi joka ei tee
+      // mitään on pahempi kuin harmaa nappi: asiakaspalvelija ei näe kumpi tapahtui.
+      const tilat = await page.evaluate(() => {
+        const set = (n) => {
+          const cbs = [...document.querySelectorAll("#deskLineList .deskLineCb")];
+          cbs.forEach(c => { c.checked = false; });
+          cbs.slice(0, n).forEach(c => { c.checked = true; });
+          cbs[0].dispatchEvent(new Event("change", { bubbles: true }));
+          return {
+            yksi: [...document.querySelectorAll(".deskLineBtn")].map(b => b.dataset.lp + ":" + (b.disabled ? "off" : "on")).join(" "),
+            usea: [...document.querySelectorAll(".deskLinesBtn")].map(b => b.dataset.lp + ":" + (b.disabled ? "off" : "on")).join(" "),
+          };
+        };
+        return { nolla: set(0), yksi: set(1), kaksi: set(2) };
+      });
+      (tilat.nolla.yksi === "rack:off key:off all:off batch:off" && tilat.nolla.usea === "vihko:off kaytava:off" &&
+       tilat.yksi.yksi === "rack:on key:on all:on batch:on" && tilat.yksi.usea === "vihko:on kaytava:off" &&
+       tilat.kaksi.yksi === "rack:off key:off all:off batch:off" && tilat.kaksi.usea === "vihko:on kaytava:on")
+        ? ok("palvelutiski: tulostenapit seuraavat linjavalintaa (0 / 1 / 2 linjaa)")
+        : fail("palvelutiski: nappien tilat väärin: " + JSON.stringify(tilat));
+      // Jokaisen tiskiltä saatavan tulosteen kohde-URL. Tulostuslogiikkaa ei saa kopioida
+      // tiskille: kaikki menevät linjasivun ?print=- tai tulosteet-keskuksen kyselypolkuun.
+      const kohteet = await page.evaluate(() => {
+        const cbs = [...document.querySelectorAll("#deskLineList .deskLineCb")];
+        cbs.forEach(c => { c.checked = false; });
+        cbs[0].checked = true;
+        cbs[0].dispatchEvent(new Event("change", { bubbles: true }));
+        const nakyi = [];
+        const oikea = window.open;
+        window.open = (u) => { nakyi.push(String(u).replace(/^[^#]*/, "")); return { focus() {} }; };
+        document.querySelectorAll(".deskLineBtn, .deskLinesBtn, .deskCorrBtn").forEach(b => b.click());
+        document.getElementById("deskChangesBtn").click();
+        cbs[1].checked = true;
+        cbs[1].dispatchEvent(new Event("change", { bubbles: true }));
+        document.querySelector('.deskLinesBtn[data-lp="kaytava"]').click();
+        window.open = oikea;
+        return nakyi;
+      });
+      const odotetut = [
+        /^#\/linja\/[^?]+\?print=rack$/, /^#\/linja\/[^?]+\?print=key$/, /^#\/linja\/[^?]+\?print=all$/,
+        /^#\/tulosteet\/julisteet\?line=[^&]+&go=1$/, /^#\/tulosteet\/vihko\?lines=[^&]+&go=1$/,
+        /^#\/tulosteet\/muutokset$/, /^#\/tulosteet\/kaytava\?lines=[^&,]+,[^&]+&go=1$/,
+      ];
+      const puuttuu = odotetut.filter(re => !kohteet.some(u => re.test(u)));
+      const kaytavaPresetit = kohteet.filter(u => /^#\/tulosteet\/kaytava\?corridor=/.test(u)).length;
+      (!puuttuu.length && kaytavaPresetit >= 1)
+        ? ok(`palvelutiski: kaikki ${kohteet.length} tulostepolkua oikein (${kaytavaPresetit} käytäväpresettiä)`)
+        : fail("palvelutiski: tulostepolkuja puuttuu " + JSON.stringify({ puuttuu: puuttuu.map(String), kaytavaPresetit, kohteet }));
+      // Suodatin: pitkästä linjalistasta pitää löytää linja kirjoittamalla, ei rullaamalla.
+      await page.type("#deskLineFilter", "1");
+      await sleep(250);
+      const suodatus = await page.evaluate(() => ({
+        nakyvia: [...document.querySelectorAll("#deskLineList li")].filter(li => !li.hidden).length,
+        kaikki: document.querySelectorAll("#deskLineList li").length,
+      }));
+      (suodatus.nakyvia > 0 && suodatus.nakyvia < suodatus.kaikki)
+        ? ok(`palvelutiski: linjasuodatin rajaa listan (${suodatus.nakyvia}/${suodatus.kaikki})`)
+        : fail("palvelutiski: linjasuodatin ei rajaa: " + JSON.stringify(suodatus));
+      await page.evaluate(() => {
+        document.getElementById("deskLineFilter").value = "";
+        document.getElementById("deskLineFilter").dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      // Takaisin Neuvontaan: seuraavat tarkistukset käyttävät pysäkin omaa tulostusnappia.
+      await page.click('.dtab[data-dtab="neuvonta"]');
+      await sleep(200);
+    }
     if (await expect("#deskPrintBtn", "palvelutiski: tulostusnappi näkyy pysäkin kohdalla", 15000)) {
       await page.evaluate(() => { window.print = () => {}; });
       await page.click("#deskPrintBtn");
@@ -1394,8 +1471,13 @@ async function printHygiene(page, label) {
   } else fail("yhdistetyt suunnat: taulukko ei koostunut (Ahtiala 4/14/24/34K)");
 
   // Välilehden vaihto: klikkaa "Näyttöverkosto" -> naytot-paneeli näkyviin + URL päivittyy (replaceState)
+  // Odotus on aria-pressedissä eikä sleepissä: 200 ms ei riittänyt kun edellinen tarkistus oli juuri
+  // emuloinut print-mediaa (CI 3f0baec 31.8. ja paikallinen ajo 3.9. kaatuivat molemmat siihen, että
+  // klikkaus ei ollut vielä rekisteröitynyt). Uusinta oli aina vihreä, eli vika oli vartijassa.
   await page.click('.ptab[data-ptab="naytot"]');
-  await sleep(200);
+  await page.waitForFunction(
+    () => document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab === "naytot",
+    { timeout: 10000 }).catch(() => {});
   const sw = await page.evaluate(() => ({
     active: document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab,
     visible: [...document.querySelectorAll(".ppanel")].filter(p => !p.hidden).map(p => p.dataset.ppanel),
@@ -1480,6 +1562,62 @@ async function printHygiene(page, label) {
       ? ok(`tulosteet-keskus: linjatulosteet (${lp.lines} linjaa, napit ${lp.btns})`)
       : fail("tulosteet-keskus: linjatulosteiden valikko tai napit puuttuvat: " + JSON.stringify(lp));
   }
+  // --- Tiskin tulostepolut: kysely esivalitsee JA koonti käynnistyy (3.9.2026) ---
+  // Palvelutiski ei kokoa mitään itse vaan avaa nämä osoitteet uuteen välilehteen. Jos
+  // kysely lakkaa toimimasta, tiskin napit näyttäisivät toimivan mutta tuottaisivat tyhjän
+  // lomakkeen. Assertio vaatii kootun tulosteen, ei pelkkää sivun latausta.
+  // Tulostusdialogi pois kaikista seuraavista latauksista jo ennen sivun skriptejä:
+  // koonti kutsuu window.printia itse, ja headless jäisi odottamaan dialogia.
+  await page.evaluateOnNewDocument(() => { window.print = () => {}; });
+  const kaksiLinjaa = await page.evaluate(() =>
+    [...document.querySelectorAll(".lineCb")].slice(0, 2).map(c => c.value));
+  await page.goto(BASE + "/#/tulosteet/vihko?lines=" + kaksiLinjaa.map(encodeURIComponent).join(",") + "&go=1",
+    { waitUntil: "networkidle2" });
+  const vihkoKoonti = await page.waitForFunction(
+    () => document.querySelectorAll("#bookletOut .booklet-line").length >= 2 ? true : null,
+    { timeout: 90000 }).then(() => true).catch(() => false);
+  vihkoKoonti
+    ? ok(`tiskin tulostepolut: ?lines= kokoaa vihkon kahdesta linjasta (${kaksiLinjaa.join(", ")})`)
+    : fail("tiskin tulostepolut: ?lines=&go=1 ei koonnut vihkoa 90 s kuluessa");
+  const presetKey = await page.evaluate(() => (CONFIG.corridors || [])[0]?.key || "");
+  if (presetKey) {
+    await page.goto(BASE + "/#/tulosteet/kaytava?corridor=" + encodeURIComponent(presetKey) + "&go=1",
+      { waitUntil: "networkidle2" });
+    const rivit = await page.waitForFunction(
+      () => document.querySelectorAll("#corridorOut table.corridor tbody tr").length > 5
+        ? document.querySelectorAll("#corridorOut table.corridor tbody tr").length : null,
+      { timeout: 90000 }).then(h => h.jsonValue()).catch(() => 0);
+    rivit > 5 ? ok(`tiskin tulostepolut: ?corridor=${presetKey} kokoaa yhdistetyn suunnan (${rivit} riviä)`)
+              : fail(`tiskin tulostepolut: ?corridor=${presetKey}&go=1 ei koonnut käytävää 90 s kuluessa`);
+  } else info("tiskin tulostepolut: kaupungilla ei ole käytäväpresettejä");
+  // Erätulostus: koonti on pitkä (kymmeniä pysäkkejä, patternit ja vuorot haetaan ensin
+  // esikyselyinä), joten vartija hyväksyy kaksi todistetta: edistymislaskuri n/m TAI
+  // valmis arkkinippu. Pelkkä "valmistellaan" ei riitä, se näkyy heti klikkauksesta.
+  // Mitattu 3.9.2026: Lahti linja 1 ei ehtinyt laskuriin 60 s:ssa, linja 3 kokosi 90 s:ssa.
+  await page.goto(BASE + "/#/tulosteet/julisteet?line=" + encodeURIComponent(kaksiLinjaa[0]) + "&go=1",
+    { waitUntil: "networkidle2" });
+  const eraTila = await page.waitForFunction(
+    () => {
+      if (document.querySelector("#batchOut .poster-day")) return "koottu";
+      const st = document.getElementById("batchStatus")?.textContent || "";
+      return /\d+\s*\/\s*\d+/.test(st) ? "kaynnissa" : null;
+    },
+    { timeout: 120000 }).then(h => h.jsonValue()).catch(() => "");
+  const eraValinta = await page.evaluate(() => document.getElementById("batchLine")?.value || "");
+  (eraTila && eraValinta === kaksiLinjaa[0])
+    ? ok(`tiskin tulostepolut: ?line=&go=1 esivalitsee linjan ja käynnistää erätulostuksen (${eraTila})`)
+    : fail(`tiskin tulostepolut: erätulostus ei käynnistynyt 120 s kuluessa (tila "${eraTila}", valinta "${eraValinta}")`);
+  // Yhden linjan tulosteet: linjasivun ?print= on tiskin ainoa reitti näihin kolmeen.
+  for (const tila of ["rack", "key", "all"]) {
+    await page.goto(BASE + "/#/linja/" + encodeURIComponent(kaksiLinjaa[0]) + "?print=" + tila,
+      { waitUntil: "networkidle2" });
+    const koottu = await page.waitForFunction(
+      () => document.querySelectorAll("#linePrintOut table").length ? true : null,
+      { timeout: 60000 }).then(() => true).catch(() => false);
+    koottu ? ok(`tiskin tulostepolut: ?print=${tila} kokoaa linjatulosteen`)
+           : fail(`tiskin tulostepolut: ?print=${tila} ei koonnut tulostetta 60 s kuluessa`);
+  }
+
   // URL-osoitteistettu välilehti (?tab=) ja yksi etusivun nappi (ei enää kahta tulostenappia)
   await page.goto(BASE + "/#/tulosteet?tab=naytot", { waitUntil: "networkidle2" });
   await sleep(400);
