@@ -3000,11 +3000,6 @@ const CONFIGS = {
     dataSource: "Fintraffic",
     router: "finland",
     feedMatch: /^MATKA$/,
-    // Inkoossa erottuva kerros on kaikki mita palvelu tarjoaa: A->B-haku on
-    // kaukoliikenteessa se osa jonka matka.fi jo tekee. Etusivu avaa siksi tulosteet
-    // ja tiskin, ei reittihakua. Muutosvahtinosto jaa yleistekstiin kunnes Inkoo on
-    // docs/muutosvahti/index.json:ssa (puuttui 3.9.2026).
-    heroEmphasis: "layer",
     areaScoped: true,
     rail: "IKO", // Inkoon asema, Hanko-rata (HL-juna Helsinki-Hanko)
     centerStopNames: ["Inkoo"],
