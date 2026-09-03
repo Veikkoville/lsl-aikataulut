@@ -803,7 +803,9 @@
   .poster-sub { font-weight: var(--wmed); margin: 0.1rem 0 0.5rem; }
   .poster-lines { display: flex; flex-wrap: wrap; gap: 0.8rem 1.6rem; align-items: flex-start; }
   .poster-line { break-inside: avoid; min-width: 11rem; }
-  .poster-line h4 { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.2rem; font-size: 0.95rem; }
+  /* Linjamerkki tasataan nimen ENSIMMÄISEEN riviin (ei keskelle): rinnakkaisten linjojen merkit pysyvät
+     samalla tasolla vaikka yhden nimi rivittyisi (Ville 3.9.2026, Lahti Matkakeskus D linja 4). */
+  .poster-line h4 { display: flex; align-items: flex-start; gap: 0.4rem; margin: 0 0 0.2rem; font-size: 0.95rem; }
   table.hourgrid { border-collapse: collapse; width: auto; }
   table.hourgrid th[scope="row"] { text-align: right; padding: 0.1rem 0.5rem 0.1rem 0; color: var(--muted);
     font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: top; }
@@ -858,7 +860,9 @@
     border-bottom: 0.6mm solid var(--header-bg, #333); }
   .poster-compact table.poster-matrix { border-collapse: collapse; font-size: 1em; width: auto; }
   .poster-compact table.poster-matrix th, .poster-compact table.poster-matrix td { border: none; }
-  .poster-compact table.poster-matrix th.poster-line { text-align: left; vertical-align: bottom;
+  /* vertical-align: top, ei bottom: kaikki linjamerkit samalla ylätasolla ja suuntatekstit alkavat samalta
+     riviltä, vaikka naapurin nimi rivittyisi kolmelle riville (Ville 3.9.2026). */
+  .poster-compact table.poster-matrix th.poster-line { text-align: left; vertical-align: top;
     min-width: 0; padding: 0 2mm 1.2mm 1.5mm; border-left: 0.25mm solid #999; }
   .poster-compact table.poster-matrix th.poster-line h4 { display: flex; flex-direction: column;
     align-items: flex-start; gap: 0.6mm; margin: 0; font-size: 0.75em; font-weight: 600; line-height: 1.15;
@@ -1721,7 +1725,7 @@
     .rackprint .rack-dir { margin: 0 0 2.5mm; }
     .rackprint .rack-dir > h3 { font-size: 11.5pt; margin: 2mm 0 1mm; break-after: avoid;
                                 page-break-after: avoid; border-left: 3pt solid #000; padding-left: 2mm; }
-    .rackprint .rack-days { columns: 2; column-gap: 6mm; }
+    .rackprint .rack-days { columns: 2; column-gap: 5mm; }
     /* EI break-inside:avoid → pitkä Ma–Pe-taulu saa jakautua palstoihin (rivit pysyvät
        atomeina, otsikkorivi toistuu) → tiivis latonta ilman tyhjiä aukkoja (1–2 s). */
     .rackprint .rack-day { margin: 0 0 3mm; }
@@ -1731,8 +1735,11 @@
     .rackprint table.booklet { font-size: 10pt; width: 100%; table-layout: fixed; line-height: 1.12; }
     /* Pysäkkinimet (th) rivittyvät → kapeat sarakkeet mahtuvat palstaan; kellonajat (td)
        eivät koskaan rivity/leikkaudu (nowrap + tabular-nums). Tämä takaa ei-leikkautumisen. */
-    .rackprint table.booklet th { white-space: normal; overflow-wrap: anywhere; vertical-align: top;
-        padding: 0.6pt 3pt; font-size: 8.5pt; line-height: 1.05; }
+    /* overflow-wrap: break-word (EI anywhere): pysäkkinimi katkeaa sanarajalla, ei sanan keskeltä
+       ("Hiekkanum/mi", "Matkakesk/us B" 3.9.2026). Chrome ei tavuta suomea (hyphens: auto ei auta), joten
+       7 pt + 1 pt välys + 5 mm palstaväli, jotta "(kääntöpaikka)" mahtuu 5-sarakkeiseen tauluun yhtenä sanana. */
+    .rackprint table.booklet th { white-space: normal; overflow-wrap: break-word; hyphens: manual; vertical-align: top;
+        padding: 0.6pt 1pt; font-size: 7pt; line-height: 1.05; letter-spacing: -0.01em; }
     .rackprint table.booklet td {
         padding: 0.5pt 3pt; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
   }
@@ -7290,8 +7297,12 @@ function splitWideMatrices(st, box) {
       }
       return tbl;
     });
+    // Päivälohko haetaan ENNEN replaceWith-kutsua: irrotetun taulukon closest() palauttaa null,
+    // jolloin luokka jäi lisäämättä ja lohko ei saanut koskaan katketa arkin rajalla (Oulu Raatti P
+    // 3.9.2026: 1. arkilla vain Ma–Pe ja 70 % tyhjää, koulupäivälohko hyppäsi kokonaisena 2. arkille).
+    const day = ot.closest(".poster-day");
     ot.replaceWith(...parts);
-    ot.closest(".poster-day")?.classList.add("poster-day-split");
+    day?.classList.add("poster-day-split");
   });
 }
 function fitPosterSheet(po) {
