@@ -382,10 +382,13 @@ async function printHygiene(page, label) {
       const dl = await page.evaluate(() => ({
         lines: document.querySelectorAll("#deskLineSel option").length,
         btns: [...document.querySelectorAll(".deskLineBtn")].map(b => b.dataset.lp).join(","),
+        groups: document.querySelectorAll("#deskLineSel optgroup").length,
       }));
-      (dl.lines >= 1 && dl.btns === "rack,key,all")
-        ? ok(`palvelutiski: linjatulosteet tiskiltä (${dl.lines} linjaa, napit ${dl.btns})`)
-        : fail("palvelutiski: linjatulosteiden valikko tai napit puuttuvat: " + JSON.stringify(dl));
+      // Valikko EI saa olla sidottu valittuun pysäkkiin (Villen palaute 3.9.): kaikki kaupungin
+      // linjat ovat valittavissa, pysäkin omat vain omana ryhmänään kärjessä.
+      (dl.lines > 10 && dl.btns === "vihko,rack,key,all" && dl.groups >= 2)
+        ? ok(`palvelutiski: linjatulosteet ilman pysäkkisidosta (${dl.lines} linjaa, ${dl.groups} ryhmää, napit ${dl.btns})`)  // vihko = tulosteet-sivun vihkovälilehti ?line=&go=1
+        : fail("palvelutiski: linjatulostevalikko puutteellinen tai pysäkkisidonnainen: " + JSON.stringify(dl));
     } else fail("palvelutiski: linjatulosterivi ei paljastunut 30 s kuluessa");
     if (await expect("#deskPrintBtn", "palvelutiski: tulostusnappi näkyy pysäkin kohdalla", 15000)) {
       await page.evaluate(() => { window.print = () => {}; });
