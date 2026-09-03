@@ -119,6 +119,21 @@ async function printHygiene(page, label) {
   (journey.noLayer && journey.hero && journey.fields)
     ? ok("etusivu (Salo, journey): A->B-vetoinen hero ennallaan (ei layer-osiota)")
     : fail("etusivu (Salo, journey): hero väärin: " + JSON.stringify(journey));
+  // Layer-hero myös Inkoossa, vaikka kunnalla EI ole omaa reittiopasta. Poikkeus
+  // greenfield-sääntöön: Inkoon linjat ovat ELY:n kaukoliikennettä, jolle matka.fi tekee jo
+  // A->B-haun, joten se ei erota Reittaria. Erottuva osa on painettavat aikataulut ja tiski
+  // ("Inkoon aikataulut yhdellä sivulla"). Ilman tätä riviä CONFIGin heroEmphasis voi
+  // kadota huomaamatta ja etusivu palaa reittiopasnäkymään.
+  await page.goto(BASE + "/?city=inkoo#/", { waitUntil: "networkidle2" });
+  const inkoo = await page.evaluate(() => {
+    const h = document.querySelector(".reila-hero.hero-layer"); if (!h) return null;
+    return { hls: h.querySelectorAll(".hero-highlights .hl").length,
+      print: !!document.querySelector('.hl[href="#/tulosteet/vihko"]'),
+      journeyFields: !!document.querySelector(".hero-journey #homeFromInput") };
+  });
+  (inkoo && inkoo.hls >= 2 && inkoo.print && inkoo.journeyFields)
+    ? ok(`etusivu (Inkoo, layer): tulosteet edellä, ${inkoo.hls} nostoa, A->B toissijaisena`)
+    : fail("etusivu (Inkoo, layer): layer-hero puuttuu/vajaa: " + JSON.stringify(inkoo));
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" }); // palauta oletuskaupunki (Lahti)
   // Pikavalinnat ryhmiteltyinä (otsikoitu .tool-group); EI tyhjää ryhmää (jokaisessa ≥1 nappi)
   const groups = await page.evaluate(() => [...document.querySelectorAll(".tool-group")].map(g => ({

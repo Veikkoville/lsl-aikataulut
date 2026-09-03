@@ -70,7 +70,29 @@ jobs:
         with:
           node-version: 22
 
+      # YKSI AVOIN AUTO-PR KERRALLAAN. Ilman tätä agentti valitsi joka ajolla saman
+      # AUTO-BACKLOG.md:n ylimmän avoimen rivin: rivi rastitetaan vain PR:n haaralla, joten
+      # masterissa se on yhä auki kunnes ihminen mergeää. Tulos 1.-3.9.2026 oli kolme
+      # identtistä PR:ää samasta README-tehtävästä, yksi per ajopäivä, ja tahti oli yksi
+      # turha PR joka arkipäivä. Portti pysäyttää sen: kasautunut työ käsitellään ensin.
+      - name: Onko avoin auto-PR jo olemassa
+        id: avoin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          # Listaus + suodatus, EI --search: haku nojaa GitHubin indeksiin joka laahaa.
+          maara=$(gh pr list --state open --limit 100 --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("auto/"))] | length')
+          echo "maara=$maara" >> "$GITHUB_OUTPUT"
+          if [ "$maara" -gt 0 ]; then
+            echo "Avoimia auto-PR:iä on $maara. Ei uutta tehtävää ennen kuin ne on mergetty tai suljettu."
+          else
+            echo "Ei avoimia auto-PR:iä, agentti saa tehdä tehtävän."
+          fi
+
       - name: Agentti tekee yhden tehtävän ja avaa PR:n
+        if: steps.avoin.outputs.maara == '0'
         uses: anthropics/claude-code-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -118,9 +140,21 @@ jobs:
       # GITHUB_TOKENilla avattu PR ei laukaise pull_request-tapahtumaa, joten CI kaynnistetaan
       # erikseen agentin haaralle. Tarkistukset nakyvat PR:ssa head-SHA:n kautta.
       - name: Käynnistä CI agentin haaralle
+        if: steps.avoin.outputs.maara == '0'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          haara=$(gh pr list --state open --search "head:auto/" --json headRefName,createdAt             --jq 'sort_by(.createdAt) | last | .headRefName')
-          if [ -z "$haara" ] || [ "$haara" = "null" ]; then echo "Ei uutta auto/-PR:ää, CI:tä ei käynnistetä."; exit 0; fi
+          # Haaran nimi luetaan TYÖPUUSTA, ei hausta. Vanha versio käytti
+          # "gh pr list --search head:auto/" ja poimi uusimman createdAt:n mukaan, mutta
+          # hakuindeksi laahaa sekunteja: 3.9.2026 se palautti edellisen päivän haaran,
+          # jolloin CI ajettiin väärälle haaralle ja uusin PR jäi kokonaan ilman
+          # tarkistuksia (ajo 33720438804 vs. PR #17 action_required, 0 s).
+          haara=$(git rev-parse --abbrev-ref HEAD)
+          case "$haara" in
+            auto/*) ;;
+            *) echo "HEAD ei ole auto/-haaralla ($haara): agentti ei luonut haaraa, CI:tä ei käynnistetä."; exit 0 ;;
+          esac
+          if ! git ls-remote --exit-code --heads origin "$haara" >/dev/null 2>&1; then
+            echo "Haaraa $haara ei ole originissa: agentti ei pushannut, CI:tä ei käynnistetä."; exit 0
+          fi
           gh workflow run ci.yml --ref "$haara" && echo "CI käynnistetty haaralle $haara"

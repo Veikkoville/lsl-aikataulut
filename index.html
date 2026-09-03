@@ -29,6 +29,56 @@
 <!-- REILA F1: esilataa kriittinen latin-fontti (LCP-otsikko); crossorigin pakollinen myös samalle originille (fontit haetaan CORS-tilassa) -->
 <link rel="preload" href="fonts/hanken-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script>
+// SIVUSTODATAN ESTO. Osa selaimista estaa sivustodatan (yrityskaytanto, kolmannen
+// osapuolen iframe jossa tallennus on osioitu, tiukka evastesuojaus). Silloin jo
+// pelkka viittaus localStorageen heittaa SecurityErrorin, eika se ole kiinni siita
+// mita talletetaan. Ilman tata vartiota ketju oli: rivin alla oleva teema-IIFE kuoli
+// ensimmaiseen getItemiin, paaskripti kuoli omaan getItemiinsa, ja jaljelle jai
+// #appTitlen staattinen "Lahden bussiaikataulut" RIIPPUMATTA ?city-parametrista.
+// Todennettu 3.9.2026: ?city=inkoo naytti Lahden otsikon ja tyhjan sivun.
+// Varjo pitaa asetukset muistissa yhden istunnon ajan: asetukset eivat saily
+// valilehtien valilla, mutta aikataulut nakyvat oikein.
+(function () {
+  try {
+    var koe = "__lstesti";
+    window.localStorage.setItem(koe, "1");
+    window.localStorage.removeItem(koe);
+    return;                                  // oikea localStorage toimii, ei tehda mitaan
+  } catch (e) { /* estetty -> asennetaan varjo alla */ }
+
+  // Avaimet talletetaan varjon omiksi enumeroituviksi kentiksi, koska koodi kayttaa
+  // Object.keys(localStorage) (valimuistin siivous). Metodit maaritellaan
+  // ei-enumeroituviksi ja ei-kirjoitettaviksi, etteivat ne nay avaimina eivatka
+  // katoa jos joku tallettaa avaimen "getItem". Sivuvaikutus: sen nimista avainta ei
+  // voi tallettaa varjoon. Kaytossa olevat avaimet (theme, textSize, contrast, lang,
+  // speechLang, digitransitKey, feedId, cache:*) eivat osu nimiin.
+  var varjo = {};
+  function metodi(nimi, fn) {
+    Object.defineProperty(varjo, nimi,
+      { value: fn, enumerable: false, writable: false, configurable: true });
+  }
+  metodi("getItem", function (k) {
+    k = String(k);
+    return Object.prototype.hasOwnProperty.call(varjo, k) ? varjo[k] : null;
+  });
+  metodi("setItem", function (k, v) { varjo[String(k)] = String(v); });
+  metodi("removeItem", function (k) { delete varjo[String(k)]; });
+  metodi("clear", function () {
+    Object.keys(varjo).forEach(function (k) { delete varjo[k]; });
+  });
+  metodi("key", function (i) {
+    var avaimet = Object.keys(varjo);
+    return i >= 0 && i < avaimet.length ? avaimet[i] : null;
+  });
+  Object.defineProperty(varjo, "length",
+    { get: function () { return Object.keys(varjo).length; }, enumerable: false, configurable: true });
+
+  try {
+    Object.defineProperty(window, "localStorage",
+      { get: function () { return varjo; }, configurable: true });
+  } catch (e) { /* jos edes varjoa ei voi asentaa, sivu toimii kuten ennenkin */ }
+})();
+
 // Teema ratkaistaan ennen ensimmäistä maalausta välähdyksen välttämiseksi
 (function () {
   function apply() {
@@ -2950,6 +3000,11 @@ const CONFIGS = {
     dataSource: "Fintraffic",
     router: "finland",
     feedMatch: /^MATKA$/,
+    // Inkoossa erottuva kerros on kaikki mita palvelu tarjoaa: A->B-haku on
+    // kaukoliikenteessa se osa jonka matka.fi jo tekee. Etusivu avaa siksi tulosteet
+    // ja tiskin, ei reittihakua. Muutosvahtinosto jaa yleistekstiin kunnes Inkoo on
+    // docs/muutosvahti/index.json:ssa (puuttui 3.9.2026).
+    heroEmphasis: "layer",
     areaScoped: true,
     rail: "IKO", // Inkoon asema, Hanko-rata (HL-juna Helsinki-Hanko)
     centerStopNames: ["Inkoo"],

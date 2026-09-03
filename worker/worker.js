@@ -197,7 +197,11 @@ async function handleFeedback(request, env, origin) {
 async function handleFeedbackList(url, env, origin) {
   const key = url.searchParams.get("key") || "";
   if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
-  if (!env.FEEDBACK_ADMIN_KEY || key !== env.FEEDBACK_ADMIN_KEY)
+  // Vakioaikainen vertailu kuten admin-kirjautumisessa: tavallinen !== vuotaa avaimen
+  // pituuden ja alkuosan ajoituksena. HUOM: avain tulee yhä query-parametrina, jolloin se
+  // päätyy palvelinlokeihin, selainhistoriaan ja Referer-otsakkeeseen. Siirto otsakkeeseen
+  // vaatii kutsujan muutoksen, ks. AUTO-BACKLOG.
+  if (!env.FEEDBACK_ADMIN_KEY || !constantTimeEqual(key, env.FEEDBACK_ADMIN_KEY))
     return jsonResponse({ error: "forbidden" }, 403, origin);
   const out = [];
   let cursor;
@@ -294,12 +298,44 @@ function adminJson(obj, status, extraHeaders) {
   return new Response(JSON.stringify(obj), { status, headers });
 }
 
+// Kirjautumisyritysten rajoitus. constantTimeEqual estää ajoitushyökkäyksen mutta ei
+// arvausta: ilman tätä ADMIN_PASSWORDia sai arvailla rajattomasti Cloudflaren nopeudella.
+// Laskuri on isolaattikohtainen muisti eikä KV, koska admin-kirjautuminen on ainoa reitti
+// sisään eikä se saa kaatua uuteen riippuvuuteen. Isolaatteja on useita, joten tämä on
+// hidaste eikä absoluuttinen katto; pysyvä katto kuuluu Cloudflaren Rate Limiting -sääntöön.
+export const LOGIN_MAX = 10;                     // epäonnistunutta yritystä per IP
+export const LOGIN_WINDOW_MS = 15 * 60 * 1000;   // 15 min ikkuna
+const loginMap = new Map();
+
+function loginLimited(ip) {
+  const now = Date.now();
+  if (loginMap.size > 5000) {
+    for (const [k, v] of loginMap) if (now - v.start > LOGIN_WINDOW_MS) loginMap.delete(k);
+  }
+  const e = loginMap.get(ip);
+  if (!e || now - e.start > LOGIN_WINDOW_MS) return false;
+  return e.n >= LOGIN_MAX;
+}
+
+function loginFailed(ip) {
+  const now = Date.now();
+  const e = loginMap.get(ip);
+  if (!e || now - e.start > LOGIN_WINDOW_MS) loginMap.set(ip, { start: now, n: 1 });
+  else e.n++;
+}
+
 async function handleAdminLogin(request, env) {
   if (!env.ADMIN_PASSWORD || !env.ADMIN_SESSION_SECRET)
     return adminJson({ error: "unconfigured" }, 503);
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  if (loginLimited(ip))
+    return adminJson({ error: "too_many" }, 429, { "Retry-After": "900" });
   const body = await request.json().catch(() => null);
-  if (!body || !constantTimeEqual(body.password || "", env.ADMIN_PASSWORD))
+  if (!body || !constantTimeEqual(body.password || "", env.ADMIN_PASSWORD)) {
+    loginFailed(ip);
     return adminJson({ error: "invalid" }, 401);
+  }
+  loginMap.delete(ip);   // onnistunut kirjautuminen nollaa laskurin
   const token = await signSession({ exp: Math.floor(Date.now() / 1000) + SESSION_TTL }, env.ADMIN_SESSION_SECRET);
   return adminJson({ ok: true }, 200,
     { "Set-Cookie": `admin_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL}` });
