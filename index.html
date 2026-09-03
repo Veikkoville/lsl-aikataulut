@@ -5221,12 +5221,12 @@ async function patternTripsWithDays(code) {
 const PTD_ALIAS_CHUNK = 5;
 const PTD_ALIAS_FIELDS = `trips { serviceId tripHeadsign@L activeDates
   stoptimes { timepoint scheduledDeparture pickupType headsign@L stop { gtfsId name@L } } }`;
-async function patternTripsMany(codes, memo) {
+async function patternTripsMany(codes, memo, conc = 3) {
   const missing = [...new Set(codes)].filter(c => c && !memo.has(c));
   const chunks = [];
   for (let i = 0; i < missing.length; i += PTD_ALIAS_CHUNK)
     chunks.push(missing.slice(i, i + PTD_ALIAS_CHUNK));
-  await mapLimit(chunks, 3, async chunk => {
+  await mapLimit(chunks, conc, async chunk => {
     const decl = chunk.map((_, i) => `$c${i}: String!`).join(", ");
     const body = chunk.map((_, i) => `p${i}: pattern(id: $c${i}) { ${PTD_ALIAS_FIELDS} }`).join("\n");
     const vars = Object.fromEntries(chunk.map((code, i) => ["c" + i, code]));
@@ -7701,6 +7701,14 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
     pats = data.stop?.patterns || [];
   }
   const memo = ptdMemo || new Map();
+  // Eräkysely ensin (patternTripsMany: 5 patternia/pyyntö aliaksilla, 3 erää rinnakkain):
+  // Lahti Matkakeskus D 27 proxy-kutsua → 6, Oulu Raatti P 42 → 9. Mitattu 3.9.2026: verkko oli
+  // 85–95 % julisteen 1,3–1,8 s latausajasta, ja yksittäishaut etenivät käytännössä sarjassa.
+  // Epäonnistunut erä ei heitä vaan jättää koodit memosta pois → alla oleva yksittäishaku
+  // retryineen hoitaa ne (sama sopimus kuin erätulostuksessa).
+  // Yksittäisjuliste: 6 erää rinnakkain (Lahti 27 patternia = 6 erää = yksi aalto, mitattu ~450 ms/erä).
+  // Erätulostus kutsuu samaa funktiota oletuksella 3, koska siellä eriä on kymmeniä (purskeraja).
+  await patternTripsMany(pats.map(p => p.code), memo, presetPats ? 3 : 6);
   // Retry+backoff proxyn 429-kuristusta vasten. Lopullinen epäonnistuminen HEITTÄÄ:
   // juliste ei saa koskaan tulostua hiljaa vajaana/tyhjänä virhetilassa (näyttäisi
   // "ei lähtöjä" vaikka data jäi saamatta).
