@@ -12898,17 +12898,23 @@ function reprintDiff(base, now) {
   for (let i = 0; i < n; i++) {
     const b = bd[i], c = nd[i];
     if (b.label !== c.label) out.push(t("reprintDiffDir", { a: b.label, b: c.label }));
+    // Suuntamerkintä eteen kun suuntia on enemmän kuin yksi. Ilman tätä sama muutos
+    // molemmissa suunnissa näytti identtiseltä kahdennukselta ilman mitään selitystä:
+    // Lahdessa 3.9.2026 seitsemän linjan lista näytti jokaisen rivin kahdesti, ja se
+    // saa vahdin näyttämään rikkinäiseltä juuri siinä kohdassa jossa sitä pitäisi uskoa.
+    const pre = nd.length > 1 && c.label ? c.label + ": " : "";
+    const add = m => out.push(pre + m);
     const bg = new Map((b.groups || []).map(g => [g.label, g]));
     const cg = new Map((c.groups || []).map(g => [g.label, g]));
     for (const [label, g] of cg) {
       const prev = bg.get(label);
-      if (!prev) { out.push(t("reprintDiffAdded", { label })); continue; }
-      if (prev.n !== g.n) out.push(t("reprintDiffTrips", { label, a: prev.n, b: g.n }));
-      else if (prev.h !== g.h) out.push(t("reprintDiffTimes", { label }));
+      if (!prev) { add(t("reprintDiffAdded", { label })); continue; }
+      if (prev.n !== g.n) add(t("reprintDiffTrips", { label, a: prev.n, b: g.n }));
+      else if (prev.h !== g.h) add(t("reprintDiffTimes", { label }));
       if (prev.first !== g.first || prev.last !== g.last)
-        out.push(t("reprintDiffSpan", { label, a: `${prev.first}–${prev.last}`, b: `${g.first}–${g.last}` }));
+        add(t("reprintDiffSpan", { label, a: `${prev.first}–${prev.last}`, b: `${g.first}–${g.last}` }));
     }
-    for (const [label] of bg) if (!cg.has(label)) out.push(t("reprintDiffRemoved", { label }));
+    for (const [label] of bg) if (!cg.has(label)) add(t("reprintDiffRemoved", { label }));
   }
   return out;
 }
