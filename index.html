@@ -3092,6 +3092,7 @@ const STRINGS = {
     heroHlWatchSoon: "{n} julistetta vanhenee {date}",
     heroHlWatchOk: "Tarkistettu {date}: julisteet ovat ajan tasalla",
     tabChanges: "Muutosvahti",
+    tabReprint: "Uusintapainatus",
     changesTitle: "Muutosvahti: mitkä julisteet pitää tulostaa uudelleen",
     changesIntro: "Vahti vertaa jokaisen pysäkin julisteen sisältöä viikoittain: ensi viikko, neljän viikon päästä ja edellinen tarkistus. Yhden viikon poikkeus (esimerkiksi syysloma) ei laukaise hälytystä: se ei muuta julistetta pysyvästi, ja koulupäivien ja loma-ajan vuorot tulostuvat omina lohkoinaan, kun ne osuvat tulostusikkunaan.",
     changesLoading: "Haetaan muutosvahdin tulosta…",
@@ -3662,6 +3663,7 @@ const STRINGS = {
     heroHlWatchSoon: "{n} posters expire on {date}",
     heroHlWatchOk: "Checked {date}: posters are up to date",
     tabChanges: "Change watch",
+    tabReprint: "Reprint list",
     changesTitle: "Change watch: which posters need reprinting",
     changesIntro: "The watch compares every stop's poster content weekly: next week, four weeks ahead and the previous check. A single-week exception (such as autumn break) does not raise an alert: it is not a permanent change to the poster, and school-day and holiday services print as separate blocks when they fall within the print window.",
     changesLoading: "Loading the change watch result…",
@@ -4206,6 +4208,7 @@ const STRINGS = {
     heroHlWatchSoon: "{n} affischer föråldras {date}",
     heroHlWatchOk: "Kontrollerat {date}: affischerna är aktuella",
     tabChanges: "Ändringsvakt",
+    tabReprint: "Omtryck",
     changesTitle: "Ändringsvakt: vilka affischer måste skrivas ut på nytt",
     changesIntro: "Vakten jämför varje hållplats affischinnehåll veckovis: nästa vecka, fyra veckor framåt och föregående kontroll. Ett undantag på en vecka (till exempel höstlovet) utlöser inget larm: det ändrar inte affischen varaktigt, och skoldagarnas och lovtidens turer skrivs ut som egna block när de faller inom utskriftsfönstret.",
     changesLoading: "Hämtar ändringsvaktens resultat…",
@@ -6098,6 +6101,40 @@ const onIdle = window.requestIdleCallback
   ? cb => window.requestIdleCallback(cb)
   : cb => setTimeout(cb, 1);
 
+/* ---------- Navigointi: paluu ja ohjaukset (4.9.2026) ----------
+   Kaksi vikaa korjattu kerralla. (1) Vartioidut näkymät ohjasivat asetuksiin asettamalla
+   location.hashin, jolloin historiaan jäi merkintä joka ohjaa heti uudelleen: selaimen
+   Takaisin näytti siltä ettei se tee mitään, koska se palasi juuri siihen osoitteeseen.
+   (2) Jokainen näkymä tarjosi paluuksi vain etusivun, vaikka käyttäjä oli tullut jostain
+   muualta. Nyt paluu on yksi ja sama joka näkymässä. */
+
+// Ohjaus joka korvaa nykyisen historiamerkinnän eikä jätä kuollutta merkintää.
+let navRedirecting = false;
+function redirectHash(hash) {
+  navRedirecting = true;
+  location.replace(location.pathname + location.search + hash);
+}
+
+// Montako kertaa käyttäjä on liikkunut sovelluksen sisällä tämän latauksen aikana. Suoraan
+// QR-koodista tai jaetusta linkistä avatussa näkymässä tämä on 0, jolloin Takaisin-nappia EI
+// näytetä: history.back() veisi silloin ulos palvelusta.
+let navDepth = 0;
+window.addEventListener("hashchange", () => {
+  if (navRedirecting) navRedirecting = false;
+  else navDepth++;
+});
+document.addEventListener("click", e => {
+  if (e.target.closest(".crumb-back")) history.back();
+});
+
+// Yksi paluupolku kaikkiin näkymiin: Takaisin edelliseen (kun sellainen on) ja Etusivu aina.
+function crumbHtml(extraHtml) {
+  const back = navDepth > 0
+    ? `<button type="button" class="linkish crumb-back">← ${t("back")}</button> · ` : "";
+  const home = `<a href="#/">${navDepth > 0 ? "" : "← "}${t("home")}</a>`;
+  return `<nav class="crumb">${back}${home}${extraHtml ? " · " + extraHtml : ""}</nav>`;
+}
+
 function setView(html) {
   viewSeq++;
   stopRefresh();
@@ -6385,7 +6422,7 @@ async function bindEmailSubSetting() {
 // ohjaavat tänne, jotta ei-app-käyttäjä löytää tilauksen ilman asetusten selailua.
 function viewEmailSub() {
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     ${emailSubSettingHtml()}`);
   bindEmailSubSetting();
 }
@@ -6411,7 +6448,7 @@ function bindLangSetting() {
 function viewSettings() {
   if (PROXY_URL) {
     setView(`
-      <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+      ${crumbHtml()}
       ${langSettingHtml()}
       ${themeSettingHtml()}
       ${textSizeSettingHtml()}
@@ -6427,7 +6464,7 @@ function viewSettings() {
     return;
   }
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     ${langSettingHtml()}
     ${themeSettingHtml()}
     ${textSizeSettingHtml()}
@@ -7650,7 +7687,7 @@ async function reprintHlCompute(base, todo, date) {
 }
 
 function viewRoutes() {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`
     <div id="alertsBox" class="alerts-banner"></div>
     ${CONFIG.heroEmphasis === "layer" ? heroLayerHtml() : heroJourneyHtml()}
@@ -8040,7 +8077,7 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
 // rikkaalla popupilla (määränpää, myöhästymä, seuraavat pysäkit). Avataan esim.
 // pysäkki-/lähellä-näkymän linjabadgea klikkaamalla.
 async function viewRouteMap(routeId) {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`<p class="muted">${t("loadingRoute")}</p>`);
   const ids = await lineIds(routeId);
   const { data } = await cachedGql("routemap:" + ids.join(","),
@@ -8055,14 +8092,13 @@ async function viewRouteMap(routeId) {
   if (!route) throw new Error(t("errRouteNotFound") + routeId);
   const patterns = routesArr.flatMap(r => r.patterns || []);  // kaikki suunnat unioniin
   setView(`
-    <nav class="crumb"><button class="linkish" id="backBtn">← ${t("back")}</button> · <a href="#/">${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card">
       <h2>${badgeHtml(route)} <span>${esc(route.longName || "")}</span></h2>
       <p class="muted">${t("lineMapHint")}</p>
       <p><a class="btnlink secondary" href="#/linja/${encodeURIComponent(routeId)}">${icon("list")} ${t("lineFullTimetable")}</a></p>
       <div id="lineMap" class="map bigmap" aria-label="${esc(t("mapAria"))}"></div>
     </div>`);
-  document.getElementById("backBtn").addEventListener("click", () => history.back());
   const mySeq = viewSeq;
   try {
     await ensureLeaflet();
@@ -8102,7 +8138,7 @@ async function viewRouteMap(routeId) {
 // autoPrint (?print=rack|key|all): tulosteet-sivu ja palvelutiski avaavat linjatulosteen suoraan
 // tästä näkymästä, jotta tulostuslogiikka on yhdessä paikassa eikä kahtena kopiona (3.9.2026).
 async function viewRoute(routeId, patternCode, date, autoPrint) {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`<p class="muted">${t("loadingRoute")}</p>`);
   date = date || todayISO();
 
@@ -8176,7 +8212,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   } catch (err) { /* tiedotteiden puuttuminen ei kaada linjasivua */ }
 
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("allRoutes")}</a></nav>
+    ${crumbHtml()}
     <div class="card no-print">
       <h2>${favButtonHtml(routeId)}${badgeHtml(route)} ${esc(route.longName)}</h2>
       <div id="routeAlerts">${routeAlertsHtml}</div>
@@ -8723,7 +8759,7 @@ function dedupStopDuplicates(stop) {
 }
 
 async function viewStop(stopId) {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`<p class="muted">${t("loadingStopDeps")}</p>`);
 
   const fetchStop = async () => {
@@ -8772,7 +8808,7 @@ async function viewStop(stopId) {
     : stop.wheelchairBoarding === "NOT_POSSIBLE"
       ? `<p class="muted">${icon("warning")} ${t("accStopNo")}</p>` : "";
   setView(`
-    <nav class="crumb"><button class="linkish" id="backBtn">← ${t("back")}</button> · <a href="#/">${t("home")}</a></nav>
+    ${crumbHtml()}
     <!-- Ruutukortti on no-print (sama kuvio kuin linjasivulla): paperille menee vain
          #stopPrintOut-säiliöön koottu pysäkkijuliste. Ilman tätä juliste alkoi sivulla
          jossa luki "nyt / 3 min" (live-lähtölista) — merkityksetön paperilla ja toistaa
@@ -8807,7 +8843,6 @@ async function viewStop(stopId) {
     <div id="stopPrintOut"></div>`);
 
   bindFavButton({ type: "stop", id: stopId, name: stop.name });
-  document.getElementById("backBtn").addEventListener("click", () => history.back());
 
   // Lähestyvä bussi -hälytys: kun pysäkin linjojen ajoneuvon seuraava pysäkki
   // (MQTT-topicin nextStop) on TÄMÄ pysäkki, bussi on lähestymässä (yhden pysäkin
@@ -8996,7 +9031,7 @@ async function requestWakeLock() {
 }
 
 async function viewMonitor(stopId) {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`<p class="muted">${t("loadingStopDeps")}</p>`);
 
   const fetchStop = async () => {
@@ -9084,13 +9119,13 @@ async function viewMonitor(stopId) {
 /* ---------- Live-kartta: koko verkon bussit reaaliajassa ---------- */
 
 async function viewLiveMap() {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   // CONFIG.vehicleRealtime === false (esim. Raasepori): feedistä ei koskaan tule GTFS-RT-
   // ajoneuvopositioita, joten MQTT-yritys jätetään kokonaan tekemättä ja tilateksti näytetään
   // heti. Kartta jää silti näkyviin (pysäkit ja kadut näkyvät pohjakartasta).
   const noRealtime = CONFIG.vehicleRealtime === false;
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card">
       <h2>${icon("map")} ${t("liveMapTitle")}</h2>
       <p class="muted" id="liveCount" role="status">${noRealtime ? t("liveMapNoRealtime") : t("liveConnecting")}</p>
@@ -9150,9 +9185,9 @@ async function loadNetwork() {
 }
 
 async function viewNetworkMap() {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card">
       <h2>${icon("network")} ${t("netMapTitle")}</h2>
       <p class="muted" id="netCount" role="status">${t("netMapLoading")}</p>
@@ -9231,13 +9266,13 @@ async function loadHubStops(name) {
 }
 
 async function viewHubs(parts) {
-  if (!CONFIG.hubs || !CONFIG.hubs.length) { location.hash = "#/"; return; }
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  if (!CONFIG.hubs || !CONFIG.hubs.length) { redirectHash("#/"); return; }
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   const hub = CONFIG.hubs.find(h => h.key === parts[1]) || CONFIG.hubs[0];
   const tabs = CONFIG.hubs.map(h =>
     `<button data-hub-tab="${esc(h.key)}" aria-pressed="${h.key === hub.key}">${esc(h.name)}</button>`).join("");
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card">
       <h2>${icon("pin")} ${t("hubTitle")}</h2>
       <p class="muted">${t("hubIntro")}</p>
@@ -9357,7 +9392,7 @@ function viewExceptions() {
     </li>`;
   }).join("");
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card">
       <h2>${icon("calendar")} ${t("exTitle")}</h2>
       <p class="muted">${t("exIntro")}</p>
@@ -9472,9 +9507,9 @@ function railTableHtml(rows, limit) {
 
 async function viewTrains() {
   const codes = railCodes();
-  if (!codes.length) { location.hash = "#/"; return; }
+  if (!codes.length) { redirectHash("#/"); return; }
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card">
       <h2>${icon("train")} ${t("trainsTitle")}</h2>
       <p class="muted" id="trainsIntro"></p>
@@ -9522,7 +9557,7 @@ function viewFeedback() {
     ["other", t("fbCatOther")],
   ];
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card">
       <h2>${icon("tools")} ${t("fbTitle")}</h2>
       <p class="muted">${t("fbIntro")}</p>
@@ -9597,7 +9632,7 @@ async function viewFares() {
       f = { ...pub.fares, i18n: CONFIG.fares && CONFIG.fares.i18n };
     }
   } catch (e) {}
-  if (!f) { location.hash = "#/"; return; }
+  if (!f) { redirectHash("#/"); return; }
   // Worker täyttää puuttuvat kentät tyhjiksi merkkijonoiksi → "" = ei tätä
   // lipputuotetta: rivi/sarake jätetään pois, yksittäinen puuttuva hinta → "–".
   // Hinnan ja €-merkin väli on NBSP ( ), kuten alkuperäisessä.
@@ -9697,7 +9732,7 @@ async function viewFares() {
       <p class="muted fares-source">${srcNote ?? ""}${srcLink ? `
         <a href="${esc(f.url)}" target="_blank" rel="noopener">${srcLink}</a>` : ""}</p>` : "";
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card">
       <h2>${icon("ticket")} ${t("faresTitle")}</h2>${notice}${singleSec}${seasonSec}${daySec}${whereSec}${extraSec}${sourceP}
     </div>`);
@@ -10646,7 +10681,7 @@ async function deskFindDefaultStop() {
 }
 
 async function viewServiceDesk() {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   document.body.classList.add("desk-mode");
   await findFeed().catch(() => {});
   setView(`
@@ -11518,14 +11553,14 @@ async function drawItineraryMap(elId, node) {
 }
 
 async function viewPlan(parts) {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   // Ulkoinen reittiopas: #/reitti (myös osoiteklikkauksesta ja vanhoista linkeistä) näyttää
   // linkin kaupungin omaan reittioppaaseen, määränpää mukana kun se on tiedossa.
   if (CONFIG.externalPlanner) {
     const name = CONFIG.externalPlanner.name || CONFIG.operatorShort || "";
     const to = planState.to;
     setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <section class="reila-hero no-print">
       <h1 class="reila-hero-h1">${t("planTitle")}</h1>
       <p class="reila-hero-sub">${t("extPlannerLead", { name })}</p>
@@ -11539,7 +11574,7 @@ async function viewPlan(parts) {
   const fromUrl = parts && parts[1] ? parsePlanParams(parts) : false;
   const tmDep = planState.timeMode !== "arr";
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <section class="reila-hero no-print">
       <h1 class="reila-hero-h1">${t("planTitle")}</h1>
       <p class="reila-hero-sub">${t("heroTagline")}</p>
@@ -11906,7 +11941,7 @@ async function viewAccessibilityStatement() {
   try { pub = (await loadPublished()).a11y; } catch (e) {}
   if (pub && pub.orgName) { viewOfficialA11y(pub); return; }
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card" lang="fi">
       <h2>Saavutettavuusseloste</h2>
       <p>Tämä seloste koskee epävirallista ${esc(CONFIG.cityGenitive)} bussiaikataulupalvelua
@@ -11949,7 +11984,7 @@ function viewOfficialA11y(a) {
   if (a.feedbackEmail) feedback.push(`sähköpostitse osoitteeseen <a href="mailto:${esc(a.feedbackEmail)}">${esc(a.feedbackEmail)}</a>`);
   if (a.feedbackUrl) feedback.push(`<a href="${esc(a.feedbackUrl)}" target="_blank" rel="noopener">palautelomakkeella</a>`);
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card" lang="fi">
       <h2>Saavutettavuusseloste</h2>
       <p>${esc(a.orgName)} pyrkii takaamaan ${esc(CONFIG.cityGenitive)} bussiaikataulupalvelun
@@ -11980,7 +12015,7 @@ function viewOfficialA11y(a) {
    yritys on rekisteröity (LEGAL_PROVIDER). Kaikki kolme kieltä ovat täydet tekstit,
    ei automaattikäännöksiä. */
 const LEGAL_PROVIDER = { name: "Ville Saarinen", email: "ville@reittari.fi", businessId: "" };
-const LEGAL_UPDATED = "27.8.2026";
+const LEGAL_UPDATED = "4.9.2026";
 
 function legalProviderHtml() {
   const e = esc(LEGAL_PROVIDER.email);
@@ -12017,6 +12052,15 @@ const LEGAL = {
           Säilytys: kunnes poistat ilmoitukset käytöstä asetuksista tai selaimesi push-tilaus vanhenee,
           jolloin tieto poistetaan. Viestit kulkevat selaimen valmistajan push-palvelun (esimerkiksi
           Google, Mozilla tai Apple) kautta päästä päähän salattuina, joten välittäjä ei näe sisältöä.</dd>
+        <dt>Uusintapainatusvahti (kaupungin ylläpito)</dt>
+        <dd>Tiedot: kaupungin tunnus, painetun tulosteen tunnus ja nimi (linja tai käytävä), tulosteen
+          sisällön sormenjälki ja painopäivä. Nämä eivät ole henkilötietoja. Jos kaupunki ottaa
+          ilmoitukset käyttöön, tallennetaan lisäksi kaupungin ilmoittama sähköpostiosoite, tieto
+          vahvistuksesta ja satunnainen tunniste, jota vahvistus- ja peruutuslinkit käyttävät. Osoitteen
+          asettaa kaupungin ylläpito, ei palvelun käyttäjä. Oikeusperuste: suostumus (6 artiklan 1 kohdan
+          a alakohta), ja osoite saa viestejä vasta kun vahvistuslinkkiä on klikattu. Ilmoitus lähetetään
+          vain kun tilanne muuttuu. Säilytys: kunnes kaupunki poistaa osoitteen tai peruuttaa ilmoitukset
+          jokaisessa viestissä olevasta linkistä. Tallennus: Cloudflare Workers KV. Lähetys: Resend.</dd>
         <dt>Lähtömuistutus</dt>
         <dd>Tiedot: push-osoite ja salausavaimet, muistutuksen ajankohta sekä sen otsikko ja teksti
           (linja ja pysäkki). Oikeusperuste: suostumus, sillä pyydät muistutuksen itse.
@@ -12159,6 +12203,16 @@ const LEGAL = {
           expires, at which point the record is deleted. Messages travel through the browser vendor's
           push service (for example Google, Mozilla or Apple) with end-to-end encryption, so the
           intermediary cannot read the content.</dd>
+        <dt>Reprint watch (city administration)</dt>
+        <dd>Data: the city identifier, the identifier and name of the printed sheet (line or corridor),
+          a fingerprint of the sheet content and the printing date. These are not personal data. If the
+          city enables notifications, we also store the email address given by the city, whether it has
+          been confirmed, and a random identifier used by the confirmation and unsubscribe links. The
+          address is set by the city administration, not by a user of the service. Legal basis: consent
+          (Article 6(1)(a)), and the address receives messages only after the confirmation link has been
+          clicked. A message is sent only when the situation changes. Retention: until the city removes
+          the address or unsubscribes using the link in every message. Storage: Cloudflare Workers KV.
+          Delivery: Resend.</dd>
         <dt>Departure reminder</dt>
         <dd>Data: push address and encryption keys, the reminder time, and its title and text (line and
           stop). Legal basis: consent, since you request the reminder yourself.
@@ -12301,6 +12355,16 @@ const LEGAL = {
           push-prenumeration går ut, varvid uppgiften raderas. Meddelandena går via
           webbläsartillverkarens push-tjänst (till exempel Google, Mozilla eller Apple) med
           totalsträckskryptering, så förmedlaren kan inte läsa innehållet.</dd>
+        <dt>Omtrycksvakt (stadens administration)</dt>
+        <dd>Uppgifter: stadens identifierare, den tryckta utskriftens identifierare och namn (linje eller
+          korridor), ett fingeravtryck av utskriftens innehåll och tryckdatumet. Dessa är inte
+          personuppgifter. Om staden tar i bruk aviseringar sparas dessutom den e-postadress staden
+          uppgett, uppgift om bekräftelse och en slumpmässig identifierare som bekräftelse- och
+          avbeställningslänkarna använder. Adressen anges av stadens administration, inte av en användare
+          av tjänsten. Rättslig grund: samtycke (artikel 6.1 a), och adressen får meddelanden först när
+          bekräftelselänken har klickats. Meddelande skickas endast när situationen ändras. Lagring:
+          tills staden tar bort adressen eller avbeställer via länken i varje meddelande. Lagras i
+          Cloudflare Workers KV. Utskick: Resend.</dd>
         <dt>Avgångspåminnelse</dt>
         <dd>Uppgifter: push-adress och krypteringsnycklar, påminnelsens tidpunkt samt dess rubrik och
           text (linje och hållplats). Rättslig grund: samtycke, eftersom du själv begär påminnelsen.
@@ -12422,7 +12486,7 @@ function legalPage(kind, id) {
   const L = LEGAL[lang] || LEGAL.fi;
   const l = LEGAL[lang] ? lang : "fi";
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card legal" id="${id}" lang="${l}">
       <h2>${L[kind + "Title"]}</h2>
       ${L[kind]()}
@@ -13153,15 +13217,19 @@ function reprintSrvPanelHtml(state) {
     </details>`;
 }
 
-async function viewReprint() {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
-  setView(`<p class="muted">${t("loadingRoutes")}</p>`);
-  const routes = await loadRoutes();
-  const today = todayISO();
-  // Palvelinvahti ensin: yhdistetään palvelimen perustaso paikalliseen ennen kuin näkymä
+// Uusintapainatus on tulostekeskuksen välilehti (4.9.2026): se on tulosteiden ylläpitoa siinä
+// missä muutosvahti, ja omana irrallisena näkymänään siitä pääsi pois vain etusivun kautta.
+// Vanha reitti #/uusintapainatus ohjaa nyt tälle välilehdelle (ks. route()).
+async function bindReprintTab(routes, today) {
+  const host = document.getElementById("rpPanelBody");
+  if (!host) return;
+  host.innerHTML = `<p class="muted">${t("loadingRoutes")}</p>`;
+  const mySeq = viewSeq;
+  // Palvelinvahti ensin: yhdistetään palvelimen perustaso paikalliseen ennen kuin välilehti
   // piirretään, jotta toisella koneella tehdyt merkinnät näkyvät heti. Ilman avainta ei
   // tehdä yhtään pyyntöä.
   const srvState = await reprintSrvSync();
+  if (mySeq !== viewSeq || !document.getElementById("rpPanelBody")) return;
   const base = reprintLoad();
 
   // Seurattava yksikkö = painettava arkki: linjatuloste tai käytävätuloste.
@@ -13181,8 +13249,7 @@ async function viewReprint() {
   const trackedUnits = units.filter(tracked);
   const otherUnits = units.filter(u => !tracked(u));
 
-  setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+  host.innerHTML = `
     <div class="card no-print">
       <h2>${icon("print")} ${t("reprintTitle")}</h2>
       <p class="muted">${t("reprintIntro")}</p>
@@ -13203,11 +13270,11 @@ async function viewReprint() {
       </div>
       <ul class="plain" id="rpOthers">${otherUnits.map(unitRow).join("")}</ul>
     </div>
-    <div id="rpOut"></div>`);
+    <div id="rpOut"></div>`;
 
-  document.getElementById("rpSrvSave")?.addEventListener("click", async () => {
+  document.getElementById("rpSrvSave")?.addEventListener("click", () => {
     reprintSrvSetKey(document.getElementById("rpSrvKey").value.trim());
-    viewReprint();   // sama näkymä uudelleen: synkronointi ajetaan heti uudella avaimella
+    bindReprintTab(routes, today);   // sama välilehti uudelleen: synkronointi ajetaan heti uudella avaimella
   });
 
   document.getElementById("rpFilter").addEventListener("input", e => {
@@ -13310,18 +13377,18 @@ async function viewReprint() {
 // ohjautuvat oikealle välilehdelle (route()); välilehdet ovat URL-osoitettavia (#/tulosteet/<tab>
 // tai ?tab=<tab>). Kaikki kolme paneelia ovat DOMissa → sidonnat toimivat tabista riippumatta;
 // välilehden vaihto ei piirrä näkymää uudelleen (history.replaceState → lomaketila säilyy).
-const PRINT_TABS = ["vihko", "kaytava", "julisteet", "muutokset", "naytot"];
+const PRINT_TABS = ["vihko", "kaytava", "julisteet", "muutokset", "uusintapainatus", "naytot"];
 // query: valinnainen URLSearchParams, ks. applyPrintQuery. Palvelutiski ja QR-linkit
 // esivalitsevat linjat kyselyllä ja käynnistävät koonnin, jotta jokainen tuloste on
 // toteutettu vain kerran ja vain täällä (3.9.2026).
 async function viewPrintCenter(tab, query) {
-  if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   tab = PRINT_TABS.includes(tab) ? tab : "vihko";
   setView(`<p class="muted">${t("loadingRoutes")}</p>`);
   const routes = await loadRoutes();
   const today = todayISO();
   setView(`
-    <nav class="crumb"><a href="#/">← ${t("home")}</a></nav>
+    ${crumbHtml()}
     <div class="card no-print">
       <h2>${icon("print")} ${t("printCenterTitle")}</h2>
       <p class="muted">${t("printCenterIntro")}</p>
@@ -13330,6 +13397,7 @@ async function viewPrintCenter(tab, query) {
         <button type="button" class="ptab" data-ptab="kaytava" aria-pressed="false">${t("tabCorridor")}</button>
         <button type="button" class="ptab" data-ptab="julisteet" aria-pressed="false">${t("tabPosters")}</button>
         <button type="button" class="ptab" data-ptab="muutokset" aria-pressed="false">${t("tabChanges")}</button>
+        <button type="button" class="ptab" data-ptab="uusintapainatus" aria-pressed="false">${t("tabReprint")}</button>
         <button type="button" class="ptab" data-ptab="naytot" aria-pressed="false">${t("tabScreens")}</button>
       </div>
     </div>
@@ -13462,6 +13530,10 @@ async function viewPrintCenter(tab, query) {
       <div id="chgOut"></div>
     </div>
 
+    <div class="ppanel" data-ppanel="uusintapainatus" hidden>
+      <div id="rpPanelBody"><p class="muted">${t("loadingRoutes")}</p></div>
+    </div>
+
     <div class="ppanel" data-ppanel="naytot" hidden>
       <div class="card">
         <h2>${icon("monitor")} ${t("screenNetTitle")}</h2>
@@ -13488,6 +13560,9 @@ async function viewPrintCenter(tab, query) {
   bindPostersTab(routes);
   bindChangesTab();
   bindScreenNetTab();
+  // Uusintapainatus lataa perustason ja mahdollisen palvelinsynkronoinnin taustalla:
+  // sitä ei odoteta, koska muut välilehdet ovat heti käytettävissä.
+  bindReprintTab(routes, today);
   showTab(tab);
 
   applyPrintQuery(tab, query);
@@ -13715,7 +13790,7 @@ async function route() {
     // Vanhat reitit ohjautuvat yhdistettyyn keskukseen oikealle välilehdelle (QR-yhteensopivuus):
     // #/tulosta = vihko-välilehti; bare #/tulosteet = julisteet (entinen sisältö); välilehti
     // myös polusta (#/tulosteet/<tab>) tai kyselystä (?tab=<tab>).
-    else if (parts[0] === "uusintapainatus") await viewReprint();
+    else if (parts[0] === "uusintapainatus") await viewPrintCenter("uusintapainatus", query);
     else if (parts[0] === "tulosta") await viewPrintCenter("vihko", query);
     else if (parts[0] === "tulosteet") await viewPrintCenter(query.get("tab") || parts[1] || "julisteet", query);
     else if (parts[0] === "reitti") await viewPlan(parts);

@@ -193,6 +193,12 @@ export const ADMIN_HTML = `<!doctype html>
       <div id="rpKeyBox"><p class="muted">Ladataan…</p></div>
       <p><button type="button" id="rpKeyBtn">Luo uusi avain</button></p>
       <div class="msg" id="rpKeyMsg"></div>
+      <h3 class="sub">Ilmoitukset sähköpostiin</h3>
+      <p class="muted">Vahti vertaa painettuja tulosteita nykydataan kerran vuorokaudessa ja lähettää viestin vain kun tilanne muuttuu. Osoite saa ilmoituksia vasta kun vahvistuslinkki on klikattu.</p>
+      <div class="field"><label for="rpMail">Ilmoitusosoite</label>
+        <input type="email" id="rpMail" placeholder="joukkoliikenne@kaupunki.fi" autocomplete="off"></div>
+      <p><button type="button" id="rpMailBtn">Tallenna osoite</button> <span class="muted" id="rpMailState"></span></p>
+      <div class="msg" id="rpMailMsg"></div>
     </div>
 
     <div class="card">
@@ -433,6 +439,16 @@ async function loadReprintKey(){
     ? "<p>Avain on myönnetty "+esc(String(d.created||"").slice(0,10))+". Palvelimella on <strong>"+esc(String(d.units))+"</strong> seurattua tulostetta"+(d.updated?" (päivitetty "+esc(String(d.updated).slice(0,10))+")":"")+".</p>"
     : "<p class='muted'>Avainta ei ole vielä myönnetty. Seuranta elää toistaiseksi vain kaupungin omassa selaimessa.</p>";
 }
+$("rpMailBtn").addEventListener("click", async () => {
+  // Tyhjä kenttä = lopeta ilmoitukset. Osoite on henkilötieto, joten se kysytään vain täällä,
+  // ei julkisessa sovelluksessa.
+  const email = $("rpMail").value.trim();
+  const r = await api("/admin/api/reprint/notify", { method:"POST", body: JSON.stringify({ city: CITY, email }) });
+  if (!r.ok || !r.data || r.data.error){ msg($("rpMailMsg"), "Tallennus epäonnistui" + (r.data && r.data.error ? " (" + r.data.error + ")" : "") + ".", false); return; }
+  msg($("rpMailMsg"), email ? "Vahvistusviesti lähetetty osoitteeseen " + email + ". Ilmoitukset alkavat vasta vahvistuksen jälkeen." : "Ilmoitukset lopetettu.", true);
+  $("rpMailState").textContent = email ? "odottaa vahvistusta" : "";
+});
+
 $("rpKeyBtn").addEventListener("click", async () => {
   // Uusi avain ei pyyhi perustasoa, mutta vanha avain lakkaa toimimasta.
   if (!confirm("Luodaanko uusi avain? Vanha avain lakkaa toimimasta ja se on syötettävä sovellukseen uudelleen.")) return;

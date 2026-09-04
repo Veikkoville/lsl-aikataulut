@@ -2,7 +2,8 @@
 // kaupungin omalla avaimella, avaimen myöntäminen ylläpidosta, ja se että väärä avain
 // torjutaan. Mock-KV, ei verkkoa.
 // Aja: node reprint-logic.test.js
-import worker, { buildReprintBaseline, mergeReprintUnits, reprintCityName, REPRINT_MAX_UNITS }
+import worker, { buildReprintBaseline, mergeReprintUnits, reprintCityName, REPRINT_MAX_UNITS,
+  reprintStateChanged, cleanReprintStale, buildReprintNotify, buildReprintAlertEmail }
   from "./worker.js";
 
 let fail = 0;
@@ -131,6 +132,117 @@ check(env.PUSH_KV._m.get("rp:cities") === JSON.stringify(["lahti"]), "perustaso:
 // Ilman KV-sidontaa päätepiste ei kaadu vaan kertoo tilan
 const eiKv = await worker.fetch(jreq("/reprint/baseline", { city: "lahti", key: KEY, units: { a: { printed: iso, sig } } }), { ...env, PUSH_KV: null });
 check(eiKv.status === 503, "perustaso: ilman KV-sidontaa → 503 eikä poikkeusta");
+
+
+/* ---------- Vaihe 2: ajastettu vertailu ja ilmoitus ---------- */
+
+// Resend-tynkä: kerää lähtevät viestit, ei verkkoa.
+const resendSends = [];
+globalThis.fetch = async (url, opts) => {
+  const u = String(url);
+  if (u.includes("api.resend.com")) { resendSends.push(JSON.parse(opts.body)); return { status: 200, ok: true }; }
+  throw new Error("odottamaton fetch: " + u);
+};
+
+const env2 = {
+  PUSH_KV: mockKV(),
+  ADMIN_PASSWORD: "salasana123",
+  ADMIN_SESSION_SECRET: "reprint-secret-2",
+  RESEND_API_KEY: "test-resend",
+  EMAIL_FROM: "vahti@example.fi",
+  EMAIL_LINK_BASE: "https://proxy.example",
+  REPRINT_SERVICE_TOKEN: "huoltoavain-1234567890",
+};
+const req2 = (path, opts = {}) => new Request("https://proxy.example" + path, opts);
+const jreq2 = (path, body, opts = {}) => req2(path, {
+  method: "POST", body: JSON.stringify(body),
+  headers: { "Content-Type": "application/json", Origin: ORIGIN, ...(opts.headers || {}) },
+});
+
+// --- Puhtaat funktiot ---
+check(reprintStateChanged(null, []) === false, "tilamuutos: tyhjästä tyhjään ei ole muutos");
+check(reprintStateChanged({ stale: [] }, ["a"]) === true, "tilamuutos: uusi vanhentunut on muutos");
+check(reprintStateChanged({ stale: ["a", "b"] }, ["b", "a"]) === false,
+  "tilamuutos: sama joukko eri järjestyksessä EI ole muutos (ei päivittäistä spämmiä)");
+check(reprintStateChanged({ stale: ["a"] }, []) === true, "tilamuutos: vanhentuneen korjaus on muutos");
+check(cleanReprintStale(["a", "x", "a"], { a: {}, b: {} }).join(",") === "a",
+  "vertailun tulos: tuntemattomat tunnukset putoavat, duplikaatit poistuvat");
+
+// --- Päästä päähän ---
+const login2 = await worker.fetch(req2("/admin/login", { method: "POST", body: JSON.stringify({ password: "salasana123" }) }), env2);
+const cookie2 = (login2.headers.get("Set-Cookie") || "").split(";")[0];
+const luotu2 = await (await worker.fetch(jreq2("/admin/api/reprint/key", { city: "lahti" }, { headers: { Cookie: cookie2 } }), env2)).json();
+const KEY2 = luotu2.key;
+await worker.fetch(jreq2("/reprint/baseline", { city: "lahti", key: KEY2, units: {
+  "Lahti:010": { label: "1 Keskusta", printed: iso, sig },
+  "corr:kesk": { label: "Keskustan käytävä", printed: iso, sig } } }), env2);
+
+// Huoltoavain: väärä token ei pääse lukemaan eikä kirjoittamaan
+check((await worker.fetch(req2("/reprint/service?token=vaara"), env2)).status === 403,
+  "huoltoajo: väärä huoltoavain ei saa seurattuja tulosteita");
+check((await worker.fetch(jreq2("/reprint/service", { token: "vaara", city: "lahti", stale: [] }), env2)).status === 403,
+  "huoltoajo: väärä huoltoavain ei voi kirjata tulosta");
+check((await worker.fetch(req2("/reprint/service?token=" + KEY2), env2)).status === 403,
+  "huoltoajo: kaupungin avain EI kelpaa huoltoavaimeksi");
+
+const lista = await (await worker.fetch(req2("/reprint/service?token=" + env2.REPRINT_SERVICE_TOKEN), env2)).json();
+check(lista.cities.length === 1 && Object.keys(lista.cities[0].units).length === 2,
+  "huoltoajo: huoltoavaimella saa seuratut tulosteet kaikista kaupungeista");
+check(JSON.stringify(lista).indexOf("@") < 0, "huoltoajo: listaus ei sisällä ilmoitusosoitetta");
+
+// Ilman vahvistettua osoitetta ei lähde viestiä, vaikka tila muuttuu
+resendSends.length = 0;
+const eka = await (await worker.fetch(jreq2("/reprint/service", { token: env2.REPRINT_SERVICE_TOKEN, city: "lahti", stale: ["Lahti:010"] }), env2)).json();
+check(eka.changed === true && eka.stale === 1 && eka.notified === false && resendSends.length === 0,
+  "ilmoitus: ilman osoitetta tila tallentuu mutta viestiä ei lähde");
+
+// Osoite ylläpidosta: vahvistusviesti lähtee, mutta ilmoituksia ei ennen vahvistusta
+resendSends.length = 0;
+const notify = await (await worker.fetch(jreq2("/admin/api/reprint/notify", { city: "lahti", email: "kaupunki@example.fi" }, { headers: { Cookie: cookie2 } }), env2)).json();
+check(notify.ok === true && notify.notify.confirmed === false && resendSends.length === 1 &&
+  resendSends[0].to[0] === "kaupunki@example.fi" && /Vahvista/.test(resendSends[0].subject),
+  "ilmoitus: osoitteen tallennus lähettää vahvistusviestin");
+check((await worker.fetch(jreq2("/admin/api/reprint/notify", { city: "lahti", email: "x@y.fi" }), env2)).status === 403,
+  "ilmoitus: osoitetta ei voi asettaa ilman ylläpitoistuntoa");
+
+resendSends.length = 0;
+const toka = await (await worker.fetch(jreq2("/reprint/service", { token: env2.REPRINT_SERVICE_TOKEN, city: "lahti", stale: ["Lahti:010", "corr:kesk"] }), env2)).json();
+check(toka.changed === true && toka.notified === false && resendSends.length === 0,
+  "ilmoitus: vahvistamattomaan osoitteeseen EI lähetetä");
+
+// Vahvistus linkistä
+const tok = JSON.parse(env2.PUSH_KV._m.get("rp:lahti")).notify.token;
+const vahv = await worker.fetch(req2("/reprint/notify/confirm?token=" + tok), env2);
+check(vahv.status === 200 && /vahvistettu/i.test(await vahv.text()), "ilmoitus: vahvistuslinkki vahvistaa osoitteen");
+check((await worker.fetch(req2("/reprint/notify/confirm?token=vaara"), env2)).status === 200,
+  "ilmoitus: väärä vahvistuslinkki ei kaada workeria");
+
+// Nyt ilmoitus lähtee, mutta VAIN kun tila muuttuu
+resendSends.length = 0;
+const kolmas = await (await worker.fetch(jreq2("/reprint/service", { token: env2.REPRINT_SERVICE_TOKEN, city: "lahti", stale: ["Lahti:010"] }), env2)).json();
+check(kolmas.changed === true && kolmas.notified === true && resendSends.length === 1,
+  "ilmoitus: muuttunut tila lähettää viestin vahvistettuun osoitteeseen");
+check(/1 tuloste on vanhentunut/.test(resendSends[0].subject) &&
+  resendSends[0].html.includes("1 Keskusta") && resendSends[0].html.includes("notify/unsubscribe"),
+  "ilmoitus: viestissä on tulosteen nimi ja peruutuslinkki");
+
+resendSends.length = 0;
+const nelja = await (await worker.fetch(jreq2("/reprint/service", { token: env2.REPRINT_SERVICE_TOKEN, city: "lahti", stale: ["Lahti:010"] }), env2)).json();
+check(nelja.changed === false && nelja.notified === false && resendSends.length === 0,
+  "ilmoitus: sama tilanne seuraavana päivänä EI lähetä uutta viestiä");
+
+// Peruutus
+const peru = await worker.fetch(req2("/reprint/notify/unsubscribe?token=" + tok), env2);
+check(peru.status === 200 && /peruttu/i.test(await peru.text()), "ilmoitus: peruutuslinkki lopettaa ilmoitukset");
+resendSends.length = 0;
+const viides = await (await worker.fetch(jreq2("/reprint/service", { token: env2.REPRINT_SERVICE_TOKEN, city: "lahti", stale: [] }), env2)).json();
+check(viides.changed === true && resendSends.length === 0, "ilmoitus: peruutuksen jälkeen ei lähde viestejä");
+
+// Perustason päivitys ei saa pyyhkiä vertailun tulosta
+await worker.fetch(jreq2("/reprint/baseline", { city: "lahti", key: KEY2, units: {
+  "Lahti:010": { label: "1 Keskusta", printed: "2026-09-05T00:00:00.000Z", sig } } }), env2);
+const yha = JSON.parse(env2.PUSH_KV._m.get("rp:lahti"));
+check(yha.state && yha.state.checkedAt, "perustaso: päivitys ei tyhjennä vahdin tulosta");
 
 console.log(fail ? `\n${fail} TARKISTUSTA EPÄONNISTUI` : "\nKAIKKI TARKISTUKSET OK");
 process.exit(fail ? 1 : 0);

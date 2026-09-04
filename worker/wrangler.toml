@@ -20,6 +20,12 @@ EMAIL_LINK_BASE = "https://lsl-aikataulut-proxy.veikkoville.workers.dev"
 # (APP_BASE = frontendin osoite sähköpostin "katso lähdöt" -linkkiin; koodissa oletusvakio,
 #  ylikirjoitettavissa tarvittaessa env.APP_BASE:lla.)
 
+# Uusintapainatusvahdin huoltoavain (SALAISUUS, wrangler secret put REPRINT_SERVICE_TOKEN).
+# Ajastettu vertailu (.github/workflows/uusintapainatusvahti.yml) lukee sillä seuratut tulosteet ja
+# palauttaa vertailun tuloksen. EI oikeutta kirjoittaa perustasoa: se vaatii kaupungin oman avaimen.
+# Sama arvo GitHubin repo-salaisuuteen REPRINT_SERVICE_TOKEN.
+#   npx wrangler secret put REPRINT_SERVICE_TOKEN
+
 # Tilausten ja nähtyjen häiriöiden tallennus (luotu: wrangler kv namespace create PUSH_KV)
 [[kv_namespaces]]
 binding = "PUSH_KV"

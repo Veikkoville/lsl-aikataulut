@@ -1294,7 +1294,7 @@ async function printHygiene(page, label) {
   }
 
   // --- Tulosteet ja näytöt -keskus: yhdistetty näkymä välilehdillä; vanhat reitit ohjautuvat ---
-  // Vanha #/tulosta -> ohjautuu keskukseen vihko-välilehdelle (QR-yhteensopivuus); 3 välilehteä,
+  // Vanha #/tulosta -> ohjautuu keskukseen vihko-välilehdelle (QR-yhteensopivuus); 6 välilehteä,
   // kaikki paneelit DOMissa (sidonnat toimivat tabista riippumatta).
   await page.goto(BASE + "/#/tulosta", { waitUntil: "networkidle2" });
   await sleep(400);
@@ -1303,8 +1303,8 @@ async function printHygiene(page, label) {
     active: document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab,
     booklet: !!document.getElementById("buildBtn"), batch: !!document.getElementById("batchGo"), hub: !!document.getElementById("hubStopSearch"),
   }));
-  (pc.tabs === 5 && pc.active === "vihko" && /#\/tulosteet\/vihko/.test(pc.hash) && pc.booklet && pc.batch && pc.hub)
-    ? ok(`tulosteet-keskus: #/tulosta ohjautuu vihko-välilehdelle, 5 välilehteä (${pc.hash})`)
+  (pc.tabs === 6 && pc.active === "vihko" && /#\/tulosteet\/vihko/.test(pc.hash) && pc.booklet && pc.batch && pc.hub)
+    ? ok(`tulosteet-keskus: #/tulosta ohjautuu vihko-välilehdelle, 6 välilehteä (${pc.hash})`)
     : fail("tulosteet-keskus: #/tulosta-ohjaus tai välilehdet pielessä: " + JSON.stringify(pc));
   // Muutosvahti-välilehti: lukee viikkoajon tuloksen docs/muutosvahti/<city>.json (sama origin).
   // Kaupunki jolle ajo on tehty (index.json listaa) → yhteenveto + pysäkkilista; muu → "ei vielä
@@ -1647,7 +1647,8 @@ async function printHygiene(page, label) {
   // Assertio mittaa yksikkömäärät, ei pelkkää otsikkoa: tyhjä lista on virhetila eikä
   // saa mennä läpi (vrt. "ei lähtöjä" -fallback).
   await page.goto(BASE + "/#/uusintapainatus", { waitUntil: "networkidle2" });
-  await sleep(600);
+  await page.waitForSelector("#rpOthers .rpCb", { timeout: 30000 }).catch(() => {});
+  await sleep(300);
   const rp = await page.evaluate(() => ({
     otsikko: !!document.querySelector("h2"),
     yksikoita: document.querySelectorAll(".rpCb").length,
@@ -1820,6 +1821,67 @@ async function printHygiene(page, label) {
   (rpMerge.avaimet === "x,y,z" && rpMerge.voittaja === "2026-09-01T00:00:00Z")
     ? ok("palvelinvahti: yhdistäminen säilyttää molempien puolten merkinnät, uudempi voittaa")
     : fail("palvelinvahti: yhdistämissääntö väärin: " + JSON.stringify(rpMerge));
+
+  // --- Navigointi: uusintapainatus on tulostekeskuksen välilehti, ja paluu toimii (4.9.2026) ---
+  // Uusintapainatus oli oma irrallinen näkymänsä, josta pääsi pois vain etusivun kautta, vaikka se
+  // on tulosteiden ylläpitoa siinä missä muutosvahti. Vanhan osoitteen #/uusintapainatus pitää yhä
+  // toimia (etusivun nosto ja QR-linkit osoittavat siihen), mutta sen pitää avata välilehti.
+  await page.goto(BASE + "/#/uusintapainatus", { waitUntil: "networkidle2" });
+  await page.waitForSelector("#rpOthers .rpCb", { timeout: 30000 }).catch(() => {});
+  const rpTab = await page.evaluate(() => ({
+    valilehtia: document.querySelectorAll(".ptab").length,
+    valittu: document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab || "",
+    paneeliNakyy: !document.querySelector('.ppanel[data-ppanel="uusintapainatus"]')?.hidden,
+    yksikoita: document.querySelectorAll(".rpCb").length,
+    osoite: location.hash,
+  }));
+  (rpTab.valilehtia === 6 && rpTab.valittu === "uusintapainatus" && rpTab.paneeliNakyy &&
+   rpTab.yksikoita > 50 && rpTab.osoite === "#/tulosteet/uusintapainatus")
+    ? ok(`navigointi: #/uusintapainatus avaa tulostekeskuksen välilehden (${rpTab.valilehtia} välilehteä, ${rpTab.yksikoita} yksikköä)`)
+    : fail("navigointi: uusintapainatus-välilehti: " + JSON.stringify(rpTab));
+
+  // Välilehdeltä toiselle ja takaisin: vaihto ei saa piirtää näkymää uudelleen eikä hukata paneelia.
+  const rpTabSwitch = await page.evaluate(async () => {
+    document.querySelector('.ptab[data-ptab="vihko"]').click();
+    const valissa = location.hash;
+    document.querySelector('.ptab[data-ptab="uusintapainatus"]').click();
+    return { valissa, lopussa: location.hash,
+      yksikoita: document.querySelectorAll(".rpCb").length,
+      paneeliNakyy: !document.querySelector('.ppanel[data-ppanel="uusintapainatus"]')?.hidden };
+  });
+  (rpTabSwitch.valissa === "#/tulosteet/vihko" && rpTabSwitch.lopussa === "#/tulosteet/uusintapainatus" &&
+   rpTabSwitch.yksikoita > 50 && rpTabSwitch.paneeliNakyy)
+    ? ok("navigointi: välilehden vaihto ja paluu säilyttää uusintapainatuksen sisällön")
+    : fail("navigointi: välilehtien vaihto: " + JSON.stringify(rpTabSwitch));
+
+  // Paluupolku: suoraan avatussa näkymässä EI Takaisin-nappia (history.back veisi ulos
+  // palvelusta), mutta sovelluksen sisällä liikkumisen jälkeen nappi on ja se palaa oikeaan
+  // näkymään. Tämä on se vartija joka estää paluun rikkoutumisen QR-koodista tullessa.
+  await page.goto(BASE + "/#/liput", { waitUntil: "networkidle2" });
+  // Aito uusi dokumentti, kuten QR-koodista tullessa: pelkka page.goto samaan osoitteeseen
+  // eri hashilla EI lataa dokumenttia uudelleen vaan on sovelluksen sisainen siirtyma.
+  await page.reload({ waitUntil: "networkidle2" });
+  await sleep(500);
+  const suoraan = await page.evaluate(() => ({
+    back: !!document.querySelector(".crumb-back"),
+    koti: !!document.querySelector('nav.crumb a[href="#/"]'),
+  }));
+  (!suoraan.back && suoraan.koti)
+    ? ok("navigointi: suoraan avatussa näkymässä vain Etusivu, ei Takaisin-nappia")
+    : fail("navigointi: suora avaus: " + JSON.stringify(suoraan));
+
+  await page.evaluate(() => { location.hash = "#/poikkeukset"; });
+  await sleep(700);
+  const sisalta = await page.evaluate(() => ({
+    back: !!document.querySelector(".crumb-back"),
+    hash: location.hash,
+  }));
+  await page.evaluate(() => document.querySelector(".crumb-back")?.click());
+  await sleep(700);
+  const paluu = await page.evaluate(() => location.hash);
+  (sisalta.back && sisalta.hash === "#/poikkeukset" && paluu === "#/liput")
+    ? ok("navigointi: Takaisin ilmestyy sovelluksen sisällä ja palaa edelliseen näkymään")
+    : fail(`navigointi: paluu ei toiminut (nappi ${sisalta.back}, ${sisalta.hash} -> ${paluu}, odotus #/liput)`);
 
   // --- Oma reittihaku layer-kaupungeissa (Raasepori, 29.8.2026) ---
   // Raasepori ja Turku ohjasivat aiemmin kaupungin omaan reittioppaaseen

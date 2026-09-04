@@ -1368,6 +1368,188 @@ async function handleReprintStatus(url, env, origin) {
   }, 200, origin);
 }
 
+/* ---------- Uusintapainatusvahti, vaihe 2: ajastettu vertailu ja ilmoitus (4.9.2026) ----------
+   Vaihe 1 tallensi perustason. Tämä kertoo kaupungille ilman että kukaan avaa sivua.
+
+   MIKSI VERTAILU EI OLE TÄSSÄ TIEDOSTOSSA. Nykytilan sormenjälki lasketaan sovelluksessa
+   (reprintLineSnap, reprintCorridorSnap): patternivalinta tulevien vuorojen mukaan,
+   päivätyyppilohkot ja käytävien corridorBuild. Jos sama logiikka kirjoitettaisiin tähän
+   toiseen kertaan, se alkaisi ajan myötä erota tuotteesta, ja ero näkyisi kaupungille vääränä
+   hälytyksenä. Siksi vertailun ajaa sama sovellus headless-Chromella (tests/uusintapainatusvahti.js,
+   ajastettu GitHub Actionsissa), ja worker vastaa vain siitä mitä ilmoitetaan ja kenelle.
+
+   Huoltoavain (REPRINT_SERVICE_TOKEN) on eri asia kuin kaupungin avain: sillä ei pääse
+   kirjoittamaan perustasoa, vaan lukemaan seuratut tulosteet ja palauttamaan vertailun tuloksen. */
+
+const REPRINT_NOTIFY_TOK_KEY = tok => "rpnt:" + String(tok || "").slice(0, 80);
+
+// Ilmoitus lähtee VAIN kun tila muuttuu. Ilman tätä kunta saisi saman viestin joka päivä
+// samasta tulosteesta, ja kolmannen jälkeen kukaan ei enää lue niitä.
+export function reprintStateChanged(prev, stale) {
+  const a = ((prev && prev.stale) || []).slice().sort().join("|");
+  const b = (stale || []).slice().sort().join("|");
+  return a !== b;
+}
+
+// Vertailun tuloksen siivous: vain tunnetut yksikkötunnukset kelpaavat, jotta huoltoajo ei
+// voi kirjoittaa mielivaltaista sisältöä kaupungin tietueeseen.
+export function cleanReprintStale(stale, units) {
+  const known = new Set(Object.keys(units || {}));
+  return [...new Set((Array.isArray(stale) ? stale : []).map(String))].filter(id => known.has(id));
+}
+
+function reprintServiceOk(env, token) {
+  return !!env.REPRINT_SERVICE_TOKEN && !!token &&
+    constantTimeEqual(String(token), String(env.REPRINT_SERVICE_TOKEN));
+}
+
+// Huoltoajolle: seuratut tulosteet kaikista kaupungeista. EI sisällä ilmoitusosoitetta:
+// vertailu ei tarvitse henkilötietoa, joten sitä ei anneta.
+async function handleReprintServiceList(url, env) {
+  if (!reprintServiceOk(env, url.searchParams.get("token")))
+    return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  const out = [];
+  for (const city of await readReprintCities(env)) {
+    const data = await readReprintData(env, city);
+    if (data && data.units && Object.keys(data.units).length)
+      out.push({ city, units: data.units, state: data.state || null });
+  }
+  return adminJson({ ok: true, cities: out }, 200);
+}
+
+// Huoltoajon tulos: mitkä tulosteet ovat vanhentuneet juuri nyt. Ilmoitus lähtee vain
+// muuttuneesta tilasta ja vain vahvistettuun osoitteeseen.
+async function handleReprintServiceResult(request, env) {
+  const body = await request.json().catch(() => null);
+  if (!reprintServiceOk(env, body && body.token)) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  const city = reprintCityName(body && body.city);
+  const data = await readReprintData(env, city);
+  if (!data) return adminJson({ error: "unknown_city" }, 404);
+  const stale = cleanReprintStale(body && body.stale, data.units);
+  const muuttui = reprintStateChanged(data.state, stale);
+  const state = {
+    stale,
+    checkedAt: new Date().toISOString(),
+    notifiedAt: (data.state && data.state.notifiedAt) || null,
+  };
+  let sent = null;
+  if (muuttui && stale.length && data.notify && data.notify.confirmed && data.notify.email) {
+    sent = await sendReprintAlert(env, city, data, stale);
+    if (sent && sent.ok) state.notifiedAt = state.checkedAt;
+  }
+  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, state }));
+  return adminJson({ ok: true, city, stale: stale.length, changed: muuttui, notified: !!(sent && sent.ok) }, 200);
+}
+
+/* ---------- Ilmoitusosoite (ylläpidosta, ei julkisesta sovelluksesta) ----------
+   Osoite on henkilötieto, joten sitä ei kysytä julkisessa sovelluksessa vaan ylläpitosivulla,
+   jonne pääsee vain kaupungin oma tunnus. Vahvistus kaksivaiheisesti: osoite ei saa ilmoituksia
+   ennen kuin vahvistuslinkkiä on klikattu. */
+
+export function buildReprintNotify(body) {
+  const city = reprintCityName(body && body.city);
+  if (!city) return { error: "bad_city" };
+  const email = String((body && body.email) || "").trim().toLowerCase();
+  if (!email) return { city, email: "" };   // tyhjä = poista ilmoitukset
+  if (!EMAIL_RE.test(email) || email.length > 160) return { error: "bad_email" };
+  return { city, email };
+}
+
+async function handleAdminReprintNotify(request, env) {
+  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  const body = await request.json().catch(() => null);
+  const { city, email, error } = buildReprintNotify(body);
+  if (error) return adminJson({ error }, 400);
+  const data = await readReprintData(env, city);
+  if (!data) return adminJson({ error: "no_baseline" }, 404);
+  if (!email) {
+    if (data.notify && data.notify.token) await env.PUSH_KV.delete(REPRINT_NOTIFY_TOK_KEY(data.notify.token));
+    await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: null }));
+    return adminJson({ ok: true, notify: null }, 200);
+  }
+  const token = crypto.randomUUID().replace(/-/g, "");
+  if (data.notify && data.notify.token) await env.PUSH_KV.delete(REPRINT_NOTIFY_TOK_KEY(data.notify.token));
+  const notify = { email, confirmed: false, token, ts: Date.now() };
+  await env.PUSH_KV.put(REPRINT_NOTIFY_TOK_KEY(token), city);
+  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify }));
+  const base = env.EMAIL_LINK_BASE || "";
+  const vahvista = `${base}/reprint/notify/confirm?token=${encodeURIComponent(token)}`;
+  const res = await sendResendEmail(env, email, "Vahvista uusintapainatusvahdin ilmoitukset",
+    reprintMailHtml("Vahvista ilmoitukset",
+      `<p>Uusintapainatusvahti lähettää tähän osoitteeseen viestin silloin kun painettu tuloste vanhenee.</p>
+       <p><a href="${escHtml(vahvista)}" style="display:inline-block;background:#0a4ea3;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none">Vahvista ilmoitukset</a></p>
+       <p style="font-size:15px;color:#555">Jos et pyytänyt tätä, voit jättää viestin huomiotta. Ilman vahvistusta osoitteeseen ei lähetetä mitään.</p>`),
+    `Vahvista uusintapainatusvahdin ilmoitukset: ${vahvista}`);
+  return adminJson({ ok: true, notify: { email, confirmed: false }, mail: res && res.status ? res.status : null }, 200);
+}
+
+async function reprintNotifyByToken(env, token) {
+  const city = await env.PUSH_KV.get(REPRINT_NOTIFY_TOK_KEY(token));
+  if (!city) return null;
+  const data = await readReprintData(env, city);
+  if (!data || !data.notify || data.notify.token !== token) return null;
+  return { city, data };
+}
+
+async function handleReprintNotifyConfirm(url, env) {
+  const token = url.searchParams.get("token") || "";
+  if (!env.PUSH_KV || !token) return emailHtmlPage("Virheellinen linkki", "Vahvistuslinkki ei kelpaa.");
+  const found = await reprintNotifyByToken(env, token);
+  if (!found) return emailHtmlPage("Virheellinen linkki", "Vahvistuslinkki ei kelpaa tai se on vanhentunut.");
+  const { city, data } = found;
+  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: { ...data.notify, confirmed: true } }));
+  return emailHtmlPage("Ilmoitukset vahvistettu",
+    "Saat viestin kun painettu tuloste vanhenee. Viesti lähtee vain kun tilanne muuttuu, ei joka päivä samasta asiasta.");
+}
+
+async function handleReprintNotifyUnsub(url, env) {
+  const token = url.searchParams.get("token") || "";
+  if (!env.PUSH_KV || !token) return emailHtmlPage("Virheellinen linkki", "Peruutuslinkki ei kelpaa.");
+  const found = await reprintNotifyByToken(env, token);
+  if (!found) return emailHtmlPage("Ilmoitukset jo peruttu", "Osoitetta ei löytynyt. Et saa enää ilmoituksia.");
+  const { city, data } = found;
+  await env.PUSH_KV.delete(REPRINT_NOTIFY_TOK_KEY(token));
+  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: null }));
+  return emailHtmlPage("Ilmoitukset peruttu", "Et saa enää viestejä vanhentuneista tulosteista. Seuranta itsessään jatkuu.");
+}
+
+// Ilmoitusviesti. Sisältö on se mitä painaja tarvitsee: mitkä arkit ja mistä ne saa uudelleen.
+// Sähköpostin runko merkkijonona. emailHtmlPage on selainsivuja varten ja palauttaa Responsen,
+// joten sitä EI voi käyttää viestin sisältönä (todettu testissä 4.9.2026).
+function reprintMailHtml(title, body) {
+  return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;font-size:18px;line-height:1.6;color:#1a1a1a;max-width:560px">` +
+    `<h1 style="font-size:22px">${escHtml(title)}</h1>${body}</div>`;
+}
+
+export function buildReprintAlertEmail(city, labels, appUrl, unsubUrl) {
+  const n = labels.length;
+  const otsikko = n === 1 ? "1 tuloste on vanhentunut" : `${n} tulostetta on vanhentunut`;
+  const lista = labels.map(l => `<li>${escHtml(l)}</li>`).join("");
+  return {
+    subject: otsikko,
+    html: reprintMailHtml(otsikko,
+      `<p>Seuraavat painetut tulosteet eivät enää vastaa aikataulua:</p>
+       <ul>${lista}</ul>
+       <p><a href="${escHtml(appUrl)}">Avaa uusintapainatuslista</a></p>
+       <p style="font-size:15px;color:#555">Viesti lähtee vain kun tilanne muuttuu.
+         <a href="${escHtml(unsubUrl)}">Lopeta ilmoitukset</a>.</p>`),
+    text: `${otsikko}:\n` + labels.map(l => "- " + l).join("\n") + `\n\n${appUrl}\nLopeta ilmoitukset: ${unsubUrl}`,
+  };
+}
+
+async function sendReprintAlert(env, city, data, stale) {
+  const labels = stale.map(id => (data.units[id] && data.units[id].label) || id).slice(0, 50);
+  const base = env.EMAIL_LINK_BASE || "";
+  const app = (env.APP_BASE || APP_BASE_DEFAULT) + "/?city=" + encodeURIComponent(city) + "#/tulosteet/uusintapainatus";
+  const unsub = `${base}/reprint/notify/unsubscribe?token=${encodeURIComponent(data.notify.token)}`;
+  const mail = buildReprintAlertEmail(city, labels, app, unsub);
+  const res = await sendResendEmail(env, data.notify.email, mail.subject, mail.html, mail.text);
+  return { ok: !!(res && (res.ok || res.skipped)), status: res && res.status };
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") || "";
@@ -1408,6 +1590,8 @@ export default {
       return handleAdminReprintKeyGet(request, env, url);
     if (url.pathname === "/admin/api/reprint/key" && request.method === "POST")
       return handleAdminReprintKeyCreate(request, env);
+    if (url.pathname === "/admin/api/reprint/notify" && request.method === "POST")
+      return handleAdminReprintNotify(request, env);
     // Julkaistut tiedotteet sovellukselle (julkinen, CORS)
     if (url.pathname === "/published" && request.method === "GET")
       return handlePublished(url, env, origin);
@@ -1430,6 +1614,16 @@ export default {
       return handleReprintBaseline(request, env, origin);
     if (url.pathname === "/reprint/status" && request.method === "GET")
       return handleReprintStatus(url, env, origin);
+    // Ilmoitusosoitteen vahvistus ja peruutus (linkki sähköpostista, ihmisluettava vastaus)
+    if (url.pathname === "/reprint/notify/confirm" && request.method === "GET")
+      return handleReprintNotifyConfirm(url, env);
+    if (url.pathname === "/reprint/notify/unsubscribe" && request.method === "GET")
+      return handleReprintNotifyUnsub(url, env);
+    // Ajastettu vertailu (huoltoavain): lue seuratut tulosteet, palauta vertailun tulos
+    if (url.pathname === "/reprint/service" && request.method === "GET")
+      return handleReprintServiceList(url, env);
+    if (url.pathname === "/reprint/service" && request.method === "POST")
+      return handleReprintServiceResult(request, env);
 
     // Sähköpostipohjainen häiriötilaus (double opt-in)
     if (url.pathname === "/email/subscribe" && request.method === "POST")

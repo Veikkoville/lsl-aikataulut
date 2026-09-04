@@ -1,0 +1,42 @@
+# Uusintapainatusvahti: kerran vuorokaudessa, ei viiden minuutin cronilla.
+# Vertaa kunnan painamien tulosteiden perustasoa nykydataan ja lähettää ilmoituksen vain
+# kun tila muuttuu. Vertailu ajaa saman sovelluksen headless-Chromella, jotta sormenjälkilogiikkaa
+# ei ole kahta kappaletta (ks. tests/uusintapainatusvahti.js).
+#
+# Punainen ajo = vähintään yksi kaupunki jäi vertailematta. Sitä EI saa hyväksyä hiljaisesti:
+# vajaa vertailu näyttäisi siltä että puuttuva tuloste on ajan tasalla.
+
+name: Uusintapainatusvahti
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 03:20 UTC (06:20 Suomen kesäaikaa). Aamulla ennen virka-aikaa, ja eri minuutilla kuin
+    # muut ajastukset, jotta Digitransit-kiintiö ei kulu kahdessa ajossa yhtä aikaa.
+    - cron: "20 3 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  vahti:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Asenna riippuvuudet
+        run: npm ci
+        working-directory: tests
+
+      - name: Vertaa painetut tulosteet nykydataan
+        run: node uusintapainatusvahti.js
+        working-directory: tests
+        env:
+          REPRINT_SERVICE_TOKEN: ${{ secrets.REPRINT_SERVICE_TOKEN }}
