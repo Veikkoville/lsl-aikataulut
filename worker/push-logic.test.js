@@ -2,8 +2,8 @@
 // oikea salaus + VAPID, mutta push-endpoint ja Digitransit ovat tynkiä.
 // Aja: node push-logic.test.js
 import worker, { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText, htmlToText, buildFeedbackRecord,
-  constantTimeEqual, signSession, verifySession, buildAdminAlert, currentAdminAlerts, buildAdminFares, buildAdminA11y,
-  buildTrackEvent, buildStatsSql, isAnalyticsClient, quotaGate, RATE_MAX } from "./worker.js";
+  constantTimeEqual, signSession, verifySession, verifyAccessJwt, buildAdminAlert, currentAdminAlerts, buildAdminFares,
+  buildAdminA11y, buildTrackEvent, buildStatsSql, isAnalyticsClient, quotaGate, RATE_MAX } from "./worker.js";
 import { readFileSync } from "node:fs";
 
 let fail = 0;
@@ -94,9 +94,10 @@ const env = {
 };
 await env.PUSH_KV.put("sub:test", JSON.stringify(subscription));
 
-// --- Stub fetch: Digitransit-häiriöt + lsl.fi CMS + push-endpoint ---
+// --- Stub fetch: Digitransit-häiriöt + lsl.fi CMS + push-endpoint + Access-JWKS ---
 let currentAlerts = [];
 let currentCmsPosts = [];
+const accessJwksByDomain = new Map(); // teamDomain -> keys[] (Access-JWKS-tynkä, domainkohtainen)
 const pushSends = [];
 globalThis.fetch = async (url, opts) => {
   if (String(url).includes("digitransit.fi/routing")) {
@@ -104,6 +105,10 @@ globalThis.fetch = async (url, opts) => {
   }
   if (String(url).includes("/wp-json/")) {
     return { ok: true, json: async () => currentCmsPosts };
+  }
+  const certsMatch = String(url).match(/^https:\/\/([^.]+)\.cloudflareaccess\.com\/cdn-cgi\/access\/certs$/);
+  if (certsMatch) {
+    return { ok: true, json: async () => ({ keys: accessJwksByDomain.get(certsMatch[1]) || [] }) };
   }
   if (String(url).startsWith("https://push.example")) {
     pushSends.push({ url: String(url), headers: opts.headers });
@@ -272,6 +277,51 @@ check(delRes.status === 200 && del.items.length === 0, "admin: poisto poistaa ti
 // peukaloitu eväste ei kelpaa
 const tampered = await worker.fetch(req("/admin/api/alerts?city=lahti", { headers: { Cookie: "admin_session=rikki.token" } }), adminEnv);
 check(tampered.status === 403, "admin: peukaloitu eväste → 403");
+
+// --- Ylläpito: Cloudflare Access -JWT (Cf-Access-Jwt-Assertion) salasanaistunnon rinnalla ---
+{
+  const b64url = bytesOrStr => {
+    const buf = typeof bytesOrStr === "string" ? Buffer.from(bytesOrStr) : Buffer.from(bytesOrStr);
+    return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  };
+  const rsaKp = await crypto.subtle.generateKey(
+    { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+    true, ["sign", "verify"]);
+  const pubJwk = await crypto.subtle.exportKey("jwk", rsaKp.publicKey);
+  pubJwk.kid = "test-kid-1"; pubJwk.alg = "RS256"; pubJwk.use = "sig";
+  accessJwksByDomain.set("test-team", [pubJwk]);
+
+  const signJwt = async (payload, kid) => {
+    const h = b64url(JSON.stringify({ alg: "RS256", typ: "JWT", kid: kid ?? "test-kid-1" }));
+    const p = b64url(JSON.stringify(payload));
+    const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", rsaKp.privateKey, new TextEncoder().encode(h + "." + p));
+    return `${h}.${p}.${b64url(Buffer.from(sig))}`;
+  };
+  const teamDomain = "test-team";
+  const aud = "test-aud-abc123";
+  const goodJwt = await signJwt({ aud, email: "tiski@lahti.fi", exp: Math.floor(Date.now() / 1000) + 3600 });
+
+  // verifyAccessJwt suoraan: kelvollinen, väärä aud, peukaloitu allekirjoitus, vanhentunut
+  const okPayload = await verifyAccessJwt(goodJwt, aud, teamDomain);
+  check(okPayload && okPayload.email === "tiski@lahti.fi", "verifyAccessJwt: kelvollinen JWT oikealla aud:lla hyväksytään");
+  check((await verifyAccessJwt(goodJwt, "vaara-aud", teamDomain)) === null, "verifyAccessJwt: väärä aud hylätään");
+  check((await verifyAccessJwt(goodJwt.slice(0, -4) + "AAAA", aud, teamDomain)) === null, "verifyAccessJwt: peukaloitu allekirjoitus hylätään");
+  const expiredJwt = await signJwt({ aud, exp: Math.floor(Date.now() / 1000) - 10 });
+  check((await verifyAccessJwt(expiredJwt, aud, teamDomain)) === null, "verifyAccessJwt: vanhentunut JWT hylätään");
+  check((await verifyAccessJwt(goodJwt, aud, "eri-tiimi")) === null, "verifyAccessJwt: tuntematon kid (eri tiimin JWKS) hylätään");
+
+  // isAdmin() reititysten läpi: sama /admin/api/session-päätepiste, JWT eikä evästettä
+  const accessEnv = { ...adminEnv, ADMIN_ACCESS_AUD: aud, ADMIN_ACCESS_TEAM_DOMAIN: teamDomain };
+  const sessViaAccess = await (await worker.fetch(req("/admin/api/session", { headers: { "Cf-Access-Jwt-Assertion": goodJwt } }), accessEnv)).json();
+  check(sessViaAccess.authed === true, "isAdmin: kelvollinen Access-JWT tunnistetaan istunnoksi ilman evästettä");
+  const sessWrongAud = await (await worker.fetch(req("/admin/api/session", { headers: { "Cf-Access-Jwt-Assertion": goodJwt } }), { ...accessEnv, ADMIN_ACCESS_AUD: "vaara-aud" })).json();
+  check(sessWrongAud.authed === false, "isAdmin: Access-JWT väärällä aud:lla ei tunnista istunnoksi");
+  const sessTampered = await (await worker.fetch(req("/admin/api/session", { headers: { "Cf-Access-Jwt-Assertion": goodJwt.slice(0, -4) + "AAAA" } }), accessEnv)).json();
+  check(sessTampered.authed === false, "isAdmin: peukaloitu Access-JWT ei tunnista istunnoksi");
+  // salasanaistunto toimii yhä Accessin ollessa käytössä (rinnakkain, ei korvaa)
+  const sessViaCookie = await (await worker.fetch(req("/admin/api/session", { headers: { Cookie: cookie } }), accessEnv)).json();
+  check(sessViaCookie.authed === true, "isAdmin: salasanaistunto toimii yhä kun ADMIN_ACCESS_AUD on asetettu (rinnakkain)");
+}
 
 // --- Ylläpito: hintojen kokoaminen (buildAdminFares) ---
 check(buildAdminFares(null).error === "bad_request", "fares: ei-objekti hylätään");
