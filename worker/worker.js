@@ -1476,7 +1476,7 @@ async function handleAdminReprintNotify(request, env) {
   await env.PUSH_KV.put(REPRINT_NOTIFY_TOK_KEY(token), city);
   await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify }));
   const base = env.EMAIL_LINK_BASE || "";
-  const vahvista = `${base}/reprint/notify/confirm?token=${encodeURIComponent(token)}`;
+  const vahvista = `${base}/reprint/notify/confirm?city=${encodeURIComponent(city)}&token=${encodeURIComponent(token)}`;
   const res = await sendResendEmail(env, email, "Vahvista uusintapainatusvahdin ilmoitukset",
     reprintMailHtml("Vahvista ilmoitukset",
       `<p>Uusintapainatusvahti lähettää tähän osoitteeseen viestin silloin kun painettu tuloste vanhenee.</p>
@@ -1486,8 +1486,13 @@ async function handleAdminReprintNotify(request, env) {
   return adminJson({ ok: true, notify: { email, confirmed: false }, mail: res && res.status ? res.status : null }, 200);
 }
 
-async function reprintNotifyByToken(env, token) {
-  const city = await env.PUSH_KV.get(REPRINT_NOTIFY_TOK_KEY(token));
+// Kaupunki luetaan ensisijaisesti linkin omasta parametrista ja vasta toissijaisesti
+// tunnisteindeksistä. Syy on mitattu 4.9.2026 tuotannossa: KV on eventually consistent, ja
+// heti osoitteen tallennuksen jälkeen klikattu vahvistuslinkki löysi indeksin tyhjänä ja
+// näytti "Virheellinen linkki", vaikka mikään ei ollut vialla. Linkissä kulkeva kaupunki
+// osuu suoraan siihen tietueeseen jota ollaan vahvistamassa.
+async function reprintNotifyByToken(env, token, cityHint) {
+  const city = reprintCityName(cityHint) || await env.PUSH_KV.get(REPRINT_NOTIFY_TOK_KEY(token));
   if (!city) return null;
   const data = await readReprintData(env, city);
   if (!data || !data.notify || data.notify.token !== token) return null;
@@ -1497,7 +1502,7 @@ async function reprintNotifyByToken(env, token) {
 async function handleReprintNotifyConfirm(url, env) {
   const token = url.searchParams.get("token") || "";
   if (!env.PUSH_KV || !token) return emailHtmlPage("Virheellinen linkki", "Vahvistuslinkki ei kelpaa.");
-  const found = await reprintNotifyByToken(env, token);
+  const found = await reprintNotifyByToken(env, token, url.searchParams.get("city"));
   if (!found) return emailHtmlPage("Virheellinen linkki", "Vahvistuslinkki ei kelpaa tai se on vanhentunut.");
   const { city, data } = found;
   await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: { ...data.notify, confirmed: true } }));
@@ -1508,7 +1513,7 @@ async function handleReprintNotifyConfirm(url, env) {
 async function handleReprintNotifyUnsub(url, env) {
   const token = url.searchParams.get("token") || "";
   if (!env.PUSH_KV || !token) return emailHtmlPage("Virheellinen linkki", "Peruutuslinkki ei kelpaa.");
-  const found = await reprintNotifyByToken(env, token);
+  const found = await reprintNotifyByToken(env, token, url.searchParams.get("city"));
   if (!found) return emailHtmlPage("Ilmoitukset jo peruttu", "Osoitetta ei löytynyt. Et saa enää ilmoituksia.");
   const { city, data } = found;
   await env.PUSH_KV.delete(REPRINT_NOTIFY_TOK_KEY(token));
@@ -1544,7 +1549,7 @@ async function sendReprintAlert(env, city, data, stale) {
   const labels = stale.map(id => (data.units[id] && data.units[id].label) || id).slice(0, 50);
   const base = env.EMAIL_LINK_BASE || "";
   const app = (env.APP_BASE || APP_BASE_DEFAULT) + "/?city=" + encodeURIComponent(city) + "#/tulosteet/uusintapainatus";
-  const unsub = `${base}/reprint/notify/unsubscribe?token=${encodeURIComponent(data.notify.token)}`;
+  const unsub = `${base}/reprint/notify/unsubscribe?city=${encodeURIComponent(city)}&token=${encodeURIComponent(data.notify.token)}`;
   const mail = buildReprintAlertEmail(city, labels, app, unsub);
   const res = await sendResendEmail(env, data.notify.email, mail.subject, mail.html, mail.text);
   return { ok: !!(res && (res.ok || res.skipped)), status: res && res.status };

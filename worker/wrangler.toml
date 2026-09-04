@@ -17,8 +17,10 @@ VAPID_SUBJECT = "mailto:vvsaarinen@gmail.com"
 #                                                Tuotantokaupan yhteydessä vaihdetaan kaupungin domainiin tällä, ei koodiin.)
 # EMAIL_LINK_BASE: workerin julkinen URL confirm/unsubscribe-linkkeihin (cronissa ei ole request-URLia).
 EMAIL_LINK_BASE = "https://lsl-aikataulut-proxy.veikkoville.workers.dev"
-# (APP_BASE = frontendin osoite sähköpostin "katso lähdöt" -linkkiin; koodissa oletusvakio,
-#  ylikirjoitettavissa tarvittaessa env.APP_BASE:lla.)
+# APP_BASE: frontendin osoite sähköpostien linkeissä (häiriötiedote, uusintapainatusvahti).
+# Ilman tätä käytetään koodin oletusvakiota veikkoville.github.io, joka toimii mutta näyttää
+# kunnalle väärältä palvelulta. Todettu 4.9.2026 vastaanotetusta ilmoitusviestistä.
+APP_BASE = "https://demo.reittari.fi"
 
 # Uusintapainatusvahdin huoltoavain (SALAISUUS, wrangler secret put REPRINT_SERVICE_TOKEN).
 # Ajastettu vertailu (.github/workflows/uusintapainatusvahti.yml) lukee sillä seuratut tulosteet ja
