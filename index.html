@@ -3079,6 +3079,10 @@ const STRINGS = {
     heroHlWatchDesc: "Tulevat aikataulumuutokset ja milloin ne astuvat voimaan",
     heroHlReprint: "Uusintapainatus",
     heroHlReprintDesc: "Mitkä painamasi tulosteet ovat vanhentuneet",
+    heroHlReprintStale: "{n} tulostetta on vanhentunut, tarkista lista",
+    heroHlReprintStale1: "1 tuloste on vanhentunut, tarkista lista",
+    heroHlReprintOk: "{n} tulostetta seurannassa, kaikki ajan tasalla",
+    heroHlReprintOk1: "1 tuloste seurannassa, ajan tasalla",
     heroHlWatchNow: "{n} julistetta on vanhentunut, tulosta uudelleen",
     heroHlWatchSoon: "{n} julistetta vanhenee {date}",
     heroHlWatchOk: "Tarkistettu {date}: julisteet ovat ajan tasalla",
@@ -3637,6 +3641,10 @@ const STRINGS = {
     heroHlWatchDesc: "Upcoming timetable changes and when they take effect",
     heroHlReprint: "Reprint list",
     heroHlReprintDesc: "Which of your printed sheets are out of date",
+    heroHlReprintStale: "{n} printed sheets are out of date, check the list",
+    heroHlReprintStale1: "1 printed sheet is out of date, check the list",
+    heroHlReprintOk: "{n} sheets tracked, all up to date",
+    heroHlReprintOk1: "1 sheet tracked, up to date",
     heroHlWatchNow: "{n} posters are out of date, reprint them",
     heroHlWatchSoon: "{n} posters expire on {date}",
     heroHlWatchOk: "Checked {date}: posters are up to date",
@@ -4169,6 +4177,10 @@ const STRINGS = {
     heroHlWatchDesc: "Kommande tidtabellsändringar och när de träder i kraft",
     heroHlReprint: "Omtryck",
     heroHlReprintDesc: "Vilka av dina utskrifter är föråldrade",
+    heroHlReprintStale: "{n} utskrifter är föråldrade, kontrollera listan",
+    heroHlReprintStale1: "1 utskrift är föråldrad, kontrollera listan",
+    heroHlReprintOk: "{n} utskrifter bevakas, alla är aktuella",
+    heroHlReprintOk1: "1 utskrift bevakas, den är aktuell",
     heroHlWatchNow: "{n} affischer är föråldrade, skriv ut dem på nytt",
     heroHlWatchSoon: "{n} affischer föråldras {date}",
     heroHlWatchOk: "Kontrollerat {date}: affischerna är aktuella",
@@ -7516,8 +7528,8 @@ function heroLayerHtml() {
           ${icon("info")}<span class="hl-t">${t("heroHlDesk")}</span><span class="hl-d">${t("heroHlDeskDesc")}</span></a>` : ""}
         <a class="hl" href="#/tulosteet/muutokset" id="hlWatch">
           ${icon("calendar")}<span class="hl-t">${t("heroHlWatch")}</span><span class="hl-d" id="hlWatchDesc">${t("heroHlWatchDesc")}</span></a>
-        <a class="hl" href="#/uusintapainatus">
-          ${icon("print")}<span class="hl-t">${t("heroHlReprint")}</span><span class="hl-d">${t("heroHlReprintDesc")}</span></a>
+        <a class="hl" href="#/uusintapainatus" id="hlReprint">
+          ${icon("print")}<span class="hl-t">${t("heroHlReprint")}</span><span class="hl-d" id="hlReprintDesc">${t("heroHlReprintDesc")}</span></a>
       </div>
       <div class="hero-highlights hero-secondary">
         <button type="button" class="hl" id="hlBilingual">
@@ -7547,6 +7559,65 @@ async function fillWatchHighlight() {
       : c.tulossa ? t("heroHlWatchSoon", { n: c.tulossa, date: c.voimaan ? fmtDateLong(c.voimaan) : "" })
       : t("heroHlWatchOk", { date: d });
   } catch (e) { /* nosto ei ole kriittinen */ }
+}
+
+// Etusivun uusintapainatus-nosto: montako JO PAINETTUA tulostetta on vanhentunut, ilman että
+// käyttäjän pitää avata koko näkymää. Lahdessa 3.9.2026 kaikki seitsemän merkittyä tulostetta
+// olivat vanhentuneet eikä mikään kertonut sitä: tieto oli olemassa vain klikkauksen takana.
+// Muutosvahti ei voi sitä kertoa, koska sen perustaso on eri (feedin muutos, ei painohetki).
+// Perustaso on paikallinen, joten TYHJÄLLÄ perustasolla ei tehdä yhtään kyselyä: uusi kävijä
+// ei maksa tästä mitään ja nosto jää yleistekstiin.
+let reprintHlRun = null;   // { key, p }: käynnissä oleva laskenta, jaetaan uudelleenpiirroille
+
+async function fillReprintHighlight() {
+  if (!document.getElementById("hlReprintDesc")) return;
+  const base = reprintLoad();
+  const ids = Object.keys(base).filter(id => base[id] && base[id].sig);
+  if (!ids.length) return;
+  const mySeq = viewSeq;
+  const date = todayISO();
+  const sig = reprintBaseSig(base);
+  const hl = reprintHlLoad();
+  const known = (hl && hl.day === date && hl.sig === sig && hl.units) ? hl.units : {};
+  const paint = (units) => {
+    const vals = ids.map(id => units[id]).filter(v => typeof v === "boolean");
+    const el = document.getElementById("hlReprintDesc");
+    if (!vals.length || !el || mySeq !== viewSeq) return;
+    const stale = vals.filter(Boolean).length;
+    el.textContent = stale
+      ? t(stale === 1 ? "heroHlReprintStale1" : "heroHlReprintStale", { n: stale })
+      : t(vals.length === 1 ? "heroHlReprintOk1" : "heroHlReprintOk", { n: vals.length });
+  };
+  paint(known);                    // välimuistista heti, ilman yhtään kyselyä
+  const todo = ids.filter(id => typeof known[id] !== "boolean");
+  if (!todo.length) return;
+  // Etusivu voi piirtyä uudelleen kesken laskennan (paluu toisesta näkymästä, kielen vaihto).
+  // Jaettu lupaus estää saman tulosteen hakemisen kahdesti: mitattu 4.9.2026, kaksi piirtoa
+  // teki kaksi kyselyä samasta linjasta. Kiintiö ei ole ilmainen.
+  const key = sig + "|" + date;
+  if (!reprintHlRun || reprintHlRun.key !== key) {
+    reprintHlRun = { key, p: reprintHlCompute(base, todo, date).catch(() => null) };
+  }
+  const units = await reprintHlRun.p;
+  if (units) paint({ ...known, ...units });
+}
+
+// Yksikkökohtainen vertailu nykydataan. Pieni rinnakkaisuus: nosto on taustatyötä eikä saa
+// kilpailla näkymän omien kyselyjen kanssa. Villen tapauksessa 7 yksikköä.
+async function reprintHlCompute(base, todo, date) {
+  const routes = await loadRoutes();
+  const corrs = new Map((CONFIG.corridors || []).map(c => ["corr:" + c.key, c]));
+  const units = {};
+  await mapLimit(todo, 2, async (id) => {
+    try {
+      const snap = corrs.has(id)
+        ? await reprintCorridorSnap(corrs.get(id), date, routes)
+        : await reprintLineSnap(id, date);
+      if (snap) units[id] = reprintDiff(base[id].sig, snap).length > 0;
+    } catch (e) { /* yksittäinen epäonnistunut yksikkö jätetään laskematta */ }
+  });
+  reprintHlMerge(base, date, Object.entries(units));
+  return units;
 }
 
 function viewRoutes() {
@@ -7593,6 +7664,9 @@ function viewRoutes() {
     }
   } catch (e) { /* rikkinäinen merkintä ohitetaan */ }
   fillWatchHighlight();
+  // Uusintapainatus-nosto vasta ensimaalauksen jälkeen: se on ainoa nosto joka voi tehdä
+  // verkkokyselyitä (yksi per seurattu tuloste), eikä etusivu saa odottaa niitä.
+  onIdle(() => fillReprintHighlight());
   initNearby(document.getElementById("nearbyBody"));
   document.getElementById("nearbyBtn2")?.addEventListener("click", () => nearbyLocate
     ? nearbyLocate()
@@ -12806,6 +12880,37 @@ function reprintSave(all) {
   catch (e) { /* kiintiö täynnä: vertailu jatkuu muistissa, vain säilyvyys menetetään */ }
 }
 
+// Etusivun noston välimuisti: yksikkökohtainen vanhentumistila päivän tarkkuudella.
+// sig = perustason tunniste, joten mikä tahansa "merkitse painetuksi" mitätöi vanhentuneen
+// tilan itsestään. Ilman välimuistia jokainen etusivun avaus tekisi yhtä monta kyselyä kuin
+// seurattuja tulosteita on, ja etusivu on se näkymä joka ei saa hidastua.
+function reprintHlKey() { return "reprintHl:" + cityKey; }
+function reprintBaseSig(base) {
+  return reprintHash(Object.keys(base).sort()
+    .map(id => id + "@" + ((base[id] && base[id].printed) || "")).join(";"));
+}
+function reprintHlLoad() {
+  try {
+    const o = JSON.parse(localStorage.getItem(reprintHlKey()) || "null");
+    return (o && typeof o === "object") ? o : null;
+  } catch (e) { return null; }
+}
+// pairs = [[yksikköId, vanhentunut]]. Muiden yksiköiden tila kannetaan mukana kun päivä on
+// sama: yhden tulosteen merkintä ei muuta muiden vertailua, joten niitä ei haeta uudelleen.
+// Siksi merkinnän jälkeen etusivun luku putoaa heti eikä vasta seuraavalla latauksella.
+function reprintHlMerge(base, day, pairs) {
+  if (day !== todayISO()) return;
+  const prev = reprintHlLoad();
+  const units = (prev && prev.day === day && prev.units) ? { ...prev.units } : {};
+  for (const [id, stale] of pairs) if (typeof stale === "boolean") units[id] = stale;
+  const keep = {};
+  for (const id of Object.keys(base)) if (typeof units[id] === "boolean") keep[id] = units[id];
+  try {
+    localStorage.setItem(reprintHlKey(),
+      JSON.stringify({ v: REPRINT_VER, sig: reprintBaseSig(base), day, units: keep }));
+  } catch (e) { /* kiintiö täynnä: nosto laskee uudelleen seuraavalla kerralla */ }
+}
+
 // Vakaa pieni tiiviste (djb2). Sormenjälki ei saa kasvaa lähtömäärän mukana, koska
 // koko kaupungin perustaso elää localStoragessa.
 function reprintHash(str) {
@@ -12991,6 +13096,9 @@ async function viewReprint() {
     all[r.u.id] = { label: r.u.label, printed: new Date().toISOString(), sig: r.snap };
     reprintSave(all);
     base[r.u.id] = all[r.u.id];
+    // Vain tälle päivälle tehty tarkistus kelpaa noston välimuistiin: tulevalle päivälle
+    // merkitty perustaso ei kerro mitään tämän päivän aikataulusta.
+    reprintHlMerge(all, document.getElementById("rpDate")?.value || today, [[r.u.id, false]]);
     b.replaceWith(Object.assign(document.createElement("span"), {
       className: "muted", textContent: t("reprintMarked"),
     }));
@@ -13048,6 +13156,7 @@ async function viewReprint() {
       // "ei muutoksia" vain kun jotain oikeasti vertailtiin; pelkkä perustasoton lista ei ole hyvä uutinen
       (!changed.length && same.length ? `<p class="muted">${t("reprintEmpty")}</p>` : "");
 
+    reprintHlMerge(reprintLoad(), date, ok.filter(r => r.diff).map(r => [r.u.id, r.diff.length > 0]));
     lastResults = ok;
     status.textContent = "";
     document.getElementById("rpOut").scrollIntoView({ behavior: "smooth", block: "start" });

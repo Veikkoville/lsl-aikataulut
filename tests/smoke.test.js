@@ -1674,6 +1674,111 @@ async function printHygiene(page, label) {
     ? ok(`uusintapainatus: muutosvertailu tuottaa syyn (${diffProbe.muutokset.length} riviä, muuttumaton = 0)`)
     : fail("uusintapainatus: muutosvertailu ei toimi: " + JSON.stringify(diffProbe));
 
+  // --- Etusivun uusintapainatus-nosto: montako painettu tuloste on vanhentunut ---
+  // Lahdessa 3.9.2026 seitsemän merkittyä tulostetta oli vanhentunut eikä mikään kertonut
+  // sitä: luku oli olemassa vain sen takana että käyttäjä avaa näkymän. Vartija ajaa kolme
+  // tilaa: merkinnän jälkeen 0 ilman uutta kyselyä, keinotekoisesti vanhennetulla
+  // perustasolla 1, ja tyhjällä perustasolla EI YHTÄÄN kyselyä (uusi kävijä ei maksa tästä).
+  // Kyselyt lasketaan kietomalla sormenjälkifunktiot: hash-navigointi ei lataa dokumenttia
+  // uudelleen, joten kääre säilyy näkymästä toiseen. Assertiot vertaavat sovelluksen omaan
+  // t()-käännökseen, eivät kovakoodattuun tekstiin (kieli voi vuotaa edellisestä lohkosta).
+  await page.evaluate(() => {
+    localStorage.removeItem(reprintKey());
+    localStorage.removeItem(reprintHlKey());
+  });
+  // Etusivun uudelleenpiirto hash-navigoinnilla + kesto siihen asti kun linjalista on valmis.
+  const rpGoHome = () => page.evaluate(() => new Promise(resolve => {
+    window.__rpSnapCalls = 0;
+    location.hash = "#/tulosteet";
+    setTimeout(() => {
+      const t0 = performance.now();
+      location.hash = "#/";
+      const tick = () => {
+        const list = document.getElementById("routeList");
+        if (list && list.querySelector("a")) return resolve(Math.round(performance.now() - t0));
+        if (performance.now() - t0 > 25000) return resolve(-1);
+        setTimeout(tick, 50);
+      };
+      tick();
+    }, 400);
+  }));
+  const rpKaannos = key => page.evaluate(k => t(k, { n: 1 }), key);
+  const rpOdotaTeksti = (want, timeout = 90000) => page.waitForFunction(
+    w => (document.getElementById("hlReprintDesc")?.textContent || "") === w,
+    { timeout }, want).then(() => true).catch(() => false);
+
+  // (c) Oikea polku: valitse yksi linja, aja tarkistus, merkitse painetuksi.
+  await page.goto(BASE + "/#/uusintapainatus", { waitUntil: "networkidle2" });
+  await page.waitForSelector("#rpOthers .rpCb", { timeout: 30000 }).catch(() => {});
+  await page.evaluate(() => {
+    window.__rpSnapCalls = 0;
+    // Kääre asennetaan tasan kerran: page.goto samaan hash-URLiin EI lataa dokumenttia
+    // uudelleen, joten kaksi asennusta laskisi saman kyselyn kahdesti (mitattu 4.9.2026).
+    if (!window.__rpWrapped) {
+      window.__rpWrapped = true;
+      const line = window.reprintLineSnap, corr = window.reprintCorridorSnap;
+      window.reprintLineSnap = (...a) => { window.__rpSnapCalls++; return line(...a); };
+      window.reprintCorridorSnap = (...a) => { window.__rpSnapCalls++; return corr(...a); };
+    }
+    document.querySelectorAll(".rpCb").forEach(c => { c.checked = false; });
+    const cb = document.querySelector('#rpOthers input.rpCb:not([value^="corr:"])');
+    if (cb) { cb.checked = true; document.getElementById("rpGo").click(); }
+  });
+  const rpMerkitty = await page.waitForFunction(
+    () => document.querySelector("#rpOut .rpMark") ? true : null, { timeout: 120000 })
+    .then(() => page.evaluate(() => {
+      document.querySelector("#rpOut .rpMark").click();
+      return Object.keys(reprintLoad()).length;
+    })).catch(() => -1);
+  const tMerkinnan = await rpGoHome();
+  const rpOkTeksti = await rpOdotaTeksti(await rpKaannos("heroHlReprintOk1"), 20000);
+  const rpKyselytMerkinnan = await page.evaluate(() => window.__rpSnapCalls);
+  (rpMerkitty === 1 && rpOkTeksti && rpKyselytMerkinnan === 0)
+    ? ok("etusivun uusintapainatus-nosto: merkinnän jälkeen 0 vanhentunutta, ei uutta kyselyä")
+    : fail(`etusivun uusintapainatus-nosto: merkintä ei nollannut lukua (perustasoja ${rpMerkitty}, ` +
+           `teksti ${rpOkTeksti}, kyselyitä ${rpKyselytMerkinnan})`);
+
+  // (b) Keinotekoisesti vanhennettu perustaso: nosto näyttää luvun ja tekee tasan 1 kyselyn.
+  const rpVanhennettu = await page.evaluate(() => {
+    const all = reprintLoad();
+    const id = Object.keys(all)[0];
+    if (!id || !all[id].sig) return false;
+    all[id].sig = { v: 1, kind: all[id].sig.kind, label: all[id].sig.label, dirs: [{
+      label: "Vanha päätepysäkki",
+      groups: [{ label: "Ma-To", n: 1, first: "00:00", last: "00:01", h: "vanha" }] }] };
+    localStorage.setItem(reprintKey(), JSON.stringify(all));
+    localStorage.removeItem(reprintHlKey());
+    return true;
+  });
+  const tVanhentuneen = await rpGoHome();
+  const rpStaleTeksti = await rpOdotaTeksti(await rpKaannos("heroHlReprintStale1"));
+  const rpKyselytVanha = await page.evaluate(() => window.__rpSnapCalls);
+  (rpVanhennettu && rpStaleTeksti && rpKyselytVanha === 1)
+    ? ok("etusivun uusintapainatus-nosto: vanhentunut perustaso näkyy lukuna (1 kysely)")
+    : fail(`etusivun uusintapainatus-nosto: vanhentunut perustaso ei näy (perustaso ${rpVanhennettu}, ` +
+           `teksti ${rpStaleTeksti}, kyselyitä ${rpKyselytVanha})`);
+
+  // (a) Tyhjä perustaso: ei yhtään kyselyä, kuvaus jää yleistekstiin.
+  await page.evaluate(() => {
+    localStorage.removeItem(reprintKey());
+    localStorage.removeItem(reprintHlKey());
+  });
+  const tTyhjan = await rpGoHome();
+  await sleep(2000);
+  const rpTyhja = await page.evaluate(() => ({
+    teksti: document.getElementById("hlReprintDesc")?.textContent || "",
+    yleis: t("heroHlReprintDesc"),
+    kyselyt: window.__rpSnapCalls,
+  }));
+  (rpTyhja.teksti === rpTyhja.yleis && rpTyhja.kyselyt === 0)
+    ? ok("etusivun uusintapainatus-nosto: tyhjä perustaso ei tee yhtään kyselyä")
+    : fail("etusivun uusintapainatus-nosto: tyhjä perustaso: " + JSON.stringify(rpTyhja));
+
+  // Etusivun latausaika ei saa kasvaa: nosto on taustatyötä eikä saa estää ensimmäistä maalausta.
+  (tTyhjan > 0 && tVanhentuneen > 0 && tVanhentuneen <= tTyhjan + 1500)
+    ? ok(`etusivun uusintapainatus-nosto: etusivu ei hidastu (tyhjä ${tTyhjan} ms, seuranta ${tVanhentuneen} ms, merkitty ${tMerkinnan} ms)`)
+    : fail(`etusivun uusintapainatus-nosto: etusivun piirto hidastui (tyhjä ${tTyhjan} ms, seuranta ${tVanhentuneen} ms)`);
+
   // --- Oma reittihaku layer-kaupungeissa (Raasepori, 29.8.2026) ---
   // Raasepori ja Turku ohjasivat aiemmin kaupungin omaan reittioppaaseen
   // (CONFIG.externalPlanner). Ulos ohjaaminen sai palvelun näyttämään ohuemmalta kuin se on,
