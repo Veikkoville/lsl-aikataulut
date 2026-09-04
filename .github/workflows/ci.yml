@@ -21,16 +21,12 @@ jobs:
         with:
           node-version: 22
 
-      - name: Web Push -salaus (RFC 8291 -vektorit)
-        run: node webpush.test.js
-        working-directory: worker
-
-      - name: Cron-push-putki (mock-KV)
-        run: node push-logic.test.js
-        working-directory: worker
-
-      - name: Sähköpostitilaus-putki (mock-KV + stub-Resend)
-        run: node email-logic.test.js
+      # KAIKKI worker-testit yhdellä askeleella (worker/package.json:n npm test).
+      # Aiemmin tässä lueteltiin kolme tiedostoa nimeltä, jolloin uusi testitiedosto ei ajautunut
+      # CI:ssä lainkaan vaikka se oli lisätty npm test -ketjuun (todettu 4.9.2026: cms-dates,
+      # router ja reprint-logic olivat kaikki CI:n ulkopuolella). Yksi askel = ei voi unohtua.
+      - name: Worker-yksikkötestit (webpush, push, sähköposti, cms-dates, router, uusintapainatus)
+        run: npm test
         working-directory: worker
 
   smoke:
