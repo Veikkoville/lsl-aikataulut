@@ -220,8 +220,9 @@ async function handleFeedbackList(url, env, origin) {
 /* ---------- Ylläpito: kirjautuminen + häiriötiedotteiden hallinta (KV) ----------
    Kaupungin henkilöstö julkaisee häiriötiedotteita selaimessa ilman WordPressiä.
    Tarjoillaan workerista (sama origin → istuntoeväste ilman CORS-säätöä).
-   Tuotantoon suositus: Cloudflare Access /admin* eteen (env.ADMIN_ACCESS_AUD-koukku
-   jätetty isAdminiin); nyt kevyt jaettu salasana + HMAC-allekirjoitettu eväste. */
+   Tuotantoon suositus: Cloudflare Access /admin* eteen. Kun env.ADMIN_ACCESS_AUD ja
+   env.ADMIN_ACCESS_TEAM_DOMAIN on asetettu, isAdmin hyväksyy myös Accessin allekirjoittaman
+   Cf-Access-Jwt-Assertion-otsakkeen salasanaistunnon rinnalla (kumpi tahansa kelpaa). */
 
 function parseCookies(request) {
   const out = {};
@@ -285,9 +286,61 @@ export async function verifySession(token, secret, nowMs) {
   } catch (e) { return null; }
 }
 
+// Cloudflare Access julkaisee varmennusavaimensa (JWKS) tiimin certs-päätepisteestä.
+// Isolaattikohtainen välimuisti kuten loginMap: nämä ovat julkisia allekirjoitusavaimia,
+// ei salaisuutta, joten KV-varastointi olisi vain ylimääräinen kutsu.
+const accessCertsCache = new Map(); // teamDomain -> { keys, fetchedAt }
+const ACCESS_CERTS_TTL_MS = 60 * 60 * 1000; // 1 h
+
+async function getAccessCerts(teamDomain) {
+  const cached = accessCertsCache.get(teamDomain);
+  if (cached && Date.now() - cached.fetchedAt < ACCESS_CERTS_TTL_MS) return cached.keys;
+  let keys = [];
+  try {
+    const res = await fetch(`https://${teamDomain}.cloudflareaccess.com/cdn-cgi/access/certs`);
+    if (res.ok) {
+      const data = await res.json();
+      keys = Array.isArray(data && data.keys) ? data.keys : [];
+    }
+  } catch (e) { /* verkkovirhe: käytä vanhaa välimuistia jos on, muuten tyhjä → hylkää */ }
+  if (keys.length) accessCertsCache.set(teamDomain, { keys, fetchedAt: Date.now() });
+  return keys.length ? keys : (cached ? cached.keys : []);
+}
+
+// Varmentaa Cloudflare Accessin RS256-allekirjoittaman JWT:n (Cf-Access-Jwt-Assertion):
+// allekirjoitus tiimin JWKS:ää vasten, sitten aud ja vanheneminen. Palauttaa payloadin
+// tai null jos mikä tahansa vaihe epäonnistuu.
+export async function verifyAccessJwt(token, aud, teamDomain, nowMs) {
+  if (!token || !aud || !teamDomain) return null;
+  const parts = String(token).split(".");
+  if (parts.length !== 3) return null;
+  const [h, p, s] = parts;
+  let header, payload;
+  try {
+    header = JSON.parse(new TextDecoder().decode(b64urlToBytes(h)));
+    payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(p)));
+  } catch (e) { return null; }
+  if (header.alg !== "RS256" || !header.kid) return null;
+  const jwk = (await getAccessCerts(teamDomain)).find(k => k.kid === header.kid);
+  if (!jwk) return null;
+  let key, ok;
+  try {
+    key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+    ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, b64urlToBytes(s), new TextEncoder().encode(h + "." + p));
+  } catch (e) { return null; }
+  if (!ok) return null;
+  const now = (nowMs ?? Date.now()) / 1000;
+  if (typeof payload.exp === "number" && payload.exp < now) return null;
+  const auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+  if (!auds.includes(aud)) return null;
+  return payload;
+}
+
 async function isAdmin(request, env) {
-  // TODO tuotanto: jos env.ADMIN_ACCESS_AUD asetettu, varmenna Cloudflare Access
-  // -JWT (Cf-Access-Jwt-Assertion) salasanaistunnon sijaan.
+  if (env.ADMIN_ACCESS_AUD && env.ADMIN_ACCESS_TEAM_DOMAIN) {
+    const jwt = request.headers.get("Cf-Access-Jwt-Assertion");
+    if (jwt && (await verifyAccessJwt(jwt, env.ADMIN_ACCESS_AUD, env.ADMIN_ACCESS_TEAM_DOMAIN))) return true;
+  }
   if (!env.ADMIN_SESSION_SECRET) return false;
   return !!(await verifySession(parseCookies(request)["admin_session"], env.ADMIN_SESSION_SECRET));
 }
