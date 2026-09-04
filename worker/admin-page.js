@@ -188,6 +188,14 @@ export const ADMIN_HTML = `<!doctype html>
     </div>
 
     <div class="card">
+      <h2>Uusintapainatusvahti</h2>
+      <p class="muted">Kaupungin oma avain, jolla sovellus tallentaa palvelimelle tiedon siitä mistä datasta tulosteet on painettu. Ilman avainta seuranta elää vain yhdessä selaimessa. Avain näytetään vain kerran: kopioi se talteen. Tallennettava tieto on tuloste ja sen sormenjälki, ei henkilötietoa.</p>
+      <div id="rpKeyBox"><p class="muted">Ladataan…</p></div>
+      <p><button type="button" id="rpKeyBtn">Luo uusi avain</button></p>
+      <div class="msg" id="rpKeyMsg"></div>
+    </div>
+
+    <div class="card">
       <h2>Käyttöanalytiikka</h2>
       <p class="muted">Anonyymi ja evästeetön: mitä kuntalaiset etsivät ja katsovat viimeisen 30 vrk aikana. Erityisen arvokasta: epäonnistuneet haut (yhteyksiä joita ei löydy).</p>
       <div id="statsBox"><p class="muted">Ladataan…</p></div>
@@ -244,6 +252,7 @@ function enterAdmin(){
   loadList();
   loadFares();
   loadA11y();
+  loadReprintKey();
   loadStats();
 }
 
@@ -412,6 +421,25 @@ $("a11yForm").addEventListener("submit", async e => {
   if (r.ok){ msg($("a11yMsg"),"Seloste julkaistu.",true); setTimeout(()=>msg($("a11yMsg"),"",true),2500); }
   else if (r.status===403){ msg($("a11yMsg"),"Istunto vanheni. Kirjaudu uudelleen.",false); }
   else msg($("a11yMsg"),"Tallennus epäonnistui.",false);
+});
+
+/* ---------- Uusintapainatusvahti: kaupungin avain ---------- */
+async function loadReprintKey(){
+  const r = await api("/admin/api/reprint/key?city="+CITY, { method:"GET" });
+  const box = $("rpKeyBox");
+  if (!r.ok || !r.data || r.data.error){ box.innerHTML="<p class='muted'>Avaintietoa ei saatu.</p>"; return; }
+  const d = r.data;
+  box.innerHTML = d.exists
+    ? "<p>Avain on myönnetty "+esc(String(d.created||"").slice(0,10))+". Palvelimella on <strong>"+esc(String(d.units))+"</strong> seurattua tulostetta"+(d.updated?" (päivitetty "+esc(String(d.updated).slice(0,10))+")":"")+".</p>"
+    : "<p class='muted'>Avainta ei ole vielä myönnetty. Seuranta elää toistaiseksi vain kaupungin omassa selaimessa.</p>";
+}
+$("rpKeyBtn").addEventListener("click", async () => {
+  // Uusi avain ei pyyhi perustasoa, mutta vanha avain lakkaa toimimasta.
+  if (!confirm("Luodaanko uusi avain? Vanha avain lakkaa toimimasta ja se on syötettävä sovellukseen uudelleen.")) return;
+  const r = await api("/admin/api/reprint/key", { method:"POST", body: JSON.stringify({ city: CITY }) });
+  if (!r.ok || !r.data || !r.data.key){ msg($("rpKeyMsg"), "Avaimen luonti epäonnistui.", false); return; }
+  $("rpKeyBox").innerHTML = "<p><strong>Uusi avain (näytetään vain nyt):</strong></p><p><code style='word-break:break-all;font-size:1.1em'>"+esc(r.data.key)+"</code></p><p class='muted'>Syötä tämä sovelluksen Uusintapainatus-näkymään.</p>";
+  msg($("rpKeyMsg"), "Avain luotu.", true);
 });
 
 /* ---------- Käyttöanalytiikka ---------- */

@@ -734,6 +734,11 @@
   details.infosum summary { cursor: pointer; padding: 0.1rem 0; color: var(--muted); }
   details.infosum summary strong { font-weight: var(--wmed); }
   details.infosum[open] summary { margin-bottom: 0.3rem; }
+  /* Palvelinvahdin avainkentta: oletus kiinni, koska se on kertaluonteinen käyttöönotto
+     eikä se saa viedä tilaa siitä mitä näkymässä tehdään joka kerta. */
+  details.rp-srv { border-top: 1px solid var(--border); margin-top: 0.8rem; padding-top: 0.6rem; }
+  details.rp-srv summary { cursor: pointer; padding: 0.1rem 0; color: var(--muted); }
+  details.rp-srv[open] summary { margin-bottom: 0.3rem; }
   .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
   /* REILA F3: segmentoidut valitsimet (päivätyyppi/kieli/teema/tekstikoko/kontrasti/
      tulostevälilehdet). Inaktiivi = neutraali kenttäpohja + reuna, aktiivi = accent-täyttö.
@@ -3502,6 +3507,14 @@ const STRINGS = {
     reprintTracked: "Seurannassa",
     reprintAddMore: "Lisää seurantaan",
     reprintNoBaseline: "Mitään tulostetta ei ole vielä merkitty painetuksi. Valitse alta ne jotka olet painanut, aja tarkistus ja merkitse ne painetuiksi: se on vertailukohta jota vasten muutokset näkyvät.",
+    reprintSrvTitle: "Palvelinvahti: kaupungin oma avain",
+    reprintSrvIntro: "Ilman avainta seuranta elää vain tässä selaimessa: toisella koneella lista on tyhjä eikä mikään voi ilmoittaa vanhentuneista tulosteista. Avaimella painomerkinnät tallentuvat palvelimelle. Avaimen saa ylläpidosta. Palvelimelle tallentuu tuloste ja sen sormenjälki, ei henkilötietoa.",
+    reprintSrvKeyLabel: "Kaupungin avain",
+    reprintSrvSave: "Tallenna avain",
+    reprintSrvOff: "Ei käytössä: seuranta elää vain tässä selaimessa.",
+    reprintSrvOn: "Käytössä: {n} tulostetta synkronoitu palvelimelle.",
+    reprintSrvBadKey: "Avain ei kelpaa. Tarkista se ylläpidosta.",
+    reprintSrvFail: "Palvelinyhteys ei onnistunut. Seuranta jatkuu tässä selaimessa.",
     reprintNonePicked: "Valitse vähintään yksi tuloste.",
     reprintChanged: "Painettava uudelleen",
     reprintSame: "Ennallaan",
@@ -4040,6 +4053,14 @@ const STRINGS = {
     reprintTracked: "Tracked",
     reprintAddMore: "Add to tracking",
     reprintNoBaseline: "No sheet has been marked as printed yet. Pick the ones you have printed, run a check and mark them printed: that is the baseline changes are measured against.",
+    reprintSrvTitle: "Server watch: the city key",
+    reprintSrvIntro: "Without a key the baseline lives only in this browser: on another computer the list is empty and nothing can notify you about out-of-date sheets. With a key the print marks are stored on the server. Ask your administrator for the key. The server stores the sheet and its fingerprint, no personal data.",
+    reprintSrvKeyLabel: "City key",
+    reprintSrvSave: "Save key",
+    reprintSrvOff: "Not in use: the baseline lives only in this browser.",
+    reprintSrvOn: "In use: {n} sheets synced to the server.",
+    reprintSrvBadKey: "The key was rejected. Check it with your administrator.",
+    reprintSrvFail: "The server could not be reached. Tracking continues in this browser.",
     reprintNonePicked: "Select at least one sheet.",
     reprintChanged: "Needs reprinting",
     reprintSame: "Unchanged",
@@ -4578,6 +4599,14 @@ const STRINGS = {
     reprintTracked: "Bevakade",
     reprintAddMore: "Lägg till bevakning",
     reprintNoBaseline: "Ingen utskrift har ännu markerats som tryckt. Välj de du har tryckt, kör en kontroll och markera dem som tryckta: det är utgångsläget som ändringarna mäts mot.",
+    reprintSrvTitle: "Servervakt: stadens egen nyckel",
+    reprintSrvIntro: "Utan nyckel finns utgångsläget bara i den här webbläsaren: på en annan dator är listan tom och ingenting kan meddela om föråldrade utskrifter. Med nyckel sparas tryckmärkningarna på servern. Nyckeln fås av administratören. På servern sparas utskriften och dess fingeravtryck, inga personuppgifter.",
+    reprintSrvKeyLabel: "Stadens nyckel",
+    reprintSrvSave: "Spara nyckeln",
+    reprintSrvOff: "Inte i bruk: utgångsläget finns bara i den här webbläsaren.",
+    reprintSrvOn: "I bruk: {n} utskrifter synkade till servern.",
+    reprintSrvBadKey: "Nyckeln godkändes inte. Kontrollera den hos administratören.",
+    reprintSrvFail: "Servern kunde inte nås. Bevakningen fortsätter i den här webbläsaren.",
     reprintNonePicked: "Välj minst en utskrift.",
     reprintChanged: "Måste tryckas om",
     reprintSame: "Oförändrade",
@@ -13024,11 +13053,115 @@ function reprintDiff(base, now) {
   return out;
 }
 
+/* ---------- Palvelinvahti: perustaso myös palvelimelle (4.9.2026) ----------
+   Perustaso elää oletuksena vain tässä selaimessa. Se riittää yhdelle koneelle, mutta siitä
+   seuraa kolme asiaa: mikään ajastettu työ ei voi ilmoittaa vanhentuneista tulosteista, toisella
+   koneella lista on tyhjä, ja selaimen datan tyhjennys hävittää seurannan. Kaupunki saa
+   ylläpitosivulta oman avaimen, ja sillä perustaso synkronoituu palvelimelle.
+   Avain on kaupungin, ei henkilön: palvelimelle ei tallenneta henkilötietoa. */
+
+// Aikakatkaisu: näkymä ei saa jäädä odottamaan hidasta tai kaatunutta palvelinta.
+// Seuranta jatkuu paikallisesti, joten katkennut yhteys on haitta eikä este.
+const REPRINT_SRV_TIMEOUT = 8000;
+function reprintSrvKeyName() { return ns("reprintSrvKey"); }
+function reprintSrvKey() {
+  try { return localStorage.getItem(reprintSrvKeyName()) || ""; } catch (e) { return ""; }
+}
+function reprintSrvSetKey(k) {
+  try {
+    if (k) localStorage.setItem(reprintSrvKeyName(), k);
+    else localStorage.removeItem(reprintSrvKeyName());
+  } catch (e) { /* yksityinen ikkuna: avain jää istunnon mittaiseksi */ }
+}
+
+// Sama yhdistämissääntö kuin palvelimella (mergeReprintUnits): uudempi painomerkintä voittaa
+// ja molempien puolten yksiköt säilyvät. Tämä on se sääntö joka estää toista konetta
+// pyyhkimästä ensimmäisen merkintöjä.
+function reprintMergeUnits(a, b) {
+  const out = { ...(a || {}) };
+  for (const [id, u] of Object.entries(b || {}))
+    if (!out[id] || String(u.printed || "") > String(out[id].printed || "")) out[id] = u;
+  return out;
+}
+
+// Perustaso palvelimelle. Kutsutaan aina kun paikallinen perustaso muuttuu; ilman avainta
+// ei tehdä mitään eikä yhtään pyyntöä.
+async function reprintSrvPush(units) {
+  const key = reprintSrvKey();
+  if (!key || !PROXY_URL || !units || !Object.keys(units).length) return null;
+  try {
+    const r = await fetch(PROXY_URL.replace(/\/+$/, "") + "/reprint/baseline", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ city: cityKey, key, units }),
+      signal: AbortSignal.timeout(REPRINT_SRV_TIMEOUT),
+    });
+    if (!r.ok) return { error: r.status === 403 ? "bad_key" : "http_" + r.status };
+    return await r.json();
+  } catch (e) { return { error: "network" }; }
+}
+
+// Synkronointi: lue palvelimen perustaso, yhdistä paikalliseen, tallenna molemmille puolille.
+// Ensimmäisellä kerralla tämä työntää olemassa olevat paikalliset merkinnät palvelimelle,
+// eikä yhtään merkintää saa hukkua kumpaankaan suuntaan.
+async function reprintSrvSync() {
+  const key = reprintSrvKey();
+  if (!key || !PROXY_URL) return null;
+  const local = reprintLoad();
+  let remote = null;
+  try {
+    const r = await fetch(PROXY_URL.replace(/\/+$/, "") + "/reprint/status?city=" +
+      encodeURIComponent(cityKey) + "&key=" + encodeURIComponent(key),
+      { cache: "no-store", signal: AbortSignal.timeout(REPRINT_SRV_TIMEOUT) });
+    if (r.status === 403) return { error: "bad_key" };
+    if (!r.ok) return { error: "http_" + r.status };
+    remote = await r.json();
+  } catch (e) { return { error: "network" }; }
+  const merged = reprintMergeUnits(remote.units, local);
+  reprintSave(merged);
+  // Vie palvelimelle vain jos paikallisesta löytyi jotain uutta: turha kirjoitus on turha kirjoitus.
+  const uusia = Object.keys(merged).some(id => {
+    const a = (remote.units || {})[id], b = merged[id];
+    return !a || String(b.printed || "") > String(a.printed || "");
+  });
+  if (uusia) {
+    const res = await reprintSrvPush(merged);
+    if (res && res.error) return { error: res.error, units: merged };
+  }
+  return { ok: true, units: merged, updated: remote.updated || null, count: Object.keys(merged).length };
+}
+
+// Palvelinvahdin ohjaus uusintapainatusnäkymässä. Näytetään vain jos proxy on käytössä:
+// ilman sitä ei ole palvelinta johon tallentaa.
+function reprintSrvPanelHtml(state) {
+  if (!PROXY_URL) return "";
+  const key = reprintSrvKey();
+  const tila = !key ? t("reprintSrvOff")
+    : state && state.error === "bad_key" ? t("reprintSrvBadKey")
+    : state && state.error ? t("reprintSrvFail")
+    : state && state.ok ? t("reprintSrvOn", { n: state.count, date: state.updated ? fmtDateLong(String(state.updated).slice(0, 10)) : "" })
+    : t("reprintSrvOff");
+  return `<details class="rp-srv">
+      <summary>${t("reprintSrvTitle")}</summary>
+      <p class="muted">${t("reprintSrvIntro")}</p>
+      <p class="muted" id="rpSrvState" role="status">${esc(tila)}</p>
+      <div class="field">
+        <label for="rpSrvKey">${t("reprintSrvKeyLabel")}</label>
+        <input type="text" id="rpSrvKey" value="${esc(key)}" autocomplete="off" spellcheck="false">
+      </div>
+      <p><button type="button" id="rpSrvSave">${t("reprintSrvSave")}</button></p>
+    </details>`;
+}
+
 async function viewReprint() {
   if (!PROXY_URL && !apiKey) { location.hash = "#/asetukset"; return; }
   setView(`<p class="muted">${t("loadingRoutes")}</p>`);
   const routes = await loadRoutes();
   const today = todayISO();
+  // Palvelinvahti ensin: yhdistetään palvelimen perustaso paikalliseen ennen kuin näkymä
+  // piirretään, jotta toisella koneella tehdyt merkinnät näkyvät heti. Ilman avainta ei
+  // tehdä yhtään pyyntöä.
+  const srvState = await reprintSrvSync();
   const base = reprintLoad();
 
   // Seurattava yksikkö = painettava arkki: linjatuloste tai käytävätuloste.
@@ -13059,6 +13192,7 @@ async function viewReprint() {
       </div>
       <p class="buildbar"><button type="button" id="rpGo">${t("reprintCheck")}</button>
         <span id="rpStatus" class="muted" role="status"></span></p>
+      ${reprintSrvPanelHtml(srvState)}
       ${trackedUnits.length ? `
         <h3>${t("reprintTracked")}</h3>
         <ul class="plain" id="rpTracked">${trackedUnits.map(unitRow).join("")}</ul>` :
@@ -13070,6 +13204,11 @@ async function viewReprint() {
       <ul class="plain" id="rpOthers">${otherUnits.map(unitRow).join("")}</ul>
     </div>
     <div id="rpOut"></div>`);
+
+  document.getElementById("rpSrvSave")?.addEventListener("click", async () => {
+    reprintSrvSetKey(document.getElementById("rpSrvKey").value.trim());
+    viewReprint();   // sama näkymä uudelleen: synkronointi ajetaan heti uudella avaimella
+  });
 
   document.getElementById("rpFilter").addEventListener("input", e => {
     const f = e.target.value.toLowerCase();
@@ -13099,6 +13238,9 @@ async function viewReprint() {
     // Vain tälle päivälle tehty tarkistus kelpaa noston välimuistiin: tulevalle päivälle
     // merkitty perustaso ei kerro mitään tämän päivän aikataulusta.
     reprintHlMerge(all, document.getElementById("rpDate")?.value || today, [[r.u.id, false]]);
+    // Palvelimelle vain tämä yksi merkintä: yhdistäminen tehdään palvelinpäässä, joten
+    // koko perustasoa ei tarvitse lähettää joka merkinnällä.
+    reprintSrvPush({ [r.u.id]: all[r.u.id] });
     b.replaceWith(Object.assign(document.createElement("span"), {
       className: "muted", textContent: t("reprintMarked"),
     }));

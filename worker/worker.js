@@ -1195,6 +1195,179 @@ async function handleEmailUnsubscribe(url, env) {
   return emailHtmlPage("Tilaus peruttu", "Et saa enää häiriötiedotteita sähköpostiisi. Kiitos!");
 }
 
+/* ---------- Uusintapainatusvahti: perustaso palvelimelle (4.9.2026) ----------
+   Perustaso eli tieto siitä mistä datasta kunta on painanut, eli mitä paperia katoksissa
+   oikeasti roikkuu. Se eli aiemmin YHDEN selaimen localStoragessa, mistä seurasi kolme asiaa:
+   mikään palvelin ei tiennyt mitä on painettu (joten mikään ajastettu työ ei voinut ilmoittaa),
+   toisella koneella lista oli tyhjä, ja selaimen datan tyhjennys hävitti seurannan.
+   Villen päätös 3.9.2026: palvelimelle SAA tallentaa tiedon siitä mitä kunta on painanut.
+
+   Tunniste (Villen päätös 4.9.2026): ERILLINEN KAUPUNKIKOHTAINEN AVAIN. Ei sidota push- eikä
+   sähköpostitilaukseen. Avain myönnetään kaupungille kerran ylläpitosivulta, ja kaupunki syöttää
+   sen sovellukseen. Avaimesta tallennetaan vain SHA-256-tiiviste, joten KV:stä ei voi lukea
+   toimivaa avainta.
+
+   Tallennettava data: kaupunki, tulosteen tunnus (linja tai käytävä), sormenjälki, painopäivä.
+   EI HENKILÖTIETOA: ei sähköpostia, ei nimeä, ei IP:tä, ei selaintunnistetta.
+
+   KV-kuri: yksi blob per kaupunki (rp:<city>), ei list-operaatioita. Sama oppi kuin
+   rem:pending: KV:n ilmaiskiintiö on 1000 list-operaatiota/vrk. */
+
+const REPRINT_KEY_KEY = city => "rpkey:" + String(city || "").toLowerCase().slice(0, 30);
+const REPRINT_DATA_KEY = city => "rp:" + String(city || "").toLowerCase().slice(0, 30);
+// Kaupunkiluettelo yhtenä blobina, jotta ajastettu vertailu löytää seuratut kaupungit
+// ilman KV.list-kutsua.
+const REPRINT_CITIES_KEY = "rp:cities";
+
+export const REPRINT_MAX_UNITS = 400;      // painettavia arkkeja per kaupunki
+export const REPRINT_MAX_BYTES = 512000;   // koko kaupungin perustaso JSONina
+
+export function reprintCityName(city) {
+  return String(city || "").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 30);
+}
+
+// Yhden yksikön siivous. Sormenjälki tallennetaan sellaisenaan (se on sovelluksen tuottama
+// rakenne), mutta koko ja kentät rajataan: palvelin ei ole vapaa avainarvovarasto.
+function cleanReprintUnit(u) {
+  if (!u || typeof u !== "object" || !u.sig || typeof u.sig !== "object") return null;
+  const printed = String(u.printed || "").slice(0, 40);
+  if (!printed) return null;
+  return { label: String(u.label || "").slice(0, 120), printed, sig: u.sig };
+}
+
+// Validoi ja siistii POST /reprint/baseline -rungon. Puhdas funktio, testattava ilman KV:tä.
+export function buildReprintBaseline(body) {
+  const city = reprintCityName(body && body.city);
+  if (!city) return { error: "bad_city" };
+  const units = body && body.units;
+  if (!units || typeof units !== "object" || Array.isArray(units)) return { error: "bad_units" };
+  const ids = Object.keys(units);
+  if (ids.length > REPRINT_MAX_UNITS) return { error: "too_many_units" };
+  const out = {};
+  for (const id of ids) {
+    const u = cleanReprintUnit(units[id]);
+    if (u) out[String(id).slice(0, 120)] = u;
+  }
+  if (!Object.keys(out).length) return { error: "bad_units" };
+  if (JSON.stringify(out).length > REPRINT_MAX_BYTES) return { error: "too_large" };
+  return { city, units: out };
+}
+
+// Kahden perustason yhdistäminen: sama yksikkö voi olla merkitty eri koneilla, ja UUDEMPI
+// painomerkintä voittaa. Tämä on se sääntö joka estää toista selainta pyyhkimästä ensimmäisen
+// merkintöjä: siirtymässä paikallinen perustaso työnnetään palvelimelle eikä kumpaakaan
+// puolta heitetä pois.
+export function mergeReprintUnits(a, b) {
+  const out = { ...(a || {}) };
+  for (const [id, u] of Object.entries(b || {})) {
+    const prev = out[id];
+    if (!prev || String(u.printed || "") > String(prev.printed || "")) out[id] = u;
+  }
+  return out;
+}
+
+async function readReprintData(env, city) {
+  const raw = await env.PUSH_KV.get(REPRINT_DATA_KEY(city));
+  if (!raw) return null;
+  try { const o = JSON.parse(raw); return (o && typeof o === "object") ? o : null; }
+  catch (e) { return null; }
+}
+
+async function readReprintCities(env) {
+  const raw = await env.PUSH_KV.get(REPRINT_CITIES_KEY);
+  if (!raw) return [];
+  try { const a = JSON.parse(raw); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+}
+
+async function addReprintCity(env, city) {
+  const list = await readReprintCities(env);
+  if (list.includes(city)) return;
+  list.push(city);
+  await env.PUSH_KV.put(REPRINT_CITIES_KEY, JSON.stringify(list.slice(0, 200)));
+}
+
+// Avaimen tarkistus. Vertailu tehdään tiivisteiden yli vakioajassa, jotta väärä avain ei
+// paljasta oikeaa vastausaikaa mittaamalla.
+async function reprintKeyOk(env, city, key) {
+  const k = String(key || "");
+  if (!city || k.length < 20 || k.length > 100) return false;
+  const raw = await env.PUSH_KV.get(REPRINT_KEY_KEY(city));
+  if (!raw) return false;
+  let rec = null;
+  try { rec = JSON.parse(raw); } catch (e) { return false; }
+  if (!rec || !rec.hash) return false;
+  return constantTimeEqual(await sha256hex(city + ":" + k), rec.hash);
+}
+
+/* ---------- Ylläpito: avaimen myöntäminen kaupungille ---------- */
+
+async function handleAdminReprintKeyGet(request, env, url) {
+  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  const city = reprintCityName(url.searchParams.get("city") || "lahti");
+  const raw = await env.PUSH_KV.get(REPRINT_KEY_KEY(city));
+  let created = null;
+  try { created = raw ? (JSON.parse(raw).created || null) : null; } catch (e) { created = null; }
+  const data = await readReprintData(env, city);
+  // Avainta itseään EI palauteta koskaan: se näytetään vain kerran luontihetkellä.
+  return adminJson({
+    exists: !!raw, created,
+    units: data ? Object.keys(data.units || {}).length : 0,
+    updated: (data && data.updated) || null,
+  }, 200);
+}
+
+async function handleAdminReprintKeyCreate(request, env) {
+  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  const body = await request.json().catch(() => null);
+  const city = reprintCityName((body && body.city) || "lahti");
+  if (!city) return adminJson({ error: "bad_city" }, 400);
+  const key = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+  await env.PUSH_KV.put(REPRINT_KEY_KEY(city), JSON.stringify({
+    hash: await sha256hex(city + ":" + key), created: new Date().toISOString(),
+  }));
+  // Uusi avain EI pyyhi perustasoa: kaupunki syöttää uuden avaimen ja jatkaa samasta datasta.
+  return adminJson({ ok: true, city, key }, 200);
+}
+
+/* ---------- Julkiset päätepisteet (kaupungin omalla avaimella) ---------- */
+
+async function handleReprintBaseline(request, env, origin) {
+  if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
+  const body = await request.json().catch(() => null);
+  const { city, units, error } = buildReprintBaseline(body);
+  if (error) return jsonResponse({ error }, 400, origin);
+  if (!(await reprintKeyOk(env, city, body && body.key)))
+    return jsonResponse({ error: "bad_key" }, 403, origin);
+  const prev = await readReprintData(env, city);
+  const rec = {
+    units: mergeReprintUnits(prev && prev.units, units),
+    updated: new Date().toISOString(),
+    // Vertailun tulos säilyy: perustason päivitys ei tyhjennä sitä mitä vahti on löytänyt.
+    state: (prev && prev.state) || null,
+  };
+  if (JSON.stringify(rec).length > REPRINT_MAX_BYTES)
+    return jsonResponse({ error: "too_large" }, 413, origin);
+  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify(rec));
+  await addReprintCity(env, city);
+  return jsonResponse({ ok: true, units: rec.units, updated: rec.updated, state: rec.state }, 200, origin);
+}
+
+async function handleReprintStatus(url, env, origin) {
+  if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
+  const city = reprintCityName(url.searchParams.get("city"));
+  if (!(await reprintKeyOk(env, city, url.searchParams.get("key"))))
+    return jsonResponse({ error: "bad_key" }, 403, origin);
+  const data = await readReprintData(env, city);
+  return jsonResponse({
+    ok: true,
+    units: (data && data.units) || {},
+    updated: (data && data.updated) || null,
+    state: (data && data.state) || null,
+  }, 200, origin);
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") || "";
@@ -1230,6 +1403,11 @@ export default {
       return handleAdminA11ySave(request, env);
     if (url.pathname === "/admin/api/stats" && request.method === "GET")
       return handleAdminStats(request, env, url);
+    // Uusintapainatusvahti: kaupungin oman avaimen myöntäminen (avain näytetään vain kerran)
+    if (url.pathname === "/admin/api/reprint/key" && request.method === "GET")
+      return handleAdminReprintKeyGet(request, env, url);
+    if (url.pathname === "/admin/api/reprint/key" && request.method === "POST")
+      return handleAdminReprintKeyCreate(request, env);
     // Julkaistut tiedotteet sovellukselle (julkinen, CORS)
     if (url.pathname === "/published" && request.method === "GET")
       return handlePublished(url, env, origin);
@@ -1246,6 +1424,12 @@ export default {
       return handleReminder(request, env, origin);
     if (url.pathname === "/push/vapidPublicKey" && request.method === "GET")
       return jsonResponse({ key: env.VAPID_PUBLIC || "" }, 200, origin);
+
+    // Uusintapainatusvahti: perustaso palvelimelle (kaupungin avain, ei henkilötietoa)
+    if (url.pathname === "/reprint/baseline" && request.method === "POST")
+      return handleReprintBaseline(request, env, origin);
+    if (url.pathname === "/reprint/status" && request.method === "GET")
+      return handleReprintStatus(url, env, origin);
 
     // Sähköpostipohjainen häiriötilaus (double opt-in)
     if (url.pathname === "/email/subscribe" && request.method === "POST")

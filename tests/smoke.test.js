@@ -1779,6 +1779,48 @@ async function printHygiene(page, label) {
     ? ok(`etusivun uusintapainatus-nosto: etusivu ei hidastu (tyhjä ${tTyhjan} ms, seuranta ${tVanhentuneen} ms, merkitty ${tMerkinnan} ms)`)
     : fail(`etusivun uusintapainatus-nosto: etusivun piirto hidastui (tyhjä ${tTyhjan} ms, seuranta ${tVanhentuneen} ms)`);
 
+  // --- Palvelinvahti: perustaso palvelimelle kaupungin omalla avaimella (4.9.2026) ---
+  // Perustaso elää oletuksena vain selaimessa. Kaupungin avaimella se synkronoituu palvelimelle,
+  // mutta ILMAN AVAINTA ei saa lähteä yhtään pyyntöä: sama kuri kuin etusivun nostossa, ja se on
+  // myös se mikä pitää tämän vartijan vihreänä ennen kuin worker on deployattu.
+  const rpSrvReqs = [];
+  const rpSrvListener = req => { if (/\/reprint\//.test(req.url())) rpSrvReqs.push(req.url()); };
+  page.on("request", rpSrvListener);
+  await page.evaluate(() => {
+    localStorage.removeItem(reprintSrvKeyName());
+    localStorage.removeItem(reprintKey());
+    localStorage.removeItem(reprintHlKey());
+  });
+  await page.goto(BASE + "/#/uusintapainatus", { waitUntil: "networkidle2" });
+  await page.waitForSelector("#rpOthers .rpCb", { timeout: 30000 }).catch(() => {});
+  await sleep(800);
+  const srv = await page.evaluate(() => ({
+    paneeli: !!document.querySelector("details.rp-srv"),
+    kentta: !!document.getElementById("rpSrvKey"),
+    nappi: !!document.getElementById("rpSrvSave"),
+    tila: document.getElementById("rpSrvState")?.textContent || "",
+    yleis: t("reprintSrvOff"),
+    avain: localStorage.getItem(reprintSrvKeyName()),
+  }));
+  page.off("request", rpSrvListener);
+  (srv.paneeli && srv.kentta && srv.nappi && srv.tila === srv.yleis && !srv.avain && rpSrvReqs.length === 0)
+    ? ok("palvelinvahti: avainkenttä näkyy ja ilman avainta ei lähde yhtään palvelinkutsua")
+    : fail("palvelinvahti: " + JSON.stringify({ ...srv, kutsuja: rpSrvReqs.length }));
+
+  // Yhdistämissääntö on sama molemmin puolin (client reprintMergeUnits, worker mergeReprintUnits):
+  // molempien puolten merkinnät säilyvät ja uudempi painomerkintä voittaa. Ilman tätä toinen kone
+  // pyyhkisi ensimmäisen merkinnät, ja juuri se hukkaisi sen tiedon jonka takia koko vahti on olemassa.
+  const rpMerge = await page.evaluate(() => {
+    const sig = { dirs: [] };
+    const palvelin = { x: { printed: "2026-09-01T00:00:00Z", sig }, y: { printed: "2026-08-01T00:00:00Z", sig } };
+    const paikallinen = { x: { printed: "2026-08-23T00:00:00Z", sig }, z: { printed: "2026-08-23T00:00:00Z", sig } };
+    const m = reprintMergeUnits(palvelin, paikallinen);
+    return { avaimet: Object.keys(m).sort().join(","), voittaja: m.x.printed };
+  });
+  (rpMerge.avaimet === "x,y,z" && rpMerge.voittaja === "2026-09-01T00:00:00Z")
+    ? ok("palvelinvahti: yhdistäminen säilyttää molempien puolten merkinnät, uudempi voittaa")
+    : fail("palvelinvahti: yhdistämissääntö väärin: " + JSON.stringify(rpMerge));
+
   // --- Oma reittihaku layer-kaupungeissa (Raasepori, 29.8.2026) ---
   // Raasepori ja Turku ohjasivat aiemmin kaupungin omaan reittioppaaseen
   // (CONFIG.externalPlanner). Ulos ohjaaminen sai palvelun näyttämään ohuemmalta kuin se on,
