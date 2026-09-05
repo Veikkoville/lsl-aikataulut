@@ -55,7 +55,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: >-
-            --max-turns 25
+            --max-turns 50
             --allowedTools "Read,Grep,Glob,Bash(ls:*),Bash(cat:*),Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh issue comment:*),Bash(gh run view:*)"
           prompt: |
             Tuotanto-smoke kaatui. Luokittele syy ja tee KORKEINTAAN yksi asia: avaa issue tai ala avaa.
