@@ -1,31 +1,31 @@
 {
  "kaupungit": {
   "vaasa": {
-   "ajettu": "2026-09-02T08:20:32.985Z",
+   "ajettu": "2026-09-06T07:44:02.555Z",
    "pysakkeja": 545,
    "tulossa": 0,
-   "muuttunut": 0,
+   "muuttunut": 4,
    "poikkeus": 274,
    "voimaan": null
   },
   "lahti": {
-   "ajettu": "2026-09-02T13:42:23.841Z",
+   "ajettu": "2026-09-06T07:31:58.182Z",
    "pysakkeja": 2267,
    "tulossa": 0,
-   "muuttunut": 0,
+   "muuttunut": 59,
    "poikkeus": 1716,
    "voimaan": null
   },
   "kuopio": {
-   "ajettu": "2026-09-02T08:14:04.604Z",
-   "pysakkeja": 1887,
+   "ajettu": "2026-09-06T07:37:29.374Z",
+   "pysakkeja": 1888,
    "tulossa": 133,
-   "muuttunut": 0,
-   "poikkeus": 1081,
+   "muuttunut": 66,
+   "poikkeus": 1082,
    "voimaan": "2026-10-13"
   },
   "salo": {
-   "ajettu": "2026-09-02T08:16:27.867Z",
+   "ajettu": "2026-09-06T07:39:52.886Z",
    "pysakkeja": 859,
    "tulossa": 9,
    "muuttunut": 0,
@@ -33,7 +33,7 @@
    "voimaan": "2026-10-13"
   },
   "kajaani": {
-   "ajettu": "2026-09-02T08:18:56.244Z",
+   "ajettu": "2026-09-06T07:42:21.718Z",
    "pysakkeja": 889,
    "tulossa": 0,
    "muuttunut": 0,
@@ -41,23 +41,23 @@
    "voimaan": null
   },
   "kotka": {
-   "ajettu": "2026-09-02T08:23:28.351Z",
-   "pysakkeja": 979,
+   "ajettu": "2026-09-06T07:47:01.064Z",
+   "pysakkeja": 981,
    "tulossa": 0,
-   "muuttunut": 0,
-   "poikkeus": 764,
+   "muuttunut": 79,
+   "poikkeus": 765,
    "voimaan": null
   },
   "raasepori": {
-   "ajettu": "2026-09-02T08:24:45.065Z",
+   "ajettu": "2026-09-06T07:48:22.546Z",
    "pysakkeja": 426,
    "tulossa": 0,
-   "muuttunut": 0,
+   "muuttunut": 199,
    "poikkeus": 422,
    "voimaan": null
   },
   "kouvola": {
-   "ajettu": "2026-09-02T08:27:52.448Z",
+   "ajettu": "2026-09-06T07:51:33.677Z",
    "pysakkeja": 1123,
    "tulossa": 0,
    "muuttunut": 0,
@@ -65,47 +65,47 @@
    "voimaan": null
   },
   "mikkeli": {
-   "ajettu": "2026-09-02T08:30:47.325Z",
-   "pysakkeja": 1054,
+   "ajettu": "2026-09-06T07:54:32.296Z",
+   "pysakkeja": 1053,
    "tulossa": 0,
-   "muuttunut": 0,
+   "muuttunut": 38,
    "poikkeus": 663,
    "voimaan": null
   },
   "hameenlinna": {
-   "ajettu": "2026-09-02T08:34:46.703Z",
-   "pysakkeja": 1360,
+   "ajettu": "2026-09-06T07:58:37.843Z",
+   "pysakkeja": 1356,
    "tulossa": 27,
-   "muuttunut": 0,
-   "poikkeus": 968,
+   "muuttunut": 54,
+   "poikkeus": 964,
    "voimaan": "2026-09-29"
   },
   "joensuu": {
-   "ajettu": "2026-09-02T08:39:16.283Z",
-   "pysakkeja": 1598,
+   "ajettu": "2026-09-06T08:03:16.871Z",
+   "pysakkeja": 1599,
    "tulossa": 0,
    "muuttunut": 0,
-   "poikkeus": 1139,
+   "poikkeus": 1140,
    "voimaan": null
   },
   "jyvaskyla": {
-   "ajettu": "2026-09-02T08:45:36.139Z",
+   "ajettu": "2026-09-06T08:09:46.461Z",
    "pysakkeja": 2189,
    "tulossa": 0,
-   "muuttunut": 0,
-   "poikkeus": 1471,
+   "muuttunut": 129,
+   "poikkeus": 1455,
    "voimaan": null
   },
   "lappeenranta": {
-   "ajettu": "2026-09-02T08:48:37.031Z",
+   "ajettu": "2026-09-06T08:12:54.275Z",
    "pysakkeja": 1076,
    "tulossa": 0,
-   "muuttunut": 0,
-   "poikkeus": 672,
+   "muuttunut": 9,
+   "poikkeus": 667,
    "voimaan": null
   },
   "pori": {
-   "ajettu": "2026-09-02T08:53:24.886Z",
+   "ajettu": "2026-09-06T08:21:49.861Z",
    "pysakkeja": 1076,
    "tulossa": 0,
    "muuttunut": 0,
@@ -113,7 +113,7 @@
    "voimaan": null
   },
   "rovaniemi": {
-   "ajettu": "2026-09-02T08:54:42.824Z",
+   "ajettu": "2026-09-06T08:23:07.976Z",
    "pysakkeja": 431,
    "tulossa": 0,
    "muuttunut": 0,
@@ -121,13 +121,21 @@
    "voimaan": null
   },
   "turku": {
-   "ajettu": "2026-09-02T09:04:46.270Z",
+   "ajettu": "2026-09-06T08:33:31.441Z",
    "pysakkeja": 3556,
    "tulossa": 81,
-   "muuttunut": 0,
+   "muuttunut": 10,
    "poikkeus": 1570,
    "voimaan": "2026-09-29"
+  },
+  "oulu": {
+   "ajettu": "2026-09-06T08:18:46.355Z",
+   "pysakkeja": 1968,
+   "tulossa": 0,
+   "muuttunut": 0,
+   "poikkeus": 859,
+   "voimaan": null
   }
  },
- "ajettu": "2026-09-02T09:04:54.274Z"
+ "ajettu": "2026-09-06T08:33:39.447Z"
 }
