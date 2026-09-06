@@ -6,6 +6,11 @@
 # raportin heti ja tekee yhden asian: joko toteaa kuormaksi (ei tikettia) tai avaa
 # YHDEN issuen juurisyysta.
 #
+# 3.9.2026 (issue #18): kuorma nakyi pelkkina AIKAKATKAISUINA ilman yhtaan 429:aa, koska
+# prod-smoke ja CI ajoivat samaan aikaan samaa Digitransit-rajapintaa vasten. Pelkka
+# 429-saanto luokitteli sen aidoksi viaksi. Siksi aikakatkaisu on kuormaa, jos smoke-ajon
+# aikana oli rinnakkainen ajo ja edellinen smoke oli vihrea (kohta 2b).
+#
 # EI KOSKAAN: ei koodimuutosta, ei PR:aa, ei mergea, ei deployta. Token saa vain
 # lukea repon ja kirjoittaa issueita.
 #
@@ -56,7 +61,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: >-
             --max-turns 50
-            --allowedTools "Read,Grep,Glob,Bash(ls:*),Bash(cat:*),Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh issue comment:*),Bash(gh run view:*)"
+            --allowedTools "Read,Grep,Glob,Bash(ls:*),Bash(cat:*),Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh issue comment:*),Bash(gh run view:*),Bash(gh run list:*)"
           prompt: |
             Tuotanto-smoke kaatui. Luokittele syy ja tee KORKEINTAAN yksi asia: avaa issue tai ala avaa.
             Ajo: ${{ github.event.workflow_run.html_url }} (id ${{ github.event.workflow_run.id }}). Raportit ovat kansiossa raportit/ (prod-smoke-report-era*.txt ja .json).
@@ -75,9 +80,25 @@ jobs:
                kiintion (429) takia, retriedCities kertoo uusinnat.
             2. LUOKITTELU. FAIL on kuormaa jos sen check on "kiintio (429)" tai sen detail sisaltaa
                luvun 429. Kaikki muut FAILit ovat ehdokkaita aidoksi viaksi.
-               a) Jos KAIKKI FAILit ovat kuormaa: ALA avaa issuea. Tulosta lokiin yksi rivi
-                  "KUORMA: <kaupungit>, ei tikettia" ja lopeta. Kiintioloppu ei ole vika koodissa.
-               b) Jos yksikin FAIL ei ole kuormaa: jatka kohtaan 3.
+               a) 429 on aina kuormaa. Kiintioloppu ei ole vika koodissa.
+               b) AIKAKATKAISU voi olla kuormaa ilman 429:aa (3.9.2026, issue #18: prod-smoke ja CI
+                  ajoivat samaan aikaan, vika nakyi vain aikakatkaisuina). Aikakatkaisu-FAIL tunnistetaan
+                  detailista: "N s kuluessa", "ei latautunut", "ei muodostunut", "ei syntynyt",
+                  "ei renderoitynyt", "ei tullut", "printed:false", "ei valmistunut". Sisaltovirhe
+                  ("taulukko pielessa", "kaavio vajaa", "ilman selitetta", vaarat arvot, konsolivirhe)
+                  EI ole aikakatkaisu vaan ehdokas aidoksi viaksi.
+                  Aikakatkaisu on kuormaa vain jos MOLEMMAT ehdot toteutuvat:
+                  - rinnakkainen ajo: gh run view <smoke-id> --json createdAt,updatedAt antaa smoke-ajon
+                    ikkunan, ja gh run list --limit 30 --json name,status,conclusion,createdAt,updatedAt
+                    nayttaa toisen ajon (CI, auto-kehitys, Muutosvahti, Uusintapainatusvahti tai toinen
+                    Tuotanto-smoke) joka oli kaynnissa samassa ikkunassa
+                  - edellinen Tuotanto-smoke oli vihrea: gh run list --workflow prod-smoke.yml --limit 5
+                    nayttaa edellisen valmistuneen ajon conclusion=success
+                  Jos jompikumpi ehto ei tayty, aikakatkaisu on ehdokas aidoksi viaksi.
+               c) Jos KAIKKI FAILit ovat kuormaa (429 tai b-kohdan aikakatkaisu): ALA avaa issuea.
+                  Tulosta lokiin yksi rivi "KUORMA (<429|aikakatkaisu rinnakkain: ajon nimi>): <kaupungit>, ei tikettia"
+                  ja lopeta.
+               d) Jos yksikin FAIL ei ole kuormaa: jatka kohtaan 3.
             3. Tarkista onko sama vika jo tiedossa:
                gh issue list --state open --search "smoke:" --json number,title
                Jos avoin issue kasittelee samaa tarkistusta samassa kaupungissa, lisaa siihen
