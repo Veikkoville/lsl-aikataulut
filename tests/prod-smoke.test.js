@@ -885,8 +885,13 @@ function writeReport() {
             } else {
               // @page-sääntö asetetaan runPrintJob:ssa kahden rAF-kierroksen takana,
               // eli vasta tulosterivien jälkeen. Ilman odotusta luetaan tyhjä arvo.
+              // Odotusehtona on window.__deskPrinted eikä pageOrient: pageOrient on jo
+              // asetettu tämän kaupungin A5-vihkotarkistuksessa (kohta 4a), joten se
+              // palaa heti vanhalla arvolla ja printed luetaan ennen kuin rAF-kierrokset
+              // ovat ehtineet ajaa. 7.9.2026 tämä näkyi Vaasan vääränä punaisena
+              // (printed:false, mutta days/lines/orient oikein ja tuloste kunnossa).
               await page.waitForFunction(
-                () => !!document.getElementById("pageOrient")?.textContent,
+                () => !!window.__deskPrinted && !!document.getElementById("pageOrient")?.textContent,
                 { timeout: 15000 }).catch(() => {});
               const dp = await page.evaluate(() => ({
                 days: document.querySelectorAll("#deskPrintOut .poster-day").length,
