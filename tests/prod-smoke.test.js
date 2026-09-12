@@ -362,6 +362,14 @@ function writeReport() {
     const consoleErrors = [];
     page.on("console", m => { if (m.type() === "error") consoleErrors.push(m.text()); });
     page.on("pageerror", e => consoleErrors.push(e.message));
+    // "Failed to load resource: net::ERR_..." ei sisällä osoitetta, joten verkkovirheestä ei
+    // näe kenen pää katkesi (10.9.2026: seitsemän ERR_CONNECTION_CLOSED -riviä ilman URL:ää).
+    // requestfailed antaa osoitteen; se liitetään virheeseen kohdassa 7. Ei vaienna mitään.
+    const failedRequests = [];
+    page.on("requestfailed", r => {
+      const failure = r.failure();
+      failedRequests.push({ url: r.url(), error: (failure && failure.errorText) || "", used: false });
+    });
     const url = h => `${BASE}/?city=${city.key}${h}`;
 
     try {
@@ -1067,7 +1075,20 @@ function writeReport() {
       // --- 7) Konsolivirheet koko kaupungin ajolta ---
       // 429 saa oman juurisyyviestin, jottei kiintiöongelma näytä sisältövirheeltä
       // (10.8.2026: "tuntikaaviota ei muodostunut" oli oire, ei vika).
-      const realErrors = consoleErrors.filter(e => !e.includes("favicon"));
+      // Verkkovirheelle nimetään osoite (origin + polku, ilman queryä): jokainen
+      // "Failed to load resource: net::X" kuluttaa ensimmäisen käyttämättömän
+      // requestfailed-tapahtuman jolla on sama virheteksti.
+      const nimeaOsoite = (teksti) => {
+        const m = teksti.match(/^Failed to load resource: (net::\S+)/);
+        if (!m) return teksti;
+        const osuma = failedRequests.find(r => !r.used && r.error === m[1]);
+        if (!osuma) return teksti;
+        osuma.used = true;
+        let lyhyt = osuma.url;
+        try { const u = new URL(osuma.url); lyhyt = u.origin + u.pathname; } catch (e) {}
+        return teksti + " → " + lyhyt;
+      };
+      const realErrors = consoleErrors.filter(e => !e.includes("favicon")).map(nimeaOsoite);
       const rateLimited = realErrors.some(e => e.includes("429"));
       if (!realErrors.length) {
         pass(city.key, "konsolivirheet", "0 virhettä");

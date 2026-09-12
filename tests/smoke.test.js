@@ -80,6 +80,16 @@ async function printHygiene(page, label) {
   const consoleErrors = [];
   page.on("console", m => { if (m.type() === "error") consoleErrors.push(m.text()); });
   page.on("pageerror", e => consoleErrors.push(e.message));
+  // Konsoliviesti "Failed to load resource: net::ERR_..." ei kerro mitään osoitetta, joten
+  // punaisesta ajosta ei näe kaatuiko oma sivu vai jokin ulkopuolinen rajapinta. 10.9.2026
+  // prod-smoke kaatui seitsemään ERR_CONNECTION_CLOSED -riviin ilman yhtään osoitetta, eikä
+  // vika toistunut — diagnoosi jäi arvaukseksi. requestfailed antaa URL:n ja virhetekstin;
+  // ne liitetään konsolivirheisiin lopussa. Tämä EI vaienna virhettä, vain nimeää sen.
+  const failedRequests = [];
+  page.on("requestfailed", r => {
+    const failure = r.failure();
+    failedRequests.push({ url: r.url(), error: (failure && failure.errorText) || "", used: false });
+  });
 
   const expect = async (selector, label, timeout = 25000) => {
     try {
@@ -1974,7 +1984,21 @@ async function printHygiene(page, label) {
     : fail("junanaytto (Lahti): " + JSON.stringify(railOne));
 
   // --- Konsolivirheet ---
-  const realErrors = consoleErrors.filter(e => !e.includes("favicon"));
+  // Nimeä verkkovirheet: jokainen "Failed to load resource: net::X" kuluttaa ensimmäisen
+  // vielä käyttämättömän requestfailed-tapahtuman jolla on sama virheteksti. Osoitteesta
+  // jätetään query pois (Digitransitin GraphQL-kyselyt ovat satoja merkkejä pitkiä) —
+  // origin + polku riittää kertomaan kenen pää katkesi.
+  const nimeaOsoite = (teksti) => {
+    const m = teksti.match(/^Failed to load resource: (net::\S+)/);
+    if (!m) return teksti;
+    const osuma = failedRequests.find(r => !r.used && r.error === m[1]);
+    if (!osuma) return teksti;
+    osuma.used = true;
+    let lyhyt = osuma.url;
+    try { const u = new URL(osuma.url); lyhyt = u.origin + u.pathname; } catch (e) {}
+    return teksti + " → " + lyhyt;
+  };
+  const realErrors = consoleErrors.filter(e => !e.includes("favicon")).map(nimeaOsoite);
   realErrors.length
     ? fail("konsolivirheitä:\n  " + realErrors.join("\n  "))
     : ok("ei konsolivirheitä");
