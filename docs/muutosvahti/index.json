@@ -1,103 +1,103 @@
 {
  "kaupungit": {
   "vaasa": {
-   "ajettu": "2026-09-06T07:44:02.555Z",
+   "ajettu": "2026-09-13T08:04:55.082Z",
    "pysakkeja": 545,
    "tulossa": 0,
-   "muuttunut": 4,
-   "poikkeus": 274,
+   "muuttunut": 0,
+   "poikkeus": 515,
    "voimaan": null
   },
   "lahti": {
-   "ajettu": "2026-09-06T07:31:58.182Z",
+   "ajettu": "2026-09-13T07:53:23.873Z",
    "pysakkeja": 2267,
    "tulossa": 0,
-   "muuttunut": 59,
+   "muuttunut": 0,
    "poikkeus": 1716,
    "voimaan": null
   },
   "kuopio": {
-   "ajettu": "2026-09-06T07:37:29.374Z",
-   "pysakkeja": 1888,
-   "tulossa": 133,
-   "muuttunut": 66,
-   "poikkeus": 1082,
+   "ajettu": "2026-09-13T07:58:35.608Z",
+   "pysakkeja": 1889,
+   "tulossa": 24,
+   "muuttunut": 0,
+   "poikkeus": 1228,
    "voimaan": "2026-10-13"
   },
   "salo": {
-   "ajettu": "2026-09-06T07:39:52.886Z",
+   "ajettu": "2026-09-13T08:00:54.879Z",
    "pysakkeja": 859,
-   "tulossa": 9,
+   "tulossa": 18,
    "muuttunut": 0,
-   "poikkeus": 272,
+   "poikkeus": 0,
    "voimaan": "2026-10-13"
   },
   "kajaani": {
-   "ajettu": "2026-09-06T07:42:21.718Z",
+   "ajettu": "2026-09-13T08:03:19.979Z",
    "pysakkeja": 889,
    "tulossa": 0,
-   "muuttunut": 0,
-   "poikkeus": 834,
+   "muuttunut": 8,
+   "poikkeus": 0,
    "voimaan": null
   },
   "kotka": {
-   "ajettu": "2026-09-06T07:47:01.064Z",
-   "pysakkeja": 981,
+   "ajettu": "2026-09-13T08:07:48.076Z",
+   "pysakkeja": 980,
    "tulossa": 0,
-   "muuttunut": 79,
-   "poikkeus": 765,
+   "muuttunut": 289,
+   "poikkeus": 893,
    "voimaan": null
   },
   "raasepori": {
-   "ajettu": "2026-09-06T07:48:22.546Z",
+   "ajettu": "2026-09-13T08:09:03.107Z",
    "pysakkeja": 426,
    "tulossa": 0,
-   "muuttunut": 199,
-   "poikkeus": 422,
+   "muuttunut": 213,
+   "poikkeus": 224,
    "voimaan": null
   },
   "kouvola": {
-   "ajettu": "2026-09-06T07:51:33.677Z",
+   "ajettu": "2026-09-13T08:12:06.048Z",
    "pysakkeja": 1123,
    "tulossa": 0,
    "muuttunut": 0,
-   "poikkeus": 566,
+   "poikkeus": 982,
    "voimaan": null
   },
   "mikkeli": {
-   "ajettu": "2026-09-06T07:54:32.296Z",
+   "ajettu": "2026-09-13T08:14:57.781Z",
    "pysakkeja": 1053,
    "tulossa": 0,
-   "muuttunut": 38,
-   "poikkeus": 663,
+   "muuttunut": 88,
+   "poikkeus": 895,
    "voimaan": null
   },
   "hameenlinna": {
-   "ajettu": "2026-09-06T07:58:37.843Z",
-   "pysakkeja": 1356,
-   "tulossa": 27,
-   "muuttunut": 54,
-   "poikkeus": 964,
-   "voimaan": "2026-09-29"
+   "ajettu": "2026-09-13T08:18:48.051Z",
+   "pysakkeja": 1352,
+   "tulossa": 0,
+   "muuttunut": 37,
+   "poikkeus": 754,
+   "voimaan": null
   },
   "joensuu": {
-   "ajettu": "2026-09-06T08:03:16.871Z",
-   "pysakkeja": 1599,
+   "ajettu": "2026-09-13T08:23:13.278Z",
+   "pysakkeja": 1598,
    "tulossa": 0,
    "muuttunut": 0,
-   "poikkeus": 1140,
+   "poikkeus": 900,
    "voimaan": null
   },
   "jyvaskyla": {
-   "ajettu": "2026-09-06T08:09:46.461Z",
-   "pysakkeja": 2189,
+   "ajettu": "2026-09-13T08:29:20.413Z",
+   "pysakkeja": 2190,
    "tulossa": 0,
-   "muuttunut": 129,
-   "poikkeus": 1455,
+   "muuttunut": 59,
+   "poikkeus": 0,
    "voimaan": null
   },
   "lappeenranta": {
-   "ajettu": "2026-09-06T08:12:54.275Z",
+   "ajettu": "2026-09-13T08:32:18.713Z",
    "pysakkeja": 1076,
    "tulossa": 0,
    "muuttunut": 9,
@@ -105,37 +105,37 @@
    "voimaan": null
   },
   "pori": {
-   "ajettu": "2026-09-06T08:21:49.861Z",
+   "ajettu": "2026-09-13T08:40:39.443Z",
    "pysakkeja": 1076,
    "tulossa": 0,
-   "muuttunut": 0,
-   "poikkeus": 697,
+   "muuttunut": 2,
+   "poikkeus": 734,
    "voimaan": null
   },
   "rovaniemi": {
-   "ajettu": "2026-09-06T08:23:07.976Z",
+   "ajettu": "2026-09-13T08:41:57.631Z",
    "pysakkeja": 431,
-   "tulossa": 0,
+   "tulossa": 96,
    "muuttunut": 0,
-   "poikkeus": 240,
-   "voimaan": null
+   "poikkeus": 222,
+   "voimaan": "2026-10-20"
   },
   "turku": {
-   "ajettu": "2026-09-06T08:33:31.441Z",
-   "pysakkeja": 3556,
-   "tulossa": 81,
-   "muuttunut": 10,
-   "poikkeus": 1570,
-   "voimaan": "2026-09-29"
+   "ajettu": "2026-09-13T08:51:52.097Z",
+   "pysakkeja": 3550,
+   "tulossa": 0,
+   "muuttunut": 192,
+   "poikkeus": 2317,
+   "voimaan": null
   },
   "oulu": {
-   "ajettu": "2026-09-06T08:18:46.355Z",
+   "ajettu": "2026-09-13T08:37:43.257Z",
    "pysakkeja": 1968,
    "tulossa": 0,
    "muuttunut": 0,
-   "poikkeus": 859,
+   "poikkeus": 1786,
    "voimaan": null
   }
  },
- "ajettu": "2026-09-06T08:33:39.447Z"
+ "ajettu": "2026-09-13T08:52:00.099Z"
 }
