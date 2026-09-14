@@ -1871,7 +1871,7 @@
   Tämä on epävirallinen palvelu, joka ei ole Lahden seudun liikenteen tuottama.
   Aikataulu- ja reaaliaikadata: LSL / Waltti avoin data Digitransit-rajapinnan kautta,
   lisenssi <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="license noopener" target="_blank">CC BY 4.0</a>.
-  Palveluntarjoaja: Ville Saarinen, <a href="mailto:ville@reittari.fi">ville@reittari.fi</a>.
+  Palveluntarjoaja: Savikurki Digital Oy, <a href="mailto:ville@reittari.fi">ville@reittari.fi</a>.
   <a href="#/tietosuoja">Tietosuojaseloste</a> · <a href="#/kayttoehdot">Käyttöehdot</a>
 </footer>
 
@@ -4855,7 +4855,7 @@ function updateChrome() {
       <div class="foot-brand">
         <div><strong>${t("appTitle")}</strong><br><span class="muted">${t("headerSub")}</span>
           <p class="foot-provider" id="footProvider"><span class="muted">${t("footProvider")}:</span>
-            Ville Saarinen, <a href="mailto:ville@reittari.fi">ville@reittari.fi</a></p>
+            Savikurki Digital Oy, <a href="mailto:ville@reittari.fi">ville@reittari.fi</a></p>
         </div>
       </div>
       <nav class="foot-col" aria-label="${t("footColService")}">
@@ -12011,11 +12011,10 @@ function viewOfficialA11y(a) {
    Seloste on kirjoitettu workerin todellisista käsittelijöistä (worker/worker.js:
    /email/*, /push/*, /feedback, /track, Digitransit-proxy), ei mallipohjasta. Jos
    lisäät päätepisteen joka tallentaa henkilötietoa, päivitä osio 2 samassa muutoksessa.
-   Rekisterinpitäjä on toistaiseksi luonnollinen henkilö; y-tunnus lisätään kun
-   yritys on rekisteröity (LEGAL_PROVIDER). Kaikki kolme kieltä ovat täydet tekstit,
-   ei automaattikäännöksiä. */
-const LEGAL_PROVIDER = { name: "Ville Saarinen", email: "ville@reittari.fi", businessId: "" };
-const LEGAL_UPDATED = "4.9.2026";
+   Rekisterinpitäjä on yhtiö 14.9.2026 alkaen (immateriaalioikeuksien luovutus),
+   LEGAL_PROVIDER. Kaikki kolme kieltä ovat täydet tekstit, ei automaattikäännöksiä. */
+const LEGAL_PROVIDER = { name: "Savikurki Digital Oy", email: "ville@reittari.fi", businessId: "3652360-4" };
+const LEGAL_UPDATED = "14.9.2026";
 
 function legalProviderHtml() {
   const e = esc(LEGAL_PROVIDER.email);
