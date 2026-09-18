@@ -3244,6 +3244,7 @@ const STRINGS = {
     liveMapTitle: "Bussit kartalla nyt",
     liveMapAria: "Kartta liikkuvista busseista reaaliajassa",
     liveMapHint: "Merkit ovat busseja reaaliajassa. Klikkaa bussia: linja, määränpää ja seuraavat pysäkit.",
+    netMapCountStops: "{n} linjaa ja {s} pysäkkiä kartalla",
     netMapLink: "Linjaston kartta",
     netMapTitle: "Koko linjaston kartta",
     netMapAria: "Kartta kaikkien bussilinjojen reiteistä",
@@ -3817,6 +3818,7 @@ const STRINGS = {
     liveMapTitle: "Buses on the map now",
     liveMapAria: "Map of moving buses in real time",
     liveMapHint: "Markers are buses in real time. Tap a bus: route, destination and next stops.",
+    netMapCountStops: "{n} routes and {s} stops on the map",
     netMapLink: "Network map",
     netMapTitle: "Whole network map",
     netMapAria: "Map of all bus routes",
@@ -4367,6 +4369,7 @@ const STRINGS = {
     liveMapTitle: "Bussar på kartan nu",
     liveMapAria: "Karta över bussar i rörelse i realtid",
     liveMapHint: "Markörerna är bussar i realtid. Tryck på en buss: linje, destination och följande hållplatser.",
+    netMapCountStops: "{n} linjer och {s} hållplatser på kartan",
     netMapLink: "Linjenätskarta",
     netMapTitle: "Karta över hela linjenätet",
     netMapAria: "Karta över alla busslinjer",
@@ -5971,7 +5974,9 @@ function fitMap(map, bounds, fallbackLatLon) {
   try { map.getCenter(); } catch (e) { map.setView(fallbackLatLon || [AREA.focus.lat, AREA.focus.lon], 13); }
 }
 
-const STOP_MARKER = { radius: 5, color: "#0a4ea3", weight: 2, fillColor: "#fff", fillOpacity: 1 };
+// Kosketuskäyttö ja suuntaparit: pieni merkki jää kartalla pohjakartan alle ja parit
+// menevät päällekkäin. Radius 6 + paksumpi reuna erottuu ilman uutta kirjastoa.
+const STOP_MARKER = { radius: 6, color: "#0a4ea3", weight: 3, fillColor: "#fff", fillOpacity: 1 };
 
 /* ---------- Live vehicle positions (Waltti GTFS-RT via MQTT) ---------- */
 
@@ -6076,6 +6081,7 @@ async function vehiclePopupHtml(tripId, nextStopId) {
 // yksi tilaus: uusi kutsu (esim. toisen reittiehdotuksen avaus) siirtää bussit
 // uudelle kartalle.
 async function startVehicles(map, routeList, onMessage) {
+  if (CONFIG.vehicleRealtime === false) return;   // feedissä ei ole reaaliaikaa
   const mySeq = viewSeq;
   try {
     await ensureMqtt();
@@ -7455,7 +7461,8 @@ function homeToolGroupsHtml() {
       </section>`;
   };
   return group("groupMaps", [
-    tool("#/kartta", "map", t("liveMapLink")),
+    // Ilman GTFS-RT:tä kartalla ei ole yhtään ajoneuvoa: linkki lupaisi jotain jota ei ole.
+    CONFIG.vehicleRealtime === false ? "" : tool("#/kartta", "map", t("liveMapLink")),
     tool("#/linjasto", "network", t("netMapLink")),
     CONFIG.hubs ? tool("#/laiturit", "pin", t("hubLink")) : "",
   ]) + group("groupSchedules", [
@@ -9096,7 +9103,7 @@ async function viewStop(stopId) {
         .bindPopup(esc(stop.name));
       // pysäkkiä liikennöivien linjojen bussit lähestymässä
       const routes = (stop.routes || []).slice(0, 15);
-      if (routes.length) {
+      if (routes.length && CONFIG.vehicleRealtime !== false) {
         startVehicles(map, routes, onVehicleMsg);
         const hint = document.getElementById("stopMapHint");
         if (hint) hint.hidden = false;
@@ -9277,21 +9284,48 @@ let networkCache = null;
 async function loadNetwork() {
   if (networkCache) return networkCache;
   const feed = await findFeed();
-  const data = await gql(
-    `query ($feeds: [String]) {
-       routes(feeds: $feeds) {
-         gtfsId shortName longName@L mode color
-         patterns { patternGeometry { length points } }
-       }
-     }`, { feeds: [feed] });
+  const ROUTE_FIELDS = "gtfsId shortName longName@L mode color patterns { patternGeometry { length points } }";
+  // areaScoped: valtakunnallinen feed on 1 825 linjaa ja 4,8 MB, joista Inkoossa piirtyy 20.
+  // Haetaan siksi sama joukko kuin linjalista (areaRouteIds) eika koko feedia: kysely kevenee
+  // noin 200 kt:hen ja kartta vastaa listaa.
+  const data = CONFIG.areaScoped
+    ? await gql(`query ($ids: [String]) { routes(ids: $ids) { ${ROUTE_FIELDS} } }`,
+        { ids: await areaRouteIds(feed) })
+    : await gql(`query ($feeds: [String]) { routes(feeds: $feeds) { ${ROUTE_FIELDS} } }`,
+        { feeds: [feed] });
   // Suodata samaan aktiivijoukkoon kuin linjalista (ei piirretä kausi-/koululinjoja
   // joilla ei ole tulevia lähtöjä). loadRoutes on välimuistitettu → halpa.
+  // gtfsIds = ryhmän KAIKKI route-objektit: pelkkä primary jättäisi suuntavariantit pois.
   let activeIds = null;
-  try { const ar = await loadRoutes(); if (ar && ar.length) activeIds = new Set(ar.map(r => r.gtfsId)); } catch (e) { /* näytä kaikki jos epäonnistuu */ }
+  try { const ar = await loadRoutes(); if (ar && ar.length) activeIds = new Set(ar.flatMap(r => (r.gtfsIds && r.gtfsIds.length) ? r.gtfsIds : [r.gtfsId])); } catch (e) { /* näytä kaikki jos epäonnistuu */ }
+  // areaScoped-kaupungissa koko feedin piirtaminen varakeinona olisi koko Suomi kartalla,
+  // joten siella tyhja aktiivijoukko on virhe eika fallback.
+  if (!activeIds && CONFIG.areaScoped) throw new Error(t("errFeedNotFound"));
   networkCache = (data.routes || [])
     .filter(r => r.mode === "BUS")
     .filter(r => !activeIds || activeIds.has(r.gtfsId));
   return networkCache;
+}
+
+// Alueen pysäkit kartalle (areaScoped). Google Mapsin ja meidän karttamme näkyvä ero oli
+// tässä: emme piirtäneet pysäkkejä lainkaan, ja pohjakartta näyttää ne vasta zoomilla 17.
+// Mitattu 17.9.2026: 233 pysäkkiä, 19 kt, 194 ms.
+let areaStopsCache = null;
+async function loadAreaStops() {
+  if (areaStopsCache) return areaStopsCache;
+  const feed = await findFeed();
+  const r = AREA.rect;
+  const data = await gql(
+    `query ($minLat: Float!, $minLon: Float!, $maxLat: Float!, $maxLon: Float!) {
+       stopsByBbox(minLat: $minLat, minLon: $minLon, maxLat: $maxLat, maxLon: $maxLon) {
+         gtfsId name@L code lat lon vehicleMode
+       }
+     }`, { minLat: r.minLat, minLon: r.minLon, maxLat: r.maxLat, maxLon: r.maxLon });
+  // Oma feed + juna-asemat ja lauttalaiturit muista feedeistä (kunnan asema ei ole MATKAssa).
+  areaStopsCache = (data.stopsByBbox || []).filter(st =>
+    st.lat != null && inMunicipality(st.lat, st.lon) &&
+    (st.gtfsId.startsWith(feed + ":") || st.vehicleMode === "RAIL" || st.vehicleMode === "FERRY"));
+  return areaStopsCache;
 }
 
 async function viewNetworkMap() {
@@ -9310,6 +9344,27 @@ async function viewNetworkMap() {
     if (mySeq !== viewSeq || !document.getElementById("netMap")) return;
     const map = makeMap("netMap", [AREA.focus.lat, AREA.focus.lon], 12);
     let bounds = null, drawn = 0;
+    // Pysäkit ensin, jotta viivat piirtyvät niiden päälle.
+    let stopCount = 0, stopBounds = null;
+    if (CONFIG.areaScoped) {
+      try {
+        for (const st of await loadAreaStops()) {
+          const isRail = st.vehicleMode === "RAIL", isFerry = st.vehicleMode === "FERRY";
+          const mk = L.circleMarker([st.lat, st.lon], {
+            radius: isRail || isFerry ? 7 : 5,
+            color: isRail ? "#00833b" : isFerry ? "#0e6a7d" : "#0a4ea3",
+            weight: 2, fillColor: "#fff", fillOpacity: 1,
+          }).addTo(map);
+          const href = isRail && railCodes().length ? "#/junat"
+            : `#/pysakki/${encodeURIComponent(st.gtfsId)}`;
+          mk.bindPopup(`<a href="${href}">${esc(st.name)}</a>` +
+            (st.code ? ` <span class="muted">${esc(st.code)}</span>` : ""));
+          mk.bindTooltip(esc(st.name), { direction: "top" });
+          stopBounds = stopBounds ? stopBounds.extend([st.lat, st.lon]) : L.latLngBounds([[st.lat, st.lon], [st.lat, st.lon]]);
+          stopCount++;
+        }
+      } catch (e) { /* pysäkit ovat lisätieto: kartta toimii ilmankin */ }
+    }
     for (const r of routes) {
       // piirrä linjan pisin reittikuvio (yksi viiva/linja pitää kartan luettavana)
       const pat = (r.patterns || [])
@@ -9324,13 +9379,25 @@ async function viewNetworkMap() {
       line.bindTooltip(label.trim() || t("alertDefault"), { sticky: true });
       line.on("mouseover", () => line.setStyle({ weight: 6, opacity: 0.95 }));
       line.on("mouseout", () => line.setStyle({ weight: 3, opacity: 0.55 }));
-      line.on("click", () => { location.hash = "#/linja/" + encodeURIComponent(r.gtfsId); });
+      // Kosketusnäytöllä ei ole hiiren osoitusta: napautus avaa popupin, josta pääsee
+      // aikatauluun. Aiemmin napautus vei heti pois kartalta eikä linjaa ehtinyt tunnistaa.
+      line.bindPopup(`<a href="#/linja/${encodeURIComponent(r.gtfsId)}">${esc(label.trim() || t("alertDefault"))}</a>`);
       bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
       drawn++;
     }
-    fitMap(map, bounds);
+    // areaScoped: rajaa kuntaan. Ilman tätä kartta avautuu pisimpien linjojen unioniin,
+    // Inkoossa Turusta Porvooseen, ja kunta jää pisteeksi keskelle. Ensisijaisesti
+    // rajataan kunnan pysäkkeihin, koska suorakaide ulottuu merialueelle.
+    if (CONFIG.areaScoped && (stopBounds || AREA?.rect)) {
+      const r = AREA.rect;
+      fitMap(map, stopBounds || L.latLngBounds([r.minLat, r.minLon], [r.maxLat, r.maxLon]));
+    } else {
+      fitMap(map, bounds);
+    }
     const el = document.getElementById("netCount");
-    if (el) el.textContent = t("netMapCount", { n: drawn });
+    if (el) el.textContent = stopCount
+      ? t("netMapCountStops", { n: drawn, s: stopCount })
+      : t("netMapCount", { n: drawn });
   } catch (e) {
     const el = document.getElementById("netMap");
     if (el) el.outerHTML = `<div class="error">${t("netMapFail")}${esc(e.message)}</div>`;
@@ -9356,13 +9423,32 @@ function boardingInfo(stop, hubName) {
   const n = (stop.name || "").trim();
   if (hubName && n.toLowerCase().startsWith(hubName.toLowerCase())) {
     const rest = n.slice(hubName.length).replace(/^[\s,–-]+/, "").trim();
-    if (rest && rest.length <= 4) return { tag: rest, full: t("termStop") + " " + rest };
+    // Vain yksi kirjain tai 1-2 numeroa on laiturimerkintä: "Inkoo th L" -> "th L" ei ole.
+    if (rest && /^([A-ZÄÖÅ]|\d{1,2})$/.test(rest)) return { tag: rest, full: t("termStop") + " " + rest };
   }
   return { tag: "•", full: n || stop.code || "?" };
 }
 
-async function loadHubStops(name) {
+// Nimihaku toimii keskusterminaaleilla, joiden laiturit on nimetty terminaalin mukaan
+// ("Matkakeskus 3"). areaScoped-kunnassa pysäkkien nimet eivät noudata sitä: Inkoossa
+// nimihaku löysi 8 pysäkkiä 186:sta. Siellä haetaan sijainnilla hubin keskipisteestä.
+async function loadHubStops(name, hub) {
   const feed = await findFeed();
+  const pref = feed + ":";
+  if (CONFIG.areaScoped && hub?.center) {
+    const data = await gql(
+      `query ($lat: Float!, $lon: Float!, $radius: Int!) {
+         stopsByRadius(lat: $lat, lon: $lon, radius: $radius, first: 80) {
+           edges { node { stop {
+             gtfsId code platformCode name@L lat lon
+             routes { gtfsId shortName color textColor }
+           } } }
+         }
+       }`, { lat: hub.center.lat, lon: hub.center.lon, radius: 1200 });
+    return ((data.stopsByRadius && data.stopsByRadius.edges) || [])
+      .map(e => e.node && e.node.stop).filter(Boolean)
+      .filter(s => s.gtfsId.startsWith(pref) && s.lat != null && s.lon != null);
+  }
   const data = await gql(
     `query ($name: String!) {
        stops(name: $name) {
@@ -9371,7 +9457,6 @@ async function loadHubStops(name) {
        }
      }`, { name });
   // stops(name:) EI ole feed-rajattu (hakee kaikki Waltti-kaupungit) → suodata oma feed
-  const pref = feed + ":";
   return (data.stops || []).filter(s => s.gtfsId.startsWith(pref) && s.lat != null && s.lon != null);
 }
 
@@ -9397,7 +9482,7 @@ async function viewHubs(parts) {
     btn.addEventListener("click", () => { location.hash = "#/laiturit/" + btn.dataset.hubTab; }));
   const mySeq = viewSeq;
   try {
-    let [stops] = await Promise.all([loadHubStops(hub.name), ensureLeaflet()]);
+    let [stops] = await Promise.all([loadHubStops(hub.name, hub), ensureLeaflet()]);
     if (mySeq !== viewSeq || !document.getElementById("hubMap")) return;
     // Hygienia: piilota pysäkit joilla ei ole yhtään linjaa (ei lähtöjä → pelkkää kohinaa).
     stops = stops.filter(s => (s.routes || []).length > 0);
