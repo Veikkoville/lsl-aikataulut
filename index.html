@@ -5198,9 +5198,13 @@ async function loadRoutes() {
   // sama numero näkyisi listoissa useasti ja linjasivu vain yhden suunnan. Eri shortNamet
   // (1 vs 1K) pysyvät erillisinä. gtfsIds = ryhmän kaikki route-ID:t; linjasivu/vihko/
   // juliste/kartta kokoavat patternit niiden unionista (ks. lineIds). Lahdessa ryhmä = 1.
+  // Numeroton linja EI ole linjan identiteetti: MATKA-feedissa 942 / 1 779 bussiobjektilla ei
+  // ole shortNamea, joten tyhja avain niputtaisi ne yhdeksi riviksi ja nakyviin jaisi yksi
+  // nimi (Inkoossa "Lohja - Karjaa", joka ei palvele kuntaa, kun oma "Karjaa - Inkoo" katosi).
+  // gtfsId-pohjainen avain pitaa numerottomat erillaan; numerolliset ryhmittyvat kuten ennen.
   const byShort = new Map();
   for (const r of byKey.values()) {
-    const k = r.shortName || "";
+    const k = r.shortName || ("#" + r.gtfsId);
     if (!byShort.has(k)) byShort.set(k, []);
     byShort.get(k).push(r);
   }
@@ -5724,6 +5728,16 @@ async function showQrInto(box, url, caption, fileBase) {
 }
 
 // Google encoded polyline, precision 1e-5 (OTP:n patternGeometry-muoto)
+// Patternin suunta-avain. GTFS:n direction_id on valinnainen: MATKA-feedissa se on
+// jokaisella Inkoon 61 patternilla -1, jolloin "suunta" romahtaa yhdeksi ja kartalle,
+// julisteeseen ja vihkoon jaa vain yksi reittikuvio, joka ei valttamatta vastaa otsikkoa.
+// Kun suuntaa ei ole, kaytetaan patternin omaa codea: jokainen variantti saa oman viivansa.
+// Waltti-feedeissa (direction_id 0/1) arvo on ennallaan.
+function dirKey(p) {
+  const d = p?.directionId;
+  return (d != null && d >= 0) ? d : (p?.code || 0);
+}
+
 function decodePolyline(str) {
   let index = 0, lat = 0, lng = 0;
   const coords = [];
@@ -8201,7 +8215,7 @@ async function viewRouteMap(routeId) {
     `query ($ids: [String]) {
        routes(ids: $ids) {
          gtfsId shortName longName@L color textColor
-         patterns { directionId patternGeometry { length points } stops { gtfsId name@L lat lon } }
+         patterns { code directionId patternGeometry { length points } stops { gtfsId name@L lat lon } }
        }
      }`, { ids });
   const routesArr = (data.routes || []).filter(Boolean);
@@ -8227,8 +8241,9 @@ async function viewRouteMap(routeId) {
     const byDir = new Map();
     for (const p of patterns) {
       if (!p.patternGeometry || !p.patternGeometry.points) continue;
-      const prev = byDir.get(p.directionId);
-      if (!prev || (p.patternGeometry.length || 0) > (prev.patternGeometry.length || 0)) byDir.set(p.directionId, p);
+      const k = dirKey(p);
+      const prev = byDir.get(k);
+      if (!prev || (p.patternGeometry.length || 0) > (prev.patternGeometry.length || 0)) byDir.set(k, p);
     }
     for (const p of byDir.values()) {
       const pts = decodePolyline(p.patternGeometry.points);
@@ -8305,7 +8320,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   // variaatiot pudotusvalikon taakse
   const byDir = new Map();
   for (const p of patterns) {
-    const k = p.directionId ?? 0;
+    const k = dirKey(p);
     if (!byDir.has(k)) byDir.set(k, []);
     byDir.get(k).push(p);
   }
@@ -8316,7 +8331,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   }
   // Varianttivalikko skoopataan NYKYISEEN suuntaan: näkyy vain jos tällä suunnalla on
   // aidosti useampi reittikuvio (useimmilla 1 → valikko piilossa, näkymä pysyy puhtaana).
-  const curDirId = current.directionId ?? 0;
+  const curDirId = dirKey(current);
   const curDirPatterns = (byDir.get(curDirId) || [current]).slice()
     .sort((a, b) => upcoming(b) - upcoming(a));
 
@@ -8448,8 +8463,8 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   // yhteen patterniin. Tämä on välttämätöntä, koska aikataulukauden vaihtuessa
   // (esim. kesä→syksy) suunnan vuorot voivat olla eri pattern-koodissa eri
   // päivinä; yhteen patterniin lukittu näkymä näyttäisi virheellisesti "ei lähtöjä".
-  const curDir = current.directionId ?? 0;
-  const dirPatterns = patterns.filter(p => (p.directionId ?? 0) === curDir);
+  const curDir = dirKey(current);
+  const dirPatterns = patterns.filter(p => dirKey(p) === curDir);
   // HUOM: lähtöjen referenssipysäkki EI ole suunnan pisin pattern (sen lähtöpysäkki voi
   // käännetyissä varianteissa olla reitin VIIMEINEN pysäkki → saapumisajat). Referenssi on
   // päivän hallitseva pattern (bestPatternForDate, sama kuin koko aikataulu -taulu) ja sen
@@ -8723,7 +8738,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     if (st) st.textContent = t("preparingPrint");
     // Molemmat suunnat; kummankin vuorot ryhmiteltynä todellisten ajopäivien mukaan.
     const dirBlocks = await Promise.all(primaries.map(async p => {
-      const dirPats = byDir.get(p.directionId ?? 0) || [p];  // suunnan kaikki variantit
+      const dirPats = byDir.get(dirKey(p)) || [p];  // suunnan kaikki variantit
       let groups = [];
       try { groups = groupTripsByDays(await dirTripsWithDays(dirPats), date); }
       catch (e) { groups = []; }
@@ -13028,7 +13043,7 @@ async function corridorFetchLines(routeIds) {
       const patterns = arr.flatMap(r => r.patterns || []);
       const byDir = new Map();
       for (const p of patterns) {
-        const k = p.directionId ?? 0;
+        const k = dirKey(p);
         if (!byDir.has(k)) byDir.set(k, []);
         byDir.get(k).push(p);
       }
@@ -13135,7 +13150,7 @@ async function corridorBuild(routeIds, dateISO) {
     const keyStops = corridorKeyStops(shared);
     const blocks = new Map();
     await mapLimit(b.members, 3, async m => {
-      const dirPats = m.line.byDir.get(m.pattern.directionId ?? 0) || [m.pattern];
+      const dirPats = m.line.byDir.get(dirKey(m.pattern)) || [m.pattern];
       let trips = [];
       try { trips = await dirTripsWithDays(dirPats); } catch (e) { trips = []; }
       for (const g of groupTripsByDays(trips, dateISO)) {
@@ -13172,7 +13187,7 @@ async function corridorBuild(routeIds, dateISO) {
       lines: b.members.map(m => m.line.route),
       // reittikaaviota varten: kunkin jäsenlinjan tämän suunnan patternit (geometria mukana)
       members: b.members.map(m => ({ route: m.line.route,
-        patterns: m.line.byDir.get(m.pattern.directionId ?? 0) || [m.pattern] })),
+        patterns: m.line.byDir.get(dirKey(m.pattern)) || [m.pattern] })),
     });
   }
   return { dirs, excluded };
@@ -13294,7 +13309,7 @@ async function reprintLineSnap(routeId, dateISO) {
   if (!route) return null;
   const byDir = new Map();
   for (const p of arr.flatMap(r => r.patterns || [])) {
-    const k = p.directionId ?? 0;
+    const k = dirKey(p);
     if (!byDir.has(k)) byDir.set(k, []);
     byDir.get(k).push(p);
   }
@@ -13304,7 +13319,7 @@ async function reprintLineSnap(routeId, dateISO) {
     const stops = p.stops || [];
     const label = stops.length ? `${stops[0].name} → ${stops[stops.length - 1].name}` : (p.name || "");
     let groups = [];
-    try { groups = groupTripsByDays(await dirTripsWithDays(byDir.get(p.directionId ?? 0) || [p]), dateISO); }
+    try { groups = groupTripsByDays(await dirTripsWithDays(byDir.get(dirKey(p)) || [p]), dateISO); }
     catch (e) { groups = []; }
     dirs.push({
       label,
@@ -13945,14 +13960,18 @@ function bindBookletTab(routes, today) {
         const patterns = routesArr.flatMap(r => r.patterns || []);  // suunnat unioniin
         const byDir = new Map();
         for (const p of patterns) {
-          const k = p.directionId ?? 0;
+          const k = dirKey(p);
           if (!byDir.has(k)) byDir.set(k, []);
           byDir.get(k).push(p);
         }
         let primaries = [...byDir.values()]
           .map(list => list.sort((a, b) => upcoming(b) - upcoming(a))[0]);
-        if (dirChoice !== "both")
-          primaries = primaries.filter(p => String(p.directionId ?? 0) === dirChoice);
+        if (dirChoice !== "both") {
+          // Suuntavalinta on "0"/"1". Kun feed ei anna direction_id:ta (MATKA), avaimet ovat
+          // patternien codeja, joten valinta tulkitaan jarjestysnumeroksi: 1. tai 2. suunta.
+          const byId = primaries.filter(p => String(dirKey(p)) === dirChoice);
+          primaries = byId.length ? byId : (primaries[Number(dirChoice)] ? [primaries[Number(dirChoice)]] : []);
+        }
         if (!primaries.length) return null;
         const dirs = await Promise.all(primaries.map(async p => {
           const stops = p.stops || [];
@@ -13961,7 +13980,7 @@ function bindBookletTab(routes, today) {
           // Vuorot ryhmiteltynä todellisten ajopäivien mukaan; suodata valittuihin
           // päivätyyppi-ämpäreihin (weekday=Ma–Pe, sat=La, sun=Su).
           // Suunnan kaikki variantit unioniin (monivarianttilinjat).
-          const dirPats = byDir.get(p.directionId ?? 0) || [p];
+          const dirPats = byDir.get(dirKey(p)) || [p];
           let groups = [];
           try { groups = groupTripsByDays(await dirTripsWithDays(dirPats), date); }
           catch (e) { groups = []; }
@@ -13972,7 +13991,7 @@ function bindBookletTab(routes, today) {
           return `<h3>${esc(label)}</h3>${dayTables}`;
         }));
         // Reittikaavio (kuten Kotkan vihossa): tulostettavien suuntien pisin geometria
-        const mapDirs = primaries.map(p => printMapDir(byDir.get(p.directionId ?? 0) || [p])).filter(Boolean);
+        const mapDirs = primaries.map(p => printMapDir(byDir.get(dirKey(p)) || [p])).filter(Boolean);
         const mapHtml = mapDirs.length ? printMapSvg([{ shortName: route.shortName, dirs: mapDirs }]) : "";
         return {
           label: `${route.shortName || ""} ${route.longName}`.trim(),
