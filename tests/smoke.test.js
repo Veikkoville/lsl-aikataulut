@@ -165,10 +165,21 @@ async function printHygiene(page, label) {
   if (await page.$("#nearbyBtn2")) await page.click("#nearbyBtn2");
   await expect("#nearbyBody table.deps tr", "etusivu: lähimmät lähdöt napista (haun vieressä)");
 
-  // Esteettömyys: "vain esteettömät pysäkit" -suodatin lähimmät-listassa
-  (await page.$("#nearbyBody #accOnly"))
-    ? ok("esteettömyys: lähimmät-listan esteettömyyssuodatin näkyy")
-    : fail("esteettömyys: esteettömyyssuodatin puuttuu");
+  // Esteettömyys: lähimmät-listassa näkyy joko "vain esteettömät pysäkit" -suodatin TAI
+  // nimenomainen tieto siitä ettei aineistossa ole esteettömyystietoa (.acc-nodata).
+  // Suodin piilotetaan vain kun feed palauttaa NO_INFORMATION jokaisesta pysäkistä: silloin
+  // se tuottaisi aina tuloksen "ei esteettömiä pysäkkejä lähistöllä", mikä on väärä väite
+  // (mitattu 18.9.2026: Waltti-Lahti 25/25 ja MATKA-Inkoo 6/6 NO_INFORMATION).
+  // .acc-nodata on oma elementtinsä eikä virhetilan fallback, ja yllä on jo vaadittu että
+  // lähtötaulukko renderöityi, joten tyhjä tai virheellinen lista ei kelpaa tästä läpi.
+  const accUi = await page.evaluate(() => ({
+    toggle: !!document.querySelector("#nearbyBody #accOnly"),
+    nodata: !!document.querySelector("#nearbyBody .acc-nodata"),
+  }));
+  (accUi.toggle !== accUi.nodata)
+    ? ok("esteettömyys: lähimmät-lista kertoo esteettömyyden tilan (" +
+        (accUi.toggle ? "suodatin" : "ei tietoa aineistossa") + ")")
+    : fail("esteettömyys: suodatin ja tiedon puute yhtä aikaa tai ei kumpaakaan: " + JSON.stringify(accUi));
 
   // --- Häiriöt vs. tiedotteet -erottelu: kiireelliset häiriöt korostettu/auki, informatiiviset
   //     tiedotteet vaimennettu/kiinni (sääntö B). Lahdella on aina ≥1 kumpaakin (esim. Kytölä-

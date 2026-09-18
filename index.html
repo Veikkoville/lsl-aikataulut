@@ -3025,17 +3025,23 @@ const CONFIGS = {
   // (`area.polygon`) ja vähimmäispysäkkimäärällä (`area.minStops`).
   // Junat tulevat rata.digitraffic-integraatiosta (`rail`), eivät GTFS-feedistä.
   // EI reaaliaikaa (MATKA-feedissä ei GTFS-RT:tä) eikä Inkyyti-kutsuliikennettä (ei ole GTFS).
-  // Ei fares-lohkoa: hinnat ovat ELY:n ja liikennöitsijöiden, ei kunnan, eikä niitä ole varmennettu.
+  // Ei fares-lohkoa: hinnat ovat tilaajan ja liikennöitsijöiden, ei kunnan, eikä niitä ole varmennettu.
   inkoo: {
     city: "Inkoo",
     cityGenitive: "Inkoon",
     cityNames: { sv: "Ingå" },
     cityGenitives: { sv: "Ingå" },
-    operator: "Uudenmaan ELY-keskus ja alueen liikennöitsijät",
+    // Uudenmaan ELY-keskus ei ole ollut joukkoliikenteen tilaaja 1.1.2026 jälkeen.
+    operator: "Traficom ja alueen liikennöitsijät",
     operatorShort: "Inkoo",
     dataSource: "Fintraffic",
     router: "finland",
     feedMatch: /^MATKA$/,
+    // Barösundin lossi on oma feedinsä (Finferries). Ilman tätä saaren puolelta ei näy
+    // mitään, vaikka lossi on kunnan ainoa yhteys sinne. Lisafeedeihin ei sovelleta
+    // vähimmäispysäkkimäärää (lossilla on kaksi laituria).
+    extraFeeds: ["CAR_FERRIES"],
+    modes: ["BUS", "FERRY"],
     areaScoped: true,
     rail: "IKO", // Inkoon asema, Hanko-rata (HL-juna Helsinki-Hanko)
     centerStopNames: ["Inkoo"],
@@ -3392,6 +3398,7 @@ const STRINGS = {
     deskWalkOnly: "Koko matka kävellen ({dur}).",
     deskWalkFastest: "Kävely on nyt nopein ({dur}).",
     deskNextBusTitle: "Seuraava bussi",
+    deskNextModeTitle: "Seuraava {mode}",
     deskNextBusLine: "Bussi: linja {line} pysäkiltä {stop} klo {dep}, perillä {arr}.",
     deskNextBusFromTo: "pysäkiltä {stop} klo {dep}, perillä {arr}.",
     deskNoBusToday: "Tänään ei bussivuoroja tälle välille.",
@@ -3491,6 +3498,8 @@ const STRINGS = {
     accVehicle: "Esteetön kalusto",
     accStop: "Esteetön pysäkki", accStopNo: "Pysäkki ei ole esteetön",
     accOnlyToggle: "Vain esteettömät pysäkit", accNearbyNone: "Ei esteettömiä pysäkkejä lähistöllä.",
+    accNoData: "Esteettömyystietoa ei ole tässä aineistossa.",
+    railHintLink: "Aseman junalähdöt",
     approachArm: "Ilmoita kun bussi lähestyy", approachOn: "Hälytys päällä",
     approachWaiting: "Hälytys päällä. Ilmoitamme, kun bussi lähestyy pysäkkiä.",
     approachWaitingNoPerm: "Hälytys päällä. Salli ilmoitukset selaimessa saadaksesi ilmoituksen myös taustalla.",
@@ -3958,6 +3967,7 @@ const STRINGS = {
     deskWalkOnly: "Whole trip on foot ({dur}).",
     deskWalkFastest: "Walking is fastest right now ({dur}).",
     deskNextBusTitle: "Next bus",
+    deskNextModeTitle: "Next {mode}",
     deskNextBusLine: "Bus: line {line} from {stop} at {dep}, arriving {arr}.",
     deskNextBusFromTo: "from {stop} at {dep}, arriving {arr}.",
     deskNoBusToday: "No bus departures for this route today.",
@@ -4053,6 +4063,8 @@ const STRINGS = {
     accVehicle: "Wheelchair accessible vehicle",
     accStop: "Wheelchair accessible stop", accStopNo: "Stop is not wheelchair accessible",
     accOnlyToggle: "Accessible stops only", accNearbyNone: "No accessible stops nearby.",
+    accNoData: "This data source has no accessibility information.",
+    railHintLink: "Train departures from the station",
     approachArm: "Alert me when a bus approaches", approachOn: "Alert on",
     approachWaiting: "Alert on. We'll notify you when a bus is approaching the stop.",
     approachWaitingNoPerm: "Alert on. Allow notifications in your browser to be alerted in the background too.",
@@ -4512,6 +4524,7 @@ const STRINGS = {
     deskWalkOnly: "Hela resan till fots ({dur}).",
     deskWalkFastest: "Att gå är snabbast just nu ({dur}).",
     deskNextBusTitle: "Nästa buss",
+    deskNextModeTitle: "Nästa {mode}",
     deskNextBusLine: "Buss: linje {line} från {stop} kl. {dep}, framme {arr}.",
     deskNextBusFromTo: "från {stop} kl. {dep}, framme {arr}.",
     deskNoBusToday: "Inga bussturer för den här sträckan idag.",
@@ -4607,6 +4620,8 @@ const STRINGS = {
     accVehicle: "Tillgängligt fordon",
     accStop: "Tillgänglig hållplats", accStopNo: "Hållplatsen är inte tillgänglig",
     accOnlyToggle: "Endast tillgängliga hållplatser", accNearbyNone: "Inga tillgängliga hållplatser i närheten.",
+    accNoData: "Materialet innehåller ingen tillgänglighetsinformation.",
+    railHintLink: "Tågavgångar från stationen",
     approachArm: "Meddela när en buss närmar sig", approachOn: "Avisering på",
     approachWaiting: "Avisering på. Vi meddelar när en buss närmar sig hållplatsen.",
     approachWaitingNoPerm: "Avisering på. Tillåt aviseringar i webbläsaren för att få meddelande även i bakgrunden.",
@@ -5116,6 +5131,15 @@ function staleNoteHtml(ts) {
   } catch (e) { /* localStorage estetty: ohitetaan */ }
 })();
 
+// Kuuluuko pysäkki tai linja tämän kaupungin palveluun: oma feed tai erikseen sallittu
+// lisafeed (Inkoossa Barösundin lossi). Nostettu yhteiseksi, koska sama suodatus oli
+// kuudessa eri kohdassa ja lossi putosi joka kerta pois.
+function inCityFeed(gtfsId) {
+  const id = String(gtfsId || "");
+  if (feedId && id.startsWith(feedId + ":")) return true;
+  return (CONFIG.extraFeeds || []).some(f => id.startsWith(f + ":"));
+}
+
 async function findFeed() {
   if (feedId) return feedId;
   const data = await gql(`{ feeds { feedId publisher { name } } }`, null, { allowPartial: true });
@@ -5166,14 +5190,17 @@ async function areaRouteIds(feed) {
     for (const x of (s.routes || [])) counts.set(x.gtfsId, (counts.get(x.gtfsId) || 0) + 1);
   }
   const min = AREA.minStops || 1;
-  let ids = [...counts.entries()].filter(([, n]) => n >= min).map(([id]) => id)
-    .filter(id => id.startsWith(feed + ":"));
+  const isExtra = id => (CONFIG.extraFeeds || []).some(f => String(id).startsWith(f + ":"));
+  let ids = [...counts.entries()]
+    .filter(([id, n]) => n >= min || isExtra(id))
+    .map(([id]) => id)
+    .filter(id => id.startsWith(feed + ":") || isExtra(id));
   // Varakeino: jos kynnys tai polygoni pudottaa kaiken (esim. feedin pysäkit siirtyneet),
   // palataan pelkkään suorakaiteeseen — tyhjä linjalista olisi pahempi kuin liian laaja.
   if (!ids.length) {
     ids = [...new Set((box.stopsByBbox || [])
       .flatMap(s => (s.routes || []).map(x => x.gtfsId)))]
-      .filter(id => id.startsWith(feed + ":"));
+      .filter(id => id.startsWith(feed + ":") || isExtra(id));
   }
   if (!ids.length) throw new Error(t("errFeedNotFound"));
   return ids;
@@ -5210,8 +5237,11 @@ async function loadRoutes() {
   const tripCount = r => (r.patterns || []).reduce((n, p) => n + dates.reduce((m, _, i) => m + (p["d" + i] || []).length, 0), 0);
   const isActive = r => tripCount(r) > 0;
   // varakeino: jos jostain syystä mikään linja ei näytä aktiiviselta, näytetään kaikki
-  const anyActive = (data.routes || []).some(r => r.mode === "BUS" && isActive(r));
-  const buses = (data.routes || []).filter(r => r.mode === "BUS").filter(r => !anyActive || isActive(r));
+  // CONFIG.modes: oletuksena vain bussit. Inkoossa mukaan otetaan lossi, jotta saaren
+  // puolen ainoa yhteys näkyy linjalistassa eikä vain reittihaussa.
+  const MODES = CONFIG.modes || ["BUS"];
+  const anyActive = (data.routes || []).some(r => MODES.includes(r.mode) && isActive(r));
+  const buses = (data.routes || []).filter(r => MODES.includes(r.mode)).filter(r => !anyActive || isActive(r));
   // Dedup: sama linja voi olla feedissä kahdesti eri liikennöitsijällä (esim. 23
   // Koiviston Auto + Vekka, identtiset vuorot = liikennöitsijävaihdoksen duplikaatti).
   // Pidetään samannimisistä (shortName+longName) eniten vuoroja sisältävä → ei tuplaa.
@@ -7159,7 +7189,7 @@ function bindStopSearch(input, results) {
           `query ($name: String) { stops(name: $name) { gtfsId name@L code } }`, { name: q });
         if (mySeq !== seq) return;
         const hits = (data.stops || [])
-          .filter(s => s.gtfsId.startsWith(feedId + ":"))
+          .filter(s => inCityFeed(s.gtfsId))
           .slice(0, 20);
         results.innerHTML = hits.length
           ? hits.map(s => `<li><a class="item" href="#/pysakki/${encodeURIComponent(s.gtfsId)}">
@@ -7451,12 +7481,17 @@ async function renderNearby() {
     if (!document.getElementById("nearbyBody")) return;
     const all = (data.stopsByRadius?.edges || [])
       .map(e => e.node)
-      .filter(n => n.stop && n.stop.gtfsId.startsWith(feedId + ":")
+      .filter(n => n.stop && inCityFeed(n.stop.gtfsId)
                 && (n.stop.stoptimesWithoutPatterns || []).length)
       .sort((a, b) => a.distance - b.distance);
     const groups = (nearbyAccessibleOnly
       ? all.filter(n => n.stop.wheelchairBoarding === "POSSIBLE") : all).slice(0, 5);
-    const toggle = `<label class="acc-toggle no-print"><input type="checkbox" id="accOnly"${nearbyAccessibleOnly ? " checked" : ""}> <span>${icon("wheelchair")} ${t("accOnlyToggle")}</span></label>`;
+    // Jos feed ei kerro esteettömyyttä yhdestäkään pysäkistä (MATKA), suodin vain väittäisi
+    // ettei esteettömiä pysäkkejä ole. Kerrotaan tiedon puute suotimen sijaan.
+    const accKnown = all.some(n => n.stop.wheelchairBoarding && n.stop.wheelchairBoarding !== "NO_INFORMATION");
+    const toggle = accKnown
+      ? `<label class="acc-toggle no-print"><input type="checkbox" id="accOnly"${nearbyAccessibleOnly ? " checked" : ""}> <span>${icon("wheelchair")} ${t("accOnlyToggle")}</span></label>`
+      : `<p class="muted no-print acc-nodata">${icon("wheelchair")} ${t("accNoData")}</p>`;
     const list = groups.length
       ? (cachedAt ? staleNoteHtml(cachedAt) : "")
         + groups.map(n => stopDepGroupHtml(n.stop, n.distance + " m")).join("")
@@ -8245,6 +8280,16 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
       : (a.school ? 1 : 0) - (b.school ? 1 : 0);
   });
   return arr;
+}
+
+// Aseman junalähdöt reittihaun alle, kun kunnassa on asema mutta ehdotuksissa ei ole junaa.
+// Inkoossa junia on neljä päivässä ja hakuikkuna on 2 tuntia, joten juna jää käytännössä
+// näkymättömiin, vaikka se on kunnan nopein yhteys pääkaupunkiseudulle.
+function railHintHtml(nodes) {
+  if (!railCodes().length) return "";
+  const hasRail = (nodes || []).some(n => (n.legs || []).some(l => l.mode === "RAIL"));
+  if (hasRail) return "";
+  return `<p class="muted no-print">${icon("train")} <a href="#/junat">${t("railHintLink")}</a></p>`;
 }
 
 // Map-first linjanäkymä (#/linjakartta/<id>): koko reitti kartalla + live-bussit
@@ -9360,7 +9405,7 @@ async function loadNetwork() {
   // joten siella tyhja aktiivijoukko on virhe eika fallback.
   if (!activeIds && CONFIG.areaScoped) throw new Error(t("errFeedNotFound"));
   networkCache = (data.routes || [])
-    .filter(r => r.mode === "BUS")
+    .filter(r => (CONFIG.modes || ["BUS"]).includes(r.mode))
     .filter(r => !activeIds || activeIds.has(r.gtfsId));
   return networkCache;
 }
@@ -9382,7 +9427,7 @@ async function loadAreaStops() {
   // Oma feed + juna-asemat ja lauttalaiturit muista feedeistä (kunnan asema ei ole MATKAssa).
   areaStopsCache = (data.stopsByBbox || []).filter(st =>
     st.lat != null && inMunicipality(st.lat, st.lon) &&
-    (st.gtfsId.startsWith(feed + ":") || st.vehicleMode === "RAIL" || st.vehicleMode === "FERRY"));
+    (inCityFeed(st.gtfsId) || st.vehicleMode === "RAIL" || st.vehicleMode === "FERRY"));
   return areaStopsCache;
 }
 
@@ -10035,7 +10080,7 @@ function bindScreenNetTab() {
         await findFeed();
         const res = await gql(`query ($name: String) { stops(name: $name) { gtfsId name@L code } }`, { name: q });
         if (my !== sseq) return;
-        const stops = (res.stops || []).filter(s => s.gtfsId.startsWith(feedId + ":")).slice(0, 8);
+        const stops = (res.stops || []).filter(s => inCityFeed(s.gtfsId)).slice(0, 8);
         sr.innerHTML = stops.length
           ? stops.map(s => `<li><button class="item" type="button" data-stop="${esc(s.gtfsId)}">
               <span>${icon("pin")} ${esc(s.name)}</span>
@@ -10354,7 +10399,7 @@ async function searchStopsByName(name, limit) {
     `query ($name: String) { stops(name: $name) { gtfsId name@L code lat lon } }`, { name });
   const near = s => Math.hypot((s.lat - AREA.focus.lat) * 111, (s.lon - AREA.focus.lon) * 55);
   return (data.stops || [])
-    .filter(s => s.gtfsId.startsWith(feedId + ":") && s.lat != null && inRect(s.lat, s.lon))
+    .filter(s => inCityFeed(s.gtfsId) && s.lat != null && inRect(s.lat, s.lon))
     .sort((a, b) => near(a) - near(b))
     .slice(0, limit);
 }
@@ -10889,9 +10934,12 @@ function deskBusSentence(node) {
 }
 // Korostettu "Seuraava bussi" -kortti (näytetään VAIN kun kävely on nopein). busNode null → ei bussia tänään.
 function deskNextBusHtml(busNode) {
-  const head = `<div class="desk-next-bus-h">${icon("bus")} ${t("deskNextBusTitle")}</div>`;
+  const ft0 = busNode ? firstTransitLeg(busNode) : null;
+  // Otsikko kulkutavan mukaan: tiski sanoi "Seuraava bussi" myös junasta ja lossista.
+  const head = `<div class="desk-next-bus-h">${icon(MODE_ICONS[ft0?.mode] || "bus")} ` +
+    `${ft0 && ft0.mode !== "BUS" ? t("deskNextModeTitle", { mode: modeLabel(ft0.mode) }) : t("deskNextBusTitle")}</div>`;
   if (!busNode) return `<div class="desk-next-bus desk-next-bus--none">${head}<p>${t("deskNoBusToday")}</p></div>`;
-  const ft = firstTransitLeg(busNode);
+  const ft = ft0;
   const bg = ft.route?.color ? "#" + ft.route.color : "var(--btn-bg)";
   const fg = ft.route?.color ? badgeText(ft.route.color, ft.route.textColor) : "#fff";
   const tr = deskTransfersTxt(busNode);
@@ -11197,7 +11245,7 @@ async function viewServiceDesk() {
     msg.innerHTML = "";
     const nodes = (data.planConnection?.edges || []).map(e => localizePlanNode(e.node));
     const res = document.getElementById("deskResults");
-    if (!nodes.length) { res.innerHTML = `<p class="muted">${t("noItineraries")}</p>`; return; }
+    if (!nodes.length) { res.innerHTML = `<p class="muted">${t("noItineraries")}</p>` + railHintHtml([]); return; }
     // Aina seuraava bussi näkyviin: jos ensisijaisessa haussa ei ole bussia (kävely voittaa tai
     // vuoroja ei juuri nyt aja), aja pakotettu bussikysely leveällä ikkunalla.
     const fastestHasBus = !!firstTransitLeg(nodes[0]);
@@ -11211,7 +11259,8 @@ async function viewServiceDesk() {
     res.innerHTML = deskTellHtml(nodes, busNode)
       + (fastestHasBus ? "" : deskNextBusHtml(busNode))   // erillinen "Seuraava bussi" -kortti vain kun kävely voittaa
       + `<h3 class="desk-h3">${t("deskOptionsTitle")}</h3>`
-      + nodes.map(n => deskOptionHtml(n)).join("");
+      + nodes.map(n => deskOptionHtml(n)).join("")
+      + railHintHtml(nodes);
   };
 
   bindDeskPlace(fromEl, document.getElementById("deskFromList"), p => { dFrom = p; }, () => toEl.focus());
@@ -11633,7 +11682,9 @@ const NEXT_BUS_QUERY = `
   query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!) {
     planConnection(origin: $origin, destination: $destination, first: 3,
                    searchWindow: "PT16H",
-                   modes: { transitOnly: true, transit: { transit: [{ mode: BUS }] } }) {
+                   # Tiskin "seuraava vuoro" sallii myös junan ja lossin: Inkoossa juna on
+                   # usein ainoa yhteys, eikä pelkkä bussikysely löydä sitä.
+                   modes: { transitOnly: true, transit: { transit: [{ mode: BUS }, { mode: RAIL }, { mode: FERRY }] } }) {
       edges { node {
         start end numberOfTransfers
         legs {
@@ -12161,8 +12212,9 @@ async function viewPlan(parts) {
            ${lastHasPrev && nodes.length ? `<button id="earlierBtn" class="linkish no-print">↑ ${t("showEarlier")}</button>` : ""}
            ${view.map((n, i) => itinHtml(n, i)).join("")}
            ${lastHasNext ? `<button id="moreBtn" class="no-print">${t("showLater")}</button>` : ""}
+           ${railHintHtml(view)}
          </div>`
-      : `<div class="card"><p class="muted">${t("noItineraries")}</p></div>`;
+      : `<div class="card"><p class="muted">${t("noItineraries")}</p>${railHintHtml([])}</div>`;
     results.querySelectorAll("details.itin[data-itin]").forEach(d =>
       d.addEventListener("toggle", () => {
         if (!d.open) return;
