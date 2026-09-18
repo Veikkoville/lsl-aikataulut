@@ -3432,6 +3432,11 @@ const STRINGS = {
     // pysäkkihaku ja paikannus
     noStopsFor: 'Ei pysäkkejä haulla "{q}".',
     noPlacesFor: 'Ei osumia haulla "{q}".',
+    noMatchesArea: "Ei osumia. Haku on rajattu {city} alueelle.",
+    layerStop: "pysäkki",
+    layerStation: "juna-asema",
+    layerArea: "alue",
+    layerVenue: "kohde",
     geoUnsupported: "Selaimesi ei tue paikannusta.",
     geoUnsupportedHint: "Selaimesi ei tue paikannusta. Käytä pysäkkihakua alla.",
     gettingLocation: "Haetaan sijaintia…",
@@ -3989,6 +3994,11 @@ const STRINGS = {
     batchNoStops: "No stops found on the line.",
     noStopsFor: 'No stops found for "{q}".',
     noPlacesFor: 'No results for "{q}".',
+    noMatchesArea: "No matches. The search is limited to the {city} area.",
+    layerStop: "stop",
+    layerStation: "railway station",
+    layerArea: "area",
+    layerVenue: "place",
     geoUnsupported: "Your browser does not support geolocation.",
     geoUnsupportedHint: "Your browser does not support geolocation. Use the stop search below.",
     gettingLocation: "Getting location…",
@@ -4536,6 +4546,11 @@ const STRINGS = {
     batchNoStops: "Inga hållplatser hittades på linjen.",
     noStopsFor: 'Inga hållplatser hittades för "{q}".',
     noPlacesFor: 'Inga resultat för "{q}".',
+    noMatchesArea: "Inga träffar. Sökningen är begränsad till {city} område.",
+    layerStop: "hållplats",
+    layerStation: "järnvägsstation",
+    layerArea: "område",
+    layerVenue: "plats",
     geoUnsupported: "Din webbläsare stöder inte positionering.",
     geoUnsupportedHint: "Din webbläsare stöder inte positionering. Använd hållplatssökningen nedan.",
     gettingLocation: "Hämtar position…",
@@ -7121,12 +7136,13 @@ function bindUnifiedSearch(input, results) {
         let stopHits = [], placeHits = [];
         if (q.length >= 2) {
           const [stopsRes, geoRes] = await Promise.allSettled([
-            gql(`query ($name: String) { stops(name: $name) { gtfsId name@L code } }`, { name: q }),
+            searchStopsByName(q, 6),
             geocode(q),
           ]);
           if (mySeq !== seq) return;
-          stopHits = stopsRes.status === "fulfilled"
-            ? (stopsRes.value.stops || []).filter(s => s.gtfsId.startsWith(feedId + ":")).slice(0, 6) : [];
+          stopHits = stopsRes.status === "fulfilled" ? stopsRes.value : [];
+          // station-taso jaa listaan (Inkoon asema on haettava), mutta geocoden uudelleen-
+          // jarjestys pitaa huolen siita ettei se ole ensimmaisena keskustan edella.
           placeHits = (geoRes.status === "fulfilled" ? geoRes.value : [])
             .filter(p => p.layer !== "stop").slice(0, 5);
         }
@@ -7147,10 +7163,13 @@ function bindUnifiedSearch(input, results) {
         if (placeHits.length) {
           html += `<li class="search-cat">${t("catPlaces")}</li>` +
             placeHits.map((p, i) => `<li><button class="item" type="button" data-place="${i}">
-              <span>${icon(PLACE_ICONS[p.layer] || "pin")} ${esc(p.name)}</span></button></li>`).join("");
+              <span>${icon(PLACE_ICONS[p.layer] || "pin")} ${esc(p.name)}${placeHint(p)}</span></button></li>`).join("");
         }
         if (!html) track("search_fail", q);   // haku ilman osumia = suunnittelijoille arvokas signaali
-        results.innerHTML = html || `<li><p class="muted">${t("noMatches")}</p></li>`;
+        // areaScoped: tyhja tulos johtuu usein siita etta haku on rajattu kuntaan. Sanotaan se,
+        // muuten kayttaja luulee ettei paikkaa ole olemassa.
+        const emptyMsg = CONFIG.areaScoped ? t("noMatchesArea", { city: cityGenName() }) : t("noMatches");
+        results.innerHTML = html || `<li><p class="muted">${esc(emptyMsg)}</p></li>`;
 
         // Osoiteklikkaus: aseta reittioppaan määränpää ja avaa reittihaku
         results.querySelectorAll("button[data-place]").forEach(btn =>
@@ -10104,8 +10123,33 @@ function bindChangesTab() {
 /* ---------- Paikkahaku: pysäkit (GraphQL) + osoitteet/POI:t (Pelias) ---------- */
 
 async function geocode(text) {
+  const hits = await geocodeRaw(text);
+  // areaScoped: Pelias pisteyttää tekstiosuman eikä sijaintia, joten pelkkä "koulu" antaa
+  // Inkoossa Mustion koulun (13 km) ja Siuntion Koulutien, muttei kunnan omaa Merituulen
+  // koulua lainkaan. Kun yhtään osumaa ei ole kunnan sisällä, kysytään uudelleen kunnan
+  // nimi hakusanan perässä ja nostetaan sen kunnan sisäiset osumat ensin.
+  if (!CONFIG.areaScoped || hits.some(h => inMunicipality(h.lat, h.lon))) return hits;
+  // Vain kun mikään ei osu täydellä tekstiosumalla (confidence 1). Muuten naapurikunnan
+  // nimi ("Kirkkonummi") korvautuisi kunnan sisäisellä sumealla osumalla.
+  if (hits.length && hits[0].conf >= 1) return hits;
+  const city = cityName();
+  if (!city || text.toLowerCase().includes(city.toLowerCase())) return hits;
+  let extra = [];
+  try { extra = await geocodeRaw(text + " " + city); } catch (e) { return hits; }
+  // Vain aito tekstiosuma kelpaa: muuten hakusana "Helsinki" nostaisi listan kärkeen
+  // sattumanvaraisia kunnan sisäisiä katuja, koska kysely oli "Helsinki Inkoo".
+  const words = text.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+  const local = extra.filter(h => inMunicipality(h.lat, h.lon) &&
+    words.some(w => (h.name || "").toLowerCase().includes(w))).slice(0, 5);
+  if (!local.length) return hits;
+  const seen = new Set(local.map(h => h.name));
+  return [...local, ...hits.filter(h => !seen.has(h.name))];
+}
+
+async function geocodeRaw(text) {
   const params = new URLSearchParams({
-    text, size: "6", lang,
+    // size 10 (ei 6): uudelleenjarjestys tarvitsee enemman ehdokkaita kuin lopulliset 5-9 rivia.
+    text, size: "10", lang,
     "focus.point.lat": String(AREA.focus.lat),
     "focus.point.lon": String(AREA.focus.lon),
     "boundary.rect.min_lat": String(AREA.rect.minLat),
@@ -10117,6 +10161,12 @@ async function geocode(text) {
   const res = await fetch(`${GEOCODING_URL}/search?${params}`);
   if (!res.ok) throw new Error(t("errGeocode") + res.status);
   const json = await res.json();
+  // Pelias jarjestaa yhta hyvat osumat layer-prioriteetilla (station > venue > localadmin >
+  // stop) eika etaisyydella: hakusana "Inkoo" antaisi juna-aseman (4,4 km) ennen keskustaa ja
+  // ruotsinkielinen "Inga" pelkastaan juna-aseman. Sailytetaan siksi confidence ja distance
+  // (km focus-pisteesta) ja jarjestetaan lista uudelleen: ensin tekstiosuman laatu, sitten
+  // etaisyys. Mitattu 15 hakusanalla tuotantoa vasten: ykkostulos muuttuu vain kahdessa,
+  // molemmissa lahemmaksi kayttajaa.
   return (json.features || [])
     .filter(f => f.geometry?.coordinates)
     .map(f => ({
@@ -10124,19 +10174,34 @@ async function geocode(text) {
       lat: f.geometry.coordinates[1],
       lon: f.geometry.coordinates[0],
       layer: f.properties.layer || "address",
-    }));
+      conf: f.properties.confidence ?? 0,
+      dist: f.properties.distance ?? Infinity,
+    }))
+    .sort((a, b) => (b.conf - a.conf) || (a.dist - b.dist));
+}
+
+// stops(name:) hakee koko routerin alueelta. Waltti-kaupungeissa feed-etuliite on kaytannossa
+// myos maantieteellinen rajaus, mutta valtakunnallisessa feedissa (MATKA) se ei rajaa mitaan:
+// Inkoossa haku "koulu" tarjosi pysakkeja 137-483 km paasta. areaScoped-kaupungeissa tulokset
+// rajataan siksi kunnan suorakaiteeseen ja jarjestetaan etaisyydella focus-pisteesta.
+async function searchStopsByName(name, limit) {
+  const data = await gql(
+    `query ($name: String) { stops(name: $name) { gtfsId name@L code lat lon } }`, { name });
+  const near = s => Math.hypot((s.lat - AREA.focus.lat) * 111, (s.lon - AREA.focus.lon) * 55);
+  return (data.stops || [])
+    .filter(s => s.gtfsId.startsWith(feedId + ":") && s.lat != null && inRect(s.lat, s.lon))
+    .sort((a, b) => near(a) - near(b))
+    .slice(0, limit);
 }
 
 async function searchPlaces(q) {
   await findFeed();
   const [stopsRes, geoRes] = await Promise.allSettled([
-    gql(`query ($name: String) { stops(name: $name) { gtfsId name@L code lat lon } }`, { name: q }),
+    searchStopsByName(q, 4),
     geocode(q),
   ]);
   const stops = stopsRes.status === "fulfilled"
-    ? (stopsRes.value.stops || [])
-        .filter(s => s.gtfsId.startsWith(feedId + ":") && s.lat != null)
-        .slice(0, 4)
+    ? stopsRes.value
         .map(s => ({ name: s.name + (s.code ? ` (${s.code})` : ""), lat: s.lat, lon: s.lon, layer: "stop" }))
     : [];
   const places = geoRes.status === "fulfilled" ? geoRes.value : [];
@@ -10147,7 +10212,17 @@ async function searchPlaces(q) {
   return [...stops, ...places].slice(0, 9);
 }
 
-const PLACE_ICONS = { stop: "pin", address: "home", street: "home", venue: "pin" };
+const PLACE_ICONS = { stop: "pin", address: "home", street: "home", venue: "pin",
+  station: "train", localadmin: "map", locality: "map", neighbourhood: "map" };
+
+// Sama sana tarkoittaa Peliaksessa montaa eri kohdetta: "Inkoo" on juna-asema, kunta, kyla ja
+// pysakki. Ilman selitetta lista nayttaa neljalta identtiselta rivilta.
+const PLACE_LAYER_KEYS = { stop: "layerStop", station: "layerStation", localadmin: "layerArea",
+  locality: "layerArea", neighbourhood: "layerArea", venue: "layerVenue" };
+function placeHint(p) {
+  const key = PLACE_LAYER_KEYS[p.layer];
+  return key ? ` <span class="muted">${esc(t(key))}</span>` : "";
+}
 
 /* Viimeksi haetut paikat nopeuttavat toistuvia hakuja */
 function getRecents() {
@@ -10286,7 +10361,7 @@ function bindPlaceInput(input, listEl, onPick) {
         listEl.innerHTML = places.length
           ? places.map((p, i) => `<li><button type="button" class="item" data-i="${i}">
               ${icon(PLACE_ICONS[p.layer] || "pin")}
-              <span>${esc(p.name)}</span></button></li>`).join("")
+              <span>${esc(p.name)}${placeHint(p)}</span></button></li>`).join("")
           : `<li><p class="muted" style="padding:0.4rem">${t("noPlacesFor", { q: esc(q) })}</p></li>`;
         listEl.hidden = false;
         listEl.querySelectorAll("button[data-i]").forEach(btn =>
@@ -10603,7 +10678,7 @@ function bindDeskPlace(input, listEl, onPick, onAdvance) {
         places = r;
         listEl.innerHTML = r.length
           ? r.map((p, i) => `<li><button type="button" class="item" data-i="${i}">
-              ${icon(PLACE_ICONS[p.layer] || "pin")}<span>${esc(p.name)}</span></button></li>`).join("")
+              ${icon(PLACE_ICONS[p.layer] || "pin")}<span>${esc(p.name)}${placeHint(p)}</span></button></li>`).join("")
           : `<li><p class="muted" style="padding:0.4rem">${t("noPlacesFor", { q: esc(q) })}</p></li>`;
         listEl.hidden = false;
         listEl.querySelectorAll("button[data-i]").forEach(btn =>
