@@ -1441,6 +1441,17 @@
   html[data-theme="dark"] { --bus: #3a4a42; --bus-text: #ffffff; }   /* tummassa vaaleampi, erottuu kortista */
   html[data-contrast="high"] { --bus: #000000; }
   html[data-theme="dark"][data-contrast="high"] { --bus: #ffffff; --bus-text: #000000; }
+  /* Kulkutapa: juna ja lautta erottuvat bussista. Vaalean teeman --m-rail on VR:n vihreastä
+     (#00a149) tummennettu versio, jotta valkoinen teksti läpäisee AA:n; tummassa teemassa
+     käytetään VR:n omaa sävä mustalla tekstillä. Väri ei ole ainoa erottaja: sama tieto
+     annetaan ikonina ja tekstinä (WCAG 1.4.1). */
+  :root { --m-rail: #00833b; --m-rail-text: #ffffff; --m-ferry: #0e6a7d; --m-ferry-text: #ffffff; }
+  html[data-theme="dark"] { --m-rail: #00a149; --m-rail-text: #10141c; --m-ferry: #3fa8c4; --m-ferry-text: #10141c; }
+  html[data-contrast="high"] { --m-rail: #000000; --m-ferry: #000000; }
+  html[data-theme="dark"][data-contrast="high"] { --m-rail: #ffffff; --m-rail-text: #000000; --m-ferry: #ffffff; --m-ferry-text: #000000; }
+  /* Ruudunlukijalle näkyvä, silmälle piilotettu teksti (kulkutapasana ikonin rinnalla) */
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
   /* ---- REILA F5: hero-kaista (ilmava, tuotemainen). Tausta = --accent-soft → seuraa
      per-kaupunki-väriä (Lahti/Salo/Kajaani sininen-soft, Kotka oranssi-soft, Vaasa pinkki-soft)
@@ -1566,12 +1577,21 @@
     100% { box-shadow: 0 0 0 0 rgba(240,115,78,0); }
   }
 
+  /* ---- Linjastokartan selite: viivatyyli + linjanumero ---- */
+  .net-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 14px;
+    margin: 8px 0 0; padding: 0; font-size: 13.5px; color: var(--ink-muted); }
+  .net-legend li { display: flex; align-items: center; gap: 6px; }
+  .net-legend .net-key { display: inline-block; width: 22px; height: 0; }
+
   /* ---- Matka-aikajana (legbar): bussi = täytetty --bus-palkki, kävely = katkoviiva+min ---- */
   .legbar { display: flex; align-items: center; gap: 5px; height: 27px; margin: 0; overflow: visible;
     border-radius: 0; opacity: 1; }
   .legbar .seg { flex-basis: 0; min-width: 46px; height: 27px; border-radius: 8px; background: var(--bus);
     color: var(--bus-text); font-size: 13.5px; font-weight: 700; letter-spacing: .3px;
     display: flex; align-items: center; justify-content: center; }
+  .legbar .seg.rail { background: var(--m-rail); color: var(--m-rail-text); }
+  .legbar .seg.ferry { background: var(--m-ferry); color: var(--m-ferry-text); }
+  .legbar .seg svg { width: 15px; height: 15px; }
   .legbar .seg.walk { position: relative; background: transparent; min-width: 26px; color: var(--ink-muted-2); }
   .legbar .seg.walk::before { content: ""; position: absolute; left: 2px; right: 2px; top: 50%;
     border-top: 2px dotted var(--line); }
@@ -1676,6 +1696,11 @@
       --accent-soft: #fff; --coral-soft: #fff;
     }
     body { background: #fff; }
+    /* Matka-aikajana: väri pois, muoto ja reunaviiva jäljelle (sama ratkaisu kuin badgella).
+       Ilman tätä korkean kontrastin tumma teema tulosti valkoisen palkin valkoiselle. */
+    .legbar .seg, .legbar .seg.rail, .legbar .seg.ferry {
+      background: #fff !important; color: #000 !important; border: 1px solid #000; }
+    .legbar .seg.walk { border: 0; }
     /* REILA F3: pehmeät kohotukset pois tulosteesta (kortit/kentät/itinerary/laiturit) */
     * { box-shadow: none !important; }
     /* tulosteessa sisältö saa käyttää koko arkin leveyden (myös vaaka) */
@@ -3625,6 +3650,7 @@ const STRINGS = {
     trainsIntro: "Seuraavat lähtevät junat asemalta {station}. Ajat päivittyvät automaattisesti.",
     trainsIntroMulti: "Seuraavat lähtevät junat asemilta {stations}. Ajat päivittyvät automaattisesti.",
     trainsTrain: "Juna", trainsTrack: "Raide",
+    modeFerry: "Lautta", modeBus: "Bussi",
     trainsEmpty: "Ei lähteviä junia lähitunteina.",
     trainsCancelled: "Peruttu",
     trainsLate: "arvio {time}",
@@ -4178,6 +4204,7 @@ const STRINGS = {
     trainsIntro: "Next departing trains from {station}. Times update automatically.",
     trainsIntroMulti: "Next departing trains from the stations {stations}. Times update automatically.",
     trainsTrain: "Train", trainsTrack: "Track",
+    modeFerry: "Ferry", modeBus: "Bus",
     trainsEmpty: "No departing trains in the next few hours.",
     trainsCancelled: "Cancelled",
     trainsLate: "estimate {time}",
@@ -4731,6 +4758,7 @@ const STRINGS = {
     trainsIntro: "Följande avgående tåg från {station}. Tiderna uppdateras automatiskt.",
     trainsIntroMulti: "Följande avgående tåg från stationerna {stations}. Tiderna uppdateras automatiskt.",
     trainsTrain: "Tåg", trainsTrack: "Spår",
+    modeFerry: "Färja", modeBus: "Buss",
     trainsEmpty: "Inga avgående tåg under de närmaste timmarna.",
     trainsCancelled: "Inställt",
     trainsLate: "uppskattning {time}",
@@ -5588,6 +5616,7 @@ const ICONS = {
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
   tools: '<path d="M14.5 6.5a3.5 3.5 0 0 1-4.6 4.6L5 16l3 3 4.9-4.9a3.5 3.5 0 0 1 4.6-4.6l-2.4 2.4-1.9-1.9z"/>',
   bus: '<rect x="4" y="4" width="16" height="13" rx="2"/><path d="M4 8h16M4 11h16"/><circle cx="8" cy="20" r="1.3"/><circle cx="16" cy="20" r="1.3"/>',
+  ferry: '<path d="M4 18l1.6-5.5 6.4-2 6.4 2L20 18"/><path d="M12 10.5V6M9 6h6"/><path d="M3 20c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1"/>',
   star: '<path d="M12 4l2.5 5 5.5.8-4 3.9.9 5.5L12 16.6 7.1 19.2l.9-5.5-4-3.9 5.5-.8z"/>',
   warning: '<path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.6v.01"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
@@ -5764,6 +5793,17 @@ function decodePolyline(str) {
    Suunnat erotetaan nuolilla, linjat viivatyypillä (ei värillä; mv-tuloste). Kaikki
    tekstit ovat oikeaa SVG-tekstiä (valittavissa/muokattavissa PDF:ssä). */
 const PM_DASHES = ["", "12 6", "3 5", "12 5 3 5", "6 4", "1 4"];
+
+// Linjaston yleiskartan varapaletti. GTFS:n route_color on valinnainen, eikä MATKA anna sitä
+// yhdellekään linjalle: ilman tätä kaikki viivat ovat samaa sinistä (mitattu myös Salossa
+// 0/28 ja Vaasassa 0/39). Värin rinnalla käytetään viivatyyliä, jotta erottelu ei ole
+// pelkän värin varassa.
+const NET_COLORS = ["#0a4ea3", "#b5322e", "#1c7a3f", "#7a3fb5", "#b57a1c", "#1c7a7a"];
+function netStyleFor(key) {
+  let h = 0;
+  for (let i = 0; i < String(key).length; i++) h = (h * 31 + String(key).charCodeAt(i)) >>> 0;
+  return { color: NET_COLORS[h % NET_COLORS.length], dash: PM_DASHES[h % PM_DASHES.length] };
+}
 function printMapSvg(lines, opts = {}) {
   // lines: [{ shortName, dirs: [{ points: [[lat,lon]…], stops: [{gtfsId,name,lat,lon}] }] }]
   const allPts = [];
@@ -7358,6 +7398,9 @@ function dominantRouteColor(routes) {
 function badgeHtml(route, fallback) {
   // Numerottomat linjat (ELY-vuorot MATKA-feedissä: "Karjaa - Inkoo") jätetään ilman
   // merkkiä; tyhjä värillinen laatikko näyttäisi rikkinäiseltä.
+  // Kutsupaikat antavat fallbackiksi kulkutavan (leg.mode), joten raaka "BUS" käännetään
+  // sanaksi ja bussille ei tulosteta mitään: badge on linjanumeroa varten.
+  if (fallback && /^[A-Z_]+$/.test(fallback)) fallback = fallback === "BUS" ? "" : modeLabel(fallback);
   if (!route?.shortName && !fallback) return "";
   const style = route?.color
     ? ` style="background:#${route.color};color:${badgeText(route.color, route.textColor)}"` : "";
@@ -9351,6 +9394,7 @@ async function viewNetworkMap() {
       <h2>${icon("network")} ${t("netMapTitle")}</h2>
       <p class="muted" id="netCount" role="status">${t("netMapLoading")}</p>
       <div id="netMap" class="map bigmap" aria-label="${esc(t("netMapAria"))}"></div>
+      <ul id="netLegend" class="net-legend"></ul>
       <p class="muted">${t("netMapHint")}</p>
     </div>`);
   const mySeq = viewSeq;
@@ -9359,6 +9403,7 @@ async function viewNetworkMap() {
     if (mySeq !== viewSeq || !document.getElementById("netMap")) return;
     const map = makeMap("netMap", [AREA.focus.lat, AREA.focus.lon], 12);
     let bounds = null, drawn = 0;
+    const drawnKeys = new Set();   // linjat, ei route-objektit
     // Pysäkit ensin, jotta viivat piirtyvät niiden päälle.
     let stopCount = 0, stopBounds = null;
     if (CONFIG.areaScoped) {
@@ -9388,8 +9433,10 @@ async function viewNetworkMap() {
       if (!pat) continue;
       const pts = decodePolyline(pat.patternGeometry.points);
       if (!pts.length) continue;
-      const color = r.color ? "#" + r.color : "#0a4ea3";
-      const line = L.polyline(pts, { color, weight: 3, opacity: 0.55 }).addTo(map);
+      const st = netStyleFor(r.shortName || r.gtfsId);
+      const color = r.color ? "#" + r.color : st.color;
+      const line = L.polyline(pts, { color, weight: 3, opacity: 0.55,
+        dashArray: r.color ? null : (st.dash || null) }).addTo(map);
       const label = (r.shortName || "") + (r.longName ? " " + r.longName : "");
       line.bindTooltip(label.trim() || t("alertDefault"), { sticky: true });
       line.on("mouseover", () => line.setStyle({ weight: 6, opacity: 0.95 }));
@@ -9398,6 +9445,7 @@ async function viewNetworkMap() {
       // aikatauluun. Aiemmin napautus vei heti pois kartalta eikä linjaa ehtinyt tunnistaa.
       line.bindPopup(`<a href="#/linja/${encodeURIComponent(r.gtfsId)}">${esc(label.trim() || t("alertDefault"))}</a>`);
       bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
+      drawnKeys.add(r.shortName || r.longName || r.gtfsId);
       drawn++;
     }
     // areaScoped: rajaa kuntaan. Ilman tätä kartta avautuu pisimpien linjojen unioniin,
@@ -9410,9 +9458,26 @@ async function viewNetworkMap() {
       fitMap(map, bounds);
     }
     const el = document.getElementById("netCount");
+    const lineCount = drawnKeys.size || drawn;
     if (el) el.textContent = stopCount
-      ? t("netMapCountStops", { n: drawn, s: stopCount })
-      : t("netMapCount", { n: drawn });
+      ? t("netMapCountStops", { n: lineCount, s: stopCount })
+      : t("netMapCount", { n: lineCount });
+    // Selite: mikä viiva on mikä linja. Ilman tätä kartan lukeminen vaatii hiiren.
+    const leg = document.getElementById("netLegend");
+    if (leg) {
+      const seen = new Set();
+      leg.innerHTML = routes.filter(r => {
+        const k = r.shortName || r.longName || r.gtfsId;
+        if (seen.has(k) || !drawnKeys.has(k)) return false;
+        seen.add(k);
+        return true;
+      }).map(r => {
+        const st = netStyleFor(r.shortName || r.gtfsId);
+        const c = r.color ? "#" + r.color : st.color;
+        const style = `border-top:3px ${r.color ? "solid" : (st.dash ? "dashed" : "solid")} ${c}`;
+        return `<li><span class="net-key" style="${style}"></span>${esc(r.shortName || r.longName || "")}</li>`;
+      }).join("");
+    }
   } catch (e) {
     const el = document.getElementById("netMap");
     if (el) el.outerHTML = `<div class="error">${t("netMapFail")}${esc(e.message)}</div>`;
@@ -11596,7 +11661,26 @@ const DIRECT_QUERY = `
     }
   }`;
 
-const MODE_ICONS = { WALK: "walk", BICYCLE: "bike" };
+const MODE_ICONS = { WALK: "walk", BICYCLE: "bike", BUS: "bus", RAIL: "train",
+  SUBWAY: "train", TRAM: "train", FERRY: "ferry" };
+
+// Kulkutavan sana käyttäjälle. Älä koskaan tulosta raakaa moodia ("BUS"): Inkoossa
+// numeroton ELY-vuoro sai badgekseen tekstin BUS, koska fallback oli leg.mode.
+function modeLabel(mode) {
+  if (mode === "RAIL" || mode === "SUBWAY" || mode === "TRAM") return t("trainsTrain");
+  if (mode === "FERRY") return t("modeFerry");
+  if (mode === "BUS") return t("modeBus");
+  return "";
+}
+
+// Kulkutapamerkintä kolminkertaisena: ikoni + näkymätön sana ruudunlukijalle.
+// Väri yksin ei riitä (WCAG 1.4.1) eikä näy mustavalkotulosteessa.
+function modeMarkHtml(mode) {
+  const ic = MODE_ICONS[mode];
+  if (!ic || mode === "BUS") return "";
+  const label = modeLabel(mode);
+  return `${icon(ic)}${label ? `<span class="sr-only">${esc(label)} </span>` : ""}`;
+}
 
 function fmtKm(m) {
   const km = (m / 1000).toFixed(1);
@@ -11615,7 +11699,11 @@ function legBarHtml(node) {
     if (leg.mode === "WALK" || leg.mode === "BICYCLE") {
       return `<span class="seg walk" style="flex-grow:${grow.toFixed(3)}"><span class="walk-min">${Math.round(leg.duration / 60)}′</span></span>`;
     }
-    return `<span class="seg" style="flex-grow:${grow.toFixed(3)}">${esc(leg.route?.shortName || "")}</span>`;
+    const cls = leg.mode === "RAIL" || leg.mode === "SUBWAY" || leg.mode === "TRAM" ? " rail"
+      : leg.mode === "FERRY" ? " ferry" : "";
+    // Ilman linjanumeroa segmentti oli täysin tyhjä laatikko: piirretään kulkutapaikoni.
+    const inner = leg.route?.shortName ? esc(leg.route.shortName) : (icon(MODE_ICONS[leg.mode] || "bus") || "");
+    return `<span class="seg${cls}" style="flex-grow:${grow.toFixed(3)}">${inner}</span>`;
   }).join("")}</span>`;
 }
 
@@ -11646,7 +11734,9 @@ function timelineHtml(node) {
         </div>`);
     } else {
       const rt = leg.realtimeState && leg.realtimeState !== "SCHEDULED";
-      const rail = leg.route?.color ? "#" + leg.route.color : "var(--blue)";
+      const rail = leg.route?.color ? "#" + leg.route.color
+        : leg.mode === "RAIL" || leg.mode === "SUBWAY" || leg.mode === "TRAM" ? "var(--m-rail)"
+        : leg.mode === "FERRY" ? "var(--m-ferry)" : "var(--blue)";
       // intermediatePlaces tuo nimet + ajat samasta plan-kyselystä; intermediateStops (vain nimet)
       // jää varalle, jos ajat puuttuisivat. Aika = lähtö pysäkiltä (departureTime), fallback arrivalTime.
       const mids = leg.intermediatePlaces?.length ? leg.intermediatePlaces : (leg.intermediateStops || []);
@@ -11659,7 +11749,7 @@ function timelineHtml(node) {
           <span class="tl-time"></span>
           <span class="tl-mid" aria-hidden="true"></span>
           <div class="tl-body">
-            ${badgeHtml(leg.route, leg.mode)}
+            ${modeMarkHtml(leg.mode)}${badgeHtml(leg.route, leg.mode)}
             ${esc(leg.trip?.tripHeadsign ? "→ " + leg.trip.tripHeadsign : "")}${occupancyHtml(leg.trip)}
             ${rt ? `<span class="rt"> ●</span>` : ""}
             <details class="tl-stops">
