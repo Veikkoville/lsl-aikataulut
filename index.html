@@ -1581,7 +1581,14 @@
   .net-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 14px;
     margin: 8px 0 0; padding: 0; font-size: 13.5px; color: var(--ink-muted); }
   .net-legend li { display: flex; align-items: center; gap: 6px; }
-  .net-legend .net-key { display: inline-block; width: 22px; height: 0; }
+  .net-legend .net-key { display: inline-block; width: 26px; height: 6px; flex: none; }
+  /* Selitteen viivavarit. Kartalla viivat ovat vaaleiden karttaruutujen paalla, mutta selite
+     on kortin taustalla: tummassa teemassa tarvitaan vaaleammat savyt, jotta viiva erottuu
+     taustasta (WCAG 1.4.11, 3:1). */
+  :root { --net-c0: #0a4ea3; --net-c1: #b5322e; --net-c2: #1c7a3f;
+          --net-c3: #7a3fb5; --net-c4: #b57a1c; --net-c5: #1c7a7a; }
+  html[data-theme="dark"] { --net-c0: #6ea8ff; --net-c1: #ff8a80; --net-c2: #5fd08a;
+          --net-c3: #c9a2ff; --net-c4: #f0c04d; --net-c5: #62cfcf; }
 
   /* ---- Matka-aikajana (legbar): bussi = täytetty --bus-palkki, kävely = katkoviiva+min ---- */
   .legbar { display: flex; align-items: center; gap: 5px; height: 27px; margin: 0; overflow: visible;
@@ -4032,7 +4039,7 @@ const STRINGS = {
     batchNoStops: "No stops found on the line.",
     noStopsFor: 'No stops found for "{q}".',
     noPlacesFor: 'No results for "{q}".',
-    noMatchesArea: "No matches. The search is limited to the {city} area.",
+    noMatchesArea: "No matches. The search is limited to {city}.",
     layerStop: "stop",
     layerStation: "railway station",
     layerArea: "area",
@@ -5176,7 +5183,9 @@ function routesCacheKey() { return "routesCache4" + (lang === "fi" ? "" : ":" + 
 // Bbox hakee ehdokkaat, mutta jäsenyys ratkaistaan kunnan rajalla (AREA.polygon) ja
 // vähimmäispysäkkimäärällä (AREA.minStops): pelkkä suorakaide nostaa listaan linjoja, jotka
 // pysähtyvät vain kunnan nurkassa 13 km keskustasta (Inkoossa 41, 112, 115, 291).
+let areaRouteIdsCache = null;
 async function areaRouteIds(feed) {
+  if (areaRouteIdsCache && areaRouteIdsCache.feed === feed) return areaRouteIdsCache.ids;
   const r = AREA.rect;
   const box = await gql(
     `query ($minLat: Float!, $minLon: Float!, $maxLat: Float!, $maxLon: Float!) {
@@ -5203,6 +5212,7 @@ async function areaRouteIds(feed) {
       .filter(id => id.startsWith(feed + ":") || isExtra(id));
   }
   if (!ids.length) throw new Error(t("errFeedNotFound"));
+  areaRouteIdsCache = { feed, ids };
   return ids;
 }
 
@@ -5788,13 +5798,56 @@ async function showQrInto(box, url, caption, fileBase) {
 
 // Google encoded polyline, precision 1e-5 (OTP:n patternGeometry-muoto)
 // Patternin suunta-avain. GTFS:n direction_id on valinnainen: MATKA-feedissa se on
-// jokaisella Inkoon 61 patternilla -1, jolloin "suunta" romahtaa yhdeksi ja kartalle,
-// julisteeseen ja vihkoon jaa vain yksi reittikuvio, joka ei valttamatta vastaa otsikkoa.
-// Kun suuntaa ei ole, kaytetaan patternin omaa codea: jokainen variantti saa oman viivansa.
+// jokaisella Inkoon 61 patternilla -1. Ilman suuntaa kartalle ja julisteeseen jai vain yksi
+// reittikuvio, mutta pelkka patternin code ei myoskaan kelpaa suunnaksi: linjalla 192 on 14
+// varianttia, jolloin aikataulu vaittaisi "ei liikennointia" paivina joina vuorot ajetaan
+// toisella koodilla, ja vihko latoisi 14 suuntaosiota kahden sijaan.
+// Suunta paatellaan siksi datasta: assignDirKeys vertaa kunkin patternin pysakkiketjua
+// kattavimpaan patterniin ja jakaa variantit myota- ja vastasuuntaisiin.
 // Waltti-feedeissa (direction_id 0/1) arvo on ennallaan.
 function dirKey(p) {
+  if (p && p.__dir !== undefined) return p.__dir;
   const d = p?.directionId;
   return (d != null && d >= 0) ? d : (p?.code || 0);
+}
+
+// +1 = sama kulkusuunta kuin referenssilla, -1 = vastakkainen, 0 = ei paateltavissa.
+function patternOrientation(refIdx, stops) {
+  const pos = [];
+  for (const st of stops || []) {
+    const i = refIdx.get(st.gtfsId);
+    if (i != null) pos.push(i);
+  }
+  if (pos.length < 2) return 0;
+  let inc = 0, dec = 0;
+  for (let i = 1; i < pos.length; i++) {
+    if (pos[i] > pos[i - 1]) inc++;
+    else if (pos[i] < pos[i - 1]) dec++;
+  }
+  return inc === dec ? 0 : (inc > dec ? 1 : -1);
+}
+
+// Merkitsee patterneille suunta-avaimen (p.__dir). Kutsutaan kerran per haettu joukko.
+// Kaytettava aina kun patterneista kootaan suuntia; kartta kayttaa patternin omaa codea.
+function assignDirKeys(patterns) {
+  const list = (patterns || []).filter(Boolean);
+  if (!list.length) return list;
+  // Feed julkaisee suunnan: kaytetaan sita sellaisenaan.
+  if (list.some(p => p.directionId != null && p.directionId >= 0)) {
+    for (const p of list) p.__dir = (p.directionId != null && p.directionId >= 0) ? p.directionId : "d?";
+    return list;
+  }
+  const ref = list.reduce((a, b) => ((b.stops || []).length > (a.stops || []).length ? b : a), list[0]);
+  const refIdx = new Map();
+  (ref.stops || []).forEach((st, i) => { if (!refIdx.has(st.gtfsId)) refIdx.set(st.gtfsId, i); });
+  for (const p of list) {
+    const o = patternOrientation(refIdx, p.stops);
+    const sts = p.stops || [];
+    // Jos yhteisia pysakkeja ei ole (oma haara), suunnaksi jaa paatepysakkipari.
+    p.__dir = o > 0 ? "d0" : o < 0 ? "d1"
+      : sts.length ? "t:" + sts[0].gtfsId + ">" + sts[sts.length - 1].gtfsId : (p.code || "d0");
+  }
+  return list;
 }
 
 function decodePolyline(str) {
@@ -5832,7 +5885,11 @@ const NET_COLORS = ["#0a4ea3", "#b5322e", "#1c7a3f", "#7a3fb5", "#b57a1c", "#1c7
 function netStyleFor(key) {
   let h = 0;
   for (let i = 0; i < String(key).length; i++) h = (h * 31 + String(key).charCodeAt(i)) >>> 0;
-  return { color: NET_COLORS[h % NET_COLORS.length], dash: PM_DASHES[h % PM_DASHES.length] };
+  // Vari ja viivatyyli ERI osasta hajautusarvoa: samasta jakojaannoksesta ne kulkisivat
+  // parina ja erilaisia yhdistelmia olisi 6, ei 36. Inkoossa on 17 linjaa.
+  const ci = h % NET_COLORS.length;
+  const di = Math.floor(h / NET_COLORS.length) % PM_DASHES.length;
+  return { color: NET_COLORS[ci], dash: PM_DASHES[di], ci, di };
 }
 function printMapSvg(lines, opts = {}) {
   // lines: [{ shortName, dirs: [{ points: [[lat,lon]…], stops: [{gtfsId,name,lat,lon}] }] }]
@@ -7258,7 +7315,9 @@ function bindUnifiedSearch(input, results) {
         if (!html) track("search_fail", q);   // haku ilman osumia = suunnittelijoille arvokas signaali
         // areaScoped: tyhja tulos johtuu usein siita etta haku on rajattu kuntaan. Sanotaan se,
         // muuten kayttaja luulee ettei paikkaa ole olemassa.
-        const emptyMsg = CONFIG.areaScoped ? t("noMatchesArea", { city: cityGenName() }) : t("noMatches");
+        const emptyMsg = CONFIG.areaScoped
+          ? t("noMatchesArea", { city: lang === "fi" ? cityGenName() : cityName() })
+          : t("noMatches");
         results.innerHTML = html || `<li><p class="muted">${esc(emptyMsg)}</p></li>`;
 
         // Osoiteklikkaus: aseta reittioppaan määränpää ja avaa reittihaku
@@ -7484,11 +7543,15 @@ async function renderNearby() {
       .filter(n => n.stop && inCityFeed(n.stop.gtfsId)
                 && (n.stop.stoptimesWithoutPatterns || []).length)
       .sort((a, b) => a.distance - b.distance);
-    const groups = (nearbyAccessibleOnly
-      ? all.filter(n => n.stop.wheelchairBoarding === "POSSIBLE") : all).slice(0, 5);
-    // Jos feed ei kerro esteettömyyttä yhdestäkään pysäkistä (MATKA), suodin vain väittäisi
-    // ettei esteettömiä pysäkkejä ole. Kerrotaan tiedon puute suotimen sijaan.
+    // Jos feed ei kerro esteettömyyttä yhdestäkään pysäkistä (MATKA, ja mitattuna myös Waltti-
+    // Lahti), suodin vain väittäisi ettei esteettömiä pysäkkejä ole. Kerrotaan tiedon puute
+    // suotimen sijaan. TÄRKEÄÄ: silloin EI myöskään suodateta, vaikka käyttäjällä olisi
+    // asetus päällä aiemmalta kerralta — muuten lista jäisi tyhjäksi eikä kytkintä, jolla sen
+    // saisi pois, olisi enää näkyvissä. Asetus säilyy niitä paikkoja varten joissa tietoa on.
     const accKnown = all.some(n => n.stop.wheelchairBoarding && n.stop.wheelchairBoarding !== "NO_INFORMATION");
+    const accFilterOn = nearbyAccessibleOnly && accKnown;
+    const groups = (accFilterOn
+      ? all.filter(n => n.stop.wheelchairBoarding === "POSSIBLE") : all).slice(0, 5);
     const toggle = accKnown
       ? `<label class="acc-toggle no-print"><input type="checkbox" id="accOnly"${nearbyAccessibleOnly ? " checked" : ""}> <span>${icon("wheelchair")} ${t("accOnlyToggle")}</span></label>`
       : `<p class="muted no-print acc-nodata">${icon("wheelchair")} ${t("accNoData")}</p>`;
@@ -7496,7 +7559,7 @@ async function renderNearby() {
       ? (cachedAt ? staleNoteHtml(cachedAt) : "")
         + groups.map(n => stopDepGroupHtml(n.stop, n.distance + " m")).join("")
         + `<p class="muted"><span class="rt">●</span> ${t("rtLegend")}</p>`
-      : `<p class="muted">${nearbyAccessibleOnly ? t("accNearbyNone") : t("noDepsRadius")}</p>`;
+      : `<p class="muted">${accFilterOn ? t("accNearbyNone") : t("noDepsRadius")}</p>`;
     const box = document.getElementById("nearbyBody");
     box.innerHTML = toggle + list;
     const cb = document.getElementById("accOnly");
@@ -8329,7 +8392,7 @@ async function viewRouteMap(routeId) {
     const byDir = new Map();
     for (const p of patterns) {
       if (!p.patternGeometry || !p.patternGeometry.points) continue;
-      const k = dirKey(p);
+      const k = p.code || dirKey(p);   // kartalla jokainen reittikuvio erikseen
       const prev = byDir.get(k);
       if (!prev || (p.patternGeometry.length || 0) > (prev.patternGeometry.length || 0)) byDir.set(k, p);
     }
@@ -8388,7 +8451,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   const route = routesArr.find(r => r.gtfsId === routeId) || routesArr[0];
   if (!route) throw new Error(t("errRouteNotFound") + routeId);
 
-  const patterns = routesArr.flatMap(r => r.patterns || []);
+  const patterns = assignDirKeys(routesArr.flatMap(r => r.patterns || []));
   const upcoming = p => probe.reduce((n, _, i) => n + ((p["p" + i] || []).length), 0);
   // Oletuksena pääsuunta TULEVIEN vuorojen mukaan — EI patterns[0] eikä kaikkien
   // aikojen suurin (vanha variantti voi olla "isoin" mutta ei aja nyt → "ei lähtöjä").
@@ -9401,9 +9464,9 @@ async function loadNetwork() {
   // gtfsIds = ryhmän KAIKKI route-objektit: pelkkä primary jättäisi suuntavariantit pois.
   let activeIds = null;
   try { const ar = await loadRoutes(); if (ar && ar.length) activeIds = new Set(ar.flatMap(r => (r.gtfsIds && r.gtfsIds.length) ? r.gtfsIds : [r.gtfsId])); } catch (e) { /* näytä kaikki jos epäonnistuu */ }
-  // areaScoped-kaupungissa koko feedin piirtaminen varakeinona olisi koko Suomi kartalla,
-  // joten siella tyhja aktiivijoukko on virhe eika fallback.
-  if (!activeIds && CONFIG.areaScoped) throw new Error(t("errFeedNotFound"));
+  // areaScoped-kaupungissa kysely on jo rajattu alueeseen (areaRouteIds), joten ilman
+  // aktiivijoukkoa piirretaan alueen kaikki linjat. Virheen heittaminen havittaisi koko
+  // kartan tilanteessa, jossa vain kausisuodatus jai tekematta.
   networkCache = (data.routes || [])
     .filter(r => (CONFIG.modes || ["BUS"]).includes(r.mode))
     .filter(r => !activeIds || activeIds.has(r.gtfsId));
@@ -9413,9 +9476,11 @@ async function loadNetwork() {
 // Alueen pysäkit kartalle (areaScoped). Google Mapsin ja meidän karttamme näkyvä ero oli
 // tässä: emme piirtäneet pysäkkejä lainkaan, ja pohjakartta näyttää ne vasta zoomilla 17.
 // Mitattu 17.9.2026: 233 pysäkkiä, 19 kt, 194 ms.
+// Avain sisaltaa kielen: pysakkien nimet haetaan name@L:lla, joten kielen vaihto ei saa
+// jattaa karttaa edellisen kielen nimiin.
 let areaStopsCache = null;
 async function loadAreaStops() {
-  if (areaStopsCache) return areaStopsCache;
+  if (areaStopsCache && areaStopsCache.lang === lang) return areaStopsCache.stops;
   const feed = await findFeed();
   const r = AREA.rect;
   const data = await gql(
@@ -9425,10 +9490,11 @@ async function loadAreaStops() {
        }
      }`, { minLat: r.minLat, minLon: r.minLon, maxLat: r.maxLat, maxLon: r.maxLon });
   // Oma feed + juna-asemat ja lauttalaiturit muista feedeistä (kunnan asema ei ole MATKAssa).
-  areaStopsCache = (data.stopsByBbox || []).filter(st =>
+  const stops = (data.stopsByBbox || []).filter(st =>
     st.lat != null && inMunicipality(st.lat, st.lon) &&
     (inCityFeed(st.gtfsId) || st.vehicleMode === "RAIL" || st.vehicleMode === "FERRY"));
-  return areaStopsCache;
+  areaStopsCache = { lang, stops };
+  return stops;
 }
 
 async function viewNetworkMap() {
@@ -9451,6 +9517,7 @@ async function viewNetworkMap() {
     const drawnKeys = new Set();   // linjat, ei route-objektit
     // Pysäkit ensin, jotta viivat piirtyvät niiden päälle.
     let stopCount = 0, stopBounds = null;
+    const stopMarkers = [];
     if (CONFIG.areaScoped) {
       try {
         for (const st of await loadAreaStops()) {
@@ -9465,6 +9532,7 @@ async function viewNetworkMap() {
           mk.bindPopup(`<a href="${href}">${esc(st.name)}</a>` +
             (st.code ? ` <span class="muted">${esc(st.code)}</span>` : ""));
           mk.bindTooltip(esc(st.name), { direction: "top" });
+          stopMarkers.push(mk);
           stopBounds = stopBounds ? stopBounds.extend([st.lat, st.lon]) : L.latLngBounds([[st.lat, st.lon], [st.lat, st.lon]]);
           stopCount++;
         }
@@ -9502,6 +9570,17 @@ async function viewNetworkMap() {
     } else {
       fitMap(map, bounds);
     }
+    // Pysakit viivojen paalle, ja kaukaa katsottuna piiloon: puhelimen avauszoomilla 158
+    // merkkia sulautuu massaksi, josta yksittaista pysakkia ei voi valita.
+    const syncStops = () => {
+      const show = map.getZoom() >= 12;
+      for (const mk of stopMarkers) {
+        if (show) { mk.addTo(map); mk.bringToFront(); }
+        else if (map.hasLayer(mk)) map.removeLayer(mk);
+      }
+    };
+    syncStops();
+    map.on("zoomend", syncStops);
     const el = document.getElementById("netCount");
     const lineCount = drawnKeys.size || drawn;
     if (el) el.textContent = stopCount
@@ -9519,8 +9598,14 @@ async function viewNetworkMap() {
       }).map(r => {
         const st = netStyleFor(r.shortName || r.gtfsId);
         const c = r.color ? "#" + r.color : st.color;
-        const style = `border-top:3px ${r.color ? "solid" : (st.dash ? "dashed" : "solid")} ${c}`;
-        return `<li><span class="net-key" style="${style}"></span>${esc(r.shortName || r.longName || "")}</li>`;
+        // Viivan malli piirretaan SVG:lla samalla dash-kuviolla kuin kartalla, jotta selite
+        // todella erottaa linjat. Vari tulee CSS-tokenista (net-c0..net-c5), jolloin tumma
+        // teema saa oman, kontrastiltaan riittavan savynsa; feedin oma vari menee suoraan.
+        const stroke = r.color ? `#${r.color}` : `var(--net-c${st.ci})`;
+        const dash = r.color ? "" : (st.dash ? ` stroke-dasharray="${st.dash}"` : "");
+        return `<li><svg class="net-key" viewBox="0 0 26 6" aria-hidden="true">` +
+          `<line x1="1" y1="3" x2="25" y2="3" stroke="${stroke}" stroke-width="3"${dash}/></svg>` +
+          `${esc(r.shortName || r.longName || "")}</li>`;
       }).join("");
     }
   } catch (e) {
@@ -9548,8 +9633,9 @@ function boardingInfo(stop, hubName) {
   const n = (stop.name || "").trim();
   if (hubName && n.toLowerCase().startsWith(hubName.toLowerCase())) {
     const rest = n.slice(hubName.length).replace(/^[\s,–-]+/, "").trim();
-    // Vain yksi kirjain tai 1-2 numeroa on laiturimerkintä: "Inkoo th L" -> "th L" ei ole.
-    if (rest && /^([A-ZÄÖÅ]|\d{1,2})$/.test(rest)) return { tag: rest, full: t("termStop") + " " + rest };
+    // Laiturimerkintä on kirjain tai numero, tai numero + kirjain ("1R", "2 T" Mikkelissä).
+    // "Inkoo th L" -> "th L" ei kelpaa, koska se alkaa pienellä sanalla.
+    if (rest && /^(\d{1,2}\s?[A-ZÄÖÅ]?|[A-ZÄÖÅ])$/.test(rest)) return { tag: rest, full: t("termStop") + " " + rest };
   }
   return { tag: "•", full: n || stop.code || "?" };
 }
@@ -10078,9 +10164,10 @@ function bindScreenNetTab() {
       sr.innerHTML = `<li><p class="muted">${t("searching")}</p></li>`;
       try {
         await findFeed();
-        const res = await gql(`query ($name: String) { stops(name: $name) { gtfsId name@L code } }`, { name: q });
+        // Sama alue- ja etaisyysrajaus kuin muissa pysakkihauissa: ilman sita
+        // areaScoped-kunnassa lista tarjosi pysakkeja satojen kilometrien paasta.
+        const stops = await searchStopsByName(q, 8);
         if (my !== sseq) return;
-        const stops = (res.stops || []).filter(s => inCityFeed(s.gtfsId)).slice(0, 8);
         sr.innerHTML = stops.length
           ? stops.map(s => `<li><button class="item" type="button" data-stop="${esc(s.gtfsId)}">
               <span>${icon("pin")} ${esc(s.name)}</span>
@@ -10344,6 +10431,9 @@ async function geocode(text) {
   if (hits.length && hits[0].conf >= 1) return hits;
   const city = cityName();
   if (!city || text.toLowerCase().includes(city.toLowerCase())) return hits;
+  // Varahaku vertaa osuman nimea hakusanan sanoihin, joten ilman yli 2 merkin sanaa se ei
+  // voi hyvaksya mitaan: jatetaan turha toinen HTTP-kutsu tekematta.
+  if (!text.toLowerCase().split(/\s+/).some(w => w.length >= 3)) return hits;
   let extra = [];
   try { extra = await geocodeRaw(text + " " + city); } catch (e) { return hits; }
   // Vain aito tekstiosuma kelpaa: muuten hakusana "Helsinki" nostaisi listan kärkeen
@@ -10377,7 +10467,7 @@ async function geocodeRaw(text) {
   // (km focus-pisteesta) ja jarjestetaan lista uudelleen: ensin tekstiosuman laatu, sitten
   // etaisyys. Mitattu 15 hakusanalla tuotantoa vasten: ykkostulos muuttuu vain kahdessa,
   // molemmissa lahemmaksi kayttajaa.
-  return (json.features || [])
+  const hits = (json.features || [])
     .filter(f => f.geometry?.coordinates)
     .map(f => ({
       name: f.properties.label || f.properties.name,
@@ -10386,8 +10476,15 @@ async function geocodeRaw(text) {
       layer: f.properties.layer || "address",
       conf: f.properties.confidence ?? 0,
       dist: f.properties.distance ?? Infinity,
-    }))
-    .sort((a, b) => (b.conf - a.conf) || (a.dist - b.dist));
+    }));
+  // Uudelleenjarjestys koskee VAIN areaScoped-kaupunkeja: siella Pelias nostaa yhta hyvista
+  // osumista layer-prioriteetilla juna-aseman (4,4 km) kunnan keskustan edelle. Waltti-
+  // kaupungeissa lahdejarjestys jatetaan rauhaan, ettei etaisyys nosta sattumanvaraista
+  // kohdetta saman nimisen aseman edelle. Tasapelissa kunnan sisainen osuma voittaa.
+  if (!CONFIG.areaScoped) return hits;
+  return hits.sort((a, b) => (b.conf - a.conf)
+    || (inMunicipality(b.lat, b.lon) - inMunicipality(a.lat, a.lon))
+    || (a.dist - b.dist));
 }
 
 // stops(name:) hakee koko routerin alueelta. Waltti-kaupungeissa feed-etuliite on kaytannossa
@@ -10395,9 +10492,19 @@ async function geocodeRaw(text) {
 // Inkoossa haku "koulu" tarjosi pysakkeja 137-483 km paasta. areaScoped-kaupungeissa tulokset
 // rajataan siksi kunnan suorakaiteeseen ja jarjestetaan etaisyydella focus-pisteesta.
 async function searchStopsByName(name, limit) {
+  const near = s => Math.hypot((s.lat - AREA.focus.lat) * 111, (s.lon - AREA.focus.lon) * 55);
+  // areaScoped: alueen pysakit ovat jo valimuistissa (yksi bbox-kysely, 19 kt). Nimihaku
+  // tehdaan siita paikallisesti, jottei jokainen nappailyn valimuistiton stops(name:)-kysely
+  // lataisi koko valtakunnallista osumajoukkoa koordinaatteineen (mitattu 267 kt).
+  if (CONFIG.areaScoped) {
+    const q = (name || "").toLowerCase();
+    return (await loadAreaStops())
+      .filter(s => (s.name || "").toLowerCase().includes(q) || (s.code || "").toLowerCase() === q)
+      .sort((a, b) => near(a) - near(b))
+      .slice(0, limit);
+  }
   const data = await gql(
     `query ($name: String) { stops(name: $name) { gtfsId name@L code lat lon } }`, { name });
-  const near = s => Math.hypot((s.lat - AREA.focus.lat) * 111, (s.lon - AREA.focus.lon) * 55);
   return (data.stops || [])
     .filter(s => inCityFeed(s.gtfsId) && s.lat != null && inRect(s.lat, s.lon))
     .sort((a, b) => near(a) - near(b))
@@ -11004,14 +11111,18 @@ function deskOptionHtml(node) {
   const dur = fmtDur((new Date(node.end) - new Date(node.start)) / 1000);
   const tr = node.numberOfTransfers === 0 ? t("transfers0")
     : node.numberOfTransfers === 1 ? t("transfers1") : t("transfersN", { n: node.numberOfTransfers });
-  const lines = node.legs.filter(l => l.route).map(l => badgeHtml(l.route, l.mode)).join(" ");
+  // Numeroton vuoro (MATKA-feedin ELY-linja "Karjaa - Inkoo") ei saa badgea, joten tyhja
+  // badgerivi EI tarkoita kavelymatkaa. Kavely todetaan legien kulkutavasta, ei badgeista.
+  const ride = node.legs.filter(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
+  const lines = ride.map(l => badgeHtml(l.route, l.mode)
+    || `<span class="badge">${esc(modeLabel(l.mode) || t("modeBus"))}</span>`).join(" ");
   return `<div class="desk-opt">
     <div class="desk-opt-top">
       <span class="desk-opt-time">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
       <span class="desk-opt-dur">${dur}</span>
       <span class="muted">${tr}</span>
     </div>
-    <div class="desk-opt-lines">${lines || `<span class="muted">${t("deskWalkOnly", { dur })}</span>`}</div>
+    <div class="desk-opt-lines">${ride.length ? lines : `<span class="muted">${t("deskWalkOnly", { dur })}</span>`}</div>
     <details class="desk-stops"><summary>${t("deskStopsTitle")}</summary>${deskStopsListHtml(node)}</details>
   </div>`;
 }
@@ -11752,8 +11863,13 @@ function legBarHtml(node) {
     }
     const cls = leg.mode === "RAIL" || leg.mode === "SUBWAY" || leg.mode === "TRAM" ? " rail"
       : leg.mode === "FERRY" ? " ferry" : "";
-    // Ilman linjanumeroa segmentti oli täysin tyhjä laatikko: piirretään kulkutapaikoni.
-    const inner = leg.route?.shortName ? esc(leg.route.shortName) : (icon(MODE_ICONS[leg.mode] || "bus") || "");
+    // Kulkutapa ei saa erottua pelkällä värillä (WCAG 1.4.1) eikä kadota mustavalko-
+    // tulosteessa: juna ja lautta saavat ikonin myös silloin kun linjanumero on olemassa.
+    // Ilman linjanumeroa segmentti olisi muuten täysin tyhjä laatikko.
+    const modeIc = cls ? icon(MODE_ICONS[leg.mode] || "bus") : "";
+    const inner = leg.route?.shortName
+      ? modeIc + esc(leg.route.shortName)
+      : (icon(MODE_ICONS[leg.mode] || "bus") || "");
     return `<span class="seg${cls}" style="flex-grow:${grow.toFixed(3)}">${inner}</span>`;
   }).join("")}</span>`;
 }
@@ -13182,7 +13298,7 @@ async function corridorFetchLines(routeIds) {
       const arr = (data.routes || []).filter(Boolean);
       const route = arr.find(r => r.gtfsId === routeId) || arr[0];
       if (!route) return null;
-      const patterns = arr.flatMap(r => r.patterns || []);
+      const patterns = assignDirKeys(arr.flatMap(r => r.patterns || []));
       const byDir = new Map();
       for (const p of patterns) {
         const k = dirKey(p);
@@ -13450,7 +13566,7 @@ async function reprintLineSnap(routeId, dateISO) {
   const route = arr.find(r => r.gtfsId === routeId) || arr[0];
   if (!route) return null;
   const byDir = new Map();
-  for (const p of arr.flatMap(r => r.patterns || [])) {
+  for (const p of assignDirKeys(arr.flatMap(r => r.patterns || []))) {
     const k = dirKey(p);
     if (!byDir.has(k)) byDir.set(k, []);
     byDir.get(k).push(p);
@@ -14099,7 +14215,7 @@ function bindBookletTab(routes, today) {
         const routesArr = (data.routes || []).filter(Boolean);
         const route = routesArr.find(r => r.gtfsId === routeId) || routesArr[0];
         if (!route) return null;
-        const patterns = routesArr.flatMap(r => r.patterns || []);  // suunnat unioniin
+        const patterns = assignDirKeys(routesArr.flatMap(r => r.patterns || []));  // suunnat unioniin
         const byDir = new Map();
         for (const p of patterns) {
           const k = dirKey(p);
