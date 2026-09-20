@@ -3083,6 +3083,8 @@ const CONFIGS = {
       { key: "inkoo", name: "Inkoo", center: { lat: 60.04270, lon: 24.00621 } },
     ],
     brandColor: "#1c576f", // inkoo.fi:n hallitseva väri (vaakunan sininen); ei virallista brändiohjetta
+    // Koko näkymä kunnan värillä, ei vain ylätunniste: Inkoo pyysi demoa omalla ilmeellään.
+    brandAccent: true,
     // Linjaväri käsin, koska GTFS ei anna sitä: mitattu 20.9.2026 että route_color on tyhjä
     // KAIKILLA 40 Inkoon reittiobjektilla. Ilman kartoitusta väri tulee hajautusfunktiosta,
     // joka lupaa 36 yhdistelmää mutta tuottaa niitä käytännössä paljon vähemmän: mitattuna
@@ -5037,6 +5039,8 @@ function updateChrome() {
   // Ylätunnisteen brändiväri kaupungin mukaan (AA-varma valkoiselle tekstille); ylikirjoittaa
   // --header-bg-tokenin myös tummassa teemassa, jotta brändiväri näkyy aina.
   document.documentElement.style.setProperty("--header-bg", headerBgColor());
+  // CONFIG.brandAccent-kaupungeissa koko nakyma seuraa samaa brandivaria (Inkoo).
+  applyBrandAccent();
   // Some-/hakukoneiden meta-tagit kaupungin mukaan (staattiset <head>-oletukset ovat
   // kaupunkineutraaleja; some-skraprit eivät aja JS:ää, mutta selain + JS:ää ajavat
   // hakukoneet saavat oikean kaupungin).
@@ -5761,22 +5765,47 @@ function headerBgColor() {
 // symmetrinen, joten sama arvo kelpaa myös tiskin valkoisella pohjalla tekstivärinä
 // (details.desk-stops summary) ja reunaviivana. Inline-tyyli voittaa
 // .desk-säännön specificityssä. Ilman brandColoria (esim. Kuopio) jää CSS:n oletussininen.
-function deskAccentStyle() {
-  if (!CONFIG.brandColor) return "";
+// Brandivarista johdetut aksenttitokenit (AA-syvennettyna). Sama laskenta kaytossa
+// palvelutiskilla ja - jos CONFIG.brandAccent on paalla - koko nakymassa.
+function brandAccentVars() {
+  if (!CONFIG.brandColor) return null;
   const hex = a => "#" + a.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
-  // Tiskillä tavoite on tiukempi kuin ylätunnisteen AA 4.5:1, koska koko näkymä on tahallaan
-  // pakotettu korkea kontrasti: syvennetään 5.5:1 asti, jolloin brändisävy säilyy mutta
-  // aksentti ei jää AA:n rajalle. Käytännössä tämä koskee vain vaaleimpia brändivärejä.
   let rgb = [0, 2, 4].map(i => parseInt(headerBgColor().slice(1 + i, 3 + i), 16));
   for (let i = 0; i < 40 && (1.05 / (relLum(hex(rgb).slice(1)) + 0.05)) < 5.5; i++)
     rgb = rgb.map(v => Math.round(v * 0.94));
   const base = hex(rgb);
-  const dark = hex(rgb.map(v => v * 0.78));             // hover/aktiivitila
-  // Hover- ja chip-taustat samasta väristä vaaleana sävynä (8 % / 11 %), muuten tiskillä
-  // olisi pinkin aksentin vieressä sinertävät taustat.
+  const dark = hex(rgb.map(v => v * 0.78));
   const tint = a => hex(rgb.map(v => 255 - (255 - v) * a));
-  return ` style="--blue:${base};--btn-bg:${base};--btn-hover:${dark};--accent:${base};` +
-    `--accent-dark:${dark};--hover:${tint(0.08)};--chip:${tint(0.11)}"`;
+  return { base, dark, hover: tint(0.08), chip: tint(0.11) };
+}
+
+// CONFIG.brandAccent: koko nakyma kaupungin varilla, ei vain ylatunniste ja tiski.
+// Oletuksena POIS, jotta yhden kaupungin teemaus ei muuta 16 muuta demoa. Inkoolla paalla:
+// kunta pyysi nakymaa omilla vareillaan. Sama AA-syvennys kuin tiskilla (5,5:1 valkoiselle),
+// joten aksentti ei jaa kontrastin rajalle.
+function applyBrandAccent() {
+  if (!CONFIG.brandAccent) return;
+  const v = brandAccentVars();
+  if (!v) return;
+  const r = document.documentElement.style;
+  r.setProperty("--accent", v.base);
+  r.setProperty("--accent-dark", v.dark);
+  r.setProperty("--accent-soft", v.chip);
+  r.setProperty("--blue", v.base);
+  r.setProperty("--btn-bg", v.base);
+  r.setProperty("--btn-hover", v.dark);
+}
+
+function deskAccentStyle() {
+  // Tiskillä tavoite on tiukempi kuin ylätunnisteen AA 4.5:1, koska koko näkymä on tahallaan
+  // pakotettu korkea kontrasti: syvennetään 5.5:1 asti (brandAccentVars), jolloin brändisävy
+  // säilyy mutta aksentti ei jää AA:n rajalle.
+  const v = brandAccentVars();
+  if (!v) return "";
+  // Hover- ja chip-taustat samasta väristä vaaleana sävynä, muuten tiskillä olisi
+  // pinkin aksentin vieressä sinertävät taustat.
+  return ` style="--blue:${v.base};--btn-bg:${v.base};--btn-hover:${v.dark};--accent:${v.base};` +
+    `--accent-dark:${v.dark};--hover:${v.hover};--chip:${v.chip}"`;
 }
 
 /* ---------- QR-koodit (vendoroitu qrcode.js, MIT — ladataan laiskasti) ---------- */
