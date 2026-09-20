@@ -3076,10 +3076,18 @@ const CONFIGS = {
     // Inkoo on ruotsinkielisenemmistöinen: tulosteessa tilaajarivi ei saa jäädä suomeksi.
     operators: { sv: "Traficom och trafikidkarna i området",
                  en: "Traficom and local operators" },
-    // Vain kunnan oma nimi. Naapurikuntien viralliset ruotsinkieliset nimet (Ekenas,
-    // Kyrkslatt, Sjundea, Virkby, Mattby, Karis) odottavat Villen paatosta: ks.
-    // cc-raportit/inkoo-todennus-2026-09-20-raportti.md.
-    placeNames: { sv: { "Inkoo": "Ingå" } },
+    // VAIN virallisia kaksikielisia kuntanimia. Nama eivat ole kaannoksia vaan Suomen
+    // laissa maariteltyja nimia, joten ne eivat vanhene eivatka vaadi yllapitoa.
+    // TIETOISESTI POIS: pysakkinimet (Inkoon Apteekki) ja kohteet joiden virallista
+    // ruotsinkielista muotoa ei voi varmistaa (Inkoonportti, Vallaa). Vaara nimi
+    // painetussa julisteessa on pahempi kuin suomenkielinen. Bromarv, Barosund, Degerby
+    // ja Fagervik ovat jo valmiiksi ruotsinkielisia eivatka tarvitse riviaan.
+    placeNames: { sv: {
+      "Inkoo": "Ingå", "Helsinki": "Helsingfors", "Tammisaari": "Ekenäs",
+      "Karjaa": "Karis", "Kirkkonummi": "Kyrkslätt", "Siuntio": "Sjundeå",
+      "Virkkala": "Virkby", "Matinkylä": "Mattby", "Lohja": "Lojo",
+      "Tähtelä": "Täkter",
+    } },
     operatorShort: "Inkoo",
     dataSource: "Fintraffic",
     router: "finland",
@@ -3567,6 +3575,7 @@ const STRINGS = {
     accNoData: "Esteettömyystietoa ei ole tässä aineistossa.",
     railHintLink: "Aseman junalähdöt",
     railHintNext: "Asemalta seuraavaksi:",
+    railHintFromStation: "Hae reitit asemalta",
     approachArm: "Ilmoita kun bussi lähestyy", approachOn: "Hälytys päällä",
     approachWaiting: "Hälytys päällä. Ilmoitamme, kun bussi lähestyy pysäkkiä.",
     approachWaitingNoPerm: "Hälytys päällä. Salli ilmoitukset selaimessa saadaksesi ilmoituksen myös taustalla.",
@@ -4137,6 +4146,7 @@ const STRINGS = {
     accNoData: "This data source has no accessibility information.",
     railHintLink: "Train departures from the station",
     railHintNext: "Next from the station:",
+    railHintFromStation: "Search routes from the station",
     approachArm: "Alert me when a bus approaches", approachOn: "Alert on",
     approachWaiting: "Alert on. We'll notify you when a bus is approaching the stop.",
     approachWaitingNoPerm: "Alert on. Allow notifications in your browser to be alerted in the background too.",
@@ -4699,6 +4709,7 @@ const STRINGS = {
     accNoData: "Materialet innehåller ingen tillgänglighetsinformation.",
     railHintLink: "Tågavgångar från stationen",
     railHintNext: "Härnäst från stationen:",
+    railHintFromStation: "Sök rutter från stationen",
     approachArm: "Meddela när en buss närmar sig", approachOn: "Avisering på",
     approachWaiting: "Avisering på. Vi meddelar när en buss närmar sig hållplatsen.",
     approachWaitingNoPerm: "Avisering på. Tillåt aviseringar i webbläsaren för att få meddelande även i bakgrunden.",
@@ -5008,7 +5019,18 @@ function operatorName() { return (CONFIG.operators && CONFIG.operators[lang]) ||
 // Tuntematon nimi palautuu sellaisenaan.
 function placeName(n) {
   const m = CONFIG.placeNames && CONFIG.placeNames[lang];
-  return (m && m[n]) || n;
+  if (!m || !n) return n || "";
+  if (m[n]) return m[n];
+  // Maaranpaa voi olla "Siuntio kk" tai "Kirkkonummi Munkinkuja": kunnan nimi vaihdetaan
+  // viralliseen ruotsinkieliseen muotoon ja loppuosa jatetaan koskematta, koska sen
+  // virallista muotoa ei voi varmistaa. Korvaus tehdaan vain kokonaisena alkusanana,
+  // jotta "Inkoonportti" ei muutu "Ingaportiksi".
+  const i = n.indexOf(" ");
+  if (i > 0) {
+    const head = n.slice(0, i);
+    if (m[head]) return m[head] + n.slice(i);
+  }
+  return n;
 }
 
 function networkPhrase() {
@@ -8350,7 +8372,7 @@ function stopPosterHtml(lines, compact) {
       + cols.map(c => `<td>${mins.filter(m => tens(m) === c).join(" ")}</td>`).join("")
       + `</tr>`).join("");
     return `<div class="poster-line">
-        <h4>${badgeHtml(L.route)} <span>${esc(L.headsign)}</span></h4>
+        <h4>${badgeHtml(L.route)} <span>${esc(placeName(L.headsign))}</span></h4>
         <table class="hourgrid"><tbody>${rows}</tbody></table>
       </div>`;
   }).join("")}</div>`;
@@ -8376,7 +8398,8 @@ function stopPosterMatrixHtml(sorted) {
   });
   const hours = [...new Set(cols.flatMap(c => [...c.byHour.keys()]))].sort((a, b) => a - b);
   const head = cols.map(c =>
-    `<th scope="col" class="poster-line"><h4>${badgeHtml(c.L.route)}<span>${esc(c.L.headsign)}</span></h4></th>`).join("");
+    `<th scope="col" class="poster-line"><h4>${badgeHtml(c.L.route)}` +
+    `<span>${esc(placeName(c.L.headsign))}</span></h4></th>`).join("");
   const rows = hours.map(h =>
     `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th>`
     + cols.map(c => `<td>${(c.byHour.get(h) || []).join(" ")}</td>`).join("")
@@ -8553,10 +8576,28 @@ async function fillRailHints() {
       `<span class="badge" style="background:${st.badge};color:${st.badgeText}">${esc(r.label)}</span> ` +
       `${esc(r.dest)}</span>`;
   }).join("");
+  // Linkki joka hakee saman matkan ASEMALTA. Tama on ainoa tapa saada H-juna nakyviin
+  // Inkoosta: asema on 4,2 km keskustasta, joten kavellen juna ei voi voittaa suoraa
+  // bussia 192 (mitattu 0/14 haussa), mutta asemalta lahtevassa haussa se on ensimmainen
+  // vaihtoehto (3/3). Linkki nakyy vain kun matkan maaranpaa on tiedossa.
+  let asemaLink = "";
+  try {
+    const st = (await loadAreaStops()).find(x => x.vehicleMode === "RAIL");
+    if (st && planState && planState.to && st.lat != null) {
+      const enc = q => encodeURIComponent(`${q.lat.toFixed(5)},${q.lon.toFixed(5)},${q.name}`);
+      const opts = new URLSearchParams();
+      if (planState.time) opts.set("t", planState.time);
+      if (planState.timeMode === "arr") opts.set("m", "arr");
+      const o = opts.toString();
+      const href = `#/reitti/${enc({ lat: st.lat, lon: st.lon, name: st.name })}` +
+        `/${enc(planState.to)}${o ? "/" + encodeURIComponent(o) : ""}`;
+      asemaLink = ` <a href="${href}">${esc(t("railHintFromStation"))}</a>`;
+    }
+  } catch (e) { /* linkki on lisatieto: ilman sita vihje toimii kuten ennen */ }
   for (const el of els) {
     if (!el.isConnected) continue;
     el.innerHTML = `${icon("train")} ${esc(t("railHintNext"))} ${list} ` +
-      `<a href="#/junat">${t("railHintLink")}</a>`;
+      `<a href="#/junat">${t("railHintLink")}</a>${asemaLink}`;
   }
 }
 
