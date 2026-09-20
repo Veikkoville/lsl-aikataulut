@@ -1582,6 +1582,10 @@
     margin: 8px 0 0; padding: 0; font-size: 13.5px; color: var(--ink-muted); }
   .net-legend li { display: flex; align-items: center; gap: 6px; }
   .net-legend .net-key { display: inline-block; width: 26px; height: 6px; flex: none; }
+  /* Junavihjeen seuraavat lahdot: pysyvat yhdella rivilla kapeallakin ruudulla */
+  .rail-next { display: inline-flex; align-items: center; gap: 0.3rem; margin-right: 0.75rem;
+    white-space: nowrap; }
+  [data-railhint] { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
   /* Karttapopupin linjalista: "tätä väliä ajaa N linjaa". Rivit ovat linkkejä linjasivulle,
      joten kosketuskohteen on oltava riittävän korkea (WCAG 2.5.8, 24 px). */
   .net-corridor { list-style: none; margin: 0.25rem 0 0; padding: 0; max-height: 11rem;
@@ -3544,6 +3548,7 @@ const STRINGS = {
     accOnlyToggle: "Vain esteettömät pysäkit", accNearbyNone: "Ei esteettömiä pysäkkejä lähistöllä.",
     accNoData: "Esteettömyystietoa ei ole tässä aineistossa.",
     railHintLink: "Aseman junalähdöt",
+    railHintNext: "Asemalta seuraavaksi:",
     approachArm: "Ilmoita kun bussi lähestyy", approachOn: "Hälytys päällä",
     approachWaiting: "Hälytys päällä. Ilmoitamme, kun bussi lähestyy pysäkkiä.",
     approachWaitingNoPerm: "Hälytys päällä. Salli ilmoitukset selaimessa saadaksesi ilmoituksen myös taustalla.",
@@ -4111,6 +4116,7 @@ const STRINGS = {
     accOnlyToggle: "Accessible stops only", accNearbyNone: "No accessible stops nearby.",
     accNoData: "This data source has no accessibility information.",
     railHintLink: "Train departures from the station",
+    railHintNext: "Next from the station:",
     approachArm: "Alert me when a bus approaches", approachOn: "Alert on",
     approachWaiting: "Alert on. We'll notify you when a bus is approaching the stop.",
     approachWaitingNoPerm: "Alert on. Allow notifications in your browser to be alerted in the background too.",
@@ -4670,6 +4676,7 @@ const STRINGS = {
     accOnlyToggle: "Endast tillgängliga hållplatser", accNearbyNone: "Inga tillgängliga hållplatser i närheten.",
     accNoData: "Materialet innehåller ingen tillgänglighetsinformation.",
     railHintLink: "Tågavgångar från stationen",
+    railHintNext: "Härnäst från stationen:",
     approachArm: "Meddela när en buss närmar sig", approachOn: "Avisering på",
     approachWaiting: "Avisering på. Vi meddelar när en buss närmar sig hållplatsen.",
     approachWaitingNoPerm: "Avisering på. Tillåt aviseringar i webbläsaren för att få meddelande även i bakgrunden.",
@@ -8437,7 +8444,48 @@ function railHintHtml(nodes) {
   if (!railCodes().length) return "";
   const hasRail = (nodes || []).some(n => (n.legs || []).some(l => l.mode === "RAIL"));
   if (hasRail) return "";
-  return `<p class="muted no-print">${icon("train")} <a href="#/junat">${t("railHintLink")}</a></p>`;
+  // data-railhint: fillRailHints() taydentaa taman aseman seuraavilla lahdoilla renderoinnin
+  // jalkeen. Linkki on valmiina heti, joten jos digitraffic ei vastaa, vihje jaa linkiksi.
+  return `<p class="muted no-print" data-railhint="1">${icon("train")} ` +
+    `<a href="#/junat">${t("railHintLink")}</a></p>`;
+}
+
+// Pelkka linkki ei vastaa kysymykseen "milloin juna menee". Inkoossa asema on 4,2 km
+// keskustasta, joten ovelta ovelle -haku ei tarjoa junaa lainkaan, ja kayttaja paattelee
+// ettei junaa ole. Vihjeeseen haetaan siksi aseman kaksi seuraavaa lahtoa.
+// Epaonnistuminen on hiljainen: vihje jaa linkiksi eika mitaan kaadu.
+async function fillRailHints() {
+  const els = [...document.querySelectorAll("[data-railhint]:not([data-railhint-done])")];
+  if (!els.length) return;
+  const code = railCodes()[0];
+  if (!code) return;
+  for (const el of els) el.setAttribute("data-railhint-done", "1");
+  // Lahdot suodatetaan HAETUN ajan mukaan, ei nykyhetken: jos kayttaja hakee huomiselle
+  // aamukuudelle, tan iltana lahteva juna on vastaus vaaraan kysymykseen.
+  let from = Date.now();
+  if (planState.time) {
+    const wanted = new Date(planState.time).getTime();
+    if (Number.isFinite(wanted) && wanted > from) from = wanted;
+  }
+  let rows;
+  try {
+    const names = await railStationNames();
+    rows = (await loadTrains(code, names))
+      .filter(r => !r.cancelled && r.sched.getTime() >= from)
+      .slice(0, 2);
+  } catch (e) { return; }
+  if (!rows || !rows.length) return;
+  const list = rows.map(r => {
+    const st = netStyleFor(r.label, "RAIL");
+    return `<span class="rail-next">${railDayTime(r.sched)} ` +
+      `<span class="badge" style="background:${st.badge};color:${st.badgeText}">${esc(r.label)}</span> ` +
+      `${esc(r.dest)}</span>`;
+  }).join("");
+  for (const el of els) {
+    if (!el.isConnected) continue;
+    el.innerHTML = `${icon("train")} ${esc(t("railHintNext"))} ${list} ` +
+      `<a href="#/junat">${t("railHintLink")}</a>`;
+  }
 }
 
 // Map-first linjanäkymä (#/linjakartta/<id>): koko reitti kartalla + live-bussit
@@ -11560,7 +11608,10 @@ async function viewServiceDesk() {
     msg.innerHTML = "";
     const nodes = (data.planConnection?.edges || []).map(e => localizePlanNode(e.node));
     const res = document.getElementById("deskResults");
-    if (!nodes.length) { res.innerHTML = `<p class="muted">${t("noItineraries")}</p>` + railHintHtml([]); return; }
+    if (!nodes.length) {
+      res.innerHTML = `<p class="muted">${t("noItineraries")}</p>` + railHintHtml([]);
+      fillRailHints(); return;
+    }
     // Aina seuraava bussi näkyviin: jos ensisijaisessa haussa ei ole bussia (kävely voittaa tai
     // vuoroja ei juuri nyt aja), aja pakotettu bussikysely leveällä ikkunalla.
     const fastestHasBus = !!firstTransitLeg(nodes[0]);
@@ -11576,6 +11627,7 @@ async function viewServiceDesk() {
       + `<h3 class="desk-h3">${t("deskOptionsTitle")}</h3>`
       + nodes.map(n => deskOptionHtml(n)).join("")
       + railHintHtml(nodes);
+    fillRailHints();
   };
 
   bindDeskPlace(fromEl, document.getElementById("deskFromList"), p => { dFrom = p; }, () => toEl.focus());
@@ -12535,6 +12587,7 @@ async function viewPlan(parts) {
            ${railHintHtml(view)}
          </div>`
       : `<div class="card"><p class="muted">${t("noItineraries")}</p>${railHintHtml([])}</div>`;
+    fillRailHints();
     results.querySelectorAll("details.itin[data-itin]").forEach(d =>
       d.addEventListener("toggle", () => {
         if (!d.open) return;
