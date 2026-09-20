@@ -9618,10 +9618,15 @@ function corridorListHtml(lines, activeKey) {
   const sorted = [...lines].sort((a, b) =>
     (b.key === activeKey) - (a.key === activeKey) ||
     String(a.key).localeCompare(String(b.key), "fi", { numeric: true }));
+  // Merkki vain numerollisille: MATKA-feedin numerottomilla ELY-vuoroilla avain on koko
+  // nimi ("Karjaa - Inkoo"), joka ei mahdu merkkiin eika toistettuna nimen kanssa kerro
+  // mitaan uutta. Numerollisella linjalla merkki kantaa numeron ja teksti pelkan reitin.
   const items = sorted.map(l =>
     `<li><a href="#/linja/${encodeURIComponent(l.gtfsId)}">` +
-    `<span class="badge" style="background:${l.badge};color:${l.badgeText}">${esc(l.key)}</span> ` +
-    `${esc(l.label || "")}</a></li>`).join("");
+    (l.short
+      ? `<span class="badge" style="background:${l.badge};color:${l.badgeText}">${esc(l.short)}</span> `
+      : "") +
+    `${esc(l.name || l.short || "")}</a></li>`).join("");
   const head = sorted.length > 1
     ? t("netCorridor", { n: sorted.length }) : t("netCorridorOne");
   return `<p class="muted">${esc(head)}</p><ul class="net-corridor">${items}</ul>`;
@@ -9710,8 +9715,8 @@ async function viewNetworkMap() {
       });
       bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
       drawnKeys.add(key);
-      drawnLines.push({ key, label: label.trim(), gtfsId: owner.gtfsId, pts, badge: st.badge,
-        badgeText: st.badgeText });
+      drawnLines.push({ key, short: owner.shortName || "", name: owner.longName || "",
+        gtfsId: owner.gtfsId, pts, badge: st.badge, badgeText: st.badgeText });
       drawn++;
     }
     // "Mitkä linjat kulkevat tätä väliä" oli Inkoon havainto: päällekkäiset viivat eivät
