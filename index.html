@@ -1582,6 +1582,14 @@
     margin: 8px 0 0; padding: 0; font-size: 13.5px; color: var(--ink-muted); }
   .net-legend li { display: flex; align-items: center; gap: 6px; }
   .net-legend .net-key { display: inline-block; width: 26px; height: 6px; flex: none; }
+  /* Karttapopupin linjalista: "tätä väliä ajaa N linjaa". Rivit ovat linkkejä linjasivulle,
+     joten kosketuskohteen on oltava riittävän korkea (WCAG 2.5.8, 24 px). */
+  .net-corridor { list-style: none; margin: 0.25rem 0 0; padding: 0; max-height: 11rem;
+    overflow-y: auto; }
+  .net-corridor li { margin: 0; }
+  .net-corridor a { display: flex; align-items: center; gap: 0.4rem; min-height: 28px;
+    padding: 0.15rem 0; text-decoration: none; }
+  .net-corridor a:hover, .net-corridor a:focus-visible { text-decoration: underline; }
   /* Selitteen viivavarit. Kartalla viivat ovat vaaleiden karttaruutujen paalla, mutta selite
      on kortin taustalla: tummassa teemassa tarvitaan vaaleammat savyt, jotta viiva erottuu
      taustasta (WCAG 1.4.11, 3:1). */
@@ -1589,6 +1597,18 @@
           --net-c3: #7a3fb5; --net-c4: #b57a1c; --net-c5: #1c7a7a; }
   html[data-theme="dark"] { --net-c0: #6ea8ff; --net-c1: #ff8a80; --net-c2: #5fd08a;
           --net-c3: #c9a2ff; --net-c4: #f0c04d; --net-c5: #62cfcf; }
+  /* Samat linjavärit LINJAMERKKINÄ (badge). Viivasävyjä ei voi käyttää sellaisenaan:
+     merkissä on valkoinen teksti päällä, ja mitattuna --net-c4 (okra) jää 3,0:1 ja
+     --net-c5 (turkoosi) 4,2:1 eli alle AA:n 4,5:1. Nämä ovat tummennettuja versioita, ja
+     koska merkki on värillinen laatikko eikä ohut viiva, sama arvo kelpaa molemmissa
+     teemoissa. Väri ei ole ainoa erottaja: linjanumero on aina merkissä tekstinä. */
+  :root { --net-b0: #0a4ea3; --net-b1: #a62d29; --net-b2: #186b37;
+          --net-b3: #6b37a0; --net-b4: #8a5c12; --net-b5: #155f5f; --net-b-text: #ffffff; }
+  html[data-contrast="high"] { --net-b0: #000000; --net-b1: #000000; --net-b2: #000000;
+          --net-b3: #000000; --net-b4: #000000; --net-b5: #000000; }
+  html[data-theme="dark"][data-contrast="high"] { --net-b0: #ffffff; --net-b1: #ffffff;
+          --net-b2: #ffffff; --net-b3: #ffffff; --net-b4: #ffffff; --net-b5: #ffffff;
+          --net-b-text: #000000; }
 
   /* ---- Matka-aikajana (legbar): bussi = täytetty --bus-palkki, kävely = katkoviiva+min ---- */
   .legbar { display: flex; align-items: center; gap: 5px; height: 27px; margin: 0; overflow: visible;
@@ -3056,6 +3076,21 @@ const CONFIGS = {
       { key: "inkoo", name: "Inkoo", center: { lat: 60.04270, lon: 24.00621 } },
     ],
     brandColor: "#1c576f", // inkoo.fi:n hallitseva väri (vaakunan sininen); ei virallista brändiohjetta
+    // Linjaväri käsin, koska GTFS ei anna sitä: mitattu 20.9.2026 että route_color on tyhjä
+    // KAIKILLA 40 Inkoon reittiobjektilla. Ilman kartoitusta väri tulee hajautusfunktiosta,
+    // joka lupaa 36 yhdistelmää mutta tuottaa niitä käytännössä paljon vähemmän: mitattuna
+    // kolme ryhmää oli täysin erottamattomia (sama väri JA sama viivatyyli): 10/11S/193,
+    // 11/11T ja 191A/22. Arvo on [NET_COLORS-indeksi, PM_DASHES-indeksi]. Saman käytävän
+    // linjat jakavat sävyn ja erottuvat viivatyylillä, jolloin kartasta näkee myös sen
+    // mitkä linjat kuuluvat yhteen. Lossi ja juna saavat kulkutapavärinsä (--m-ferry,
+    // --m-rail) eivätkä ole tässä.
+    lineStyles: {
+      "192": [0, 0], "192M": [0, 1],                   // Helsinki-käytävä, sininen
+      "191": [5, 0], "191A": [5, 1], "191M": [5, 2],   // Kirkkonummi/Matinkylä, turkoosi
+      "193": [1, 0], "193B": [1, 1], "193V": [1, 2],   // Tähtelä/Siuntio/Lohja, punainen
+      "10": [3, 0], "12": [3, 1], "21": [3, 2], "22": [3, 3], // Barösund/Degerby, violetti
+      "11": [4, 0], "11S": [4, 1], "11T": [4, 2],      // Lohja/Inkoonportti, okra
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       focus: { lat: 60.045, lon: 24.007 },
@@ -3286,7 +3321,9 @@ const STRINGS = {
     netMapLink: "Linjaston kartta",
     netMapTitle: "Koko linjaston kartta",
     netMapAria: "Kartta kaikkien bussilinjojen reiteistä",
-    netMapHint: "Jokainen viiva on bussilinja. Vie osoitin viivan päälle nähdäksesi linjan, klikkaa avataksesi sen aikataulun.",
+    netMapHint: "Jokainen viiva on linja. Vie osoitin viivan päälle nähdäksesi linjan, tai napauta karttaa nähdäksesi kaikki siitä kohdasta kulkevat linjat.",
+    netCorridor: "Tätä väliä ajaa {n} linjaa:",
+    netCorridorOne: "Tästä kohdasta kulkee yksi linja:",
     netMapLoading: "Ladataan linjastoa…",
     netMapCount: "{n} linjaa kartalla",
     netMapFail: "Linjaston haku epäonnistui: ",
@@ -3864,7 +3901,9 @@ const STRINGS = {
     netMapLink: "Network map",
     netMapTitle: "Whole network map",
     netMapAria: "Map of all bus routes",
-    netMapHint: "Each line is a bus route. Hover a line to see the route, tap it to open its timetable.",
+    netMapHint: "Each line is a route. Hover a line to see it, or tap the map to list every route passing that point.",
+    netCorridor: "{n} routes use this section:",
+    netCorridorOne: "One route passes here:",
     netMapLoading: "Loading network…",
     netMapCount: "{n} routes on the map",
     netMapFail: "Failed to load the network: ",
@@ -4419,7 +4458,9 @@ const STRINGS = {
     netMapLink: "Linjenätskarta",
     netMapTitle: "Karta över hela linjenätet",
     netMapAria: "Karta över alla busslinjer",
-    netMapHint: "Varje linje är en busslinje. För muspekaren över en linje för att se linjen, tryck för att öppna dess tidtabell.",
+    netMapHint: "Varje linje är en linje. För muspekaren över en linje, eller tryck på kartan för att se alla linjer som passerar där.",
+    netCorridor: "{n} linjer kör denna sträcka:",
+    netCorridorOne: "En linje passerar här:",
     netMapLoading: "Laddar linjenätet…",
     netMapCount: "{n} linjer på kartan",
     netMapFail: "Det gick inte att hämta linjenätet: ",
@@ -5882,14 +5923,34 @@ const PM_DASHES = ["", "12 6", "3 5", "12 5 3 5", "6 4", "1 4"];
 // 0/28 ja Vaasassa 0/39). Värin rinnalla käytetään viivatyyliä, jotta erottelu ei ole
 // pelkän värin varassa.
 const NET_COLORS = ["#0a4ea3", "#b5322e", "#1c7a3f", "#7a3fb5", "#b57a1c", "#1c7a7a"];
-function netStyleFor(key) {
+// Kulkutapavari kun linja ei ole bussi. Kaksi muotoa, koska kayttokohteet eroavat:
+// Leaflet asettaa viivan varin SVG:n stroke-ATTRIBUUTTIIN, jossa var() ei toimi -> hex.
+// Merkki (badge) ja selite ovat HTML/CSS:aa -> tokeni, joka seuraa teemaa ja kontrastitilaa.
+const MODE_VARS = { RAIL: "--m-rail", SUBWAY: "--m-rail", TRAM: "--m-rail", FERRY: "--m-ferry" };
+const MODE_COLORS = { RAIL: "#00833b", SUBWAY: "#00833b", TRAM: "#00833b", FERRY: "#0e6a7d" };
+
+// key = linjanumero (shortName), mode = kulkutapa jos tiedossa.
+// Jarjestys: CONFIG.lineStyles (kasin annettu) -> kulkutapavari -> hajautus.
+// Hajautus on viimeinen keino: se riittaa kaupungille jossa feed antaa varit, mutta
+// kartoitettu kaupunki saa deterministisen ja tormayksettoman tuloksen.
+function netStyleFor(key, mode) {
+  const mapped = CONFIG.lineStyles && CONFIG.lineStyles[key];
+  if (mapped) {
+    const [ci, di] = mapped;
+    return { color: NET_COLORS[ci], dash: PM_DASHES[di], ci, di,
+      stroke: `var(--net-c${ci})`, badge: `var(--net-b${ci})`, badgeText: "var(--net-b-text)" };
+  }
+  const mv = MODE_VARS[mode];
+  if (mv) return { color: MODE_COLORS[mode], dash: "", ci: null, di: 0,
+    stroke: `var(${mv})`, badge: `var(${mv})`, badgeText: `var(${mv}-text)` };
   let h = 0;
   for (let i = 0; i < String(key).length; i++) h = (h * 31 + String(key).charCodeAt(i)) >>> 0;
   // Vari ja viivatyyli ERI osasta hajautusarvoa: samasta jakojaannoksesta ne kulkisivat
   // parina ja erilaisia yhdistelmia olisi 6, ei 36. Inkoossa on 17 linjaa.
   const ci = h % NET_COLORS.length;
   const di = Math.floor(h / NET_COLORS.length) % PM_DASHES.length;
-  return { color: NET_COLORS[ci], dash: PM_DASHES[di], ci, di };
+  return { color: NET_COLORS[ci], dash: PM_DASHES[di], ci, di,
+    stroke: `var(--net-c${ci})`, badge: `var(--net-b${ci})`, badgeText: "var(--net-b-text)" };
 }
 function printMapSvg(lines, opts = {}) {
   // lines: [{ shortName, dirs: [{ points: [[lat,lon]…], stops: [{gtfsId,name,lat,lon}] }] }]
@@ -7489,10 +7550,26 @@ function badgeHtml(route, fallback) {
   // merkkiä; tyhjä värillinen laatikko näyttäisi rikkinäiseltä.
   // Kutsupaikat antavat fallbackiksi kulkutavan (leg.mode), joten raaka "BUS" käännetään
   // sanaksi ja bussille ei tulosteta mitään: badge on linjanumeroa varten.
+  // Kulkutapa talteen ENNEN kuin fallback muuttuu sanaksi: merkin vari tarvitsee sen.
+  const mode = fallback && /^[A-Z_]+$/.test(fallback) ? fallback : (route?.mode || "");
   if (fallback && /^[A-Z_]+$/.test(fallback)) fallback = fallback === "BUS" ? "" : modeLabel(fallback);
   if (!route?.shortName && !fallback) return "";
-  const style = route?.color
-    ? ` style="background:#${route.color};color:${badgeText(route.color, route.textColor)}"` : "";
+  // 1) feedin oma vari, 2) kartoitettu linjavari tai kulkutapavari (sama savy kuin
+  // linjastokartalla, jotta kartta ja reittiopas puhuvat samaa kielta). MATKA ei anna
+  // route_coloria yhdellekaan linjalle, joten ilman kohtaa 2 jokainen merkki on harmaa
+  // eika junaa erota bussista muuten kuin ikonista.
+  let style = "";
+  if (route?.color) {
+    style = ` style="background:#${route.color};color:${badgeText(route.color, route.textColor)}"`;
+  } else {
+    const st = netStyleFor(route?.shortName || "", mode);
+    // Bussille ei anneta kartoittamatonta hajautusvaria: se varjaisi jokaisen merkin
+    // sattumanvaraisesti myos kaupungeissa joissa kartoitusta ei ole.
+    const mapped = CONFIG.lineStyles && CONFIG.lineStyles[route?.shortName];
+    if (mapped || MODE_VARS[mode]) {
+      style = ` style="background:${st.badge};color:${st.badgeText}"`;
+    }
+  }
   return `<span class="badge"${style}>${esc(route?.shortName || fallback || "")}</span>`;
 }
 
@@ -8072,9 +8149,17 @@ function viewRoutes() {
         .filter(r => !f || (r.shortName || "").toLowerCase().includes(f)
                         || (r.longName || "").toLowerCase().includes(f))
         .map(r => {
-          const special = r.color && r.color.toUpperCase() !== generic;
-          const style = special
-            ? ` style="--rc:#${r.color};--rt:${badgeText(r.color, r.textColor)}"` : "";
+          // Feedin oma vari, tai jos sita ei ole, kartoitettu linjavari / kulkutapavari.
+          // Ilman jalkimmaista Inkoon linjaruudukko on kokonaan variton, koska MATKA ei
+          // anna route_coloria yhdellekaan linjalle - ja juuri linjalista on se paikka
+          // jossa varikoodin pitaisi ensimmaisena nakya.
+          const mapped = !r.color &&
+            !!((CONFIG.lineStyles && CONFIG.lineStyles[r.shortName]) || MODE_VARS[r.mode]);
+          const special = (r.color && r.color.toUpperCase() !== generic) || mapped;
+          const nst = mapped ? netStyleFor(r.shortName || r.gtfsId, r.mode) : null;
+          const style = r.color
+            ? (special ? ` style="--rc:#${r.color};--rt:${badgeText(r.color, r.textColor)}"` : "")
+            : nst ? ` style="--rc:${nst.badge};--rt:${nst.badgeText}"` : "";
           return `<li><a class="route-tile" href="#/linja/${encodeURIComponent(r.gtfsId)}"${style}
               title="${esc(r.longName || "")}" aria-label="${esc((r.shortName || "") + " " + (r.longName || ""))}">
               ${r.shortName ? `<span class="rt-badge${special ? " special" : ""}">${esc(r.shortName)}</span>` : ""}
@@ -9497,6 +9582,51 @@ async function loadAreaStops() {
   return stops;
 }
 
+// Pisteen etäisyys janasta metreinä. Tasokuvaus riittää: mitattavat etäisyydet ovat satoja
+// metrejä, jolloin projektiovirhe on alle metrin.
+function segDistM(lat, lon, a, b) {
+  const kx = 111320 * Math.cos(lat * Math.PI / 180), ky = 110540;
+  const px = lon * kx, py = lat * ky;
+  const ax = a[1] * kx, ay = a[0] * ky, bx = b[1] * kx, by = b[0] * ky;
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+  let u = l2 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
+  u = u < 0 ? 0 : u > 1 ? 1 : u;
+  return Math.hypot(px - (ax + u * dx), py - (ay + u * dy));
+}
+
+// Linjat jotka kulkevat annetun pisteen ohi. Kynnys kasvaa portaittain, jotta napautus
+// osuu myös kun sormi ei osu viivalle pikselilleen; ensimmäinen osuva taso voittaa, jolloin
+// tarkka napautus ei vedä mukaan naapurikadun linjoja.
+function linesNear(lines, latlng) {
+  for (const limit of [60, 150, 400]) {
+    const hit = lines.filter(l => {
+      for (let i = 1; i < l.pts.length; i++) {
+        if (segDistM(latlng.lat, latlng.lng, l.pts[i - 1], l.pts[i]) <= limit) return true;
+      }
+      return false;
+    });
+    if (hit.length) return hit;
+  }
+  return [];
+}
+
+// Popup napautuskohdasta: KAIKKI siitä kulkevat linjat, napautettu ensimmäisenä. Tämä on
+// vastaus Inkoon havaintoon "kartalta ei näe mitkä linjat kulkevat tiettyä reittiä":
+// päällekkäiset viivat eivät voi kertoa sitä, koska vain päällimmäinen saa osoittimen.
+function corridorListHtml(lines, activeKey) {
+  if (!lines || !lines.length) return "";
+  const sorted = [...lines].sort((a, b) =>
+    (b.key === activeKey) - (a.key === activeKey) ||
+    String(a.key).localeCompare(String(b.key), "fi", { numeric: true }));
+  const items = sorted.map(l =>
+    `<li><a href="#/linja/${encodeURIComponent(l.gtfsId)}">` +
+    `<span class="badge" style="background:${l.badge};color:${l.badgeText}">${esc(l.key)}</span> ` +
+    `${esc(l.label || "")}</a></li>`).join("");
+  const head = sorted.length > 1
+    ? t("netCorridor", { n: sorted.length }) : t("netCorridorOne");
+  return `<p class="muted">${esc(head)}</p><ul class="net-corridor">${items}</ul>`;
+}
+
 async function viewNetworkMap() {
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`
@@ -9538,29 +9668,60 @@ async function viewNetworkMap() {
         }
       } catch (e) { /* pysäkit ovat lisätieto: kartta toimii ilmankin */ }
     }
+    // Yksi viiva per LINJA, ei per route-objekti. MATKA julkaisee jokaisen suunnan ja
+    // variantin omana objektinaan: Inkoossa linjalla 192 on 10 objektia ja 192M:lla 7, eli
+    // sama Helsinki-käytävä piirtyi 17 kertaa päällekkäin ja hover näytti vain päällimmäisen.
+    // Ryhmittely on sama kuin linjalistassa (shortName), joten kartta ja lista vastaavat
+    // toisiaan. Ryhmästä piirretään pisin reittikuvio, jotta haara ei katoa.
+    const groups = new Map();
     for (const r of routes) {
-      // piirrä linjan pisin reittikuvio (yksi viiva/linja pitää kartan luettavana)
-      const pat = (r.patterns || [])
-        .filter(p => p.patternGeometry && p.patternGeometry.points)
-        .sort((a, b) => (b.patternGeometry.length || 0) - (a.patternGeometry.length || 0))[0];
-      if (!pat) continue;
-      const pts = decodePolyline(pat.patternGeometry.points);
+      const k = r.shortName || r.longName || r.gtfsId;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(r);
+    }
+    const drawnLines = [];   // { key, label, gtfsId, pts } korridoritietoa varten
+    for (const [key, group] of groups) {
+      let best = null, bestLen = -1, owner = null;
+      for (const r of group) {
+        for (const p of (r.patterns || [])) {
+          const len = p.patternGeometry && p.patternGeometry.points
+            ? (p.patternGeometry.length || 0) : -1;
+          if (len > bestLen) { bestLen = len; best = p; owner = r; }
+        }
+      }
+      if (!best) continue;
+      const pts = decodePolyline(best.patternGeometry.points);
       if (!pts.length) continue;
-      const st = netStyleFor(r.shortName || r.gtfsId);
-      const color = r.color ? "#" + r.color : st.color;
+      const st = netStyleFor(owner.shortName || owner.gtfsId, owner.mode);
+      const color = owner.color ? "#" + owner.color : st.color;
       const line = L.polyline(pts, { color, weight: 3, opacity: 0.55,
-        dashArray: r.color ? null : (st.dash || null) }).addTo(map);
-      const label = (r.shortName || "") + (r.longName ? " " + r.longName : "");
+        dashArray: owner.color ? null : (st.dash || null) }).addTo(map);
+      const label = (owner.shortName || "") + (owner.longName ? " " + owner.longName : "");
       line.bindTooltip(label.trim() || t("alertDefault"), { sticky: true });
       line.on("mouseover", () => line.setStyle({ weight: 6, opacity: 0.95 }));
       line.on("mouseout", () => line.setStyle({ weight: 3, opacity: 0.55 }));
       // Kosketusnäytöllä ei ole hiiren osoitusta: napautus avaa popupin, josta pääsee
       // aikatauluun. Aiemmin napautus vei heti pois kartalta eikä linjaa ehtinyt tunnistaa.
-      line.bindPopup(`<a href="#/linja/${encodeURIComponent(r.gtfsId)}">${esc(label.trim() || t("alertDefault"))}</a>`);
+      // Popup rakennetaan napautuskohdasta, jotta se voi listata myös muut samaa väliä
+      // ajavat linjat (Leaflet ei propagoi viivan klikkausta kartalle).
+      line.on("click", e => {
+        L.popup().setLatLng(e.latlng)
+          .setContent(corridorListHtml(linesNear(drawnLines, e.latlng), key)).openOn(map);
+      });
       bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
-      drawnKeys.add(r.shortName || r.longName || r.gtfsId);
+      drawnKeys.add(key);
+      drawnLines.push({ key, label: label.trim(), gtfsId: owner.gtfsId, pts, badge: st.badge,
+        badgeText: st.badgeText });
       drawn++;
     }
+    // "Mitkä linjat kulkevat tätä väliä" oli Inkoon havainto: päällekkäiset viivat eivät
+    // kerro sitä, koska vain päällimmäinen saa hoverin. Napautus mistä tahansa kartan
+    // kohdasta listaa kaikki linjat jotka kulkevat siitä ohi.
+    map.on("click", e => {
+      const near = linesNear(drawnLines, e.latlng);
+      if (!near.length) return;
+      L.popup().setLatLng(e.latlng).setContent(corridorListHtml(near)).openOn(map);
+    });
     // areaScoped: rajaa kuntaan. Ilman tätä kartta avautuu pisimpien linjojen unioniin,
     // Inkoossa Turusta Porvooseen, ja kunta jää pisteeksi keskelle. Ensisijaisesti
     // rajataan kunnan pysäkkeihin, koska suorakaide ulottuu merialueelle.
@@ -9596,12 +9757,12 @@ async function viewNetworkMap() {
         seen.add(k);
         return true;
       }).map(r => {
-        const st = netStyleFor(r.shortName || r.gtfsId);
-        const c = r.color ? "#" + r.color : st.color;
+        const st = netStyleFor(r.shortName || r.gtfsId, r.mode);
         // Viivan malli piirretaan SVG:lla samalla dash-kuviolla kuin kartalla, jotta selite
-        // todella erottaa linjat. Vari tulee CSS-tokenista (net-c0..net-c5), jolloin tumma
-        // teema saa oman, kontrastiltaan riittavan savynsa; feedin oma vari menee suoraan.
-        const stroke = r.color ? `#${r.color}` : `var(--net-c${st.ci})`;
+        // todella erottaa linjat. Vari tulee CSS-tokenista (net-c0..net-c5, kulkutavalla
+        // m-rail/m-ferry), jolloin tumma teema saa oman kontrastiltaan riittavan savynsa;
+        // feedin oma vari menee suoraan.
+        const stroke = r.color ? `#${r.color}` : st.stroke;
         const dash = r.color ? "" : (st.dash ? ` stroke-dasharray="${st.dash}"` : "");
         return `<li><svg class="net-key" viewBox="0 0 26 6" aria-hidden="true">` +
           `<line x1="1" y1="3" x2="25" y2="3" stroke="${stroke}" stroke-width="3"${dash}/></svg>` +
@@ -9902,7 +10063,13 @@ function railTableHtml(rows, limit) {
     const time = r.cancelled
       ? `<s>${railDayTime(r.sched)}</s> <span class="ex-tag">${t("trainsCancelled")}</span>`
       : railDayTime(r.sched) + (late ? ` <strong>→ ${railHhmm(r.est)}</strong>` : "");
-    return `<tr><td>${time}</td><td><strong>${esc(r.label)}</strong></td>` +
+    // Junan tunnus kulkutapavärillä (Inkoossa H, Hangon lähijuna). Sama sävy kuin
+    // reittioppaan junaosuudella ja linjastokartan juna-pysäkeillä, jotta juna tunnistuu
+    // samasta väristä kaikkialla. Väri ei ole ainoa erottaja: tunnus on aina tekstinä.
+    const rst = netStyleFor(r.label, "RAIL");
+    return `<tr><td>${time}</td>` +
+      `<td><span class="badge" style="background:${rst.badge};color:${rst.badgeText}">` +
+      `${esc(r.label)}</span></td>` +
       `<td style="text-align:left">${esc(r.dest)}</td><td>${esc(r.track)}</td></tr>`;
   }).join("");
   return `<div class="matrix-wrap"><table class="stoptable booklet">
@@ -10419,8 +10586,36 @@ function bindChangesTab() {
 
 /* ---------- Paikkahaku: pysäkit (GraphQL) + osoitteet/POI:t (Pelias) ---------- */
 
+// Montako geokoodausosumaa paikkalistaan mahtuu pahimmassa tapauksessa: searchPlaces
+// näyttää 9 riviä ja pysäkkiehdotukset vievät niistä enintään 4.
+const PLACE_SLOTS = 5;
+
+// areaScoped: kunnan ulkopuolinen määränpää. `boundary.rect` on Peliaksessa KOVA suodin,
+// joten kuntarajaus teki Inkoossa haun "Helsinki" mahdottomaksi (mitattu 20.9.2026: 0 osumaa
+// rajauksella, 10 ilman) eikä A→B-reittiä voinut muodostaa lainkaan, vaikka reititin
+// palauttaa Inkoo→Helsinki-reitin ongelmitta. Rajausta ei kuitenkaan voi vain poistaa:
+// mitattuna 18 hakusanalla se siirsi "apteekin" Sysmään, "kirkon" Saloon ja "sataman"
+// Jätkäsaareen, koska Pelias pisteyttää tekstiosuman eikä sijaintia. Siksi kaksi kyselyä:
+// kuntarajattu antaa listan kärjen ennallaan ja rajaamaton täydentää perään. Mitattu
+// samalla 18 hakusanalla: yksikään nykyinen ykköstulos ei muutu ja Helsinki, Kamppi,
+// Karjaa, Tammisaari, Kirkkonummi ja Lohja mahtuvat näkyviin.
+function mergeWideHits(local, wide) {
+  // Paikallisia pidetään kärjessä enintään niin monta, että laajalle jää aina tilaa.
+  const keep = local.length >= PLACE_SLOTS ? local.slice(0, PLACE_SLOTS - 2) : local;
+  const kept = new Set(keep.map(h => h.name));
+  const rest = local.filter(h => !kept.has(h.name));
+  const restNames = new Set(rest.map(h => h.name));
+  const extra = wide.filter(h => !kept.has(h.name) && !restNames.has(h.name));
+  return [...keep, ...extra, ...rest];
+}
+
 async function geocode(text) {
-  const hits = await geocodeRaw(text);
+  let hits = await geocodeRaw(text);
+  if (CONFIG.areaScoped) {
+    // Rajaamaton haku on lisätieto: sen kaatuminen ei saa kaataa kunnan sisäistä hakua.
+    const wide = await geocodeRaw(text, false).catch(() => []);
+    if (wide.length) hits = mergeWideHits(hits, wide);
+  }
   // areaScoped: Pelias pisteyttää tekstiosuman eikä sijaintia, joten pelkkä "koulu" antaa
   // Inkoossa Mustion koulun (13 km) ja Siuntion Koulutien, muttei kunnan omaa Merituulen
   // koulua lainkaan. Kun yhtään osumaa ei ole kunnan sisällä, kysytään uudelleen kunnan
@@ -10446,17 +10641,21 @@ async function geocode(text) {
   return [...local, ...hits.filter(h => !seen.has(h.name))];
 }
 
-async function geocodeRaw(text) {
+// bounded=false: sama kysely ilman kuntarajausta (ks. mergeWideHits). focus.point jää
+// molempiin, joten lähellä olevat nousevat myös rajaamattomassa haussa.
+async function geocodeRaw(text, bounded = true) {
   const params = new URLSearchParams({
     // size 10 (ei 6): uudelleenjarjestys tarvitsee enemman ehdokkaita kuin lopulliset 5-9 rivia.
     text, size: "10", lang,
     "focus.point.lat": String(AREA.focus.lat),
     "focus.point.lon": String(AREA.focus.lon),
-    "boundary.rect.min_lat": String(AREA.rect.minLat),
-    "boundary.rect.max_lat": String(AREA.rect.maxLat),
-    "boundary.rect.min_lon": String(AREA.rect.minLon),
-    "boundary.rect.max_lon": String(AREA.rect.maxLon),
   });
+  if (bounded) {
+    params.set("boundary.rect.min_lat", String(AREA.rect.minLat));
+    params.set("boundary.rect.max_lat", String(AREA.rect.maxLat));
+    params.set("boundary.rect.min_lon", String(AREA.rect.minLon));
+    params.set("boundary.rect.max_lon", String(AREA.rect.maxLon));
+  }
   if (!PROXY_URL) params.set("digitransit-subscription-key", apiKey);
   const res = await fetch(`${GEOCODING_URL}/search?${params}`);
   if (!res.ok) throw new Error(t("errGeocode") + res.status);
