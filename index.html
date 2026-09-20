@@ -3064,6 +3064,9 @@ const CONFIGS = {
     cityGenitives: { sv: "Ingå" },
     // Uudenmaan ELY-keskus ei ole ollut joukkoliikenteen tilaaja 1.1.2026 jälkeen.
     operator: "Traficom ja alueen liikennöitsijät",
+    // Inkoo on ruotsinkielisenemmistöinen: tulosteessa tilaajarivi ei saa jäädä suomeksi.
+    operators: { sv: "Traficom och trafikidkarna i området",
+                 en: "Traficom and local operators" },
     operatorShort: "Inkoo",
     dataSource: "Fintraffic",
     router: "finland",
@@ -4970,6 +4973,12 @@ try { window.speechSynthesis?.getVoices(); window.speechSynthesis?.addEventListe
 // CONFIG.cityNames[lang] / cityGenitives[lang] ylikirjoittaa kielikohtaisesti.
 function cityName() { return (CONFIG.cityNames && CONFIG.cityNames[lang]) || CONFIG.city; }
 function cityGenName() { return (CONFIG.cityGenitives && CONFIG.cityGenitives[lang]) || CONFIG.cityGenitive; }
+// CONFIG.operators[lang] ylikirjoittaa tilaajatekstin kielikohtaisesti. Ilman tata
+// ruotsinkielisen kunnan pysakkijulisteessa luki suomenkielinen tilaajarivi keskella
+// ruotsinkielista tekstia ("Utskriven 20 september 2026 - Traficom ja alueen
+// liikennoitsijat"). Pysakkien ja maaranpaiden nimet tulevat feedista eivatka kaanny,
+// mutta meidan oma tekstimme kaantyy.
+function operatorName() { return (CONFIG.operators && CONFIG.operators[lang]) || CONFIG.operator || ""; }
 
 function networkPhrase() {
   if (CONFIG.network && CONFIG.network[lang]) return CONFIG.network[lang];
@@ -7790,7 +7799,7 @@ function heroExtPlannerHtml() {
 // CONFIG.brandColorista (--header-bg). meta: "full" = "Tulostettu pvm · operaattori", "date" = vain pvm
 // (kun operaattori on jo otsikossa), false = ei metariviä (kun tuloste kertoo päivän muualla).
 function printBrandHead({ title, sub = "", meta = "full", extra = "" } = {}) {
-  const metaTxt = meta === "full" ? t("printMeta", { date: fmtDateLong(todayISO()), operator: CONFIG.operator || "" })
+  const metaTxt = meta === "full" ? t("printMeta", { date: fmtDateLong(todayISO()), operator: operatorName() })
     : meta === "date" ? t("printMetaDate", { date: fmtDateLong(todayISO()) }) : "";
   return `<div class="print-brandhead"><div class="print-brandhead-text">
       <h2>${title}</h2>${sub ? `<p class="print-brandhead-sub">${sub}</p>` : ""}${metaTxt ? `<p class="print-brandhead-meta">${esc(metaTxt)}</p>` : ""}
@@ -7826,7 +7835,7 @@ function compactPosterDom(po) {
     if (head && !head.querySelector(".poster-printed")) {
       const printed = document.createElement("p");
       printed.className = "poster-printed";
-      printed.textContent = t("posterFoot", { date: fmtDateLong(todayISO()), operator: CONFIG.operator || "" });
+      printed.textContent = t("posterFoot", { date: fmtDateLong(todayISO()), operator: operatorName() });
       (head.querySelector("h2")?.parentElement || head).appendChild(printed); // otsikkosarake, ei QR-laatikko
     }
   });
@@ -14529,7 +14538,7 @@ function bindBookletTab(routes, today) {
     const out = document.getElementById("bookletOut");
     out.innerHTML = `
       <div class="card booklet-head">
-        ${printBrandHead({ title: `${esc(CONFIG.operator)} · ${t("bookletCoverTitle")}`,
+        ${printBrandHead({ title: `${esc(operatorName())} · ${t("bookletCoverTitle")}`,
           sub: `${dts.map(d => esc(d.label)).join(" · ")}. ${t("bookletKeyStopsNote")}`, meta: "date" })}
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
         <p class="muted">${t("printDaysNote")}</p>
