@@ -3805,6 +3805,7 @@ const STRINGS = {
     openFullMap: "Koko kartta",
     stopTimelineTitle: "Pysäkit ja seuraava lähtö",
     timelineSelected: "Linjan {time} lähtö",
+    depFromOther: "lähtee pysäkiltä {stop}", depOtherOriginLegend: "lähtee eri pysäkiltä: {stops}", viaStop: "kautta {stop}",
     depSelectAria: "Lähtö {time}, näytä pysäkkiajat",
     routePatternLabel: "Reittikuvio:",
     nextDeps: "Seuraavat lähdöt:",
@@ -4369,6 +4370,7 @@ const STRINGS = {
     openFullMap: "Full map",
     stopTimelineTitle: "Stops and next departure",
     timelineSelected: "The {time} departure",
+    depFromOther: "departs from {stop}", depOtherOriginLegend: "departs from a different stop: {stops}", viaStop: "via {stop}",
     depSelectAria: "Departure {time}, show stop times",
     routePatternLabel: "Route variant:",
     nextDeps: "Next departures:",
@@ -4933,6 +4935,7 @@ const STRINGS = {
     openFullMap: "Hela kartan",
     stopTimelineTitle: "Hållplatser och nästa avgång",
     timelineSelected: "Avgången {time}",
+    depFromOther: "avgår från {stop}", depOtherOriginLegend: "avgår från en annan hållplats: {stops}", viaStop: "via {stop}",
     depSelectAria: "Avgång {time}, visa hållplatstider",
     routePatternLabel: "Linjevariant:",
     nextDeps: "Följande avgångar:",
@@ -8809,16 +8812,23 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   // Oletuksena pääsuunta TULEVIEN vuorojen mukaan — EI patterns[0] eikä kaikkien
   // aikojen suurin (vanha variantti voi olla "isoin" mutta ei aja nyt → "ei lähtöjä").
   // Käyttäjän valitsema patternCode voittaa.
+  // Tasapelissä pidempi reittikuvio: Joensuun 540:n Joensuu-Rääkkylä-vuoro (1/pv) hävisi
+  // 10 pysäkin syöttövuorolle, joka oli listassa ensin (auditointi 23.9.2026).
+  const byTrips = (a, b) => (upcoming(b) - upcoming(a)) || ((b.stops || []).length - (a.stops || []).length);
   const current = patterns.find(p => p.code === patternCode)
-    || patterns.slice().sort((a, b) => upcoming(b) - upcoming(a))[0]
+    || patterns.slice().sort(byTrips)[0]
     || patterns[0];
 
-  // Selkokielinen suunta: "lähtöpysäkki → päätepysäkki" pattern-koodien sijaan
+  // Selkokielinen suunta: "lähtöpysäkki → päätepysäkki" pattern-koodien sijaan. Jos kahdella
+  // suuntavälilehdellä on sama otsikko (Joensuun 9: aamu- ja iltapäivävuoro samoin päätepysäkein,
+  // 112 silmukka), otsikkoon lisätään pysäkki, joka erottaa ne (dirVia, täytetään alla).
+  const dirVia = new Map();
   const patternLabel = p => {
     const stops = p.stops || [];
-    return stops.length
+    const base = stops.length
       ? `${stops[0].name} → ${stops[stops.length - 1].name}`
       : (p.name || "");
+    return dirVia.has(p.code) ? `${base} (${t("viaStop", { stop: dirVia.get(p.code) })})` : base;
   };
   // Suunnittain yleisin variantti (eniten vuoroja) välilehdeksi, harvinaiset
   // variaatiot pudotusvalikon taakse
@@ -8830,14 +8840,22 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   }
   const primaries = [];
   for (const list of byDir.values()) {
-    list.sort((a, b) => upcoming(b) - upcoming(a)); // suuntavälilehdeksi nyt liikennöivä pääpattern
+    list.sort(byTrips); // suuntavälilehdeksi nyt liikennöivä pääpattern
     primaries.push(list[0]);
+  }
+  // Samannimiset suuntavälilehdet erotetaan ensimmäisellä pysäkillä, jota toisessa ei ole.
+  for (const p of primaries) {
+    const twin = primaries.find(q => q !== p && patternLabel(q) === patternLabel(p));
+    if (!twin) continue;
+    const other = new Set((twin.stops || []).map(s => s.gtfsId));
+    const diff = (p.stops || []).find(s => !other.has(s.gtfsId));
+    if (diff) dirVia.set(p.code, diff.name);
   }
   // Varianttivalikko skoopataan NYKYISEEN suuntaan: näkyy vain jos tällä suunnalla on
   // aidosti useampi reittikuvio (useimmilla 1 → valikko piilossa, näkymä pysyy puhtaana).
   const curDirId = dirKey(current);
   const curDirPatterns = (byDir.get(curDirId) || [current]).slice()
-    .sort((a, b) => upcoming(b) - upcoming(a));
+    .sort(byTrips);
 
   let routeAlertsHtml = "";
   try {
@@ -8986,7 +9004,10 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     dirPatterns.forEach((p, i) => {
       const tr = (data["c" + i] && data["c" + i].tripsForDate) || [];
       allTrips.push(...tr);
-      if (tr.length > trips.length) { pat = p; trips = tr; }
+      // tasapelissä pidempi reittikuvio (ks. byTrips)
+      if (tr.length > trips.length || (tr.length && tr.length === trips.length && (p.stops || []).length > (pat.stops || []).length)) {
+        pat = p; trips = tr;
+      }
     });
     return { pat, trips, allTrips };
   };
@@ -9008,25 +9029,35 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   // varianttien vuorot: Joensuun linja 2 näytti arkena 36 lähtöä 51:stä (Utran Y-vuorot eivät
   // kulje Kupluskylän kautta), 101 17/36 (auditointi 23.9.2026). Yhden patternin linjalla
   // kaikki pysäkit ovat tasoissa, joten valinta on stops[0] kuten ennen.
+  // Tuplatarkistus 23.9.: pelkkä suurin kattavuus valitsi usein pysäkin keskeltä reittiä (linja 4
+  // Kurjentie eikä Lentoasema, 480 Kovero eikä JOENSUU), jolloin ajat eivät vastanneet vihkoa.
+  // Nyt: ensimmäinen pysäkki, jonka kautta kulkee vähintään 80 % suurimmasta kattavuudesta.
+  // Vuoron viimeistä pysäkkiä ei lasketa (se on saapuminen, ei lähtö). Vuorot, jotka eivät
+  // kulje valitun pysäkin kautta, näytetään omalta lähtöpysäkiltään merkinnällä (fetchDeps).
   const pickRefStop = (pat, allTrips) => {
     const stops = pat.stops || [];
     if (!stops.length) return null;
     const cover = new Map();
     for (const tr of (allTrips || [])) {
       const seen = new Set();
-      for (const s of (tr.stoptimes || [])) {
-        const id = s.stop?.gtfsId;
+      const sts = tr.stoptimes || [];
+      for (let i = 0; i < sts.length - 1; i++) {
+        const id = sts[i].stop?.gtfsId;
         if (id && !seen.has(id)) { seen.add(id); cover.set(id, (cover.get(id) || 0) + 1); }
       }
     }
-    let best = stops[0], bestN = cover.get(stops[0].gtfsId) || 0;
-    for (const s of stops) {
-      const n = cover.get(s.gtfsId) || 0;
-      if (n > bestN) { best = s; bestN = n; }
-    }
-    return best;
+    let max = 0;
+    for (const s of stops) max = Math.max(max, cover.get(s.gtfsId) || 0);
+    return stops.find(s => (cover.get(s.gtfsId) || 0) >= 0.8 * max && max > 0) || stops[0];
   };
   const dirCodes = new Set(dirPatterns.map(p => p.code));
+  // Patternit, joilla refStop on VAIN viimeinen pysäkki: siellä vuoro saapuu eikä lähde
+  // (OTP sallii noudon päätepysäkillä, joten omitNonPickups ei suodata sitä). Linja 4:n
+  // 08:55 ja 203:n 14:45 näkyivät lähtöinä (tuplatarkistus 23.9.2026).
+  const arrivalOnly = refId => new Set(dirPatterns.filter(p => {
+    const ids = (p.stops || []).map(s => s.gtfsId);
+    return ids.length && ids.indexOf(refId) === ids.length - 1;
+  }).map(p => p.code));
   const fetchDeps = async (iso) => {
     const { pat, trips, allTrips } = await bestPatternForDate(iso);
     const refStop = pickRefStop(pat, allTrips);
@@ -9038,13 +9069,29 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     // saman vuoron kahdesti → pidetään ensimmäinen käynti = taulun sarake (joka ottaa
     // myös 1. käynnin). Vuorottelematon tapaus säilyy ennallaan.
     const byTrip = new Map();
+    const arrOnly = arrivalOnly(refStop.gtfsId);
+    let serviceDay = null;
     for (const g of (tt.stop?.stoptimesForServiceDate || [])) {
-      if (!dirCodes.has(g.pattern.code)) continue;
+      if (!dirCodes.has(g.pattern.code) || arrOnly.has(g.pattern.code)) continue;
       for (const s of (g.stoptimes || [])) {
+        if (serviceDay == null && s.serviceDay) serviceDay = s.serviceDay;
         const key = s.trip?.gtfsId || ("anon:" + s.scheduledDeparture);
         const prev = byTrip.get(key);
         if (!prev || s.scheduledDeparture < prev.scheduledDeparture) byTrip.set(key, s);
       }
+    }
+    // Suunnan vuorot, jotka eivät kulje refStopin kautta lähtönä (esim. 540:n syöttövuoro,
+    // linjan 4 Onttolasta lähtevät Y-vuorot): näytetään omalta lähtöpysäkiltään merkinnällä
+    // (_from), eikä niitä pudoteta. Reaaliaikaa niille ei ole, aikataulun mukainen aika riittää.
+    if (serviceDay == null) { const [y, mo, d] = iso.split("-").map(Number); serviceDay = Math.floor(new Date(y, mo - 1, d).getTime() / 1000); }
+    for (const tr of (allTrips || [])) {
+      const stts = tr.stoptimes || [];
+      if (stts.length < 2) continue;
+      if (stts.slice(0, -1).some(s => s.stop?.gtfsId === refStop.gtfsId)) continue;
+      const first = stts[0];
+      byTrip.set("from:" + (first.stop?.gtfsId || "") + ":" + first.scheduledDeparture, {
+        scheduledDeparture: first.scheduledDeparture, realtimeDeparture: first.scheduledDeparture,
+        realtime: false, serviceDay, _from: first.stop?.name || "" });
     }
     const sts = [...byTrip.values()].sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
     return { sts, pat, refStop, stale: cachedAt || routeCachedAt };
@@ -9067,7 +9114,9 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     const idx = new Map();
     for (const tr of (trips || [])) {
       const stts = tr.stoptimes || [];
-      const head = (refStop && stts.find(s => s.stop?.gtfsId === refStop.gtfsId)) || stts[0];
+      // refStopin käynti lähtönä (ei viimeinen pysäkki); muuten vuoron oma lähtö = sama avain kuin
+      // lähtölistan _from-merkityllä vuorolla (fetchDeps)
+      const head = (refStop && stts.slice(0, -1).find(s => s.stop?.gtfsId === refStop.gtfsId)) || stts[0];
       if (!head) continue;
       if (!idx.has(head.scheduledDeparture)) {
         const byStop = new Map();
@@ -9126,10 +9175,13 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       // aikataulussa 8.45) näytti ilman ●-merkkiä aikataululta, jota ei ole (auditointi 23.9.).
       const dep = (st.realtime && !past) ? st.realtimeDeparture : st.scheduledDeparture;
       const cls = "timegrid-dep" + (past ? " past" : "") + (st.realtime && !past ? " rt" : "");
+      const fromTitle = st._from ? t("depFromOther", { stop: st._from }) : "";
       return `<button type="button" class="${cls}" data-dep="${st.scheduledDeparture}" aria-pressed="false"` +
-        ` aria-label="${t("depSelectAria", { time: fmtSec(dep) })}"${st.realtime && !past ? ` title="${t("rtTitleAttr")}"` : ""}>` +
-        `${fmtSec(dep)}${st.realtime && !past ? " ●" : ""}</button>`;
+        ` aria-label="${t("depSelectAria", { time: fmtSec(dep) })}${fromTitle ? ", " + esc(fromTitle) : ""}"` +
+        `${st.realtime && !past ? ` title="${t("rtTitleAttr")}"` : fromTitle ? ` title="${esc(fromTitle)}"` : ""}>` +
+        `${fmtSec(dep)}${st.realtime && !past ? " ●" : ""}${st._from ? "*" : ""}</button>`;
     }).join("");
+    const otherFrom = [...new Set(sts.filter(st => st._from).map(st => st._from))];
     el.innerHTML = `
       ${redirectNote ? `<p class="redirect-note">${icon("warning")} ${esc(redirectNote)}</p>` : ""}
       ${stale ? staleNoteHtml(stale) : ""}
@@ -9137,6 +9189,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       ${nextHtml}
       ${remindHtml}
       <div class="timegrid" id="timegrid">${grid}</div>
+      ${otherFrom.length ? `<p class="muted">* ${esc(t("depOtherOriginLegend", { stops: otherFrom.join(", ") }))}</p>` : ""}
       ${isToday ? `<p class="muted"><span class="rt">●</span> ${t("rtLegend")}</p>` : ""}`;
     const rb = document.getElementById("remindBtn");
     if (rb) rb.addEventListener("click", () =>
