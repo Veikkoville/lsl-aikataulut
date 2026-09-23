@@ -2735,7 +2735,7 @@ const CONFIGS = {
     // väreillä. Vain 490, 500 ja 540 jakavat tyylin kaukana kulkevan linjan kanssa (23.9.2026).
     // Yleissanat, joilla Pelias antaa sivuosuman (auditointi 23.9.2026: "tori" -> Toripub,
     // "asema" -> Asemapolku Liperissä). Haku tehdään kohteen nimellä.
-    searchAliases: { tori: "Kauppatori", asema: "Joensuun rautatieasema", juna: "Joensuun rautatieasema", bussiasema: "Joensuu linja-autoasema" },
+    searchAliases: { tori: "Kauppatori", asema: "Joensuun rautatieasema", juna: "Joensuun rautatieasema", bussiasema: "Joensuu linja-autoasema", matkakeskus: "Joensuu linja-autoasema" },
     // netLineStyles (ei lineStyles): vain linjastokartalle. lineStyles värittäisi myös
     // linjaruudut ja -merkit, mutta JOJO:n oma ilme on yhtenäinen violetti.
     netLineStyles: {
@@ -3805,7 +3805,7 @@ const STRINGS = {
     openFullMap: "Koko kartta",
     stopTimelineTitle: "Pysäkit ja seuraava lähtö",
     timelineSelected: "Linjan {time} lähtö",
-    depFromOther: "lähtee pysäkiltä {stop}", depOtherOriginLegend: "lähtee eri pysäkiltä: {stops}", viaStop: "kautta {stop}",
+    depFromOther: "lähtee pysäkiltä {stop}", depSchoolMark: "K", depSchoolLegend: "ajetaan vain koulupäivinä", depOtherOriginLegend: "lähtee eri pysäkiltä: {stops}", viaStop: "kautta {stop}",
     depSelectAria: "Lähtö {time}, näytä pysäkkiajat",
     routePatternLabel: "Reittikuvio:",
     nextDeps: "Seuraavat lähdöt:",
@@ -4370,7 +4370,7 @@ const STRINGS = {
     openFullMap: "Full map",
     stopTimelineTitle: "Stops and next departure",
     timelineSelected: "The {time} departure",
-    depFromOther: "departs from {stop}", depOtherOriginLegend: "departs from a different stop: {stops}", viaStop: "via {stop}",
+    depFromOther: "departs from {stop}", depSchoolMark: "S", depSchoolLegend: "school days only", depOtherOriginLegend: "departs from a different stop: {stops}", viaStop: "via {stop}",
     depSelectAria: "Departure {time}, show stop times",
     routePatternLabel: "Route variant:",
     nextDeps: "Next departures:",
@@ -4935,7 +4935,7 @@ const STRINGS = {
     openFullMap: "Hela kartan",
     stopTimelineTitle: "Hållplatser och nästa avgång",
     timelineSelected: "Avgången {time}",
-    depFromOther: "avgår från {stop}", depOtherOriginLegend: "avgår från en annan hållplats: {stops}", viaStop: "via {stop}",
+    depFromOther: "avgår från {stop}", depSchoolMark: "S", depSchoolLegend: "endast skoldagar", depOtherOriginLegend: "avgår från en annan hållplats: {stops}", viaStop: "via {stop}",
     depSelectAria: "Avgång {time}, visa hållplatstider",
     routePatternLabel: "Linjevariant:",
     nextDeps: "Följande avgångar:",
@@ -5808,6 +5808,25 @@ async function dirTripsWithDays(patterns) {
     } catch (e) { return []; }
   }));
   return lists.flat();
+}
+// Pisin aikajärjestyksessä etenevä osajono: arvot, jotka eivät kuulu siihen, korvataan nullilla.
+// Kun eri reittivariantin vuoro sijoitetaan hallitsevan variantin pysäkkijärjestykseen, se voi
+// käydä pysäkeillä eri järjestyksessä (Joensuun 101: Jyrinlenkki ENNEN Lampitietä), ja aika
+// kulki sarakkeessa taaksepäin: "Lampitie 06:45 ... Jyrinlenkki 06:30" (tuplatarkistus 23.9.2026).
+// Näytetään vain järjestyksessä etenevät ajat; loput jäävät tyhjiksi ("·").
+function keepMonotone(vals) {
+  const idx = [], v = [];
+  vals.forEach((x, i) => { if (x != null) { idx.push(i); v.push(x); } });
+  if (v.every((x, i) => i === 0 || x >= v[i - 1])) return vals;
+  const len = v.map(() => 1), prev = v.map(() => -1);
+  let best = 0;
+  for (let i = 0; i < v.length; i++) {
+    for (let j = 0; j < i; j++) if (v[j] <= v[i] && len[j] + 1 > len[i]) { len[i] = len[j] + 1; prev[i] = j; }
+    if (len[i] > len[best]) best = i;
+  }
+  const keep = new Set();
+  for (let k = best; k >= 0; k = prev[k]) keep.add(idx[k]);
+  return vals.map((x, i) => (keep.has(i) ? x : null));
 }
 // Vuorojoukon (dirTripsWithDays) yleisimmän variantin pysäkkirunko: "kaikki pysäkit"
 // -matriisin rivit. Ennen käytettiin ensimmäisen vuoron varianttia, joka voi olla harvinainen.
@@ -7525,16 +7544,25 @@ function bindUnifiedSearch(input, results) {
         // Pysäkit ja osoitteet vain ≥2 merkillä (lyhyt numero = linjahaku)
         let stopHits = [], placeHits = [];
         if (q.length >= 2) {
+          // Sama järjestys ja aliakset kuin reittihaussa (rankPlaceHits). Ilman tätä etusivun haku
+          // antoi Joensuussa "rautatieasema" -> Enon ja Ilomantsin asemat, "keskusta" -> Liperi
+          // (tuplatarkistus 23.9.2026). areaScoped (Inkoo) pitää oman järjestyksensä.
+          const qs = (CONFIG.searchAliases || {})[ql] || q;
           const [stopsRes, geoRes] = await Promise.allSettled([
-            searchStopsByName(q, 6),
-            geocode(q),
+            searchStopsByName(qs, CONFIG.areaScoped ? 6 : 12),
+            geocode(qs),
           ]);
           if (mySeq !== seq) return;
           stopHits = stopsRes.status === "fulfilled" ? stopsRes.value : [];
           // station-taso jaa listaan (Inkoon asema on haettava), mutta geocoden uudelleen-
           // jarjestys pitaa huolen siita ettei se ole ensimmaisena keskustan edella.
-          placeHits = (geoRes.status === "fulfilled" ? geoRes.value : [])
-            .filter(p => p.layer !== "stop").slice(0, 5);
+          placeHits = (geoRes.status === "fulfilled" ? geoRes.value : []);
+          if (!CONFIG.areaScoped) {
+            stopHits = rankPlaceHits(qs, stopHits, []).slice(0, 6)
+              .map(h => ({ gtfsId: h.gtfsId, name: h.stopName, code: h.code, lat: h.lat, lon: h.lon }));
+            placeHits = rankPlaceHits(qs, [], placeHits);
+          }
+          placeHits = placeHits.filter(p => p.layer !== "stop").slice(0, 5);
         }
         if (mySeq !== seq) return;
 
@@ -8383,7 +8411,7 @@ function stopMatrixHtml(stops, trips, opts) {
     return stops.map((s, i) => { const a = occ.get(s.gtfsId); return a && a[rowOcc[i]] != null ? a[rowOcc[i]] : null; });
   };
   const rowsOf = (trips || []).filter(tr => (tr.stoptimes || []).length)
-    .map(tr => timesOf(tr)).filter(tt => tt.some(v => v != null));
+    .map(tr => keepMonotone(timesOf(tr))).filter(tt => tt.some(v => v != null));
   if (!rowsOf.length) return `<p class="muted">${t("noDepsDay")}</p>`;
   // Järjestys: aika riviltä, jolla on eniten vuoroja (yhteinen solmupysäkki). Vuoro jolta se
   // puuttuu, arvioidaan ensimmäisestä yhteisestä pysäkistä ja tyypillisestä ajoajasta.
@@ -8997,8 +9025,8 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   // matriisissa ja tulostuksessa (yksittäinen pattern, ei aggregointi kuten listassa).
   const bestPatternForDate = async (iso) => {
     const aliases = dirPatterns.map((p, i) =>
-      `c${i}: pattern(id: "${p.code}") { tripsForDate(serviceDate: $date) { stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } } } }`).join("\n");
-    const { data } = await cachedGql(`matrix:${routeId}:dir${curDir}:${iso}`,
+      `c${i}: pattern(id: "${p.code}") { tripsForDate(serviceDate: $date) { serviceId stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } } } }`).join("\n");
+    const { data } = await cachedGql(`matrix2:${routeId}:dir${curDir}:${iso}`,
       `query ($date: String!) { ${aliases} }`, { date: iso.replace(/-/g, "") });
     let pat = current, trips = [], allTrips = [];
     dirPatterns.forEach((p, i) => {
@@ -9016,7 +9044,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     stop(id: $stopId) {
       stoptimesForServiceDate(date: $date, omitNonPickups: true) {
         pattern { code }
-        stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay trip { gtfsId } }
+        stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay trip { gtfsId serviceId } }
       }
     }
   }`;
@@ -9062,7 +9090,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     const { pat, trips, allTrips } = await bestPatternForDate(iso);
     const refStop = pickRefStop(pat, allTrips);
     if (!trips.length || !refStop) return { sts: [], pat, refStop, stale: routeCachedAt };
-    const { data: tt, cachedAt } = await cachedGql(`tt:${routeId}:dir${curDir}:${refStop.gtfsId}:${iso}`, TT_QUERY,
+    const { data: tt, cachedAt } = await cachedGql(`tt2:${routeId}:dir${curDir}:${refStop.gtfsId}:${iso}`, TT_QUERY,
       { stopId: refStop.gtfsId, date: iso.replace(/-/g, "") });
     // Yksi (varhaisin) lähtö per vuoro: jos lähtöpysäkki on reitillä kahdesti (silmukka/
     // palveluliikenne, esim. Salo 31, Kajaani Pali), stoptimesForServiceDate palauttaa
@@ -9091,7 +9119,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       const first = stts[0];
       byTrip.set("from:" + (first.stop?.gtfsId || "") + ":" + first.scheduledDeparture, {
         scheduledDeparture: first.scheduledDeparture, realtimeDeparture: first.scheduledDeparture,
-        realtime: false, serviceDay, _from: first.stop?.name || "" });
+        realtime: false, serviceDay, _from: first.stop?.name || "", trip: { serviceId: tr.serviceId || "" } });
     }
     const sts = [...byTrip.values()].sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
     return { sts, pat, refStop, stale: cachedAt || routeCachedAt };
@@ -9176,12 +9204,16 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       const dep = (st.realtime && !past) ? st.realtimeDeparture : st.scheduledDeparture;
       const cls = "timegrid-dep" + (past ? " past" : "") + (st.realtime && !past ? " rt" : "");
       const fromTitle = st._from ? t("depFromOther", { stop: st._from }) : "";
+      // Koulupäivävuoro: sama serviceId-tekstihaku kuin julisteen koulupäivälohkossa (/koul/i).
+      // Linjasivu näytti ne tavallisina (Joensuun 201: 7.00, 8.00, 14.00...; auditointi 23.9.).
+      const school = /koul/i.test(st.trip?.serviceId || "");
       return `<button type="button" class="${cls}" data-dep="${st.scheduledDeparture}" aria-pressed="false"` +
-        ` aria-label="${t("depSelectAria", { time: fmtSec(dep) })}${fromTitle ? ", " + esc(fromTitle) : ""}"` +
+        ` aria-label="${t("depSelectAria", { time: fmtSec(dep) })}${fromTitle ? ", " + esc(fromTitle) : ""}${school ? ", " + esc(t("depSchoolLegend")) : ""}"` +
         `${st.realtime && !past ? ` title="${t("rtTitleAttr")}"` : fromTitle ? ` title="${esc(fromTitle)}"` : ""}>` +
-        `${fmtSec(dep)}${st.realtime && !past ? " ●" : ""}${st._from ? "*" : ""}</button>`;
+        `${fmtSec(dep)}${school ? " " + t("depSchoolMark") : ""}${st.realtime && !past ? " ●" : ""}${st._from ? "*" : ""}</button>`;
     }).join("");
     const otherFrom = [...new Set(sts.filter(st => st._from).map(st => st._from))];
+    const anySchool = sts.some(st => /koul/i.test(st.trip?.serviceId || ""));
     el.innerHTML = `
       ${redirectNote ? `<p class="redirect-note">${icon("warning")} ${esc(redirectNote)}</p>` : ""}
       ${stale ? staleNoteHtml(stale) : ""}
@@ -9189,6 +9221,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       ${nextHtml}
       ${remindHtml}
       <div class="timegrid" id="timegrid">${grid}</div>
+      ${anySchool ? `<p class="muted">${esc(t("depSchoolMark"))} = ${esc(t("depSchoolLegend"))}</p>` : ""}
       ${otherFrom.length ? `<p class="muted">* ${esc(t("depOtherOriginLegend", { stops: otherFrom.join(", ") }))}</p>` : ""}
       ${isToday ? `<p class="muted"><span class="rt">●</span> ${t("rtLegend")}</p>` : ""}`;
     const rb = document.getElementById("remindBtn");
@@ -9208,14 +9241,18 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
         // Sama pysäkki voi olla aikajanalla monta kertaa (silmukka): n. käynnin span saa
         // n. käynnin ajan listasta → 1. rivi (lähtö) lähtöaika, viimeinen rivi (paluu) saapumisaika.
         const seen = new Map();
-        document.querySelectorAll("#stopTimeline .stl-time[data-stop]").forEach(span => {
+        const spans = [...document.querySelectorAll("#stopTimeline .stl-time[data-stop]")];
+        const vals = spans.map(span => {
           const id = span.getAttribute("data-stop");
           const arr = byStop && byStop.get(id);
           const k = seen.get(id) || 0;
           seen.set(id, k + 1);
           const s = arr ? arr[k] : undefined;
-          span.textContent = s != null ? fmtSec(s) : "";
+          return s != null ? s : null;
         });
+        // toisen variantin vuoro voi käydä pysäkeillä eri järjestyksessä (ks. keepMonotone)
+        const mono = keepMonotone(vals);
+        spans.forEach((span, i) => { span.textContent = mono[i] != null ? fmtSec(mono[i]) : ""; });
         if (selEl) selEl.textContent = t("timelineSelected", { time: fmtSec(depSec) });
         tg.querySelectorAll("button[data-dep]").forEach(b => {
           const on = Number(b.dataset.dep) === depSec;
@@ -11147,7 +11184,8 @@ function rankPlaceHits(q, rawStops, places) {
     if (s.lat == null) continue;
     const full = (s.name || "").toLowerCase().replace(/\s+/g, " ").trim();
     const qu = quality(full.replace(/ [a-zåäö]$/, ""));  // laiturikirjain ei heikennä osumaa
-    items.push({ hit: { name: s.name + (s.code ? ` (${s.code})` : ""), lat: s.lat, lon: s.lon, layer: "stop" },
+    items.push({ hit: { name: s.name + (s.code ? ` (${s.code})` : ""), lat: s.lat, lon: s.lon, layer: "stop",
+                        gtfsId: s.gtfsId, code: s.code, stopName: s.name },
       key: full, score: qu * 4 + km(s.lat, s.lon) / 2 });
   }
   for (const p of places || []) {
@@ -13929,6 +13967,9 @@ function bookletTableHtml(trips, keyOpts) {
   const rows0 = valid.map(tr => {
     const m = {};
     for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture;
+    // sarakejärjestyksessä taaksepäin kulkevat ajat pois (ks. keepMonotone)
+    const mono = keepMonotone(keyStops.map(s => m[s.gtfsId] ?? null));
+    keyStops.forEach((s, i) => { if (mono[i] == null) delete m[s.gtfsId]; });
     return m;
   });
   // Järjestys yhteisen avainpysäkin ajan mukaan. Ennen lajiteltiin 1. avainpysäkin mukaan ja
