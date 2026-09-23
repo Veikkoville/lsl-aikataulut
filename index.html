@@ -15164,7 +15164,7 @@ async function viewPrintCenter(tab, query) {
           <button type="button" id="chgSelSoon" class="linkish">${t("changesSelectSoon")}</button>
           <button type="button" id="chgSelNone" class="linkish">${t("changesSelectNone")}</button>
         </div>
-        <p><label class="dtopt"><input type="checkbox" id="chgCompactCb"${CONFIG.posterCompact ? " checked" : ""}> ${t("posterCompactOpt")}</label></p>
+        <p><label class="dtopt"><input type="checkbox" id="chgCompactCb"${CONFIG.posterCompact !== false ? " checked" : ""}> ${t("posterCompactOpt")}</label></p>
         <p class="buildbar"><button type="button" id="chgGo">${t("changesPrint")}</button>
           <span id="chgStatus" class="muted" role="status"></span></p>
         <ul class="plain" id="chgList"></ul>

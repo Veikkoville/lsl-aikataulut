@@ -1352,6 +1352,19 @@ async function printHygiene(page, label) {
     (ready && chg.go && chg.active === "muutokset" && (expectRows ? chg.rows > 0 && /\d/.test(chg.sum) : chg.rows === 0))
       ? ok(`muutosvahti-välilehti (${city || "ei ajettu"}): ${chg.rows} pysäkkiä, "${chg.sum}…"`)
       : fail("muutosvahti-välilehti: " + JSON.stringify({ city, ready, ...chg }));
+    // Muutosvahdin "Yksi arkki" noudattaa samaa oletusta kuin pysäkkisivu ja linjan erätuloste
+    // (CONFIG.posterCompact !== false). 23.9.2026 muutosvahti tulosti Turussa vanhan monisivuisen
+    // julisteen, koska sen valinta vaati erillisen posterCompact: true -asetuksen (vain Lahti ja Vaasa).
+    // Siksi tarkistus ajetaan kunnassa, jolla asetusta ei ole.
+    await page.goto(BASE + "/?city=joensuu#/tulosteet/muutokset", { waitUntil: "networkidle2" });
+    await page.waitForSelector("#chgCompactCb", { timeout: 20000 }).catch(() => {});
+    const yksiArkki = await page.evaluate(() => ({
+      muutosvahti: document.getElementById("chgCompactCb")?.checked,
+      eratuloste: document.getElementById("batchCompactCb")?.checked,
+    }));
+    (yksiArkki.muutosvahti === true && yksiArkki.eratuloste === true)
+      ? ok("muutosvahti: yhden arkin juliste oletuksena kuten erätulosteessa (joensuu)")
+      : fail("muutosvahti: yhden arkin valinnan oletus eri kuin erätulosteessa: " + JSON.stringify(yksiArkki));
     // Smoke on peräkkäinen ja tilallinen: palauta oletuskaupunki ja vihko-välilehti, muuten seuraava
     // tarkistus klikkaa piilotetun paneelin nappia (CI 2.9.2026: "Node is either not clickable").
     await page.goto(BASE + "/#/tulosteet/vihko", { waitUntil: "networkidle2" });
