@@ -1606,7 +1606,9 @@ async function printHygiene(page, label) {
   // Odotus on aria-pressedissä eikä sleepissä: 200 ms ei riittänyt kun edellinen tarkistus oli juuri
   // emuloinut print-mediaa (CI 3f0baec 31.8. ja paikallinen ajo 3.9. kaatuivat molemmat siihen, että
   // klikkaus ei ollut vielä rekisteröitynyt). Uusinta oli aina vihreä, eli vika oli vartijassa.
-  await page.click('.ptab[data-ptab="naytot"]');
+  // DOM-klikkaus: käytävätuloste vierittää sivua pehmeästi, ja koordinaattiklikkaus osui ohi
+  // (CI fe7f146 23.9.2026: aktiivinen jäi 'kaytava', vaikka paikallinen ajo oli vihreä).
+  await page.$eval('.ptab[data-ptab="naytot"]', el => el.click());
   await page.waitForFunction(
     () => document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab === "naytot",
     { timeout: 10000 }).catch(() => {});
