@@ -92,6 +92,67 @@ export function quotaGate(request, origin) {
   return null;
 }
 
+/* ---------- MML-taustakarttatiilet tulosteiden reittikarttaan (23.9.2026) ---------- */
+// Maanmittauslaitoksen avoin karttakuvapalvelu (WMTS, CC BY 4.0). Avain on vain workerissa
+// (env.MML_API_KEY), ei koskaan selaimessa eikä julkisessa repossa. Tulosteen SVG hakee tiilet
+// <image>-elementillä, joka EI lähetä Origin-otsaketta, joten quotaGate ei sovi tähän. Suojat:
+// kiinteä tasolista, zoomiraja, Referer-tarkistus (jos otsake on), IP-raja ja pitkä välimuisti.
+// MML:n avoin palvelu ei ole tarkoitettu suurivolyymiseen käyttöön: tulosteen yksi kartta on
+// muutama kymmen tiiltä, ja välimuisti palvelee saman kaupungin seuraavat tulosteet.
+const MML_WMTS = "https://avoin-karttakuva.maanmittauslaitos.fi/avoin/wmts/1.0.0";
+const MML_LAYERS = new Set(["selkokartta", "taustakartta"]);
+export const MML_Z_MIN = 5, MML_Z_MAX = 16;
+export function parseMmlTilePath(pathname) {
+  const m = /^\/mml\/([a-z]+)\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})\.png$/.exec(pathname || "");
+  if (!m || !MML_LAYERS.has(m[1])) return null;
+  const z = +m[2], x = +m[3], y = +m[4];
+  if (z < MML_Z_MIN || z > MML_Z_MAX) return null;
+  const n = 2 ** z;
+  if (x >= n || y >= n) return null;
+  return { layer: m[1], z, x, y };
+}
+// Referer puuttuu joskus (tietosuoja-asetukset, tulostus): silloin sallitaan ja IP-raja kantaa.
+// Jos se on, sen originin on oltava omamme.
+export function mmlRefererAllowed(referer) {
+  if (!referer) return true;
+  try { return ALLOWED_ORIGINS.has(new URL(referer).origin); } catch (e) { return false; }
+}
+// Läpinäkyvä 1×1 PNG: kun avainta ei ole tai MML ei vastaa, tuloste näyttää kartan kuten ennen
+// (valkoinen pohja) eikä selain lokita virhettä jokaisesta tiilestä (smoke vaatii 0 konsolivirhettä).
+// Otsake X-Mml-Tile: fallback kertoo tilan; prod-smoke tarkistaa sen erikseen, joten puuttuva avain
+// ei jää piiloon vaan näkyy omana FAIL-rivinään.
+const MML_FALLBACK_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+export function mmlFallbackPng() {
+  const bin = atob(MML_FALLBACK_PNG_B64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function mmlFallback(cors, why) {
+  return new Response(mmlFallbackPng(), { status: 200, headers: {
+    ...cors, "Content-Type": "image/png", "Cache-Control": "no-store", "X-Mml-Tile": "fallback", "X-Mml-Reason": why } });
+}
+async function handleMmlTile(request, env, ctx, tile) {
+  const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Mml-Tile, X-Mml-Reason" };
+  if (!mmlRefererAllowed(request.headers.get("Referer"))) return new Response("Forbidden", { status: 403, headers: cors });
+  if (rateLimited("mml:" + (request.headers.get("CF-Connecting-IP") || ""))) {
+    return new Response("Liikaa pyyntöjä", { status: 429, headers: { ...cors, "Retry-After": "60" } });
+  }
+  if (!env.MML_API_KEY) return mmlFallback(cors, "no-key");
+  const cache = caches.default;
+  const cacheKey = new Request(new URL(request.url).origin + `/mml/${tile.layer}/${tile.z}/${tile.x}/${tile.y}.png`);
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+  let upstream;
+  try { upstream = await fetch(`${MML_WMTS}/${tile.layer}/default/WGS84_Pseudo-Mercator/${tile.z}/${tile.y}/${tile.x}.png?api-key=${encodeURIComponent(env.MML_API_KEY)}`); }
+  catch (e) { return mmlFallback(cors, "upstream-error"); }
+  if (!upstream.ok) return mmlFallback(cors, "upstream-" + upstream.status);
+  const res = new Response(upstream.body, { status: 200, headers: {
+    ...cors, "Content-Type": "image/png", "Cache-Control": "public, max-age=2592000, immutable", "X-Mml-Tile": "mml" } });
+  ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  return res;
+}
+
 async function sha256hex(str) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -1609,7 +1670,7 @@ async function sendReprintAlert(env, city, data, stale) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = request.headers.get("Origin") || "";
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
@@ -1700,6 +1761,13 @@ export default {
       return handleFeedback(request, env, origin);
     if (url.pathname === "/feedback/list" && request.method === "GET")
       return handleFeedbackList(url, env, origin);
+
+    // MML-taustakarttatiilet tulosteiden reittikarttaan (ei Origin-porttia, ks. handleMmlTile)
+    if (url.pathname.startsWith("/mml/")) {
+      const tile = request.method === "GET" ? parseMmlTilePath(url.pathname) : null;
+      if (!tile) return new Response("Not found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+      return handleMmlTile(request, env, ctx, tile);
+    }
 
     const geo = url.pathname.match(/^\/geocoding\/(search|autocomplete|reverse)$/);
     if (geo) {

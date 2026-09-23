@@ -334,6 +334,23 @@ function writeReport() {
     args: ["--no-sandbox", "--disable-dev-shm-usage"],
   });
 
+  // Reittikartan taustakartta (MML selkokartta workerin /mml/-reitin kautta, 23.9.2026).
+  // Worker palauttaa läpinäkyvän varatiilen, kun avain puuttuu tai MML ei vastaa, jotta tuloste
+  // ei rikkoudu eikä selain lokita virheitä. Siksi tila tarkistetaan TÄSSÄ erikseen: varatiili on
+  // FAIL, jotta puuttuva MML_API_KEY ei jää piiloon vihreän ajon alle. Lahden keskustan tiili z13.
+  try {
+    const r = await fetch("https://lsl-aikataulut-proxy.veikkoville.workers.dev/mml/selkokartta/13/4680/2333.png",
+      { headers: { Referer: "https://demo.reittari.fi/" } });
+    const tila = r.headers.get("x-mml-tile") || "(ei otsaketta)";
+    const koko = (await r.arrayBuffer()).byteLength;
+    (r.status === 200 && tila === "mml" && koko > 1000)
+      ? pass("(ajo)", "taustakartta", `MML-tiili ${koko} tavua workerin kautta`)
+      : fail("(ajo)", "taustakartta", `ei oikeaa MML-tiiltä: HTTP ${r.status}, X-Mml-Tile ${tila}, `
+          + `syy ${r.headers.get("x-mml-reason") || "-"}, ${koko} tavua (puuttuuko workerin MML_API_KEY?)`);
+  } catch (e) {
+    fail("(ajo)", "taustakartta", "tiilihaku kaatui: " + (e.message || e));
+  }
+
   // Kaupungit ajetaan jonona, jotta 429:n pilaama kierros voidaan ajaa uudelleen.
   // Uusinta menee jonon HÄNTÄÄN eikä heti perään: muiden kaupunkien ajo antaa
   // kiintiölle aikaa palautua, eikä uusinta osu samaan tyhjään ämpäriin.
@@ -512,6 +529,9 @@ function writeReport() {
         fail(city.key, "linjatuloste", "linjavalinta (.lineCb) ei latautunut");
       } else {
         await page.evaluate(() => { document.querySelector(".lineCb").checked = true; });
+        // Tiivis vihko on oletus 23.9.2026 alkaen; nämä tarkistukset koskevat laajaa asettelua.
+        // Ehdollinen, jotta vahti toimii myös ennen kuin valinta on tuotannossa.
+        if (await page.$("#bookletLayout")) await page.select("#bookletLayout", "full");
         await page.click("#buildBtn");
         const bookletOk = await page.waitForSelector("#bookletOut .booklet-line h4.daytype", { timeout: 90000 })
           .then(() => true).catch(() => false);
@@ -568,6 +588,44 @@ function writeReport() {
               : fail(city.key, "vihko A5",
                   `taulukko vuotaa A5-sivun yli ${vk.yli} px → oikea reuna leikkautuu paperilla `
                   + `(sarakkeita ${JSON.stringify(vk.cols)})`);
+          }
+        }
+
+        // --- 4a2) Tiivis vihko (oletus 23.9.2026): sama linja tiiviinä. Ruudukossa oikeita
+        //          lähtöminuutteja, A5:llä linja parilliselta sivulta ja ruudukot seuraavalta
+        //          (aukeama), eikä yksikään sivu vuoda yli. Vain jos valinta on tuotannossa.
+        if (await page.$("#bookletLayout")) {
+          await page.goto(url("#/tulosteet/vihko"), { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
+          await page.waitForSelector(".lineCb", { timeout: 60000 }).catch(() => {});
+          await page.evaluate(() => { document.querySelector(".lineCb").checked = true; });
+          await page.select("#bookletLayout", "compact");
+          await page.$eval("#buildBtn", el => el.click());   // DOM-klikkaus (pehmeä vieritys)
+          const cbOk2 = await page.waitForSelector("#bookletOut .booklet-line.compact .cb-grid tbody tr", { timeout: 90000 })
+            .then(() => true).catch(() => false);
+          if (!cbOk2) {
+            fail(city.key, "tiivis vihko", "tuntiruudukkoa ei muodostunut 90 s kuluessa");
+          } else {
+            const cb = await page.evaluate(() => {
+              const L = document.querySelector("#bookletOut .booklet-line.compact");
+              const mins = [...L.querySelectorAll(".cb-grid tbody td")].flatMap(td => td.textContent.trim().split(/\s+/).filter(Boolean));
+              const pages = vkPaginate(vkCollectAtoms(document.getElementById("bookletOut")));
+              const lineP = pages.map((h, i) => /class="vk-h2"/.test(h) ? i + 1 : 0).filter(Boolean);
+              const gridP = pages.map((h, i) => /class="cb-grids/.test(h) ? i + 1 : 0).filter(Boolean);
+              const m = document.createElement("div");
+              m.className = "vihko-page-content";
+              m.style.cssText = "position:fixed;left:-9999px;top:0;width:128mm;visibility:hidden";
+              document.body.appendChild(m);
+              const yli = pages.map((h, i) => { m.innerHTML = h; const r = m.getBoundingClientRect();
+                return { s: i + 1, h: Math.round(r.height - 190 * 96 / 25.4), w: Math.round(m.scrollWidth - m.clientWidth) }; })
+                .filter(x => x.h > 0 || x.w > 1);
+              m.remove();
+              return { lahtoja: mins.length, muoto: mins.every(x => /^\d{2}[a-z]*$/.test(x)),
+                jana: L.querySelectorAll(".cb-strip circle").length, lineP, gridP, yli };
+            });
+            (cb.lahtoja >= 5 && cb.muoto && cb.jana >= 2 && cb.lineP.length && cb.lineP.every(n => n % 2 === 0)
+              && cb.gridP.length && cb.gridP[0] === cb.lineP[0] + 1 && !cb.yli.length)
+              ? pass(city.key, "tiivis vihko", `${cb.lahtoja} lähtöminuuttia, reittijanassa ${cb.jana} pysäkkiä, aukeama sivut ${cb.lineP[0]}-${cb.gridP[0]}, ei ylivuotoa`)
+              : fail(city.key, "tiivis vihko", "sisältö tai aukeama pielessä: " + JSON.stringify(cb));
           }
         }
       }
@@ -748,7 +806,7 @@ function writeReport() {
                 .filter(el => !el.closest(".no-print") && !el.closest(".print-map")).length,
               mapPaths: document.querySelectorAll("#corridorOut .print-map svg path").length,
               mapTexts: document.querySelectorAll("#corridorOut .print-map svg text").length,
-              mapImgs: document.querySelectorAll("#corridorOut .print-map img, #corridorOut .print-map image").length,
+              mapImgs: [...document.querySelectorAll("#corridorOut .print-map img, #corridorOut .print-map image")].filter(i => !i.closest(".pm-base")).length,   // taustakarttatiilet (.pm-base) sallittu 23.9.2026
               dots: [...document.querySelectorAll("#corridorOut td")].filter(td => td.textContent.trim() === "·").length,
               legend: !!document.querySelector("#corridorOut .matrix-legend"),
             };

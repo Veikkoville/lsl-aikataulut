@@ -1359,6 +1359,9 @@ async function printHygiene(page, label) {
   }
   if (await expect(".lineCb", "tulostusvihko: linjavalinta latautuu")) {
     await page.evaluate(() => { document.querySelector(".lineCb").checked = true; });
+    // Tiivis vihko on oletus 23.9.2026 alkaen; nämä tarkistukset koskevat laajaa (kellonajat
+    // isoilla pysäkeillä). Tiivis tarkistetaan omassa lohkossaan alempana.
+    await page.select("#bookletLayout", "full");
     await page.click("#buildBtn");
     if (await expect("#bookletOut .booklet-line table.booklet thead th",
                      "tulostusvihko: aikataulu kootaan isoille pysäkeille")) {
@@ -1370,16 +1373,20 @@ async function printHygiene(page, label) {
         document.querySelectorAll("#bookletOut .booklet-line h4.daytype").length);
       days >= 1 ? ok(`tulostusvihko: viikonpäivätyypit (${days} taulukkoa/linja)`)
                 : fail("tulostusvihko: päivätyyppejä ei löytynyt");
-      // Reittikaavio linjan otsikon alla: SVG-viiva + nimilaput tekstinä, ei kuvia
+      // Reittikaavio linjan otsikon alla: SVG-viiva + nimilaput tekstinä. Kuvia saa olla vain
+      // taustakarttaryhmässä (.pm-base, MML-tiilet workerin /mml/-reitiltä, 23.9.2026).
       const bm = await page.evaluate(() => {
         const fig = document.querySelector("#bookletOut .booklet-line .print-map");
+        const imgs = fig ? [...fig.querySelectorAll("img, image")] : [];
         return { has: !!fig, paths: fig ? fig.querySelectorAll("svg path").length : 0,
                  texts: fig ? fig.querySelectorAll("svg text").length : 0,
-                 imgs: fig ? fig.querySelectorAll("img, image").length : 0,
+                 tiles: imgs.filter(i => i.closest(".pm-base") && /\/mml\/selkokartta\/\d+\/\d+\/\d+\.png$/.test(i.getAttribute("href") || "")).length,
+                 imgs: imgs.length,
+                 attr: !!fig?.querySelector(".pm-attr text"),
                  afterH2: !!fig && fig.previousElementSibling?.tagName === "H2" };
       });
-      (bm.has && bm.paths >= 1 && bm.texts >= 3 && bm.imgs === 0 && bm.afterH2)
-        ? ok(`tulostusvihko: reittikaavio linjan alla (${bm.paths} viivaa, ${bm.texts} tekstiä)`)
+      (bm.has && bm.paths >= 1 && bm.texts >= 3 && bm.imgs === bm.tiles && bm.tiles >= 1 && bm.tiles <= 48 && bm.attr && bm.afterH2)
+        ? ok(`tulostusvihko: reittikaavio linjan alla (${bm.paths} viivaa, ${bm.texts} tekstiä, ${bm.tiles} taustakarttatiiltä + lähdemerkintä)`)
         : fail("tulostusvihko: reittikaavio puuttuu tai pielessä: " + JSON.stringify(bm));
     }
     // Isot pysäkit -rajaus (pickKeyStops): liikaa timepointteja → 10; ≤12 ennallaan; hub pakotettu; sananraja
@@ -1409,10 +1416,12 @@ async function printHygiene(page, label) {
     // Vihko (A5, taitettava): mittaa-ja-jaa A5-sivutus + saddle-stitch imposition; A4-vakio säilyy
     if (await page.$("#bookletPrintA5")) {
       // stub-print kirjaa näkyikö valmistelu-indikaattori juuri tulostushetkellä (#16)
-      await page.evaluate(() => { window.__rp = window.print; window.__prepAtPrint = false;
-        window.print = () => { const e = document.getElementById("printPrep"); window.__prepAtPrint = !!(e && !e.hidden && /\S/.test(e.textContent)); }; });
+      await page.evaluate(() => { window.__rp = window.print; window.__prepAtPrint = false; window.__printed = false;
+        window.print = () => { const e = document.getElementById("printPrep"); window.__prepAtPrint = !!(e && !e.hidden && /\S/.test(e.textContent)); window.__printed = true; }; });
       await page.click("#bookletPrintA5");
-      await sleep(300);
+      // Tulostus odottaa reittikartan taustatiilet (imagesReady, enintään 8 s), joten odotetaan
+      // itse print()-kutsua eikä kiinteää aikaa.
+      await page.waitForFunction(() => window.__printed, { timeout: 15000 }).catch(() => {});
       const vk = await page.evaluate(() => ({
         sheets: document.querySelectorAll("#vihkoPrint .vihko-sheet").length,
         pages: document.querySelectorAll("#vihkoPrint .vihko-a5:not(.vihko-blank)").length,
@@ -1451,6 +1460,57 @@ async function printHygiene(page, label) {
         : fail("valmistelu-indikaattori pielessä: " + JSON.stringify({ prepAtPrint: vk.prepAtPrint, prepHidden: vk.prepHidden }));
       await page.evaluate(() => { document.getElementById("vihkoPrint")?.remove(); document.body.classList.remove("vihko-printing"); document.getElementById("printPrep")?.remove(); window.print = window.__rp; });
     }
+    // --- Tiivis vihko (oletus 23.9.2026, JOJO:n talviaikatauluvihkon malli) ---
+    // Yksi aukeama linjaa kohden: kartta + reittijana vasemmalla, suuntien tuntiruudukot oikealla.
+    // Vartijat: ruudukossa on oikeita lähtöminuutteja (ei tyhjää taulua), reittijanassa matka-ajat,
+    // A5:llä linja alkaa parilliselta sivulta ja ruudukot seuraavalta, eikä mikään vuoda sivun yli.
+    await page.select("#bookletLayout", "compact");
+    // DOM-klikkaus: edellinen koonti vierittää sivua pehmeästi, ja koordinaattiklikkaus osui ohi
+    // (ensimmäinen ajo 23.9.2026 klikkasi linkkiä ja vei sivun pois tulosteista).
+    await page.$eval("#buildBtn", el => el.click());
+    if (await expect("#bookletOut .booklet-line.compact .cb-grid tbody tr", "tiivis vihko: tuntiruudukko kootaan")) {
+      const cb = await page.evaluate(() => {
+        const L = document.querySelector("#bookletOut .booklet-line.compact");
+        const mins = [...L.querySelectorAll(".cb-grid tbody td")].flatMap(td => td.textContent.trim().split(/\s+/).filter(Boolean));
+        return {
+          dirs: L.querySelectorAll(".cb-dir").length,
+          lahtoja: mins.length,
+          muoto: mins.every(m => /^\d{2}[a-z]*$/.test(m)),
+          tunnit: [...L.querySelectorAll(".cb-grid tbody th")].map(th => th.textContent.trim()).every(h => /^\d{2}$/.test(h)),
+          jana: L.querySelectorAll(".cb-strip circle").length,
+          janaMin: [...L.querySelectorAll(".cb-strip text")].filter(x => /\d+ min/.test(x.textContent)).length,
+          kartta: !!L.querySelector(".print-map .pm-base image"),
+          kansi: /reittijanassa|route strip|linjeschemat/.test(document.querySelector(".booklet-head")?.textContent || ""),
+        };
+      });
+      (cb.dirs >= 1 && cb.lahtoja >= 5 && cb.muoto && cb.tunnit && cb.jana >= 2 && cb.janaMin >= 1 && cb.kartta && cb.kansi)
+        ? ok(`tiivis vihko: ${cb.dirs} suuntaa, ${cb.lahtoja} lähtöminuuttia, reittijanassa ${cb.jana} pysäkkiä ja ${cb.janaMin} matka-aikaa, taustakartta`)
+        : fail("tiivis vihko: sisältö pielessä: " + JSON.stringify(cb));
+      await page.emulateMediaType("print");
+      const cbA4 = await page.evaluate(() => [...document.querySelectorAll("#bookletOut .booklet-line.compact")].map(l => getComputedStyle(l).breakBefore));
+      await page.emulateMediaType("screen");
+      cbA4.every(b => b === "page")
+        ? ok("tiivis vihko A4: jokainen linja alkaa omalta sivultaan")
+        : fail("tiivis vihko A4: linja voi alkaa kesken sivun: " + JSON.stringify(cbA4));
+      const cb5 = await page.evaluate(() => {
+        const pages = vkPaginate(vkCollectAtoms(document.getElementById("bookletOut")));
+        const lineP = pages.map((h, i) => /class="vk-h2"/.test(h) ? i + 1 : 0).filter(Boolean);
+        const gridP = pages.map((h, i) => /class="cb-grids/.test(h) ? i + 1 : 0).filter(Boolean);
+        const m = document.createElement("div");
+        m.className = "vihko-page-content";
+        m.style.cssText = "position:fixed;left:-9999px;top:0;width:128mm;visibility:hidden";
+        document.body.appendChild(m);
+        const yli = pages.map((h, i) => { m.innerHTML = h;
+          const r = m.getBoundingClientRect();
+          return { s: i + 1, h: Math.round(r.height - 190 * 96 / 25.4), w: Math.round(m.scrollWidth - m.clientWidth) }; })
+          .filter(x => x.h > 0 || x.w > 1);
+        m.remove();
+        return { lineP, gridP, yli };
+      });
+      (cb5.lineP.length && cb5.lineP.every(n => n % 2 === 0) && cb5.gridP.length && cb5.gridP[0] === cb5.lineP[0] + 1 && !cb5.yli.length)
+        ? ok(`tiivis vihko A5: aukeama (linja sivulla ${cb5.lineP.join(",")}, ruudukot sivulla ${cb5.gridP.join(",")}), ei ylivuotoa`)
+        : fail("tiivis vihko A5: aukeama tai ylivuoto pielessä: " + JSON.stringify(cb5));
+    }
   }
   // --- Yhdistetyt suunnat (käytävä): presetti → kokoa → monen linjan yhteinen taulukko ---
   await page.click('.ptab[data-ptab="kaytava"]');
@@ -1463,6 +1523,12 @@ async function printHygiene(page, label) {
     ? ok(`yhdistetyt suunnat: välilehti + ${corrPre.presets} presettiä (Lahti) + linjalista`)
     : fail("yhdistetyt suunnat: presetit/linjalista puuttuvat: " + JSON.stringify(corrPre));
   await page.click('[data-corridor="ahtiala"]');
+  // Valintayhteenveto napin viereen (Villen palaute 23.9.2026): pikavalinnan jälkeen näkymän on
+  // kerrottava mitä valittiin ilman vieritystä listaan. Ahtialan käytävä = 4, 14, 24, 34K.
+  const corrSum = await page.$eval("#corrStatus", el => el.textContent.trim());
+  (/\b4\b/.test(corrSum) && /34K/.test(corrSum) && /\d/.test(corrSum))
+    ? ok(`tulosteet: pikavalinta näkyy napin vieressä ("${corrSum}")`)
+    : fail(`tulosteet: pikavalinnan yhteenveto puuttuu napin vierestä ("${corrSum}")`);
   await page.click("#corrGo");
   const corrOk = await page.waitForFunction(
     () => document.querySelectorAll("#corridorOut table.corridor tbody tr").length > 5,
@@ -1494,7 +1560,7 @@ async function printHygiene(page, label) {
         // reittikaavio: viivat + oikeaa tekstiä (nimilaput), ei kuvia/tiiliä
         mapPaths: document.querySelectorAll("#corridorOut .print-map svg path").length,
         mapTexts: document.querySelectorAll("#corridorOut .print-map svg text").length,
-        mapImgs: document.querySelectorAll("#corridorOut .print-map img, #corridorOut .print-map image").length,
+        mapImgs: [...document.querySelectorAll("#corridorOut .print-map img, #corridorOut .print-map image")].filter(i => !i.closest(".pm-base")).length,   // taustakarttatiilet (.pm-base) sallittu 23.9.2026
       };
     });
     (corr.distinctLines >= 2 && corr.daytypes >= 1 && corr.dirs >= 2 && corr.sorted && corr.secMissing === 0)

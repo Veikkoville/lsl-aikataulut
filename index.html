@@ -845,6 +845,40 @@
   .vihko-page-content .vk-tbl th, .vihko-page-content .vk-tbl td { border-bottom: 0.2mm solid #bbb; padding: 0.5mm 1mm; text-align: left; font-size: 8pt; }
   .vihko-page-content .vk-tbl td { white-space: nowrap; }
   .vihko-page-content .vk-tbl th { white-space: normal; font-size: 7pt; color: #444; vertical-align: bottom; }
+  /* Tiivis vihko (23.9.2026): ruudulla ja A4:llä. Tuntiruudukko kuten JOJO:n vihossa. */
+  .cb-notes { font-size: 0.85em; color: var(--muted); margin: 0.3rem 0 0.5rem; }
+  .cb-notes b { color: var(--text); }
+  .cb-strip { margin: 0.3rem 0 0.4rem; }
+  .cb-strip svg { display: block; width: 100%; height: auto; background: #fff; border-radius: 6px; }
+  .cb-grids { display: flex; flex-wrap: wrap; gap: 0.6rem 1.4rem; align-items: flex-start; }
+  .cb-dir { flex: 1 1 15rem; min-width: 0; }
+  .cb-dir h3 { font-size: 0.95rem; margin: 0.3rem 0 0.2rem; }
+  table.cb-grid { border-collapse: collapse; font-variant-numeric: tabular-nums; width: 100%; }
+  table.cb-grid th, table.cb-grid td { padding: 0.08rem 0.35rem; text-align: left; vertical-align: top; white-space: nowrap; }
+  table.cb-grid thead th { font-size: 0.8em; color: var(--muted); border-bottom: 1px solid var(--border); font-weight: 600; }
+  table.cb-grid tbody th { text-align: right; font-weight: 700; color: var(--muted); width: 2.4em; }
+  table.cb-grid tbody tr:nth-child(odd) > * { background: var(--hover); }
+  table.cb-grid td { letter-spacing: 0.04em; }
+  table.cb-grid sup { font-size: 0.7em; margin-left: 0.05em; letter-spacing: 0; }
+  /* Tiivis vihko A5:llä: kiinteät pt/mm-koot, jotta mittaus vastaa tulostetta (vrt. vk-tbl). */
+  .vihko-page-content .cb-notes { font-size: 7pt; color: #333; margin: 1mm 0 0; }
+  .vihko-page-content .cb-notes b { color: #000; }
+  .vihko-page-content .cb-strip { margin: 1mm 0; }
+  .vihko-page-content .cb-strip svg { border-radius: 0; }
+  .vihko-page-content .print-map { margin: 1mm 0; }
+  /* !important: tulostuksen #vihkoPrint .print-map svg { max-height: 95mm } on tarkempi valitsin,
+     ja mittauksen (ruutu) ja tulosteen on käytettävä samaa korkeutta. */
+  .vihko-page-content .cb-mapwrap .print-map svg { max-height: 125mm !important; }
+  .vihko-page-content .cb-grids { display: flex; flex-wrap: nowrap; gap: 3mm; }
+  .vihko-page-content .cb-grids.cb-stack { display: block; margin-bottom: 2mm; }
+  .vihko-page-content .cb-dir { flex: 1 1 0; min-width: 0; }
+  .vihko-page-content .cb-dir h3 { font-size: 8.5pt; margin: 0 0 1mm; color: #000; }
+  .vihko-page-content table.cb-grid { font-size: 8.5pt; color: #000; }
+  .vihko-page-content table.cb-grid th, .vihko-page-content table.cb-grid td { padding: 0.45mm 0.9mm; }
+  .vihko-page-content table.cb-grid thead th { font-size: 6.5pt; color: #333; border-bottom: 0.2mm solid #888; }
+  .vihko-page-content table.cb-grid tbody th { color: #000; }
+  .vihko-page-content table.cb-grid tbody tr:nth-child(odd) > * { background: #ececec;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   /* Tulosteen valmistelu-indikaattori (UX): ei estä tulostusta, .no-print → ei näy printissä */
   #printPrep { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     background: rgba(0,0,0,0.3); z-index: 2000; }
@@ -1820,6 +1854,16 @@
     .booklet-line > h3 { break-before: page; page-break-before: always;
                          break-after: avoid; page-break-after: avoid; }
     .booklet-line > h2 + h3 { break-before: avoid; page-break-before: avoid; }
+    /* Tiivis vihko A4:llä: linja yhdelle sivulle (kartta, reittijana, ruudukot). Kartta
+       matalampana, ruudukot pysyvät yhdessä. Raidat näkyviin myös ilman taustagrafiikkaa. */
+    .booklet-line.compact .print-map svg { max-height: 88mm; }
+    .booklet-line.compact > h2 { margin: 0 0 1mm; }
+    table.cb-grid th, table.cb-grid td { padding: 0.25mm 1.2mm; }
+    .booklet-line.compact .cb-grids { break-inside: avoid; page-break-inside: avoid; }
+    .booklet-line.compact .cb-dir h3 { font-size: 11pt; }
+    table.cb-grid { font-size: 8.5pt; line-height: 1.15; }
+    table.cb-grid tbody tr:nth-child(odd) > * { background: #ececec; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    table.cb-grid thead th { color: #333; border-bottom-color: #888; }
     table.booklet { font-size: 0.95rem; }
     table.booklet th, table.booklet td { padding: 0.2rem 0.4rem; }
     /* Yhdistetty suunta-aikataulu: jokainen suunta alkaa uuden sivun yläreunasta (23.9.2026),
@@ -3691,6 +3735,10 @@ const STRINGS = {
     printPageIntro: "Valitse linjat, niin saat niiden aikataulut isoilla pysäkeillä yhtenä tulosteena (kuten aikatauluvihko). Sopii myös tulostettavaksi internetiä käyttämättömille.",
     selectAllLines: "Valitse kaikki", clearLines: "Tyhjennä valinnat",
     selectedCount: "Valittu {n} linjaa",
+    selectedLinesList: "Valittu {n} linjaa: {list}",
+    selectedLineOne: "Valittu 1 linja: {list}",
+    selectedStops: "Valittu {n} pysäkkiä",
+    selectedStopOne: "Valittu 1 pysäkki",
     generateBooklet: "Kokoa ja tulosta",
     noLinesSelected: "Valitse vähintään yksi linja.",
     buildingBooklet: "Kootaan aikatauluja… {done}/{total}",
@@ -3700,6 +3748,16 @@ const STRINGS = {
     bookletPrintA5: "Vihkona (A5, taitettava)",
     vihkoDuplexNote: "Tulosta kaksipuolisena (käännä lyhyeltä reunalta), taita keskeltä.",
     vihkoContinued: "(jatkoa)",
+    bookletLayoutLabel: "Vihkon muoto",
+    bookletLayoutCompact: "Tiivis: lähtöminuutit ja reittijana, yksi aukeama linjaa kohden",
+    bookletLayoutFull: "Laaja: kellonajat reitin isoilla pysäkeillä",
+    bookletCompactNote: "Lähtöajat reitin alusta. Matka-ajat pysäkkien välillä ovat reittijanassa.",
+    compactOnlyDays: "vain {days}",
+    compactStartsAt: "lähtee pysäkiltä {stop}",
+    compactEndsAt: "päättyy pysäkille {stop}",
+    compactHour: "tunti",
+    compactStripAria: "Reittijana: matka-ajat pysäkkien välillä",
+    mapAttributionMml: "Karttapohja © Maanmittauslaitos",
     bookletDateLabel: "Voimassa päivänä",
     bookletDateHint: "Aikataulukausi (kesä/talvi) määräytyy tämän päivän mukaan. Jätä tämänpäiväiseksi nykyiselle aikataululle tai valitse tuleva päivä, jos haluat tulostaa seuraavan kauden aikataulun.",
     bookletPeriodNote: "Tuloste vastaa {date} voimassa olevaa aikataulua. Aikataulu päivittyy rajapinnasta automaattisesti, joten tulosta tämä uudelleen kausivaihdoksen jälkeen.",
@@ -4260,6 +4318,10 @@ const STRINGS = {
     printPageIntro: "Select routes to get their timetables at major stops as a single printout (like a timetable booklet). Also suitable for printing for people who don't use the internet.",
     selectAllLines: "Select all", clearLines: "Clear selection",
     selectedCount: "{n} routes selected",
+    selectedLinesList: "{n} routes selected: {list}",
+    selectedLineOne: "1 route selected: {list}",
+    selectedStops: "{n} stops selected",
+    selectedStopOne: "1 stop selected",
     generateBooklet: "Build and print",
     noLinesSelected: "Select at least one route.",
     buildingBooklet: "Building timetables… {done}/{total}",
@@ -4269,6 +4331,16 @@ const STRINGS = {
     bookletPrintA5: "As booklet (A5, foldable)",
     vihkoDuplexNote: "Print double-sided (flip on short edge), fold in the middle.",
     vihkoContinued: "(cont.)",
+    bookletLayoutLabel: "Booklet layout",
+    bookletLayoutCompact: "Compact: departure minutes and route strip, one spread per line",
+    bookletLayoutFull: "Full: times at the route's major stops",
+    bookletCompactNote: "Departure times from the start of the route. Travel times between stops are on the route strip.",
+    compactOnlyDays: "only {days}",
+    compactStartsAt: "departs from {stop}",
+    compactEndsAt: "ends at {stop}",
+    compactHour: "hour",
+    compactStripAria: "Route strip: travel times between stops",
+    mapAttributionMml: "Base map © National Land Survey of Finland",
     bookletDateLabel: "Valid on",
     bookletDateHint: "The timetable season (summer/winter) is determined by this date. Keep it as today for the current timetable, or pick a future date to print the next season's timetable.",
     bookletPeriodNote: "This printout reflects the timetable in effect on {date}. The timetable updates automatically from the data source, so print this again after a seasonal change.",
@@ -4825,6 +4897,10 @@ const STRINGS = {
     printPageIntro: "Välj linjer för att få deras tidtabeller vid de stora hållplatserna som en enda utskrift (som ett tidtabellshäfte). Lämpar sig även för utskrift åt personer som inte använder internet.",
     selectAllLines: "Välj alla", clearLines: "Rensa val",
     selectedCount: "{n} linjer valda",
+    selectedLinesList: "{n} linjer valda: {list}",
+    selectedLineOne: "1 linje vald: {list}",
+    selectedStops: "{n} hållplatser valda",
+    selectedStopOne: "1 hållplats vald",
     generateBooklet: "Sammanställ och skriv ut",
     noLinesSelected: "Välj minst en linje.",
     buildingBooklet: "Sammanställer tidtabeller… {done}/{total}",
@@ -4834,6 +4910,16 @@ const STRINGS = {
     bookletPrintA5: "Som häfte (A5, vikbar)",
     vihkoDuplexNote: "Skriv ut dubbelsidigt (vänd på kortsidan), vik på mitten.",
     vihkoContinued: "(forts.)",
+    bookletLayoutLabel: "Häftets format",
+    bookletLayoutCompact: "Kompakt: avgångsminuter och linjeschema, ett uppslag per linje",
+    bookletLayoutFull: "Utförligt: tider vid linjens stora hållplatser",
+    bookletCompactNote: "Avgångstider från linjens början. Restiderna mellan hållplatserna finns i linjeschemat.",
+    compactOnlyDays: "endast {days}",
+    compactStartsAt: "avgår från {stop}",
+    compactEndsAt: "slutar vid {stop}",
+    compactHour: "timme",
+    compactStripAria: "Linjeschema: restider mellan hållplatserna",
+    mapAttributionMml: "Kartunderlag © Lantmäteriverket i Finland",
     bookletDateLabel: "Gäller den",
     bookletDateHint: "Tidtabellsperioden (sommar/vinter) bestäms av detta datum. Lämna det som i dag för den aktuella tidtabellen, eller välj ett framtida datum för att skriva ut nästa periods tidtabell.",
     bookletPeriodNote: "Utskriften motsvarar tidtabellen som gäller {date}. Tidtabellen uppdateras automatiskt från datakällan, så skriv ut den här på nytt efter ett periodbyte.",
@@ -6183,7 +6269,47 @@ function printMapSvg(lines, opts = {}) {
   const out = [];
   out.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#fff" stroke="#999" stroke-width="1"/>`);
 
+  // 0) Taustakartta (23.9.2026, Villen pyyntö JOJO:n vihkon mallista): Maanmittauslaitoksen
+  //    selkokartta workerin /mml/-reitin kautta (avain vain workerissa). Tiilet asemoidaan
+  //    kulmiensa mukaan samaan paikalliseen projektioon kuin reitti: kaupungin kokoisella
+  //    alueella ero Web Mercatoriin on alle 0,5 %, joten tiilet ja reitti osuvat kohdalleen.
+  //    Jos tiiltä ei saada (avain puuttuu, verkko), kartta on kuten ennen: valkoinen pohja.
+  const useBase = !!(opts.basemap && (CONFIG.tileBase || CONFIG.proxyUrl));
+  if (useBase) {
+    const lonAt = x => minLon + (x - ox) / (kx * sc), latAt = y => maxLat - (y - oy) / (M * sc);
+    const lonL = lonAt(0), lonR = lonAt(W), latT = latAt(0), latB = latAt(H);
+    const tx = (lon, z) => Math.floor((lon + 180) / 360 * 2 ** z);
+    const ty = (lat, z) => { const r = lat * Math.PI / 180;
+      return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 2 ** z); };
+    const lonOf = (x, z) => x / 2 ** z * 360 - 180;
+    const latOf = (y, z) => 180 / Math.PI * Math.atan(Math.sinh(Math.PI - 2 * Math.PI * y / 2 ** z));
+    // Noin kaksi tiilipikseliä viewBox-yksikköä kohden: terävä myös paperilla. Tiilimäärä rajattu,
+    // koska MML:n avoin palvelu ei ole suurivolyymiseen käyttöön.
+    let z = Math.max(5, Math.min(16, Math.floor(Math.log2(2 * W * 360 / ((lonR - lonL) * 256)))));
+    let x0, x1, y0, y1;
+    for (;;) {
+      x0 = tx(lonL, z); x1 = tx(lonR, z); y0 = ty(latT, z); y1 = ty(latB, z);
+      if ((x1 - x0 + 1) * (y1 - y0 + 1) <= 48 || z <= 5) break;
+      z--;
+    }
+    const base = (CONFIG.tileBase || CONFIG.proxyUrl).replace(/\/?$/, "/");   // tileBase: testiohitus
+    const imgs = [];
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+      const L = X(lonOf(x, z)), R = X(lonOf(x + 1, z)), T = Y(latOf(y, z)), B = Y(latOf(y + 1, z));
+      // +0.6: limitys, ettei tiilien väliin jää hiussaumaa
+      imgs.push(`<image href="${base}mml/selkokartta/${z}/${x}/${y}.png" x="${f(L)}" y="${f(T)}" width="${f(R - L + 0.6)}" height="${f(B - T + 0.6)}" preserveAspectRatio="none"/>`);
+    }
+    // Selkokartan tiet ovat punaisia ja vesi tummansininen: osittain harmaaksi ja vaaleammaksi, jotta
+    // reitti on kuvan kirkkain asia (kuten JOJO:n vihossa). Sama suodin kaikissa kartoissa → sama id käy.
+    out.push(`<defs><filter id="pmBaseTone"><feColorMatrix type="saturate" values="0.4"/></filter></defs>`
+      + `<g class="pm-base" opacity="0.7" filter="url(#pmBaseTone)">${imgs.join("")}</g>`);
+  }
+
   // 1) reittiviivat + suuntanuolet
+  // Taustakartan päällä reitti saa valkoisen reunuksen, jotta se erottuu katuverkosta myös
+  // mustavalkotulosteessa. opts.routeColor (esim. kunnan brändiväri) annetaan style-muodossa,
+  // koska CSS-muuttuja ei toimi SVG:n presentaatioattribuutissa.
+  const rcStyle = opts.routeColor ? ` style="stroke:${opts.routeColor}"` : "";
   const arrows = [];
   lines.forEach((l, li) => {
     const dash = PM_DASHES[li % PM_DASHES.length];
@@ -6191,7 +6317,8 @@ function printMapSvg(lines, opts = {}) {
       const pts = (d.points || []).filter(p => p && p.length === 2);
       if (pts.length < 2) continue;
       const path = pts.map((p, i) => (i ? "L" : "M") + f(X(p[1])) + " " + f(Y(p[0]))).join("");
-      out.push(`<path d="${path}" fill="none" stroke="#000" stroke-width="${f(3.2 * k)}" stroke-linejoin="round" stroke-linecap="round"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`);
+      if (useBase) out.push(`<path d="${path}" fill="none" stroke="#fff" stroke-opacity="0.9" stroke-width="${f(9 * k)}" stroke-linejoin="round" stroke-linecap="round"/>`);
+      out.push(`<path d="${path}" fill="none" stroke="#000"${lines.length === 1 ? rcStyle : ""} stroke-width="${f((useBase ? 4.6 : 3.2) * k)}" stroke-linejoin="round" stroke-linecap="round"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`);
       // Käytävässä (monta linjaa) nuolet vain 1. linjalle: yhteisellä rungolla nuolet kasautuisivat.
       if (lines.length > 1 && li > 0) continue;
       // nuolet ~30 % ja ~70 % matkasta (kulma viivan suunnasta)
@@ -6261,6 +6388,10 @@ function printMapSvg(lines, opts = {}) {
   const legendW = lines.length > 1 ? Math.max(...lines.map(l => (l.shortName || "").length)) * 7 * k + 56 * k : 0;
   const legendH = lines.length > 1 ? lines.length * 16 * k + 8 * k : 0;
   if (lines.length > 1) placed.push({ x: 6, y: 6, w: legendW, h: legendH });
+  // Taustakartan lähdemerkintä (CC BY 4.0 vaatii) oikeaan alakulmaan; varataan paikka ennen nimilappuja.
+  const attr = useBase ? t("mapAttributionMml") : "";
+  const attrFS = f(8 * k), attrW = Math.round(attr.length * 8 * k * 0.55 + 8), attrH = Math.round(12 * k);
+  if (attr) placed.push({ x: W - attrW - 4, y: H - attrH - 3, w: attrW + 4, h: attrH + 3 });
   const overlaps = (b) => b.x < 2 || b.y < 2 || b.x + b.w > W - 2 || b.y + b.h > H - 2
     || placed.some(p => !(b.x + b.w + 3 < p.x || p.x + p.w + 3 < b.x || b.y + b.h + 3 < p.y || p.y + p.h + 3 < b.y));
   const labels = [];
@@ -6295,6 +6426,10 @@ function printMapSvg(lines, opts = {}) {
       + `<text x="${f(46 * k)}" y="${f(22 * k + i * rh)}" font-size="${FS}" font-weight="700" fill="#000">${esc(l.shortName || "")}</text>`).join("");
     extras.push(`<g class="pm-legend"><rect x="6" y="6" width="${f(legendW)}" height="${f(legendH)}" fill="#fff" stroke="#000" stroke-width="0.8"/>${rows}</g>`);
   }
+  if (attr) extras.push(`<g class="pm-attr"><rect x="${W - attrW - 3}" y="${H - attrH - 2}" width="${attrW}" height="${attrH}" fill="#fff" fill-opacity="0.85"/>`
+    + `<text x="${W - 7}" y="${f(H - 2 - attrH * 0.28)}" font-size="${attrFS}" text-anchor="end" fill="#333">${esc(attr)}</text></g>`);
+  // tiilet peittävät alkuperäisen reunaviivan → kehys päällimmäiseksi
+  if (useBase) extras.push(`<rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" fill="none" stroke="#999" stroke-width="1"/>`);
 
   const aria = esc(opts.aria || t("printMapAria"));
   return `<figure class="print-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${aria}" font-family="system-ui, Arial, sans-serif">`
@@ -10791,17 +10926,39 @@ function bindScreenNetTab() {
 // Julisteet-välilehti (erätulostus): linjavalinta + eräajo julisteiksi. Jokainen
 // pysäkki saa KAIKKI todelliset päiväblokit (activeDates) — ei päivätyyppivalintaa,
 // jotta juliste ei koskaan jää vajaaksi eikä riipu tulostuspäivästä.
+// Valintayhteenveto koontinapin viereen (Villen palaute 23.9.2026): pikavalinnan tai esivalinnan
+// jälkeen rastit näkyivät vain listassa alempana, joten näkymä ei kertonut mitään tapahtuneen.
+// Päivittyy käyttäjän rastituksista (change) ja pikanappien jälkeen (palautettu update()).
+// Ei kirjoita tilariville koonnin aikana: koonti omistaa rivin, kunnes seuraava valinta muuttuu.
+function bindSelectionSummary(root, sel, statusEl, text) {
+  if (!root || !statusEl) return () => {};
+  const update = () => {
+    const on = [...root.querySelectorAll(sel)].filter(c => c.checked);
+    statusEl.textContent = on.length ? text(on) : "";
+  };
+  root.addEventListener("change", e => { if (e.target.matches?.(sel)) update(); });
+  return update;
+}
+const lineShort = c => c.dataset.short || c.closest("label")?.querySelector(".badge")?.textContent.trim() || "";
+const linesSummary = on => {
+  const names = on.map(lineShort).filter(Boolean);
+  const list = names.slice(0, 12).join(", ") + (names.length > 12 ? ", …" : "");
+  return on.length === 1 ? t("selectedLineOne", { list }) : t("selectedLinesList", { n: on.length, list });
+};
+
 // "Yhdistetyt suunnat" -välilehden sidonta: presetit valitsevat linjaruudut shortNamella,
 // Kokoa-nappi ajaa corridorBuildin ja renderöi suunnat päivätyyppilohkoineen.
 function bindCorridorTab(routes, today) {
   const panel = document.querySelector('[data-ppanel="kaytava"]');
   if (!panel) return;
   const cbs = () => [...panel.querySelectorAll(".corrCb")];
+  const summary = bindSelectionSummary(panel, ".corrCb", document.getElementById("corrStatus"), linesSummary);
   panel.querySelectorAll("[data-corridor]").forEach(btn => btn.addEventListener("click", () => {
     const preset = (CONFIG.corridors || []).find(c => c.key === btn.dataset.corridor);
     if (!preset) return;
     const want = new Set(preset.lines.map(String));
     cbs().forEach(c => { c.checked = want.has(c.dataset.short); });
+    summary();
   }));
   const filter = document.getElementById("corrFilter");
   filter?.addEventListener("input", () => {
@@ -10853,7 +11010,7 @@ function bindCorridorTab(routes, today) {
         .map(m => printMapDir(m.patterns)).filter(Boolean),
     })).filter(l => l.dirs.length);
     const keyNames = new Set(dirs.flatMap(d => d.keyStops.map(s => normHubName(s.name))));
-    const mapHtml = mapLines.length ? printMapSvg(mapLines, { keyNames, evenLabels: 0, maxLabels: 12 }) : "";
+    const mapHtml = mapLines.length ? printMapSvg(mapLines, { keyNames, evenLabels: 0, maxLabels: 12, basemap: true }) : "";
     out.innerHTML = `
       <div class="card corridor-head${mapHtml ? " has-map" : ""}">
         ${printBrandHead({ title: `${t("corridorTitle")}${preset ? `: ${esc(corridorName(preset))}` : ""}` })}
@@ -10871,10 +11028,11 @@ function bindCorridorTab(routes, today) {
         ${d.groups.map(g => `<h4 class="daytype">${esc(g.label)}</h4>${corridorTableHtml(g, d.keyStops)}`).join("")}
       </section>`).join("")}`;
     document.getElementById("corrPrint")?.addEventListener("click", () => {
-      runPrintJob(t("preparingPrint"), () => {
+      runPrintJob(t("preparingPrint"), async () => {
         setPageOrientation("portrait");
         const done = () => { hidePrintPrep(); window.removeEventListener("afterprint", done); };
         window.addEventListener("afterprint", done);
+        await imagesReady(document.getElementById("corridorOut"));   // reittikartan taustatiilet ladattu
         window.print();
       });
     });
@@ -11008,9 +11166,11 @@ function bindChangesTab() {
     const f = e.target.value.toLowerCase();
     list.querySelectorAll("li").forEach(li => { li.hidden = f && !li.textContent.toLowerCase().includes(f); });
   });
-  document.getElementById("chgSelNow").addEventListener("click", () => cbs().forEach(c => { c.checked = c.dataset.now === "1"; }));
-  document.getElementById("chgSelSoon").addEventListener("click", () => cbs().forEach(c => { c.checked = c.dataset.soon === "1"; }));
-  document.getElementById("chgSelNone").addEventListener("click", () => cbs().forEach(c => { c.checked = false; }));
+  const summary = bindSelectionSummary(list, ".chgCb", st,
+    on => on.length === 1 ? t("selectedStopOne") : t("selectedStops", { n: on.length }));
+  document.getElementById("chgSelNow").addEventListener("click", () => { cbs().forEach(c => { c.checked = c.dataset.now === "1"; }); summary(); });
+  document.getElementById("chgSelSoon").addEventListener("click", () => { cbs().forEach(c => { c.checked = c.dataset.soon === "1"; }); summary(); });
+  document.getElementById("chgSelNone").addEventListener("click", () => { cbs().forEach(c => { c.checked = false; }); summary(); });
   document.getElementById("chgGo").addEventListener("click", async () => {
     const ids = new Set(cbs().filter(c => c.checked).map(c => c.value));
     const stops = rows.filter(r => ids.has(r.id)).map(r => ({ gtfsId: r.id, name: r.name, code: r.code }));
@@ -13774,6 +13934,22 @@ function vkCollectAtoms(out) {
     atoms.push({ html: `<div class="vk-cover">${c.innerHTML}</div>` });
   }
   for (const line of out.querySelectorAll(".booklet-line")) {
+    // Tiivis linja (23.9.2026): aukeama. Otsikko aloittaa parillisen (vasemman) sivun, jolloin
+    // kartta ja reittijana ovat vasemmalla ja ruudukot vastakkaisella oikealla sivulla.
+    // Ruudukot vierekkäin jos mahtuvat, muuten suunta kerrallaan (alt).
+    if (line.classList.contains("compact")) {
+      for (const node of line.children) {
+        if (node.tagName === "H2")
+          atoms.push({ html: `<div class="vk-h2">${node.innerHTML}</div>`, keepWithNext: true, newPage: "line", spread: true });
+        else if (node.classList.contains("cb-grids"))
+          atoms.push({ html: node.outerHTML, newPage: "grids",
+            alt: [...node.children].map(c => `<div class="cb-grids cb-stack">${c.outerHTML}</div>`) });
+        else if (node.tagName === "FIGURE" && node.classList.contains("print-map"))
+          atoms.push({ html: `<div class="cb-mapwrap">${node.outerHTML}</div>` });
+        else atoms.push({ html: node.outerHTML });
+      }
+      continue;
+    }
     let lineLabel = "", dirLabel = "";
     for (const node of line.children) {
       const tag = node.tagName;
@@ -13810,6 +13986,7 @@ function vkPaginate(atoms) {
   const maxH = vkMm(VK_CONTENT_H) - vkMm(6);        // 6mm varmuusvara (ruutu- vs. print-media-ero)
   const heightOf = html => { m.innerHTML = html; return m.getBoundingClientRect().height; };
   const fits = html => heightOf(html) <= maxH;
+  const fitsW = html => { m.innerHTML = html; return m.scrollWidth <= m.clientWidth + 1; };
   const pages = [];
   let cur = "";
   let curOnlyLineHead = false;                       // sivulla on vain linjaotsikko
@@ -13833,6 +14010,20 @@ function vkPaginate(atoms) {
           first = false;
           if (i < a.rows.length) flush();              // rivejä jäljellä → jatko seuraavalle A5:lle
         }
+      } else if (a.spread) {
+        // Tiivis linja: aukeaman vasen sivu on parillinen. Seuraava sivunumero on pages.length + 1,
+        // joten parillisella määrällä valmiita sivuja väliin tulee tyhjä sivu.
+        flush();
+        if (pages.length % 2 === 0) pages.push("");
+        cur = a.html;
+        curOnlyLineHead = true;
+      } else if (a.newPage === "grids") {
+        // Ruudukot omalle sivulleen. Vierekkäin jos mahtuvat sekä korkeus- että leveyssuunnassa,
+        // muuten suunta kerrallaan (vierekkäin liian leveä taulu leikkautuisi paperin reunaan).
+        flush();
+        if (!a.alt || (fits(a.html) && fitsW(a.html))) cur = a.html;
+        else for (const piece of a.alt) { if (cur && !fits(cur + piece)) flush(); cur += piece; }
+        curOnlyLineHead = false;
       } else {
         if (cur && a.newPage && !(a.newPage === "dir" && curOnlyLineHead)) flush();
         else if (cur && !fits(cur + a.html)) flush();
@@ -13884,18 +14075,31 @@ function hidePrintPrep() { const el = document.getElementById("printPrep"); if (
 // (2× requestAnimationFrame), jotta indikaattori ehtii näkyä ennen pääsäikeen lukitsevaa työtä.
 function runPrintJob(prepMsg, prepare) {
   showPrintPrep(prepMsg);
-  requestAnimationFrame(() => requestAnimationFrame(() => {
+  requestAnimationFrame(() => requestAnimationFrame(async () => {
     try {
-      if (prepare() === false) { hidePrintPrep(); return; }  // ei tulostettavaa
+      if ((await prepare()) === false) { hidePrintPrep(); return; }  // ei tulostettavaa
     } catch (e) { hidePrintPrep(); return; }
     hidePrintPrep();                                          // window.print() palasi (dialogi suljettu / ei tuettu)
   }));
 }
 
+// Odota tulosteen kuvat (reittikartan taustatiilet, 23.9.2026) ennen window.print():iä, muuten
+// kartta voi tulostua tyhjänä. SVG:n <image>:llä ei ole complete-tilaa, joten samat osoitteet
+// esiladataan Image-olioilla (selaimen välimuisti palvelee SVG:n). Epäonnistunut tiili ei estä
+// tulostusta, ja yläraja pitää hitaan verkon tulostuksen liikkeessä.
+function imagesReady(root, ms = 8000) {
+  const hrefs = [...new Set([...(root?.querySelectorAll("image, img") || [])]
+    .map(el => el.getAttribute("href") || el.getAttribute("src")).filter(Boolean))];
+  if (!hrefs.length) return Promise.resolve();
+  const loads = hrefs.map(h => new Promise(res => { const im = new Image(); im.onload = im.onerror = res; im.src = h; }));
+  return Promise.race([Promise.all(loads), new Promise(res => setTimeout(res, ms))])
+    .then(() => new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res))));
+}
+
 function printVihko() {
   const out = document.getElementById("bookletOut");
   if (!out || !out.querySelector(".booklet-line")) return;
-  runPrintJob(t("vihkoPreparing"), () => {
+  runPrintJob(t("vihkoPreparing"), async () => {
     const pages = vkPaginate(vkCollectAtoms(out));
     if (!pages.length) return false;
     document.getElementById("vihkoPrint")?.remove();
@@ -13913,6 +14117,7 @@ function printVihko() {
       window.removeEventListener("afterprint", cleanup);
     };
     window.addEventListener("afterprint", cleanup);
+    await imagesReady(wrap);   // reittikartan taustatiilet ladattu
     window.print();
   });
 }
@@ -13955,6 +14160,13 @@ function pickKeyStops(cand, target = KEY_STOP_TARGET, limit = KEY_STOP_LIMIT) {
 function bookletTableHtml(trips, keyOpts) {
   const valid = (trips || []).filter(tr => (tr.stoptimes || []).length);
   if (!valid.length) return `<p class="muted">${t("bookletNoData")}</p>`;
+  const keyStops = bookletKeyStops(valid, keyOpts);
+  return bookletRowsHtml(valid, keyStops);
+}
+// Avainpysäkit (sarakkeet / reittijanan solmut) vuorojoukolle: timepointit + aina lähtö ja pää,
+// täydennettynä tasavälein, rajattuna pickKeyStopsilla. Yhteinen laajalle vihkolle ja tiiviin
+// vihkon reittijanalle (23.9.2026), jotta molemmat näyttävät samat isot pysäkit.
+function bookletKeyStops(valid, keyOpts) {
   const seq = valid[0].stoptimes;
   const last = seq.length - 1;
   let cand = seq
@@ -13980,7 +14192,9 @@ function bookletTableHtml(trips, keyOpts) {
     }
     cand = [...have].sort((a, b) => a - b).map(i => ({ stop: seq[i].stop, idx: i }));
   }
-  const keyStops = pickKeyStops(cand, keyOpts?.target, keyOpts?.limit);
+  return pickKeyStops(cand, keyOpts?.target, keyOpts?.limit);
+}
+function bookletRowsHtml(valid, keyStops) {
   const rows0 = valid.map(tr => {
     const m = {};
     for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture;
@@ -14014,6 +14228,144 @@ function bookletTableHtml(trips, keyOpts) {
   return `<div class="matrix-wrap"><table class="stoptable booklet">
       <thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>` +
     (usedDot ? `<p class="matrix-legend">${t("legendSkipStop")}</p>` : "");
+}
+
+/* ---------- Tiivis vihko (23.9.2026, JOJO:n talviaikatauluvihkon malli) ----------
+   Yksi aukeama linjaa kohden: vasemmalla otsikko, voimassaolo, kartta ja reittijana, oikealla
+   kummankin suunnan lähtöminuutit tunneittain (päivätyypit sarakkeina). Laaja vihko näyttää
+   kellonajat kuudella pysäkillä ja vei Joensuun linjalle 1 seitsemän A5-sivua; JOJO:n oma
+   vihko mahduttaa saman kahdelle, koska matkustaja laskee muiden pysäkkien ajat reittijanasta.
+   Poikkeavat vuorot (vain osana päivistä, muualta lähtevät) saavat kirjaimen ja selitteen. */
+
+// Pysäkin perusnimi: laiturikirjain ("Koskikatu I") ja sulkulisäke pois, jotta suunnat ja
+// variantit tunnistetaan samaksi paikaksi (vastasuunnan laituri on eri pysäkki).
+function cbStopBase(n) {
+  return (n || "").replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+(?:[A-ZÅÄÖ]|\d{1,2})$/u, "").trim() || (n || "");
+}
+
+// Yhden suunnan tuntiruudukko. d = { label, stops, groups }. codeFor(avain, selite) antaa
+// linjan yhteisen kirjaimen, jotta sama poikkeus on samalla kirjaimella molemmissa suunnissa.
+function cbGridHtml(d, codeFor) {
+  const gs = d.groups || [];
+  if (!gs.length) return `<div class="cb-dir"><h3>${esc(d.label)}</h3><p class="muted">${t("bookletNoData")}</p></div>`;
+  const sub = (g, h) => [...g.dows].every(x => h.dows.has(x));
+  // Sarake = ryhmä, jota mikään laajempi ryhmä ei sisällä. Sisältyvä ryhmä (esim. "Pe" tai
+  // "Ma–Pe · koulupäivinä") yhdistetään laajimpaan sisältävään sarakkeeseen kirjaimella.
+  const parentOf = g => {
+    let best = null;
+    for (const h of gs) {
+      if (h === g || !sub(g, h)) continue;
+      const wider = h.dows.size > g.dows.size || (h.dows.size === g.dows.size && !h.school && g.school);
+      if (!wider) continue;
+      if (!best || h.dows.size > best.dows.size || (best.school && !h.school)) best = h;
+    }
+    return best;
+  };
+  const rootOf = g => { let r = g, n = 0; for (let p = parentOf(r); p && n < 8; p = parentOf(r), n++) r = p; return r; };
+  const cols = gs.filter(g => rootOf(g) === g);
+  const mainStart = cbStopBase(d.stops?.[0]?.name), mainEnd = cbStopBase(d.stops?.[(d.stops || []).length - 1]?.name);
+  const entries = new Map(cols.map(c => [c, []]));
+  for (const g of gs) {
+    const col = rootOf(g);
+    const dayCode = g === col ? null
+      : codeFor("d:" + g.label, t("compactOnlyDays", { days: g.dows.size === col.dows.size && g.school
+          ? t(g.school === "koul" ? "schoolTerm" : "schoolBreak") : g.label }));
+    for (const tr of g.trips) {
+      const st = tr.stoptimes || [];
+      if (!st.length) continue;
+      const a = cbStopBase(st[0].stop?.name), z = cbStopBase(st[st.length - 1].stop?.name);
+      const marks = [];
+      if (dayCode) marks.push(dayCode);
+      if (mainStart && mainEnd && (a !== mainStart || z !== mainEnd)) {
+        const txt = a !== mainStart && z !== mainEnd
+          ? `${t("compactStartsAt", { stop: a })}, ${t("compactEndsAt", { stop: z })}`
+          : a !== mainStart ? t("compactStartsAt", { stop: a }) : t("compactEndsAt", { stop: z });
+        marks.push(codeFor(`v:${a}|${z}`, txt));
+      }
+      entries.get(col).push({ sec: st[0].scheduledDeparture, marks });
+    }
+  }
+  const hours = [...new Set([...entries.values()].flat().map(e => Math.floor(e.sec / 3600)))].sort((x, y) => x - y);
+  const cell = (c, h) => entries.get(c).filter(e => Math.floor(e.sec / 3600) === h).sort((x, y) => x.sec - y.sec)
+    .map(e => String(Math.floor((e.sec % 3600) / 60)).padStart(2, "0") + (e.marks.length ? `<sup>${e.marks.join("")}</sup>` : ""))
+    .join(" ");
+  const head = cols.map(c => `<th scope="col">${esc(c.label)}</th>`).join("");
+  const body = hours.map(h => `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th>`
+    + cols.map(c => `<td>${cell(c, h)}</td>`).join("") + `</tr>`).join("");
+  return `<div class="cb-dir"><h3>${esc(d.label)}</h3><table class="cb-grid">`
+    + `<thead><tr><th scope="col" class="cb-hcol">${t("compactHour")}</th>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+// Reittijana: pääsuunnan isot pysäkit (samat kuin laajan vihkon sarakkeet) ja tyypillinen
+// matka-aika niiden välillä kumpaankin suuntaan (mediaani). Vastasuunta haetaan perusnimellä,
+// koska vastakkaisen laiturin pysäkki on datassa eri pysäkki.
+function cbStripSvg(dirs) {
+  const flat = d => (d?.groups || []).flatMap(g => g.trips).filter(tr => (tr.stoptimes || []).length);
+  const t0 = flat(dirs[0]);
+  if (!t0.length) return "";
+  const main = mostCommonStops(t0);
+  const mainTrips = main ? t0.filter(tr => tr._stops === main) : t0;
+  const ks = bookletKeyStops(mainTrips.length ? mainTrips : t0, { target: 6, limit: 7 }).slice(0, 8);
+  if (ks.length < 2) return "";
+  const med = arr => { const s = arr.filter(x => x > 0).sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
+  const timesById = tr => { const m = {}; for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture; return m; };
+  const timesByBase = tr => { const m = {}; for (const st of tr.stoptimes) { const k = cbStopBase(st.stop?.name); if (m[k] == null) m[k] = st.scheduledDeparture; } return m; };
+  const fw = [], bw = [];
+  const m0 = (mainTrips.length ? mainTrips : t0).map(timesById);
+  const t1 = flat(dirs[1]).map(timesByBase);
+  for (let i = 0; i < ks.length - 1; i++) {
+    const A = ks[i], B = ks[i + 1];
+    fw.push(med(m0.filter(m => m[A.gtfsId] != null && m[B.gtfsId] != null).map(m => m[B.gtfsId] - m[A.gtfsId])));
+    const a = cbStopBase(A.name), b = cbStopBase(B.name);
+    bw.push(t1.length ? med(t1.filter(m => m[a] != null && m[b] != null).map(m => m[a] - m[b])) : null);
+  }
+  const W = 600, PADX = 40, n = ks.length, step = (W - 2 * PADX) / (n - 1), yL = 60;
+  const xs = ks.map((_, i) => PADX + i * step);
+  const wrap = (name, max) => {
+    const words = name.split(/\s+/), out = [""];
+    for (const w of words) {
+      const cur = out[out.length - 1];
+      if (!cur) out[out.length - 1] = w;
+      else if ((cur + " " + w).length <= max) out[out.length - 1] = cur + " " + w;
+      else if (out.length < 2) out.push(w);
+      else out[1] = (out[1] + " " + w).slice(0, max - 1) + "…";
+    }
+    return out;
+  };
+  const maxCh = Math.max(8, Math.floor(step / 7));
+  const names = ks.map((s, i) => wrap(cbStopBase(s.name), maxCh).map((ln, j, arr) =>
+    `<text x="${xs[i].toFixed(1)}" y="${(yL - 16 - (arr.length - 1 - j) * 14).toFixed(1)}" font-size="13" text-anchor="middle"${i === 0 || i === n - 1 ? ' font-weight="700"' : ""} fill="#000">${esc(ln)}</text>`).join("")).join("");
+  const mins = s => s == null ? "" : Math.max(1, Math.round(s / 60));
+  const segs = fw.map((s, i) => {
+    const cx = ((xs[i] + xs[i + 1]) / 2).toFixed(1), f = mins(s), b = mins(bw[i]);
+    return (f !== "" ? `<text x="${cx}" y="${yL - 4}" font-size="11.5" text-anchor="middle" fill="#000">${f} min →</text>` : "")
+      + (b !== "" ? `<text x="${cx}" y="${yL + 17}" font-size="11.5" text-anchor="middle" fill="#333">← ${b} min</text>` : "");
+  }).join("");
+  const dots = xs.map((x, i) => i === 0 || i === n - 1
+    ? `<circle cx="${x.toFixed(1)}" cy="${yL}" r="7" fill="#000" stroke="#fff" stroke-width="1.5"/>`
+    : `<circle cx="${x.toFixed(1)}" cy="${yL}" r="5" fill="#fff" stroke="#000" stroke-width="2"/>`).join("");
+  const aria = esc(t("compactStripAria"));
+  return `<figure class="cb-strip"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 84" role="img" aria-label="${aria}" font-family="system-ui, Arial, sans-serif">`
+    + `<title>${aria}</title><path d="M${xs[0].toFixed(1)} ${yL}H${xs[n - 1].toFixed(1)}" stroke="#000" stroke-width="3.5"/>`
+    + `${segs}${dots}${names}</svg></figure>`;
+}
+
+// Tiiviin vihkon linja-aukeama. dirs = [{ label, stops, groups, trips }], mapHtml valmiina.
+function compactLineHtml(route, dirs, mapHtml) {
+  const codes = new Map();
+  const codeFor = (key, text) => {
+    if (!codes.has(key)) codes.set(key, { letter: "abcdefghijklmnopqrstuvwxyz"[codes.size] || "*", text });
+    return codes.get(key).letter;
+  };
+  const grids = dirs.map(d => cbGridHtml(d, codeFor));
+  const notes = [...codes.values()].map(c => `<span><b>${c.letter}</b> = ${esc(c.text)}</span>`).join(" · ");
+  return `<section class="card booklet-line compact">
+      <h2>${badgeHtml(route)} ${esc(route.longName)}</h2>
+      ${mapHtml}
+      ${cbStripSvg(dirs)}
+      ${notes ? `<p class="cb-notes">${notes}</p>` : ""}
+      <div class="cb-grids">${grids.join("")}</div>
+    </section>`;
 }
 
 /* ---------- Yhdistetty suunta-aikataulu (käytävä): usean linjan lähdöt yhteen ----------
@@ -14693,6 +15045,13 @@ async function viewPrintCenter(tab, query) {
           </select>
         </div>
         <div class="field">
+          <label for="bookletLayout">${t("bookletLayoutLabel")}</label>
+          <select id="bookletLayout">
+            <option value="compact">${t("bookletLayoutCompact")}</option>
+            <option value="full">${t("bookletLayoutFull")}</option>
+          </select>
+        </div>
+        <div class="field">
           <span class="muted" id="dtLbl">${t("dayTypesLabel")}</span>
           <div class="row" role="group" aria-labelledby="dtLbl" style="flex-wrap:wrap;gap:0.4rem 1rem">
             <label class="dtopt"><input type="checkbox" class="dtCb" value="weekday" checked> ${t("dayWeekday")}</label>
@@ -14861,6 +15220,7 @@ function applyPrintQuery(tab, query) {
       const cb = cbs.find(c => c.value === id);
       if (!cb) return;
       cb.checked = true;
+      cb.dispatchEvent(new Event("change", { bubbles: true }));   // valintayhteenveto napin viereen
       if (!n) cb.closest("li")?.scrollIntoView({ block: "center" });
       n++;
     });
@@ -14896,10 +15256,12 @@ function bindBookletTab(routes, today) {
       li.hidden = f && !li.textContent.toLowerCase().includes(f);
     });
   });
-  document.getElementById("selAll").addEventListener("click", () =>
-    cbs().forEach(c => { if (!c.closest("li").hidden) c.checked = true; }));
-  document.getElementById("selNone").addEventListener("click", () =>
-    cbs().forEach(c => { c.checked = false; }));
+  const summary = bindSelectionSummary(document.getElementById("lineChecks"), ".lineCb",
+    document.getElementById("buildStatus"), linesSummary);
+  document.getElementById("selAll").addEventListener("click", () => {
+    cbs().forEach(c => { if (!c.closest("li").hidden) c.checked = true; }); summary(); });
+  document.getElementById("selNone").addEventListener("click", () => {
+    cbs().forEach(c => { c.checked = false; }); summary(); });
 
   // "Keskustan linjat": valitse linjat jotka kulkevat ydinkeskustan
   // solmupysäkkien (CONFIG.centerStopNames) kautta. Haetaan pysäkkien
@@ -14923,7 +15285,7 @@ function bindBookletTab(routes, today) {
             if (r.mode === "BUS" && inFeed(r.gtfsId)) ids.add(r.gtfsId);
         }
       cbs().forEach(c => { c.checked = ids.has(c.value); });
-      status.textContent = t("selectedCount", { n: ids.size });
+      summary();
     } catch (e) {
       status.textContent = "";
     } finally { centerBtn.disabled = false; }
@@ -14936,6 +15298,7 @@ function bindBookletTab(routes, today) {
     if (!selected.length) { status.textContent = t("noLinesSelected"); return; }
     const date = document.getElementById("bookletDate").value || today;
     const dirChoice = document.getElementById("dirSel").value;
+    const compact = (document.getElementById("bookletLayout")?.value || "compact") === "compact";
     let dayKeys = [...document.querySelectorAll(".dtCb:checked")].map(c => c.value);
     if (!dayKeys.length) dayKeys = ["weekday"];
     const dts = dayTypeDates(date).filter(d => dayKeys.includes(d.key)); // vain otsikkoyhteenvetoon
@@ -14989,24 +15352,28 @@ function bindBookletTab(routes, today) {
           // päivätyyppi-ämpäreihin (weekday=Ma–Pe, sat=La, sun=Su).
           // Suunnan kaikki variantit unioniin (monivarianttilinjat).
           const dirPats = byDir.get(dirKey(p)) || [p];
-          let groups = [];
-          try { groups = groupTripsByDays(await dirTripsWithDays(dirPats), date); }
+          let trips = [], groups = [];
+          try { trips = await dirTripsWithDays(dirPats); groups = groupTripsByDays(trips, date); }
           catch (e) { groups = []; }
           groups = groups.filter(g => bucketMatch(g.dows));
-          const dayTables = groups.length
-            ? groups.map(g => `<h4 class="daytype">${esc(g.label)}</h4>${bookletTableHtml(g.trips)}`).join("")
-            : `<p class="muted">${t("bookletNoData")}</p>`;
-          return `<h3>${esc(label)}</h3>${dayTables}`;
+          return { label, stops, groups, trips };
         }));
-        // Reittikaavio (kuten Kotkan vihossa): tulostettavien suuntien pisin geometria
+        // Reittikaavio (kuten Kotkan vihossa): tulostettavien suuntien pisin geometria.
+        // Taustakarttana MML:n selkokartta ja reitti kunnan värillä (23.9.2026, JOJO:n malli).
         const mapDirs = primaries.map(p => printMapDir(byDir.get(dirKey(p)) || [p])).filter(Boolean);
-        const mapHtml = mapDirs.length ? printMapSvg([{ shortName: route.shortName, dirs: mapDirs }]) : "";
+        const mapHtml = mapDirs.length ? printMapSvg([{ shortName: route.shortName, dirs: mapDirs }],
+          { basemap: true, routeColor: "var(--header-bg, #333)" }) : "";
+        const label = `${route.shortName || ""} ${route.longName}`.trim();
+        if (compact) return { label, html: compactLineHtml(route, dirs, mapHtml) };
+        const dirHtml = dirs.map(d => `<h3>${esc(d.label)}</h3>` + (d.groups.length
+          ? d.groups.map(g => `<h4 class="daytype">${esc(g.label)}</h4>${bookletTableHtml(g.trips)}`).join("")
+          : `<p class="muted">${t("bookletNoData")}</p>`));
         return {
-          label: `${route.shortName || ""} ${route.longName}`.trim(),
+          label,
           html: `<section class="card booklet-line">
             <h2>${badgeHtml(route)} ${esc(route.longName)}</h2>
             ${mapHtml}
-            ${dirs.join("")}
+            ${dirHtml.join("")}
           </section>`,
         };
       } catch (e) {
@@ -15023,7 +15390,7 @@ function bindBookletTab(routes, today) {
     out.innerHTML = `
       <div class="card booklet-head">
         ${printBrandHead({ title: `${esc(operatorName())} · ${t("bookletCoverTitle")}`,
-          sub: `${dts.map(d => esc(d.label)).join(" · ")}. ${t("bookletKeyStopsNote")}`, meta: "date" })}
+          sub: `${dts.map(d => esc(d.label)).join(" · ")}. ${t(compact ? "bookletCompactNote" : "bookletKeyStopsNote")}`, meta: "date" })}
         <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
         <p class="muted">${t("printDaysNote")}</p>
         <p class="no-print buildbar"><button type="button" id="bookletPrint">${icon("print")} ${t("bookletPrintBtn")}</button>
@@ -15035,10 +15402,11 @@ function bindBookletTab(routes, today) {
     status.textContent = "";
     document.getElementById("bookletPrintA5")?.addEventListener("click", printVihko);
     document.getElementById("bookletPrint")?.addEventListener("click", () => {
-      runPrintJob(t("printPreparing"), () => {
+      runPrintJob(t("printPreparing"), async () => {
         setPageOrientation("portrait");
         const done = () => { hidePrintPrep(); window.removeEventListener("afterprint", done); };
         window.addEventListener("afterprint", done);
+        await imagesReady(document.getElementById("bookletOut"));   // reittikartan taustatiilet ladattu
         window.print();
       });
     });
