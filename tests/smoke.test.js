@@ -1365,6 +1365,33 @@ async function printHygiene(page, label) {
     (yksiArkki.muutosvahti === true && yksiArkki.eratuloste === true)
       ? ok("muutosvahti: yhden arkin juliste oletuksena kuten erätulosteessa (joensuu)")
       : fail("muutosvahti: yhden arkin valinnan oletus eri kuin erätulosteessa: " + JSON.stringify(yksiArkki));
+    // Tulostuksen ajaksi piilotetut välilehdet ja muutosvahdin lista pois DOMista (esikatselun
+    // nopeus, 23.9.2026) ja takaisin samoina: valinnat eivät saa kadota tulostuksen jälkeen.
+    await page.waitForFunction(() => document.querySelectorAll("#chgList input[type=checkbox]").length >= 2,
+      { timeout: 20000 }).catch(() => {});
+    const irrotus = await page.evaluate(() => {
+      const cbs = [...document.querySelectorAll("#chgList input[type=checkbox]")];
+      cbs.forEach((c, i) => { c.checked = i < 2; });
+      window.dispatchEvent(new Event("beforeprint"));
+      const aikana = { lista: !!document.getElementById("chgList"), piilopaneeleja: document.querySelectorAll(".ppanel[hidden]").length };
+      window.dispatchEvent(new Event("afterprint"));
+      return { aikana, rivit: cbs.length, jalkeen: document.querySelectorAll("#chgList input[type=checkbox]").length,
+        valitut: document.querySelectorAll("#chgList input[type=checkbox]:checked").length, paneeleja: document.querySelectorAll(".ppanel").length };
+    });
+    (!irrotus.aikana.lista && irrotus.aikana.piilopaneeleja === 0 && irrotus.jalkeen === irrotus.rivit
+      && irrotus.valitut === 2 && irrotus.paneeleja === 6)
+      ? ok(`tulostus: muutosvahdin lista ja piilotetut välilehdet pois tulostuksen ajaksi, palautuvat valintoineen (${irrotus.rivit} riviä)`)
+      : fail("tulostus: irrotus/palautus pielessä: " + JSON.stringify(irrotus));
+    // Erätulosteen julisteissa QR kuten pysäkkisivun julisteessa (muutosvahti, 2 pysäkkiä).
+    await page.evaluate(() => { window.print = () => {}; });
+    await page.click("#chgGo");
+    const qr = await page.waitForFunction(() => {
+      const st = [...document.querySelectorAll("#chgOut .poster-stop")];
+      return st.length >= 2 ? st.map(s => !!s.querySelector("img.poster-qr")) : null;
+    }, { timeout: 60000 }).then(h => h.jsonValue()).catch(() => null);
+    (qr && qr.length >= 2 && qr.every(Boolean))
+      ? ok(`muutosvahti: erätulosteen jokaisessa julisteessa QR (${qr.length} julistetta)`)
+      : fail("muutosvahti: erätulosteen julisteesta puuttuu QR: " + JSON.stringify(qr));
     // Smoke on peräkkäinen ja tilallinen: palauta oletuskaupunki ja vihko-välilehti, muuten seuraava
     // tarkistus klikkaa piilotetun paneelin nappia (CI 2.9.2026: "Node is either not clickable").
     await page.goto(BASE + "/#/tulosteet/vihko", { waitUntil: "networkidle2" });

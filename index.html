@@ -11093,6 +11093,16 @@ function bindPostersTab(routes) {
 // Pysäkkijulisteiden erätulostus annetulle pysäkkilistalle. Käyttäjät: linjan kaikki pysäkit
 // (bindPostersTab) ja muutosvahdin valitsemat pysäkit (bindChangesTab). subPrefix = julisteen
 // alaotsikon etuliite (linjan tunnus), tyhjä kun pysäkit eivät ole yhden linjan.
+// Julisteen QR pysäkin live-sivulle (sama kuin pysäkkisivun julisteessa). Ei pakollinen:
+// virhe jättää QR:n pois eikä kaada tulostetta.
+async function posterQrHtml(stopId) {
+  try {
+    const u = await qrDataUrl(appUrl("#/pysakki/" + encodeURIComponent(stopId)), 240);
+    return `<div class="poster-qrwrap"><img class="poster-qr" src="${u}" alt="">
+        <span class="poster-qrcap">${t("qrPosterHint")}</span></div>`;
+  } catch (e) { return ""; }
+}
+
 async function printPosterBatch(stops, subPrefix, compact, st, out) {
       const today = todayISO();
       const ptdMemo = new Map();   // jaettu pattern-välimuisti: naapuripysäkit jakavat samat patternit
@@ -11109,11 +11119,15 @@ async function printPosterBatch(stops, subPrefix, compact, st, out) {
         // undefined (pysäkki puuttui niputetusta vastauksesta) → stopPosterBlocks hakee
         // sen yksin. Tyhjä lista EI saa mennä läpi "ei patterneja" -totuutena.
         const blocks = await stopPosterBlocks(s.gtfsId, today, ptdMemo, 2, patsByStop.get(s.gtfsId));
+        // QR ja lukuohje kuten pysäkkisivun julisteessa: erätulosteen julisteet päätyvät samoihin
+        // katoksiin, ja niistä puuttui QR (Villen havainto Turun muutosvahdista 23.9.2026).
+        const qrImg = await posterQrHtml(s.gtfsId);
         st.textContent = t("batchProgress", { done: ++done, total: stops.length });
         const head = (sub) => `<div class="poster-head"><div>
             <h2>${esc(s.name)} <span class="muted">${esc(s.code || "")}</span></h2>
             <p class="poster-sub">${esc(sub)}</p>
-          </div></div>`;
+            <p class="muted">${t("posterAllLinesNote")}</p>
+          </div>${qrImg}</div>`;
         return blocks.length
           ? blocks.map(b => `<section class="card poster-day">
               ${head((subPrefix ? subPrefix + " · " : "") + b.label)}
@@ -15503,6 +15517,29 @@ if ("serviceWorker" in navigator) {
 // Tulostuksen jälkeen sivun suunta takaisin pystyyn (vaaka on vain
 // koko pysäkkimatriisin tulostusta varten)
 window.addEventListener("afterprint", () => setPageOrientation("portrait"));
+
+// Tulostuksen ajaksi pois DOMista: tulostekeskuksen piilotetut välilehdet ja muutosvahdin
+// pysäkkilista. Ne eivät tulostu, mutta Chrome käy esikatselua tehdessään läpi koko DOMin
+// (tagged PDF). Joensuun muutosvahdin 1 598 pysäkin lista (11 206 elementtiä) lisäsi 23.9.2026
+// jokaiseen Tulosteet-sivun esikatseluun: 1 linjan vihko 0,5 -> 1,7 s, linjan 2 erätuloste
+// (118 arkkia) 3,6 -> 5,2 s. Solmut vaihdetaan paikkamerkkiin ja palautetaan samoina, joten
+// valinnat ja kuuntelijat säilyvät. Toimii myös selaimen omalla Ctrl+P:llä.
+const printDetached = [];
+window.addEventListener("beforeprint", () => {
+  const heavy = [...document.querySelectorAll(".ppanel[hidden]"), document.getElementById("chgList")];
+  for (const el of heavy) {
+    if (!el || !el.isConnected) continue;   // lista lähti jo piilotetun paneelinsa mukana
+    const mark = document.createComment("print");
+    el.replaceWith(mark);
+    printDetached.push([mark, el]);
+  }
+});
+window.addEventListener("afterprint", () => {
+  while (printDetached.length) {
+    const [mark, el] = printDetached.pop();
+    if (mark.isConnected) mark.replaceWith(el);
+  }
+});
 </script>
 </body>
 </html>
