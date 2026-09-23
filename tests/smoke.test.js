@@ -1397,6 +1397,15 @@ async function printHygiene(page, label) {
     (cap.big === 10 && cap.small === 8 && cap.edge12 === 12 && cap.firstLast && cap.hub === true && cap.wb === false)
       ? ok(`isot pysäkit -rajaus: 60→${cap.big} (lähtö+pää aina), ≤12 ennallaan, hub pakotettu, sananraja ei false-match`)
       : fail("isot pysäkit -rajaus pielessä: " + JSON.stringify(cap));
+    // A4-vihko: suunta alkaa sivun yläreunasta (Villen linjaus 23.9.2026). Reittikaavion jälkeen
+    // 1. suuntakin vaihtaa sivua; suoraan linjaotsikon alla (ei kaaviota) se saa jatkaa.
+    await page.emulateMediaType("print");
+    const bk = await page.evaluate(() => [...document.querySelectorAll("#bookletOut .booklet-line > h3")]
+      .map(h => ({ b: getComputedStyle(h).breakBefore, h2: h.previousElementSibling?.tagName === "H2" })));
+    await page.emulateMediaType("screen");
+    (bk.length && bk.every(x => x.h2 ? x.b !== "page" : x.b === "page"))
+      ? ok(`vihko A4: jokainen suunta alkaa sivun yläreunasta (${bk.length} suuntaa)`)
+      : fail("vihko A4: suunta voi alkaa kesken sivun: " + JSON.stringify(bk));
     // Vihko (A5, taitettava): mittaa-ja-jaa A5-sivutus + saddle-stitch imposition; A4-vakio säilyy
     if (await page.$("#bookletPrintA5")) {
       // stub-print kirjaa näkyikö valmistelu-indikaattori juuri tulostushetkellä (#16)
@@ -1418,7 +1427,19 @@ async function printHygiene(page, label) {
         yli: Math.round(Math.max(0, ...[...document.querySelectorAll("#vihkoPrint .vihko-page-content")]
           .flatMap(pg => [...pg.querySelectorAll("table")]
             .map(t => t.getBoundingClientRect().right - pg.getBoundingClientRect().right)))),
+        // Linja ja suunta alkavat A5:n yläreunasta (Villen linjaus 23.9.2026): linjaotsikko on
+        // sivun 1. elementti, suuntaotsikko 1. tai heti linjaotsikon jälkeen. Rikkeet listataan
+        // sivunumeroina, jotta vika näkyy suoraan.
+        otsikkoKesken: [...document.querySelectorAll("#vihkoPrint .vihko-page-content")].flatMap((pg, n) => {
+          const kids = [...pg.children];
+          return kids.some((el, i) => el.classList.contains("vk-h2") ? i !== 0
+            : el.classList.contains("vk-h3") ? !(i === 0 || (i === 1 && kids[0].classList.contains("vk-h2")))
+            : false) ? [n + 1] : [];
+        }),
       }));
+      vk.otsikkoKesken.length === 0
+        ? ok("vihko: jokainen linja ja suunta alkaa A5-sivun yläreunasta")
+        : fail(`vihko: linja tai suunta alkaa kesken A5-sivun (paikat ${vk.otsikkoKesken.join(", ")})`);
       vk.yli <= 1
         ? ok("vihko: A5-taulukot mahtuvat sivun leveyteen (ei leikkautuvia sarakkeita)")
         : fail(`vihko: A5-taulukko vuotaa sivun yli ${vk.yli} px → oikea reuna leikkautuu paperilla`);
@@ -1497,7 +1518,18 @@ async function printHygiene(page, label) {
       const hs = [...t.tBodies[0].rows].slice(0, 60).map(r => Math.round(r.getBoundingClientRect().height));
       return { korkeudet: [...new Set(hs)], riveja: hs.length };
     });
+    // Suunta alkaa sivun yläreunasta (Villen linjaus 23.9.2026): Joensuun näytteessä suunta alkoi
+    // sivun alaosasta kolmella rivillä ja katkesi. Reittikaavion jälkeen jokainen suunta alkaa
+    // uudelta sivulta; print-median laskettu break-before kertoo sen ilman PDF:ää.
+    const corrBrk = await page.evaluate(() => ({
+      kartta: !!document.querySelector("#corridorOut .corridor-head")?.classList.contains("has-map"),
+      dirs: [...document.querySelectorAll("#corridorOut .corridor-dir")].map(d => getComputedStyle(d).breakBefore),
+    }));
     await page.emulateMediaType("screen");
+    (corrBrk.dirs.length >= 2 && corrBrk.dirs.slice(1).every(b => b === "page")
+      && corrBrk.dirs[0] === (corrBrk.kartta ? "page" : "auto"))
+      ? ok(`yhdistetyt suunnat: jokainen suunta alkaa uuden sivun yläreunasta (${corrBrk.dirs.join(", ")}${corrBrk.kartta ? ", kaavio kansisivulla" : ""})`)
+      : fail("yhdistetyt suunnat: suunta voi alkaa kesken sivun: " + JSON.stringify(corrBrk));
     rk && rk.korkeudet.length === 1
       ? ok(`yhdistetyt suunnat: rivikorkeus tasainen printissä (${rk.riveja} riviä, ${rk.korkeudet[0]} px)`)
       : fail("yhdistetyt suunnat: rivikorkeudet vaihtelevat printissä → taulukko lukee vinona: "
@@ -1650,6 +1682,16 @@ async function printHygiene(page, label) {
       { timeout: 60000 }).then(() => true).catch(() => false);
     koottu ? ok(`tiskin tulostepolut: ?print=${tila} kokoaa linjatulosteen`)
            : fail(`tiskin tulostepolut: ?print=${tila} ei koonnut tulostetta 60 s kuluessa`);
+    // Lehtiteline: toinen suunta alkaa uuden arkin yläreunasta (Villen linjaus 23.9.2026).
+    if (tila === "rack" && koottu) {
+      await page.emulateMediaType("print");
+      const rb = await page.evaluate(() =>
+        [...document.querySelectorAll("#linePrintOut .rack-dir")].map(d => getComputedStyle(d).breakBefore));
+      await page.emulateMediaType("screen");
+      (rb.length >= 2 && rb[0] !== "page" && rb.slice(1).every(b => b === "page"))
+        ? ok(`lehtiteline: 1. suunta otsikon alla, muut suunnat uuden arkin yläreunasta (${rb.join(", ")})`)
+        : fail("lehtiteline: suunta voi alkaa kesken arkin: " + JSON.stringify(rb));
+    }
   }
 
   // URL-osoitteistettu välilehti (?tab=) ja yksi etusivun nappi (ei enää kahta tulostenappia)

@@ -1809,19 +1809,25 @@
     .matrix-cont-head { font-size: 9.5pt; font-weight: 700; margin: 0 0 2pt; }
     /* Vihko: harvat sarakkeet → iso luettava fontti. Jokainen LINJA omalle sivulle —
        myös 1. linja (→ sisällysluettelo jää yksin omalle sivulleen). Jokainen SUUNTA
-       ("X → Y") omalle sivulle (paluusuunta uudelta sivulta), paitsi linjan 1. suunta
-       joka alkaa linjan omalta sivulta. Päivätyypit (h4.daytype) virtaavat ennallaan. */
+       ("X → Y") alkaa sivun yläreunasta (Villen linjaus 23.9.2026: ei suuntaa joka alkaa
+       sivun alaosasta ja katkeaa heti; tyhjä sivun loppu on parempi kuin katko). Linjan
+       1. suunta saa jatkaa linjaotsikon alla vain, jos välissä ei ole reittikaaviota.
+       Päivätyypit (h4.daytype) virtaavat suunnan sisällä ennallaan. */
     .print-map { break-inside: avoid; page-break-inside: avoid; margin: 4pt 0 8pt; }
     .print-map svg { max-height: 125mm; border-radius: 0; }
     #vihkoPrint .print-map svg { max-height: 95mm; }
     .booklet-line { break-before: page; page-break-before: always; }
     .booklet-line > h3 { break-before: page; page-break-before: always;
                          break-after: avoid; page-break-after: avoid; }
-    .booklet-line > h3:first-of-type { break-before: avoid; page-break-before: avoid; }
+    .booklet-line > h2 + h3 { break-before: avoid; page-break-before: avoid; }
     table.booklet { font-size: 0.95rem; }
     table.booklet th, table.booklet td { padding: 0.2rem 0.4rem; }
-    /* Yhdistetty suunta-aikataulu: osiot virtaavat, suuntaotsikko kiinni taulussa */
+    /* Yhdistetty suunta-aikataulu: jokainen suunta alkaa uuden sivun yläreunasta (23.9.2026),
+       jatkuu tarvittaessa seuraaville sivuille, suuntaotsikko kiinni taulussa. Ilman
+       reittikaaviota kansiosa on matala, joten 1. suunta saa alkaa sen alta. */
     .corridor-head, .corridor-dir { break-inside: auto; page-break-inside: auto; }
+    .corridor-dir { break-before: page; page-break-before: always; }
+    .corridor-head:not(.has-map) + .corridor-dir { break-before: auto; page-break-before: auto; }
     .corridor-dir > h3 { break-after: avoid; page-break-after: avoid; }
     /* Brändipalkki tulosteiden otsikkoon (käytävä, vihko, lehtiteline, linjatuloste, 2.9.2026): sama
        ilme kuin tiiviissä pysäkkijulisteessa. Vain print-mediassa: ruudulla otsikot pysyvät korttien
@@ -1884,6 +1890,9 @@
     .rackprint .rack-period { font-size: 8.5pt; color: #333; margin: 1mm 0 0; }
     .rackprint img.rack-qr { width: 22mm; height: 22mm; image-rendering: pixelated; flex: none; }
     .rackprint .rack-dir { margin: 0 0 2.5mm; }
+    /* Toinen suunta alkaa uuden arkin yläreunasta (23.9.2026): ei suuntaa joka alkaa sivun
+       alaosasta ja katkeaa heti. 1. suunta alkaa matalan otsikkopalkin alta. */
+    .rackprint .rack-dir + .rack-dir { break-before: page; page-break-before: always; }
     .rackprint .rack-dir > h3 { font-size: 11.5pt; margin: 2mm 0 1mm; break-after: avoid;
                                 page-break-after: avoid; border-left: 3pt solid #000; padding-left: 2mm; }
     .rackprint .rack-days { columns: 2; column-gap: 5mm; }
@@ -10846,7 +10855,7 @@ function bindCorridorTab(routes, today) {
     const keyNames = new Set(dirs.flatMap(d => d.keyStops.map(s => normHubName(s.name))));
     const mapHtml = mapLines.length ? printMapSvg(mapLines, { keyNames, evenLabels: 0, maxLabels: 12 }) : "";
     out.innerHTML = `
-      <div class="card corridor-head">
+      <div class="card corridor-head${mapHtml ? " has-map" : ""}">
         ${printBrandHead({ title: `${t("corridorTitle")}${preset ? `: ${esc(corridorName(preset))}` : ""}` })}
         <p>${allLines.map(r => badgeHtml(r)).join(" ")}</p>
         ${mapHtml}
@@ -13768,8 +13777,9 @@ function vkCollectAtoms(out) {
     let lineLabel = "", dirLabel = "";
     for (const node of line.children) {
       const tag = node.tagName;
-      if (tag === "H2") { lineLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h2">${node.innerHTML}</div>`, keepWithNext: true }); }
-      else if (tag === "H3") { dirLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h3">${node.innerHTML}</div>`, keepWithNext: true }); }
+      // newPage: linja ja suunta alkavat aina A5-sivun yläreunasta (ks. vkPaginate)
+      if (tag === "H2") { lineLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h2">${node.innerHTML}</div>`, keepWithNext: true, newPage: "line" }); }
+      else if (tag === "H3") { dirLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h3">${node.innerHTML}</div>`, keepWithNext: true, newPage: "dir" }); }
       else if (tag === "H4") atoms.push({ html: `<div class="vk-h4">${node.innerHTML}</div>`, keepWithNext: true });
       else if (tag === "FIGURE") atoms.push({ html: node.outerHTML });   // reittikaavio (SVG) sellaisenaan
       else {
@@ -13789,6 +13799,9 @@ function vkCollectAtoms(out) {
 // Pakkaa atomit A5-korkuisiksi sivuiksi mittaamalla SIVUN TODELLINEN kumulatiivinen korkeus joka
 // lisäyksen jälkeen (ei summata atomeja erikseen → ei marginaali-collapse-virhettä). Pitkä taulu
 // jaetaan rivi riviltä; jokainen jatko-A5 toistaa otsikkorivin + "(jatkoa)". Ei leikkausta/pakkausta.
+// Linja (newPage "line") ja suunta (newPage "dir") alkavat aina uuden A5:n yläreunasta (23.9.2026:
+// suunta ei saa alkaa sivun alaosasta ja katketa heti). Poikkeus: suunta saa jatkaa suoraan
+// linjaotsikon alla, jos sivulla ei ole muuta (ei reittikaaviota välissä).
 function vkPaginate(atoms) {
   const m = document.createElement("div");
   m.className = "vihko-page-content";
@@ -13799,7 +13812,8 @@ function vkPaginate(atoms) {
   const fits = html => heightOf(html) <= maxH;
   const pages = [];
   let cur = "";
-  const flush = () => { if (cur) { pages.push(cur); cur = ""; } };
+  let curOnlyLineHead = false;                       // sivulla on vain linjaotsikko
+  const flush = () => { if (cur) { pages.push(cur); cur = ""; } curOnlyLineHead = false; };
   const tableHtml = (a, rows, cont) =>
     (cont ? `<div class="vk-cont">${esc(a.cont)} ${t("vihkoContinued")}</div>` : "")
     + `<table class="vk-tbl">${a.thead}<tbody>${rows.join("")}</tbody></table>`;  // EI booklet/stoptable-luokkaa: @media print -säännöt eivät saa muuttaa mitattua kokoa
@@ -13815,14 +13829,17 @@ function vkPaginate(atoms) {
           }
           if (!chunk.length) { flush(); continue; }   // ei mahtunut edes 1 riviä → uusi sivu, yritä uudelleen
           cur += tableHtml(a, chunk, !first);
+          curOnlyLineHead = false;
           first = false;
           if (i < a.rows.length) flush();              // rivejä jäljellä → jatko seuraavalle A5:lle
         }
       } else {
-        if (cur && !fits(cur + a.html)) flush();
+        if (cur && a.newPage && !(a.newPage === "dir" && curOnlyLineHead)) flush();
+        else if (cur && !fits(cur + a.html)) flush();
         // orpouden esto: jos otsikolle ei jää sivulle tilaa ~12mm vertaa → uudelle sivulle
         else if (a.keepWithNext && cur && !fits(cur + a.html + `<div style="height:${vkMm(12)}px"></div>`)) flush();
         cur += a.html;
+        curOnlyLineHead = a.newPage === "line";
       }
     }
     flush();
