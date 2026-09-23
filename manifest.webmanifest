@@ -1,8 +1,8 @@
 {
   "id": "/lsl-aikataulut/",
-  "name": "Lahden bussiaikataulut",
-  "short_name": "Bussit Lahti",
-  "description": "Epävirallinen aikataulupalvelu Lahden seudun busseille: reitit, reaaliaika, reittiopas, häiriöt ja liput.",
+  "name": "Reittari bussiaikataulut",
+  "short_name": "Reittari",
+  "description": "Epävirallinen aikataulupalvelu: pysäkkiaikataulut, linjat, reaaliaika, häiriöt ja tulosteet.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
@@ -31,6 +31,6 @@
     { "src": "screenshot-mobile.png", "sizes": "618x1236", "type": "image/png",
       "form_factor": "narrow", "label": "Etusivu: haku, pikavalinnat ja lähimmät lähdöt" },
     { "src": "screenshot-wide.png", "sizes": "1280x800", "type": "image/png",
-      "form_factor": "wide", "label": "Lahden bussiaikataulut" }
+      "form_factor": "wide", "label": "Reittari bussiaikataulut" }
   ]
 }
