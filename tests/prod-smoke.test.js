@@ -541,7 +541,10 @@ function writeReport() {
         //         nimet mahtuisivat vaikka rajoitus olisi rikki.
         if (DESK_PRINT_CITIES ? DESK_PRINT_CITIES.includes(city.key) : !!city.deskPrint) {
           await page.evaluate(() => { window.print = () => {}; });
-          await page.click("#bookletPrintA5").catch(() => {});
+          // DOM-klikkaus eikä page.click: vihon rakentaminen vierittää sulavasti (scrollIntoView
+          // smooth), ja koordinaattiklikkaus osui ohi kun vieritys oli kesken. Lahti kaatui
+          // tähän tuotantoa vasten 23.9.2026, vaikka printVihko toimi (todennettu suoralla kutsulla).
+          await page.evaluate(() => document.getElementById("bookletPrintA5")?.click());
           const imposed = await page.waitForFunction(
             () => !!document.querySelector("#vihkoPrint .vihko-page-content table"),
             { timeout: 60000 }).then(() => true).catch(() => false);

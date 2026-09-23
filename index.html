@@ -13854,10 +13854,22 @@ function bookletTableHtml(trips, keyOpts) {
     .filter(Boolean);
   // Liian vähän timepointeja (Joensuun syötteessä vain Koskikatu: 43 pysäkin linja 201 sai
   // 3 saraketta, auditointi 23.9.2026): täydennetään tasavälein, vihkoon 6 ja telineeseen 4.
+  // Täsmälleen minCols saraketta: A5-vihko karsii yli 6 sarakkeen taulun tasavälein
+  // (vkNarrowTable), ja 7 sarakkeella karsinta pudotti keskeltä juuri ainoan timepointin
+  // (Joensuun linja 1: Koskikatu I). Lisätään aina pysäkki, joka on kauimpana valituista.
   const minCols = Math.min(keyOpts?.target ?? 6, 6);
   if (cand.length < minCols && seq.length > cand.length) {
     const have = new Set(cand.map(c => c.idx));
-    for (let k = 0; k < minCols; k++) have.add(Math.round(k * last / (minCols - 1)));
+    while (have.size < Math.min(minCols, seq.length)) {
+      let best = -1, bd = -1;
+      for (let i = 1; i < last; i++) {
+        if (have.has(i)) continue;
+        let d = Infinity; for (const h of have) d = Math.min(d, Math.abs(h - i));
+        if (d > bd) { bd = d; best = i; }
+      }
+      if (best < 0) break;
+      have.add(best);
+    }
     cand = [...have].sort((a, b) => a - b).map(i => ({ stop: seq[i].stop, idx: i }));
   }
   const keyStops = pickKeyStops(cand, keyOpts?.target, keyOpts?.limit);
