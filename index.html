@@ -825,7 +825,7 @@
   /* Reittikaavio (vihko + yhdistetyt suunnat): vektori, skaalautuu leveyteen, korkeus rajattu.
      Aina valkoinen pohja ja musta viiva riippumatta teemasta (tuloste-artefakti). */
   .print-map { margin: 0.5rem 0 0.75rem; }
-  .print-map svg { display: block; width: 100%; height: auto; max-height: 440px; background: #fff; border-radius: 6px; }
+  .print-map svg { display: block; width: 100%; height: auto; max-height: 440px; background: #fff; border-radius: 6px; isolation: isolate; }
   .booklet-toc { margin-top: 0.6rem; }
   .booklet-toc h3 { font-size: 1rem; margin: 0 0 0.3rem; }
   .booklet-toc ul { margin: 0; padding-left: 1.2rem; columns: 2; column-gap: 1.5rem; }
@@ -5895,10 +5895,11 @@ async function patternTripsMany(codes, memo, conc = 3) {
 // Vuorot suunnan KAIKISTA patterneista (variantit) yhteen → ei pudoteta service-
 // id:tä joka on eri pattern-koodissa (esim. 23S: MA,KE&PE oma kuvionsa, jota
 // tuleva-vuoro-probe ei valitse). Jokaiseen vuoroon lähdepatternin stops (matriisi).
-async function dirTripsWithDays(patterns) {
+// memo (valinnainen): patternTripsMany-eräkyselyn tulokset; puuttuvat haetaan yksitellen.
+async function dirTripsWithDays(patterns, memo) {
   const lists = await Promise.all((patterns || []).map(async p => {
     try {
-      const trips = await patternTripsWithDays(p.code);
+      const trips = await (memo?.get(p.code) || patternTripsWithDays(p.code));
       return trips.map(tr => ({ ...tr, _stops: p.stops || [] }));
     } catch (e) { return []; }
   }));
@@ -6300,9 +6301,18 @@ function printMapSvg(lines, opts = {}) {
       imgs.push(`<image href="${base}mml/selkokartta/${z}/${x}/${y}.png" x="${f(L)}" y="${f(T)}" width="${f(R - L + 0.6)}" height="${f(B - T + 0.6)}" preserveAspectRatio="none"/>`);
     }
     // Selkokartan tiet ovat punaisia ja vesi tummansininen: osittain harmaaksi ja vaaleammaksi, jotta
-    // reitti on kuvan kirkkain asia (kuten JOJO:n vihossa). Sama suodin kaikissa kartoissa → sama id käy.
-    out.push(`<defs><filter id="pmBaseTone"><feColorMatrix type="saturate" values="0.4"/></filter></defs>`
-      + `<g class="pm-base" opacity="0.7" filter="url(#pmBaseTone)">${imgs.join("")}</g>`);
+    // reitti on kuvan kirkkain asia (kuten JOJO:n vihossa). EI SVG-suodinta: Chrome rasteroi suotimen
+    // tulostuksessa: Lahden koko vihkon PDF 13 s -> 9 s, kun suodin poistettiin (mitattu 23.9.2026). Sama sävy
+    // PDF:n natiiveilla keinoilla: harmaa saturation-sekoitus 0,6 (= kylläisyys 0,4) ja valkoinen harso
+    // 0,3 (= ryhmän opacity 0,7 valkoisella pohjalla). Eristys (isolation) on koko SVG:ssä (CSS) eikä
+    // ryhmässä: sekoituksen tausta on silloin SVG:n valkoinen pohja, joten puuttuvan tiilen läpinäkyvä
+    // kohta jää valkoiseksi eikä harmaaksi, ja PDF:n läpinäkyvyysryhmä rajautuu karttaan.
+    // Suorakulmiot kattavat koko tiilialueen, koska kirjelaatikkoalue näyttää tiilet viewBoxin ulkopuolelta.
+    const bx = f(X(lonOf(x0, z))), by = f(Y(latOf(y0, z)));
+    const bw = f(X(lonOf(x1 + 1, z)) - X(lonOf(x0, z)) + 1), bh = f(Y(latOf(y1 + 1, z)) - Y(latOf(y0, z)) + 1);
+    out.push(`<g class="pm-base">${imgs.join("")}`
+      + `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="#808080" opacity="0.6" style="mix-blend-mode:saturation"/>`
+      + `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="#fff" fill-opacity="0.3"/></g>`);
   }
 
   // 1) reittiviivat + suuntanuolet
@@ -15315,7 +15325,8 @@ function bindBookletTab(routes, today) {
     const probeAliases = probe.map((d, i) => `p${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
     const upcoming = p => probe.reduce((n, _, i) => n + ((p["p" + i] || []).length), 0);
 
-    const sections = await mapLimit(selected, 4, async (routeId) => {
+    // 6 linjaa rinnakkain (oli 4): koonti on verkon odotusta, kutsut ~0,1 s (profiloitu 23.9.2026).
+    const sections = await mapLimit(selected, 6, async (routeId) => {
       try {
         const ids = await lineIds(routeId);
         const { data } = await cachedGql("proute:" + ids.join(","),
@@ -15344,6 +15355,10 @@ function bindBookletTab(routes, today) {
           primaries = byId.length ? byId : (primaries[Number(dirChoice)] ? [primaries[Number(dirChoice)]] : []);
         }
         if (!primaries.length) return null;
+        // Linjan tulostettavien suuntien patternit yhtenä eräkyselynä (5/pyyntö) eikä kutsuna per
+        // pattern: Joensuun koko vihko 228 -> 96 kutsua (23.9.2026). Epäonnistunut erä haetaan yksitellen.
+        const ptdMemo = new Map();
+        await patternTripsMany(primaries.flatMap(p => (byDir.get(dirKey(p)) || [p]).map(q => q.code)), ptdMemo);
         const dirs = await Promise.all(primaries.map(async p => {
           const stops = p.stops || [];
           const label = stops.length
@@ -15353,7 +15368,7 @@ function bindBookletTab(routes, today) {
           // Suunnan kaikki variantit unioniin (monivarianttilinjat).
           const dirPats = byDir.get(dirKey(p)) || [p];
           let trips = [], groups = [];
-          try { trips = await dirTripsWithDays(dirPats); groups = groupTripsByDays(trips, date); }
+          try { trips = await dirTripsWithDays(dirPats, ptdMemo); groups = groupTripsByDays(trips, date); }
           catch (e) { groups = []; }
           groups = groups.filter(g => bucketMatch(g.dows));
           return { label, stops, groups, trips };
