@@ -49,12 +49,6 @@ nämä samoin kuin tapaamisista kirjatut signaalit.
 
 ## Avoimet
 
-- [ ] worker/worker.js: toteuta admin-kirjautumiselle Cloudflare Access -JWT-varmennus
-      (`Cf-Access-Jwt-Assertion`) kun `env.ADMIN_ACCESS_AUD` on asetettu, nykyisen
-      salasanaistunnon rinnalle (ks. TODO-kommentti `isAdmin`-funktiossa). Todennus: uusi
-      yksikkötestirivi worker/*.test.js:ään, joka hyväksyy kelvollisen JWT:n oikealla `aud`:lla
-      ja hylkää väärän `aud`:n tai peukaloidun allekirjoituksen.
-      (agentin ehdotus 2026-08-29, lähde: koodi/TODO)
 - [ ] `tests/kausivalidointi.js`: serviceId-luokitin tuntee vain koulun ja loman
       (`/koul/i`, `KP`, `/loma/i`, `LP`), joten kausi- ja viikonpaivavariantit
       putoavat luokittelemattomiksi ja jokainen kausivaihdos tuottaa WARN-riveja joita ei voi
@@ -69,6 +63,12 @@ nämä samoin kuin tapaamisista kirjatut signaalit.
 
 ## Tehdyt
 
+- [x] worker/worker.js: toteuta admin-kirjautumiselle Cloudflare Access -JWT-varmennus
+      (`Cf-Access-Jwt-Assertion`) kun `env.ADMIN_ACCESS_AUD` on asetettu, nykyisen
+      salasanaistunnon rinnalle (ks. TODO-kommentti `isAdmin`-funktiossa). Todennus: uusi
+      yksikkötestirivi worker/*.test.js:ään, joka hyväksyy kelvollisen JWT:n oikealla `aud`:lla
+      ja hylkää väärän `aud`:n tai peukaloidun allekirjoituksen.
+      (agentin ehdotus 2026-08-29, lähde: koodi/TODO) (PR, 2026-09-04)
 - [x] README.md: lisää lyhyt kohta joka vastaa suoraan kysymykseen "missä data on ja mitä
       tapahtuu jos toimittaja katoaa" (data luetaan aina suoraan kaupungin omasta
       Digitransit/Waltti-GTFS-syötteestä avoimella standardilla, Reittari ei tallenna omaa

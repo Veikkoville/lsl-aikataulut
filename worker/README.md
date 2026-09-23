@@ -41,8 +41,11 @@ API tarjoillaan samasta originista, joten eväste toimii ilman CORS-säätöä.
 **Tuotantoon (suositus): Cloudflare Access.** Laita `/admin*`-reitin eteen
 Cloudflare Access (Zero Trust) -sovellus, jolloin kaupungin henkilöstö kirjautuu
 omilla Google-/Microsoft-/sähköpostitunnuksillaan (SSO), eikä salasanoja käsitellä
-itse. `isAdmin()`-funktioon on jätetty koukku Access-JWT:n varmennukselle
-(`ADMIN_ACCESS_AUD`). Ilmainen ≤50 käyttäjälle.
+itse. Kun asetat molemmat `ADMIN_ACCESS_AUD` (Access-sovelluksen aud-tunniste) ja
+`ADMIN_ACCESS_TEAM_DOMAIN` (Zero Trust -tiimin aliverkkotunnus, esim. `kunta` osoitteesta
+`kunta.cloudflareaccess.com`), `isAdmin()` hyväksyy myös Accessin `Cf-Access-Jwt-Assertion`
+-otsakkeen (RS256, varmennetaan Accessin julkista JWKS:ää vasten) salasanaistunnon
+rinnalla. Ilmainen ≤50 käyttäjälle.
 
 Hallittava sisältö on Workers KV:ssä yhdessä avaimessa per tyyppi/kaupunki
 (`admin:alerts:<kaupunki>`, `admin:fares:<kaupunki>`) → ei kuormita KV:n
