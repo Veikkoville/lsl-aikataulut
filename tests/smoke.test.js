@@ -2193,6 +2193,27 @@ async function printHygiene(page, label) {
     ? ok(`junanaytto: saapuvat junat omana taulukkonaan lähtöasemineen (IC 98 ${railFix.mista}), ei siirtoja`)
     : fail("junanaytto: saapuvat junat: " + JSON.stringify(railFix));
 
+  // --- Päätepysäkin saapumiset eivät ole lähtöjä (Joensuun seutulinjat 24.9.2026) ---
+  // Pysäkin JOENSUU julisteessa ja lähtölistassa näkyi saapuvia vuoroja lähtöinä: päätepysäkille
+  // saapuvat ja kilvellä "Joensuu - PKKS" 5 min keskussairaalaan jatkavat. Sääntö testataan
+  // vakioaineistolla, koska oikean pysäkin sisältö riippuu kellonajasta.
+  const saapumiset = await page.evaluate(() => {
+    const st = (headsign, dep, loppuId, loppu, alkuId, alku) => ({ headsign, scheduledDeparture: dep,
+      trip: { arrivalStoptime: { scheduledArrival: loppu, stop: { gtfsId: loppuId } },
+              departureStoptime: { scheduledDeparture: alku, stop: { gtfsId: alkuId } } } });
+    const stop = { gtfsId: "X:1", name: "JOENSUU", stoptimesWithoutPatterns: [
+      st("Joensuu", 65000, "X:1", 65000, "X:9", 60000),               // päätepysäkille saapuva
+      st("Joensuu - PKKS", 25500, "X:2", 25800, "X:9", 22000),        // 5 min jatko sairaalaan
+      st("Outokumpu", 65700, "X:3", 69300, "X:9", 64000),             // oikea lähtö
+      st("Joensuu", 30000, "X:1", 30600, "X:1", 30000),               // lyhyt silmukka alkaa tästä
+      st("Joensuu", 40000, "X:5", 43000, "X:9", 38000)] };            // jatkaa yli 15 min: lähtö
+    dropArrivals(stop, "X:1");
+    return stop.stoptimesWithoutPatterns.map(s => s.headsign + "@" + s.scheduledDeparture);
+  }).catch(e => "virhe: " + e.message);
+  (JSON.stringify(saapumiset) === '["Outokumpu@65700","Joensuu@30000","Joensuu@40000"]')
+    ? ok("lähtölistat: päätepysäkin saapumiset ja lyhyet jatkot pois, alkupysäkki ja pitkä jatko jäävät")
+    : fail("lähtölistat: saapumissuodatin: " + JSON.stringify(saapumiset));
+
   // --- Konsolivirheet ---
   // Nimeä verkkovirheet: jokainen "Failed to load resource: net::X" kuluttaa ensimmäisen
   // vielä käyttämättömän requestfailed-tapahtuman jolla on sama virheteksti. Osoitteesta

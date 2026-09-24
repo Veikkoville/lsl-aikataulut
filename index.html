@@ -7832,13 +7832,43 @@ function bindFavButton(item) {
   });
 }
 
+// Saapuva vuoro, joka näyttäisi lähdöltä (Joensuun seutulinjat 24.9.2026). Kaksi tapausta:
+// (1) pysäkki on vuoron päätepysäkki: syöte ei aina merkitse päätepysäkin noutoa pois
+//     (pickup_type), joten omitNonPickups ei suodata sitä (JOENSUU: 401 "Joensuu" 18:50);
+// (2) bussin kilpi kertoo tämän pysäkin paikan ja vuoro jatkaa enää lyhyen matkan (JOENSUU:
+//     "Joensuu - PKKS" jatkaa 5-10 min keskussairaalaan, vihkossa vain tarvittaessa).
+// Aikaraja ja vuoron alkupysäkki suojaavat lyhyitä silmukoita ja läpiajolinjoja, joiden kilpi
+// voi olla pysäkin paikka kesken reitin.
+const ARRIVAL_TAIL_MAX_S = 15 * 60;
+function arrivingHere(headsign, stopName, secsLeft, isFirst) {
+  if (isFirst || !(secsLeft >= 0 && secsLeft <= ARRIVAL_TAIL_MAX_S)) return false;
+  const paikka = String(headsign || "").split(/\s+[-–]\s+/)[0].trim().toLowerCase();
+  const nimi = String(stopName || "").trim().toLowerCase();
+  return !!paikka && (nimi === paikka || nimi.startsWith(paikka + " "));
+}
+// Lähtölistojen kyselyihin: vuoron ensimmäinen ja viimeinen pysähdys (dropArrivals).
+const TRIP_ENDS_FIELDS = "departureStoptime { scheduledDeparture stop { gtfsId } } " +
+  "arrivalStoptime { scheduledArrival stop { gtfsId } }";
+function dropArrivals(stop, stopId) {
+  if (!stop || !Array.isArray(stop.stoptimesWithoutPatterns)) return;
+  const id = stopId || stop.gtfsId;
+  stop.stoptimesWithoutPatterns = stop.stoptimesWithoutPatterns.filter(st => {
+    const a = st.trip?.arrivalStoptime, d = st.trip?.departureStoptime;
+    if (!a || a.scheduledArrival == null) return true;   // vanha välimuisti: ei tietoa, ei suodateta
+    const left = a.scheduledArrival - st.scheduledDeparture;
+    if (a.stop?.gtfsId === id && left < 60) return false;
+    const first = !!d && d.stop?.gtfsId === id && d.scheduledDeparture === st.scheduledDeparture;
+    return !arrivingHere(st.headsign, stop.name, left, first);
+  });
+}
+
 const FAV_STOPS_QUERY = `
   query ($ids: [String!]!) {
     stops(ids: $ids) {
       gtfsId name@L code
       stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
         scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
-        trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } }
+        trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } ${TRIP_ENDS_FIELDS} }
       }
     }
   }`;
@@ -7884,7 +7914,7 @@ const NEARBY_QUERY = `
         gtfsId name@L code wheelchairBoarding
         stoptimesWithoutPatterns(numberOfDepartures: 3, omitNonPickups: true) {
           scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
-          trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } }
+          trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } ${TRIP_ENDS_FIELDS} }
         }
       } } }
     }
@@ -7993,6 +8023,7 @@ function depTableRows(stoptimes) {
 }
 
 function stopDepGroupHtml(stop, extra) {
+  dropArrivals(stop);
   const rows = depTableRows(stop.stoptimesWithoutPatterns);
   if (!rows) return "";
   const acc = stop.wheelchairBoarding === "POSSIBLE"
@@ -8817,6 +8848,10 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
         // sama etusija kuin vanhassa julisteessa: pysäkkikohtainen kilpi ensin
         // (sisältää via-tiedon, esim. "Soltti via Yliopisto - Mukkula")
         const headsign = st.headsign || tr.tripHeadsign || p.headsign || r.longName || "";
+        // Saapuva vuoro, jonka kilpi on tämän pysäkin paikka ja joka jatkaa enää lyhyen matkan
+        // (JOENSUU: 15 "lähtöä" kohteisiin "Joensuu" ja "Joensuu - PKKS"), ks. arrivingHere.
+        if (arrivingHere(headsign, st.stop?.name,
+          (sts[sts.length - 1].scheduledDeparture ?? 0) - st.scheduledDeparture, i === 0)) continue;
         const key = (r.shortName || "") + " " + headsign;
         if (!byLine.has(key)) byLine.set(key, { route: r, headsign, trips: [] });
         byLine.get(key).trips.push({
@@ -9246,6 +9281,13 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   // Nyt: ensimmäinen pysäkki, jonka kautta kulkee vähintään 80 % suurimmasta kattavuudesta.
   // Vuoron viimeistä pysäkkiä ei lasketa (se on saapuminen, ei lähtö). Vuorot, jotka eivät
   // kulje valitun pysäkin kautta, näytetään omalta lähtöpysäkiltään merkinnällä (fetchDeps).
+  // Seutulinjat 24.9.2026: yksi syöttö- tai lyhytvuoro pudotti alkupysäkin alle 80 %:n ja ajat
+  // näytettiin keskeltä reittiä (401 Ammattiopisto I eikä Kuusjärvi, 490 Heinävaara eikä
+  // JOENSUU), eivätkä ne vastanneet vihkoa. Siksi hallitsevan patternin alkupysäkki voittaa, jos
+  // sen ohittaa alle puolet ja enintään kaksi tai 20 % suunnan vuoroista (ne näkyvät *-merkinnällä);
+  // muuten 80 %:n sääntö kuten ennen. Rajat mitattu 24.9.: 440:n kaksi neljästä vuorosta alkaa
+  // sairaalalta (vihkossa tarvittaessa) ja Fölin 11:n 40/95 Kauppatorilta, joten niissä yhteinen
+  // pysäkki pysyy lähtöpysäkkinä.
   const pickRefStop = (pat, allTrips) => {
     const stops = pat.stops || [];
     if (!stops.length) return null;
@@ -9258,6 +9300,8 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
         if (id && !seen.has(id)) { seen.add(id); cover.set(id, (cover.get(id) || 0) + 1); }
       }
     }
+    const n = (allTrips || []).length, ohi = n - (cover.get(stops[0].gtfsId) || 0);
+    if (n && ohi < n / 2 && ohi <= Math.max(2, 0.2 * n)) return stops[0];
     let max = 0;
     for (const s of stops) max = Math.max(max, cover.get(s.gtfsId) || 0);
     return stops.find(s => (cover.get(s.gtfsId) || 0) >= 0.8 * max && max > 0) || stops[0];
@@ -9710,12 +9754,13 @@ async function viewStop(stopId) {
            routes { gtfsId shortName color textColor }
            stoptimesWithoutPatterns(numberOfDepartures: 30, omitNonPickups: true) {
              scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
-             trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } }
+             trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } ${TRIP_ENDS_FIELDS} }
            }
          }
        }`, { id: stopId });
     if (!data.stop) throw new Error(t("errStopNotFound") + stopId);
     dedupStopDuplicates(data.stop);
+    dropArrivals(data.stop, stopId);
     return { stop: data.stop, cachedAt };
   };
 
@@ -9979,14 +10024,15 @@ async function viewMonitor(stopId) {
       `query ($id: String!) {
          stop(id: $id) {
            name@L code
-           stoptimesWithoutPatterns(numberOfDepartures: 12, omitNonPickups: true) {
+           stoptimesWithoutPatterns(numberOfDepartures: 20, omitNonPickups: true) {
              scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
-             trip { route { shortName color textColor } }
+             trip { route { shortName color textColor } ${TRIP_ENDS_FIELDS} }
            }
          }
        }`, { id: stopId });
     if (!data.stop) throw new Error(t("errStopNotFound") + stopId);
     dedupStopDuplicates(data.stop);
+    dropArrivals(data.stop, stopId);
     return { stop: data.stop, cachedAt };
   };
   // Kioskinäyttö on ilman valvojaa: jos verkko katkeaa, taulu EI saa jäädä väittämään
@@ -9997,7 +10043,7 @@ async function viewMonitor(stopId) {
     : `<span class="rt">●</span> ${t("monitorLive")}`;
 
   const rowsHtml = stop => {
-    const sts = stop.stoptimesWithoutPatterns || [];
+    const sts = (stop.stoptimesWithoutPatterns || []).slice(0, 12);
     if (!sts.length) return `<tr><td colspan="3" class="muted">${t("noUpcoming")}</td></tr>`;
     return sts.map(st => {
       const r = st.trip?.route || {};
@@ -11796,7 +11842,7 @@ const DESK_DEPS_QUERY = `query ($id: String!) {
     routes { gtfsId shortName }
     stoptimesWithoutPatterns(numberOfDepartures: 8, omitNonPickups: true) {
       scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
-      trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } }
+      trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } ${TRIP_ENDS_FIELDS} }
     }
   }
 }`;
@@ -12489,6 +12535,7 @@ async function viewServiceDesk() {
       const d = await gql(DESK_DEPS_QUERY, { id: gtfsId });
       if (!d.stop || curStop !== gtfsId) return;   // pysäkki vaihtui haun aikana → hylkää tulos
       dedupStopDuplicates(d.stop);
+      dropArrivals(d.stop, gtfsId);
       renderDeskDeps(d.stop);
     } catch (e) {
       const dep = document.getElementById("deskDeps");
