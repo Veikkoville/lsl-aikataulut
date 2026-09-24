@@ -88,11 +88,26 @@ async function gql(query, variables, router) {
   }
 }
 
-// Sama luokittelu kuin index.html:n päivätyyppiryhmittelyssä (yksi totuus tuotteessa,
-// tämä on sen kopio vahtia varten — jos tuotteen regex muuttuu, päivitä tämä).
+// Vahdin oma luokitin (laajempi kuin index.html:n koul/loma-merkintä, joka koskee vain
+// julisteen "koulupäivinä"/"loma-aikoina" -tekstiä). Tarkoitus tässä on eri: laskea kuinka
+// moni uusi serviceId noudattaa tuttua nimeämistapaa, jotta WARN jää vain aidosti
+// tuntemattomille (tutkimuskierros 31.8.2026, ks. AUTO-BACKLOG.md).
+//  - koul/loma: sama tunnistus kuin tuotteessa, joulun pyhät (Jouluaatto/Joulupäivä) luetaan
+//    lomaksi vaikka sana "loma" ei niissä esiinny.
+//  - kausi: talvi/kesä/syksy/kevät esiintyy nimessä, myös yhteen kirjoitettuna (esim.
+//    "Kesäaikataulu"), siksi osamerkkijonohaku eikä sanaraja.
+//  - viikonpaiva: nimi koostuu (myös osana, erottimien välissä) tunnetusta
+//    viikonpäiväyhdistelmästä (la-su, ma-pe, ma-to, mape, mato, la, su). Näille tarvitaan
+//    sanaraja, koska "la"/"su" ovat lyhyitä ja osuisivat väärin ilman sitä.
+const KAUSI_RE = /kes[aä]|talvi|syksy|kev[aä]t/i;
+const JOULU_RE = /jouluaatto|joulup[äa]iv[äa]/i;
+const VIIKONPAIVA_TOKENS = new Set(["la-su", "ma-pe", "ma-to", "mape", "mato", "la", "su"]);
+const isViikonpaiva = sid => sid.toLowerCase().split(/[^a-zäöå-]+/).some(t => VIIKONPAIVA_TOKENS.has(t));
 const classify = sid =>
   (/koul/i.test(sid) || /\bKP\b/.test(sid)) ? "koul"
-  : (/loma/i.test(sid) || /\bLP\b/.test(sid)) ? "loma" : "";
+  : (/loma/i.test(sid) || /\bLP\b/.test(sid) || JOULU_RE.test(sid)) ? "loma"
+  : KAUSI_RE.test(sid) ? "kausi"
+  : isViikonpaiva(sid) ? "viikonpaiva" : "";
 
 const compact = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 const plusDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
@@ -127,18 +142,18 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
     .filter(Boolean).sort();
   const known = new Set(baseline[key] || []);
   const fresh = sids.filter(s => !known.has(s));
-  const counts = { koul: 0, loma: 0, muu: 0 };
+  const counts = { koul: 0, loma: 0, kausi: 0, viikonpaiva: 0, muu: 0 };
   sids.forEach(s => counts[classify(s) || "muu"]++);
   if (!baseline[key]) {
     log("WARN", key, "serviceId-baseline", `puuttuu — ${sids.length} serviceId:tä kirjattu ehdotukseen`);
   } else if (fresh.length) {
     const unclassified = fresh.filter(s => !classify(s));
     log("WARN", key, "serviceId-uudet",
-      `${fresh.length} uutta serviceId:tä (${unclassified.length} ilman koul/loma-luokkaa): ` +
+      `${fresh.length} uutta serviceId:tä (${unclassified.length} ilman tunnettua luokkaa): ` +
       fresh.slice(0, 6).map(s => `"${s}"`).join(", ") + (fresh.length > 6 ? " …" : "") +
       " → tarkista tunnistus ja päivitä baseline");
   } else {
-    log("PASS", key, "serviceId-inventaario", `${sids.length} serviceId:tä, ei uusia (koul ${counts.koul} / loma ${counts.loma} / muu ${counts.muu})`);
+    log("PASS", key, "serviceId-inventaario", `${sids.length} serviceId:tä, ei uusia (koul ${counts.koul} / loma ${counts.loma} / kausi ${counts.kausi} / viikonpäivä ${counts.viikonpaiva} / muu ${counts.muu})`);
   }
   baseline["__ehdotus_" + key] = sids; // ehdotus talteen raporttiin
   await sleep(QUERY_GAP_MS);
@@ -217,6 +232,9 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
   }
 }
 
+// Suora ajo (node tests/kausivalidointi.js) vs. require yksikkötestistä (classify-luokitin):
+// jälkimmäinen ei saa käynnistää verkkokyselyjä.
+if (require.main === module)
 (async () => {
   const configs = extractConfigs();
   const cityFilter = process.argv.slice(2);
@@ -245,3 +263,5 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
   console.log("raportti: " + REPORT_PATH);
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error("kausivalidointi kaatui: " + e.message); process.exit(2); });
+
+module.exports = { classify };

@@ -49,7 +49,7 @@ nämä samoin kuin tapaamisista kirjatut signaalit.
 
 ## Avoimet
 
-- [ ] `tests/kausivalidointi.js`: serviceId-luokitin tuntee vain koulun ja loman
+- [x] `tests/kausivalidointi.js`: serviceId-luokitin tuntee vain koulun ja loman
       (`/koul/i`, `KP`, `/loma/i`, `LP`), joten kausi- ja viikonpaivavariantit
       putoavat luokittelemattomiksi ja jokainen kausivaihdos tuottaa WARN-riveja joita ei voi
       erottaa aidosta muutoksesta. Ajossa 2026-08-25 tuli 7 WARNia, 22 uutta serviceId:ta,
@@ -59,7 +59,7 @@ nämä samoin kuin tapaamisista kirjatut signaalit.
       oikeat serviceId:t fixtureina ja odottaa, etta jouluaatto ja joulupaiva luokittuvat
       lomaksi, talvi- ja la-su-variantit uusiin luokkiin, ja tuntemattomien maara putoaa
       15:sta korkeintaan kahteen.
-      (tutkimuskierros 2026-08-31, lahde: kausivalidointi-ajo 2026-08-25, run 32812513577)
+      (tutkimuskierros 2026-08-31, lahde: kausivalidointi-ajo 2026-08-25, run 32812513577) (PR, 2026-09-24)
 
 ## Tehdyt
 
