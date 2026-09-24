@@ -79,6 +79,24 @@
   } catch (e) { /* jos edes varjoa ei voi asentaa, sivu toimii kuten ennenkin */ }
 })();
 
+// ?city-parametri kanonisoidaan ennen muita skriptejä. Käsin kirjoitettu ?CITY=JOENSUU avasi
+// Lahden, koska URLSearchParams.get on kirjainkokotarkka myös parametrin nimessä (havaittu
+// Joensuun palaverissa 24.9.2026). Osoite korjataan muotoon ?city=<pienet>, jolloin teemaväri,
+// cityKey sekä QR-koodit ja jaetut linkit (appUrl lukee location.hrefin) näkevät saman arvon.
+(function () {
+  var qs = new URLSearchParams(location.search), arvo = null, nimet = [];
+  qs.forEach(function (v, k) {
+    if (k.toLowerCase() !== "city") return;
+    if (arvo === null) arvo = v;               // ensimmäinen voittaa, kuten get()
+    nimet.push(k);
+  });
+  if (arvo === null || (nimet.join() === "city" && arvo === arvo.toLowerCase())) return;
+  nimet.forEach(function (k) { qs.delete(k); });
+  qs.set("city", arvo.toLowerCase());
+  try { history.replaceState(history.state, "", location.pathname + "?" + qs + location.hash); }
+  catch (e) { /* osoitetta ei voi vaihtaa: sivu toimii kuten ennenkin */ }
+})();
+
 // Teema ratkaistaan ennen ensimmäistä maalausta välähdyksen välttämiseksi
 (function () {
   function apply() {
@@ -10560,6 +10578,12 @@ function viewExceptions() {
 
 const RAIL_API = "https://rata.digitraffic.fi/api/v1";
 
+// Matkustajakategorioissa (Long-distance, Commuter) kulkee myös tyhjän kaluston siirtoja:
+// HV (lähijunat), MV ja V. Mitattu rata.digitrafficista 14.-27.9.2026: junanumerot
+// 10001-12951, lähes aina 1-3 kaupallista pysähdystä. Joensuun palaverissa 24.9. lähtölistassa
+// näkyi "MV 10410 Parikkala", joka on siirto eikä matkustajajuna.
+const RAIL_TRANSFER_TYPES = new Set(["HV", "MV", "V"]);
+
 // CONFIG.rail on joko yksi asemakoodi ("LH") tai lista koodeja (["TMS", "KR"]).
 // Lista tarvitaan siellä, missä palvelutiski ja seudun kaukoliikenteen solmu ovat eri
 // asemilla. Raasepori 26.8.2026: tiskin oletuspysäkki on Ekenäs busstation
@@ -10608,6 +10632,7 @@ async function loadTrains(code, names) {
   for (const tr of await res.json()) {
     // vain matkustajajunat; tavara- ja työjunat pois
     if (tr.trainCategory !== "Long-distance" && tr.trainCategory !== "Commuter") continue;
+    if (RAIL_TRANSFER_TYPES.has(tr.trainType)) continue;
     const dep = (tr.timeTableRows || []).find(r =>
       r.stationShortCode === code && r.type === "DEPARTURE" && r.trainStopping !== false);
     if (!dep) continue;
