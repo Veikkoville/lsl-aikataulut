@@ -1344,6 +1344,14 @@
   .desk-aux { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.4rem; align-items: start; margin-top: 1.4rem; }
   @media (max-width: 820px) { .desk-aux { grid-template-columns: 1fr; } }
   .desk-aux .alert { font-size: 0.95em; }
+  /* Junapalsta kahden rivin korkuiseksi: hinnat nousevat häiriöiden alle eivätkä odota junapalstan
+     loppua (saapuvat junat 24.9.2026 pidensivät palstaa, ja hinnat valuivat 174-358 px alemmas). */
+  .desk-aux > .desk-trains { grid-row: span 2; }
+  /* Ensimmäinen rivi vain häiriölohkon korkuinen; muuten junapalstan korkeus jakautuu myös sille
+     ja häiriöiden ja hintojen väliin jää tyhjää. */
+  @media (min-width: 821px) { .desk-aux:has(> .desk-trains) { grid-template-rows: auto 1fr; } }
+  .desk-col .desk-rail-station { font-size: 1.05rem; margin: 0.6rem 0 0.1rem; }
+  .desk-col .desk-rail-kind { font-size: 0.95rem; color: var(--muted, #555); margin: 0.5rem 0 0.1rem; }
   /* Vyöhykehinnaston väliotsikko (Vaasa): erottaa vyöhykkeiden taulukot toisistaan
      ilman että tasataksakaupungin sivu muuttuu. */
   h4.fare-zone { margin: 1rem 0 0.35rem; font-size: 1em; font-weight: var(--wmed); color: var(--blue); }
@@ -3867,7 +3875,6 @@ const STRINGS = {
     corridorLineCol: "Linja", corridorDestCol: "Määränpää",
     corridorSharedNote: "Ajat yhteisillä pysäkeillä: {n} yhteistä pysäkkiä välillä {from}–{to}.",
     trainsLink: "Junat",
-    trainsTitle: "Junien lähdöt",
     trainsViewTitle: "Junien lähdöt ja saapumiset",
     trainsIntro: "Seuraavat lähtevät ja saapuvat junat asemalla {station}. Ajat päivittyvät automaattisesti.",
     trainsIntroMulti: "Seuraavat lähtevät ja saapuvat junat asemilla {stations}. Ajat päivittyvät automaattisesti.",
@@ -4449,7 +4456,6 @@ const STRINGS = {
     corridorLineCol: "Line", corridorDestCol: "Destination",
     corridorSharedNote: "Times at shared stops: {n} shared stops between {from}–{to}.",
     trainsLink: "Trains",
-    trainsTitle: "Train departures",
     trainsViewTitle: "Train departures and arrivals",
     trainsIntro: "Next departing and arriving trains at {station}. Times update automatically.",
     trainsIntroMulti: "Next departing and arriving trains at the stations {stations}. Times update automatically.",
@@ -5031,7 +5037,6 @@ const STRINGS = {
     corridorLineCol: "Linje", corridorDestCol: "Destination",
     corridorSharedNote: "Tider vid gemensamma hållplatser: {n} gemensamma hållplatser mellan {from}–{to}.",
     trainsLink: "Tåg",
-    trainsTitle: "Tågavgångar",
     trainsViewTitle: "Avgående och ankommande tåg",
     trainsIntro: "Följande avgående och ankommande tåg vid {station}. Tiderna uppdateras automatiskt.",
     trainsIntroMulti: "Följande avgående och ankommande tåg vid stationerna {stations}. Tiderna uppdateras automatiskt.",
@@ -12201,8 +12206,8 @@ async function viewServiceDesk() {
           <h2 id="deskAlertsH">${icon("warning")} ${t("deskAlertsTitle")}</h2>
           <div id="deskAlerts"><p class="muted">${t("loadingAlerts")}</p></div>
         </section>
-        ${railCodes().length ? `<section class="desk-col" aria-labelledby="deskTrainsH">
-          <h2 id="deskTrainsH">${icon("train")} ${t("trainsTitle")}</h2>
+        ${railCodes().length ? `<section class="desk-col desk-trains" aria-labelledby="deskTrainsH">
+          <h2 id="deskTrainsH">${icon("train")} ${t("trainsViewTitle")}</h2>
           <div id="deskTrains" aria-live="polite"><p class="muted">…</p></div>
           <p class="muted">${t("trainsSrc")}</p>
         </section>` : ""}
@@ -12284,10 +12289,10 @@ async function viewServiceDesk() {
   if (deskRail.length) {
     const mySeq = viewSeq;
     const drawTrains = async () => {
-      let names, tulokset;
+      let names, lahdot, saapuvat;
       try {
         names = await railStationNames();
-        tulokset = await loadTrainsAll(deskRail, names);
+        [lahdot, saapuvat] = await Promise.all([loadTrainsAll(deskRail, names), loadTrainsAll(deskRail, names, "ARRIVAL")]);
       } catch (e) {
         const el = document.getElementById("deskTrains");
         if (el && mySeq === viewSeq) el.innerHTML = `<p class="muted">${t("trainsErr")}</p>`;
@@ -12295,14 +12300,19 @@ async function viewServiceDesk() {
       }
       const el = document.getElementById("deskTrains");
       if (!el || mySeq !== viewSeq) return;
-      // Sivupalsta on kapea: yhdellä asemalla mahtuu 6 riviä, kahdella 4 per asema,
-      // jotta junalohko ei työnnä hinta- ja häiriölohkoja näkyvistä.
-      const raja = deskRail.length > 1 ? 4 : 6;
-      el.innerHTML = tulokset.map(({ code, rows }) => {
-        const sisalto = rows === null ? `<p class="muted">${t("trainsErr")}</p>`
-          : rows.length ? railTableHtml(rows, raja) : `<p class="muted">${t("trainsEmpty")}</p>`;
+      // Sivupalsta on kapea: yhdellä asemalla 4 lähtevää + 4 saapuvaa, kahdella 3 + 3 per asema,
+      // jotta junalohko ei työnnä hinta- ja häiriölohkoja näkyvistä. Saapuvat lisättiin Joensuun
+      // toiveesta 24.9.2026 (tiskillä kysytään myös, milloin juna tulee).
+      const raja = deskRail.length > 1 ? 3 : 4;
+      const hk = deskRail.length > 1 ? "h4" : "h3";
+      const lista = (rows, kind) => rows === null ? `<p class="muted">${t("trainsErr")}</p>`
+        : rows.length ? railTableHtml(rows, raja, kind)
+        : `<p class="muted">${t(kind === "ARRIVAL" ? "trainsArrEmpty" : "trainsEmpty")}</p>`;
+      el.innerHTML = deskRail.map((code, i) => {
+        const sisalto = `<${hk} class="desk-rail-kind">${t("trainsDepH")}</${hk}>${lista(lahdot[i].rows, "DEPARTURE")}` +
+          `<${hk} class="desk-rail-kind">${t("trainsArrH")}</${hk}>${lista(saapuvat[i].rows, "ARRIVAL")}`;
         return deskRail.length > 1
-          ? `<p class="muted" style="margin:0.4rem 0 0.2rem"><strong>${esc(names[code] || code)}</strong></p>${sisalto}`
+          ? `<h3 class="desk-rail-station">${esc(names[code] || code)}</h3>${sisalto}`
           : sisalto;
       }).join("");
     };

@@ -610,14 +610,17 @@ async function printHygiene(page, label) {
   const dTrains = await page.waitForFunction(
     () => document.querySelectorAll("#deskTrains table tbody tr").length > 0,
     { timeout: 20000 }).then(() => true).catch(() => false);
+  // Lähtevät + saapuvat (Joensuun toive 24.9.2026): kaksi taulukkoa, kummassakin 4 saraketta.
   const dTrainInfo = await page.evaluate(() => ({
     rows: document.querySelectorAll("#deskTrains table tbody tr").length,
+    tables: document.querySelectorAll("#deskTrains table").length,
     heads: document.querySelectorAll("#deskTrains table thead th").length,
+    kinds: document.querySelectorAll("#deskTrains .desk-rail-kind").length,
     txt: (document.getElementById("deskTrains")?.textContent || "").trim().slice(0, 60),
   }));
-  (dTrains && dTrainInfo.heads === 4)
-    ? ok(`palvelutiski: junalähdöt lohkossa (${dTrainInfo.rows} junaa, rata.digitraffic)`)
-    : fail("palvelutiski: junalähdöt eivät renderöityneet: " + JSON.stringify(dTrainInfo));
+  (dTrains && dTrainInfo.tables === 2 && dTrainInfo.heads === 8 && dTrainInfo.kinds === 2)
+    ? ok(`palvelutiski: junien lähdöt ja saapumiset lohkossa (${dTrainInfo.rows} junaa, rata.digitraffic)`)
+    : fail("palvelutiski: junalohko ei renderöitynyt lähtevät + saapuvat: " + JSON.stringify(dTrainInfo));
   // Poistuminen purkaa koko ruudun tilan
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   (await page.evaluate(() => document.body.classList.contains("desk-mode")))
@@ -2185,6 +2188,12 @@ async function printHygiene(page, label) {
     return { lahtevat: tunnukset(osiot[0]), saapuvat: tunnukset(osiot[1]),
       mista: osiot[1]?.querySelector("tbody td:nth-child(3)")?.textContent.trim() || "" };
   });
+  // Palvelutiski samalla vakioaineistolla: sivupalstassa lähtevät ja saapuvat, ei siirtoja.
+  await railPage.goto(BASE + "/?city=lahti#/palvelutiski", { waitUntil: "networkidle2" });
+  await railPage.waitForFunction(() => document.querySelectorAll("#deskTrains table").length >= 2,
+    { timeout: 20000 }).catch(() => {});
+  railFix.tiski = await railPage.evaluate(() => [...document.querySelectorAll("#deskTrains table")]
+    .map(tb => [...tb.querySelectorAll("tbody .badge")].map(b => b.textContent.trim())));
   await railPage.close();
   (JSON.stringify(railFix.lahtevat) === '["IC 99"]')
     ? ok("junanaytto: siirtojuna (MV) ei näy lähtevissä, matkustajajuna (IC) näkyy")
@@ -2192,6 +2201,9 @@ async function printHygiene(page, label) {
   (JSON.stringify(railFix.saapuvat) === '["IC 98"]' && railFix.mista && railFix.mista !== "LH")
     ? ok(`junanaytto: saapuvat junat omana taulukkonaan lähtöasemineen (IC 98 ${railFix.mista}), ei siirtoja`)
     : fail("junanaytto: saapuvat junat: " + JSON.stringify(railFix));
+  (JSON.stringify(railFix.tiski) === '[["IC 99"],["IC 98"]]')
+    ? ok("palvelutiski: junalohkossa lähtevät ja saapuvat, siirtojunat pois (vakioaineisto)")
+    : fail("palvelutiski: junalohko vakioaineistolla: " + JSON.stringify(railFix.tiski));
 
   // --- Päätepysäkin saapumiset eivät ole lähtöjä (Joensuun seutulinjat 24.9.2026) ---
   // Pysäkin JOENSUU julisteessa ja lähtölistassa näkyi saapuvia vuoroja lähtöinä: päätepysäkille
