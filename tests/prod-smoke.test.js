@@ -597,15 +597,21 @@ function writeReport() {
         if (await page.$("#bookletLayout")) {
           await page.goto(url("#/tulosteet/vihko"), { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
           await page.waitForSelector(".lineCb", { timeout: 60000 }).catch(() => {});
-          await page.evaluate(() => { document.querySelector(".lineCb").checked = true; });
           await page.select("#bookletLayout", "compact");
-          await page.$eval("#buildBtn", el => el.click());   // DOM-klikkaus (pehmeä vieritys)
-          const cbOk2 = await page.waitForSelector("#bookletOut .booklet-line.compact .cb-grid tbody tr", { timeout: 90000 })
-            .then(() => true).catch(() => false);
-          if (!cbOk2) {
-            fail(city.key, "tiivis vihko", "tuntiruudukkoa ei muodostunut 90 s kuluessa");
-          } else {
-            const cb = await page.evaluate(() => {
+          // Listan ensimmäinen linja voi olla harva koululinja (Raasepori 41: kaksi vuoroa koulupäivinä,
+          // todennettu rajapinnasta 24.9.2026; myös 103, 103k ja 104n ovat harvoja), jolloin 5 lähtöminuutin
+          // raja kaatoi testin vaikka vihko oli oikein. Ensimmäinen linja testataan kuten ennen; jos siinä on
+          // alle 5 lähtöä, testataan listan vuororikkain linja (vuoromäärät rajapinnasta). Raja pysyy.
+          const rakenna = async i => {
+            await page.evaluate(i => {
+              document.querySelectorAll(".lineCb").forEach((c, k) => { c.checked = k === i; });
+              document.getElementById("bookletOut").innerHTML = "";
+            }, i);
+            await page.$eval("#buildBtn", el => el.click());   // DOM-klikkaus (pehmeä vieritys)
+            const ok = await page.waitForSelector("#bookletOut .booklet-line.compact .cb-grid tbody tr", { timeout: 90000 })
+              .then(() => true).catch(() => false);
+            if (!ok) return { ok, cb: null };
+            return { ok, cb: await page.evaluate(() => {
               const L = document.querySelector("#bookletOut .booklet-line.compact");
               const mins = [...L.querySelectorAll(".cb-grid tbody td")].flatMap(td => td.textContent.trim().split(/\s+/).filter(Boolean));
               const pages = vkPaginate(vkCollectAtoms(document.getElementById("bookletOut")));
@@ -619,12 +625,31 @@ function writeReport() {
                 return { s: i + 1, h: Math.round(r.height - 190 * 96 / 25.4), w: Math.round(m.scrollWidth - m.clientWidth) }; })
                 .filter(x => x.h > 0 || x.w > 1);
               m.remove();
-              return { lahtoja: mins.length, muoto: mins.every(x => /^\d{2}[a-z]*$/.test(x)),
+              const lab = document.querySelector(".lineCb:checked")?.closest("label");
+              return { linja: (lab?.innerText || "").trim().slice(0, 40),
+                lahtoja: mins.length, muoto: mins.every(x => /^\d{2}[a-z]*$/.test(x)),
                 jana: L.querySelectorAll(".cb-strip circle").length, lineP, gridP, yli };
+            }) };
+          };
+          let { ok: cbOk2, cb } = await rakenna(0);
+          if (cbOk2 && cb.lahtoja < 5) {
+            const j = await page.evaluate(async () => {
+              const ids = [...document.querySelectorAll(".lineCb")].map(c => c.value).slice(0, 30);
+              const q = "{" + ids.map((id, k) => `r${k}: route(id: ${JSON.stringify(id)}) { patterns { trips { gtfsId } } }`).join(" ") + "}";
+              try {
+                const d = await gql(q);
+                const n = ids.map((_, k) => (d[`r${k}`]?.patterns || []).reduce((s, p) => s + (p.trips || []).length, 0));
+                return n.indexOf(Math.max(...n));
+              } catch (e) { return -1; }
             });
+            if (j > 0) ({ ok: cbOk2, cb } = await rakenna(j));
+          }
+          if (!cbOk2) {
+            fail(city.key, "tiivis vihko", "tuntiruudukkoa ei muodostunut 90 s kuluessa");
+          } else {
             (cb.lahtoja >= 5 && cb.muoto && cb.jana >= 2 && cb.lineP.length && cb.lineP.every(n => n % 2 === 0)
               && cb.gridP.length && cb.gridP[0] === cb.lineP[0] + 1 && !cb.yli.length)
-              ? pass(city.key, "tiivis vihko", `${cb.lahtoja} lähtöminuuttia, reittijanassa ${cb.jana} pysäkkiä, aukeama sivut ${cb.lineP[0]}-${cb.gridP[0]}, ei ylivuotoa`)
+              ? pass(city.key, "tiivis vihko", `linja ${cb.linja}: ${cb.lahtoja} lähtöminuuttia, reittijanassa ${cb.jana} pysäkkiä, aukeama sivut ${cb.lineP[0]}-${cb.gridP[0]}, ei ylivuotoa`)
               : fail(city.key, "tiivis vihko", "sisältö tai aukeama pielessä: " + JSON.stringify(cb));
           }
         }
