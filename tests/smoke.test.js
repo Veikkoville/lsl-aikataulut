@@ -2124,59 +2124,74 @@ async function printHygiene(page, label) {
   // --- Junanaytto: kaksi asemaa (Raasepori) ---
   // Raaseporin palvelutiskin oletuspysakki on Ekenas busstation (Tammisaari), mutta
   // junalohko naytti aiemmin vain Karjaan, koska CONFIG.rail oli yksi asemakoodi.
-  // Nyt rail voi olla lista. Tarkistus assertoi RAKENNETTA (kaksi asemaotsikkoa, kaksi
-  // taulukkoa, ei virhelohkoa) eika asemien nimia tai lahtojen sisaltoa: junatarjonta
+  // Nyt rail voi olla lista. Tarkistus assertoi RAKENNETTA (kaksi asemaotsikkoa, asemaa kohden
+  // lähtevät + saapuvat, ei virhelohkoa) eika asemien nimia tai lahtojen sisaltoa: junatarjonta
   // vaihtuu vuorokaudenajan mukaan, mutta asemien maara ei.
   await page.goto(BASE + "/?city=raasepori#/junat", { waitUntil: "networkidle2" });
   await expect("#trainsOut table", "junanaytto (Raasepori): junalahdot renderoityvat");
   const railTwo = await page.evaluate(() => ({
-    otsikot: [...document.querySelectorAll("#trainsOut h3")].map(h => h.textContent.trim()),
+    otsikot: [...document.querySelectorAll("#trainsOut h3.rail-station")].map(h => h.textContent.trim()),
+    osiot: document.querySelectorAll("#trainsOut .rail-cols > section").length,
     taulukot: document.querySelectorAll("#trainsOut table").length,
     virhe: !!document.querySelector("#trainsOut .error"),
     intro: document.getElementById("trainsIntro")?.textContent || "",
   }));
-  (railTwo.otsikot.length === 2 && railTwo.otsikot[0] !== railTwo.otsikot[1]
-    && railTwo.taulukot === 2 && !railTwo.virhe && railTwo.intro.length > 0)
-    ? ok(`junanaytto (Raasepori): kaksi asemaa omina lohkoinaan (${railTwo.otsikot.join(" + ")})`)
+  (railTwo.otsikot.length === 2 && railTwo.otsikot[0] !== railTwo.otsikot[1] && railTwo.osiot === 4
+    && railTwo.taulukot === 4 && !railTwo.virhe && railTwo.intro.length > 0)
+    ? ok(`junanaytto (Raasepori): kaksi asemaa omina lohkoinaan, lähtevät + saapuvat (${railTwo.otsikot.join(" + ")})`)
     : fail("junanaytto (Raasepori): " + JSON.stringify(railTwo));
 
-  // Regressio: yhden aseman kaupungissa ulkoasu ei saa muuttua (ei asemaotsikkoa).
+  // Regressio: yhden aseman kaupungissa ei asemaotsikkoa, lähtevät + saapuvat.
   await page.goto(BASE + "/?city=lahti#/junat", { waitUntil: "networkidle2" });
   await expect("#trainsOut table", "junanaytto (Lahti): junalahdot renderoityvat");
   const railOne = await page.evaluate(() => ({
-    otsikot: document.querySelectorAll("#trainsOut h3").length,
+    otsikot: document.querySelectorAll("#trainsOut .rail-station").length,
+    osiot: document.querySelectorAll("#trainsOut .rail-cols > section").length,
     taulukot: document.querySelectorAll("#trainsOut table").length,
     virhe: !!document.querySelector("#trainsOut .error"),
   }));
-  (railOne.otsikot === 0 && railOne.taulukot === 1 && !railOne.virhe)
-    ? ok("junanaytto: yhden aseman kaupunki ennallaan, ei asemaotsikkoa (regressio)")
+  (railOne.otsikot === 0 && railOne.osiot === 2 && railOne.taulukot === 2 && !railOne.virhe)
+    ? ok("junanaytto: yhden aseman kaupunki ilman asemaotsikkoa, lähtevät + saapuvat")
     : fail("junanaytto (Lahti): " + JSON.stringify(railOne));
 
-  // Siirtojunat pois lähtölistasta (Joensuun palaveri 24.9.2026: "MV 10410 Parikkala" näkyi
-  // matkustajajunana). Rajapinnan vastaus korvataan vakioaineistolla omalla sivulla, jotta tarkistus
-  // ei riipu siitä, kulkeeko siirtoa juuri ajohetkellä: yksi IC ja yksi MV, vain IC saa näkyä.
+  // Siirtojunat pois (Joensuun palaveri 24.9.2026: "MV 10410 Parikkala" näkyi matkustajajunana) ja
+  // saapuvat junat (Joensuun toive samasta palaverista). Rajapinnan vastaus korvataan vakioaineistolla
+  // omalla sivulla, jotta tarkistus ei riipu päivän junista: lähtevissä IC 99 + MV 10410, saapuvissa
+  // IC 98 Helsingistä + MV 10411. Vain IC-junat saavat näkyä, saapuvassa lähtöasema.
   const railPage = await browser.newPage();
   await railPage.setRequestInterception(true);
-  const lahto = new Date(Date.now() + 30 * 60000).toISOString();
-  const juna = (tyyppi, numero) => ({ trainNumber: numero, trainType: tyyppi, trainCategory: "Long-distance",
-    cancelled: false, timeTableRows: [
-      { stationShortCode: "LH", type: "DEPARTURE", scheduledTime: lahto, trainStopping: true, commercialStop: true, commercialTrack: "1" },
-      { stationShortCode: "HKI", type: "ARRIVAL", scheduledTime: lahto, trainStopping: true, commercialStop: true }] });
+  const aika = new Date(Date.now() + 30 * 60000).toISOString();
+  const rivi = (asema, tyyppi) => ({ stationShortCode: asema, type: tyyppi, scheduledTime: aika,
+    trainStopping: true, commercialStop: true, commercialTrack: "1" });
+  const juna = (tyyppi, numero, rivit) => ({ trainNumber: numero, trainType: tyyppi,
+    trainCategory: "Long-distance", cancelled: false, timeTableRows: rivit });
+  const lahtevat = [juna("IC", 99, [rivi("LH", "DEPARTURE"), rivi("HKI", "ARRIVAL")]),
+    juna("MV", 10410, [rivi("LH", "DEPARTURE"), rivi("HKI", "ARRIVAL")])];
+  const saapuvat = [juna("IC", 98, [rivi("HKI", "DEPARTURE"), rivi("LH", "ARRIVAL")]),
+    juna("MV", 10411, [rivi("HKI", "DEPARTURE"), rivi("LH", "ARRIVAL")])];
   const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" };
   railPage.on("request", req => {
     if (!req.url().includes("rata.digitraffic.fi/api/v1/live-trains/station/")) return req.continue();
     if (req.method() === "OPTIONS") return req.respond({ status: 204, headers: cors });
+    const saapuvatKysely = /[?&]arriving_trains=[1-9]/.test(req.url());
     req.respond({ status: 200, contentType: "application/json", headers: cors,
-      body: JSON.stringify([juna("IC", 99), juna("MV", 10410)]) });
+      body: JSON.stringify(saapuvatKysely ? saapuvat : lahtevat) });
   });
   await railPage.goto(BASE + "/?city=lahti#/junat", { waitUntil: "networkidle2" });
   await railPage.waitForSelector("#trainsOut table", { timeout: 15000 }).catch(() => {});
-  const siirto = await railPage.evaluate(() =>
-    [...document.querySelectorAll("#trainsOut tbody .badge")].map(b => b.textContent.trim()));
+  const railFix = await railPage.evaluate(() => {
+    const osiot = [...document.querySelectorAll("#trainsOut .rail-cols > section")];
+    const tunnukset = s => s ? [...s.querySelectorAll("tbody .badge")].map(b => b.textContent.trim()) : null;
+    return { lahtevat: tunnukset(osiot[0]), saapuvat: tunnukset(osiot[1]),
+      mista: osiot[1]?.querySelector("tbody td:nth-child(3)")?.textContent.trim() || "" };
+  });
   await railPage.close();
-  (siirto.length === 1 && siirto[0] === "IC 99")
-    ? ok("junanaytto: siirtojuna (MV) ei näy lähtölistassa, matkustajajuna (IC) näkyy")
-    : fail("junanaytto: siirtojunasuodatin: " + JSON.stringify(siirto));
+  (JSON.stringify(railFix.lahtevat) === '["IC 99"]')
+    ? ok("junanaytto: siirtojuna (MV) ei näy lähtevissä, matkustajajuna (IC) näkyy")
+    : fail("junanaytto: siirtojunasuodatin: " + JSON.stringify(railFix));
+  (JSON.stringify(railFix.saapuvat) === '["IC 98"]' && railFix.mista && railFix.mista !== "LH")
+    ? ok(`junanaytto: saapuvat junat omana taulukkonaan lähtöasemineen (IC 98 ${railFix.mista}), ei siirtoja`)
+    : fail("junanaytto: saapuvat junat: " + JSON.stringify(railFix));
 
   // --- Konsolivirheet ---
   // Nimeä verkkovirheet: jokainen "Failed to load resource: net::X" kuluttaa ensimmäisen

@@ -830,6 +830,9 @@
   /* Koko aikataulu pysäkeittäin -matriisi: pysäkit riveinä, vuorot sarakkeina.
      Ruudulla vieritettävä laatikko, tulostuksessa koko taulukko näkyviin. */
   .matrix-wrap { overflow: auto; max-height: 65vh; margin: 0.5rem 0; border: 1px solid var(--border); border-radius: 6px; }
+  /* Junanäkymä: lähtevät ja saapuvat rinnakkain kun leveys riittää, muuten allekkain */
+  .rail-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 0 1.5rem; }
+  .rail-cols .rail-kind { margin: 0.6rem 0 0.2rem; }
   table.stoptable { border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
   table.stoptable th, table.stoptable td { border: 1px solid var(--border); padding: 0.25rem 0.5rem; text-align: center; white-space: nowrap; }
   table.stoptable thead th { position: sticky; top: 0; background: var(--chip); z-index: 2; }
@@ -3863,15 +3866,18 @@ const STRINGS = {
     corridorExcluded: "Ei mukana (ei yhteistä jaksoa valittujen kanssa): {lines}",
     corridorLineCol: "Linja", corridorDestCol: "Määränpää",
     corridorSharedNote: "Ajat yhteisillä pysäkeillä: {n} yhteistä pysäkkiä välillä {from}–{to}.",
-    trainsLink: "Junien lähdöt",
+    trainsLink: "Junat",
     trainsTitle: "Junien lähdöt",
-    trainsIntro: "Seuraavat lähtevät junat asemalta {station}. Ajat päivittyvät automaattisesti.",
-    trainsIntroMulti: "Seuraavat lähtevät junat asemilta {stations}. Ajat päivittyvät automaattisesti.",
+    trainsViewTitle: "Junien lähdöt ja saapumiset",
+    trainsIntro: "Seuraavat lähtevät ja saapuvat junat asemalla {station}. Ajat päivittyvät automaattisesti.",
+    trainsIntroMulti: "Seuraavat lähtevät ja saapuvat junat asemilla {stations}. Ajat päivittyvät automaattisesti.",
+    trainsDepH: "Lähtevät", trainsArrH: "Saapuvat",
     trainsTrain: "Juna", trainsTrack: "Raide",
     modeFerry: "Lautta",
     modeTram: "Raitiovaunu",
     modeMetro: "Metro", modeBus: "Bussi",
     trainsEmpty: "Ei lähteviä junia lähitunteina.",
+    trainsArrEmpty: "Ei saapuvia junia lähitunteina.",
     trainsCancelled: "Peruttu",
     trainsLate: "arvio {time}",
     trainsSrc: "Junatiedot: Fintraffic / rata.digitraffic.fi (CC BY 4.0)",
@@ -3909,7 +3915,7 @@ const STRINGS = {
     loadingStopDeps: "Haetaan pysäkin lähtöjä…",
     loadingAlerts: "Haetaan häiriötiedotteita…",
     errStopNotFound: "Pysäkkiä ei löytynyt: ",
-    thLine: "Linja", thDest: "Määränpää", thDeparts: "Lähtee",
+    thLine: "Linja", thDest: "Määränpää", thDeparts: "Lähtee", thArrives: "Saapuu", thFrom: "Mistä",
     stopMapAria: "Pysäkki kartalla",
     // reittihaku
     from: "Mistä", to: "Minne",
@@ -4442,15 +4448,18 @@ const STRINGS = {
     corridorExcluded: "Not included (no shared corridor with the selection): {lines}",
     corridorLineCol: "Line", corridorDestCol: "Destination",
     corridorSharedNote: "Times at shared stops: {n} shared stops between {from}–{to}.",
-    trainsLink: "Train departures",
+    trainsLink: "Trains",
     trainsTitle: "Train departures",
-    trainsIntro: "Next departing trains from {station}. Times update automatically.",
-    trainsIntroMulti: "Next departing trains from the stations {stations}. Times update automatically.",
+    trainsViewTitle: "Train departures and arrivals",
+    trainsIntro: "Next departing and arriving trains at {station}. Times update automatically.",
+    trainsIntroMulti: "Next departing and arriving trains at the stations {stations}. Times update automatically.",
+    trainsDepH: "Departures", trainsArrH: "Arrivals",
     trainsTrain: "Train", trainsTrack: "Track",
     modeFerry: "Ferry",
     modeTram: "Tram",
     modeMetro: "Metro", modeBus: "Bus",
     trainsEmpty: "No departing trains in the next few hours.",
+    trainsArrEmpty: "No arriving trains in the next few hours.",
     trainsCancelled: "Cancelled",
     trainsLate: "estimate {time}",
     trainsSrc: "Train data: Fintraffic / rata.digitraffic.fi (CC BY 4.0)",
@@ -4487,7 +4496,7 @@ const STRINGS = {
     loadingStopDeps: "Loading stop departures…",
     loadingAlerts: "Loading disruption alerts…",
     errStopNotFound: "Stop not found: ",
-    thLine: "Route", thDest: "Destination", thDeparts: "Departs",
+    thLine: "Route", thDest: "Destination", thDeparts: "Departs", thArrives: "Arrives", thFrom: "From",
     stopMapAria: "Stop on map",
     from: "From", to: "To",
     placePlaceholder: "Address, place or stop…",
@@ -5021,15 +5030,18 @@ const STRINGS = {
     corridorExcluded: "Ingår inte (inget gemensamt stråk med urvalet): {lines}",
     corridorLineCol: "Linje", corridorDestCol: "Destination",
     corridorSharedNote: "Tider vid gemensamma hållplatser: {n} gemensamma hållplatser mellan {from}–{to}.",
-    trainsLink: "Tågavgångar",
+    trainsLink: "Tåg",
     trainsTitle: "Tågavgångar",
-    trainsIntro: "Följande avgående tåg från {station}. Tiderna uppdateras automatiskt.",
-    trainsIntroMulti: "Följande avgående tåg från stationerna {stations}. Tiderna uppdateras automatiskt.",
+    trainsViewTitle: "Avgående och ankommande tåg",
+    trainsIntro: "Följande avgående och ankommande tåg vid {station}. Tiderna uppdateras automatiskt.",
+    trainsIntroMulti: "Följande avgående och ankommande tåg vid stationerna {stations}. Tiderna uppdateras automatiskt.",
+    trainsDepH: "Avgående", trainsArrH: "Ankommande",
     trainsTrain: "Tåg", trainsTrack: "Spår",
     modeFerry: "Färja",
     modeTram: "Spårvagn",
     modeMetro: "Metro", modeBus: "Buss",
     trainsEmpty: "Inga avgående tåg under de närmaste timmarna.",
+    trainsArrEmpty: "Inga ankommande tåg under de närmaste timmarna.",
     trainsCancelled: "Inställt",
     trainsLate: "uppskattning {time}",
     trainsSrc: "Tågdata: Fintraffic / rata.digitraffic.fi (CC BY 4.0)",
@@ -5066,7 +5078,7 @@ const STRINGS = {
     loadingStopDeps: "Hämtar hållplatsens avgångar…",
     loadingAlerts: "Hämtar störningsmeddelanden…",
     errStopNotFound: "Hållplatsen hittades inte: ",
-    thLine: "Linje", thDest: "Destination", thDeparts: "Avgår",
+    thLine: "Linje", thDest: "Destination", thDeparts: "Avgår", thArrives: "Ankommer", thFrom: "Från",
     stopMapAria: "Hållplats på kartan",
     from: "Från", to: "Till",
     placePlaceholder: "Adress, plats eller hållplats…",
@@ -10596,11 +10608,12 @@ function railCodes() {
   return Array.isArray(r) ? r.filter(Boolean) : (r ? [r] : []);
 }
 
-// Hakee lähdöt kaikilta asemilta rinnakkain. Yhden aseman virhe EI saa kaataa muita:
-// rows === null tarkoittaa "tämän aseman haku epäonnistui", tyhjä taulukko "ei lähtöjä".
-async function loadTrainsAll(codes, names) {
+// Hakee lähdöt (kind "DEPARTURE") tai saapumiset ("ARRIVAL") kaikilta asemilta rinnakkain.
+// Yhden aseman virhe EI saa kaataa muita: rows === null tarkoittaa "tämän aseman haku
+// epäonnistui", tyhjä taulukko "ei junia".
+async function loadTrainsAll(codes, names, kind = "DEPARTURE") {
   return Promise.all(codes.map(async (code) => {
-    try { return { code, rows: await loadTrains(code, names) }; } catch (e) { return { code, rows: null }; }
+    try { return { code, rows: await loadTrains(code, names, kind) }; } catch (e) { return { code, rows: null }; }
   }));
 }
 
@@ -10623,9 +10636,14 @@ async function railStationNames() {
   return map;
 }
 
-async function loadTrains(code, names) {
+// kind "DEPARTURE": seuraavat 15 lähtevää junaa, dest = pääteasema.
+// kind "ARRIVAL": seuraavat 15 saapuvaa junaa, from = lähtöasema. Saapuvat lisättiin Joensuun
+// toiveesta 24.9.2026 (saapuvat junat näytölle, esim. vastaanottajille ja jatkoyhteyksiin).
+async function loadTrains(code, names, kind = "DEPARTURE") {
+  const arr = kind === "ARRIVAL";
   const res = await fetch(`${RAIL_API}/live-trains/station/${code}` +
-    "?arrived_trains=0&arriving_trains=0&departed_trains=0&departing_trains=15&include_nonstopping=false",
+    `?arrived_trains=0&arriving_trains=${arr ? 15 : 0}&departed_trains=0&departing_trains=${arr ? 0 : 15}` +
+    "&include_nonstopping=false",
     { headers: { "Digitraffic-User": "Reittari" } });
   if (!res.ok) throw new Error("HTTP " + res.status);
   const rows = [];
@@ -10633,19 +10651,21 @@ async function loadTrains(code, names) {
     // vain matkustajajunat; tavara- ja työjunat pois
     if (tr.trainCategory !== "Long-distance" && tr.trainCategory !== "Commuter") continue;
     if (RAIL_TRANSFER_TYPES.has(tr.trainType)) continue;
-    const dep = (tr.timeTableRows || []).find(r =>
-      r.stationShortCode === code && r.type === "DEPARTURE" && r.trainStopping !== false);
-    if (!dep) continue;
+    const hit = (tr.timeTableRows || []).find(r =>
+      r.stationShortCode === code && r.type === kind && r.trainStopping !== false);
+    if (!hit) continue;
     const stops = (tr.timeTableRows || []).filter(r => r.trainStopping !== false);
     const destCode = stops.length ? stops[stops.length - 1].stationShortCode : "";
+    const fromCode = stops.length ? stops[0].stationShortCode : "";
     rows.push({
-      sched: new Date(dep.scheduledTime),
-      est: dep.liveEstimateTime ? new Date(dep.liveEstimateTime) : null,
-      cancelled: !!(tr.cancelled || dep.cancelled),
+      sched: new Date(hit.scheduledTime),
+      est: hit.liveEstimateTime ? new Date(hit.liveEstimateTime) : null,
+      cancelled: !!(tr.cancelled || hit.cancelled),
       // lähijunilla kirjaintunnus (Z, R, …), kaukojunilla tyyppi + numero (IC 62)
       label: tr.commuterLineID || `${tr.trainType} ${tr.trainNumber}`,
       dest: names[destCode] || destCode,
-      track: dep.commercialTrack || "",
+      from: names[fromCode] || fromCode,
+      track: hit.commercialTrack || "",
     });
   }
   rows.sort((a, b) => a.sched - b.sched);
@@ -10663,7 +10683,8 @@ function railDayTime(d) {
   return (d.toDateString() === new Date().toDateString() ? ""
     : d.toLocaleDateString(locale, { weekday: "short" }) + " ") + railHhmm(d);
 }
-function railTableHtml(rows, limit) {
+function railTableHtml(rows, limit, kind = "DEPARTURE") {
+  const arr = kind === "ARRIVAL";
   const body = rows.slice(0, limit || rows.length).map(r => {
     // myöhässä ≥ 1 min → arvioitu aika korostettuna aikataulunmukaisen perään
     const late = r.est && Math.abs(r.est - r.sched) >= 60000;
@@ -10677,11 +10698,11 @@ function railTableHtml(rows, limit) {
     return `<tr><td>${time}</td>` +
       `<td><span class="badge" style="background:${rst.badge};color:${rst.badgeText}">` +
       `${esc(r.label)}</span></td>` +
-      `<td style="text-align:left">${esc(r.dest)}</td><td>${esc(r.track)}</td></tr>`;
+      `<td style="text-align:left">${esc(arr ? r.from : r.dest)}</td><td>${esc(r.track)}</td></tr>`;
   }).join("");
   return `<div class="matrix-wrap"><table class="stoptable booklet">
-       <thead><tr><th scope="col">${t("thDeparts")}</th><th scope="col">${t("trainsTrain")}</th>
-       <th scope="col" style="text-align:left">${t("thDest")}</th><th scope="col">${t("trainsTrack")}</th></tr></thead>
+       <thead><tr><th scope="col">${t(arr ? "thArrives" : "thDeparts")}</th><th scope="col">${t("trainsTrain")}</th>
+       <th scope="col" style="text-align:left">${t(arr ? "thFrom" : "thDest")}</th><th scope="col">${t("trainsTrack")}</th></tr></thead>
        <tbody>${body}</tbody></table></div>`;
 }
 
@@ -10691,16 +10712,18 @@ async function viewTrains() {
   setView(`
     ${crumbHtml()}
     <div class="card">
-      <h2>${icon("train")} ${t("trainsTitle")}</h2>
+      <h2>${icon("train")} ${t("trainsViewTitle")}</h2>
       <p class="muted" id="trainsIntro"></p>
       <div id="trainsOut" aria-live="polite"><p class="muted">…</p></div>
       <p class="muted" style="margin-top:0.8rem">${t("trainsSrc")}</p>
     </div>`);
   const my = viewSeq;
   const draw = async () => {
-    let names, tulokset;
-    try { names = await railStationNames(); tulokset = await loadTrainsAll(codes, names); }
-    catch (e) {
+    let names, lahdot, saapuvat;
+    try {
+      names = await railStationNames();
+      [lahdot, saapuvat] = await Promise.all([loadTrainsAll(codes, names), loadTrainsAll(codes, names, "ARRIVAL")]);
+    } catch (e) {
       // Asemanimien haku on yhteinen kaikille asemille: jos se kaatuu, mitään ei voi näyttää.
       if (viewSeq === my) document.getElementById("trainsOut").innerHTML = `<div class="error">${t("trainsErr")}</div>`;
       return;
@@ -10710,15 +10733,20 @@ async function viewTrains() {
     document.getElementById("trainsIntro").textContent = codes.length > 1
       ? t("trainsIntroMulti", { stations: codes.map(nimi).join(" · ") })
       : t("trainsIntro", { station: nimi(codes[0]) });
-    // Yhden aseman kaupungeissa ulkoasu pysyy ennallaan (ei asemaotsikkoa). Usean
-    // aseman kaupungissa jokainen asema on oma lohkonsa, koska rivit eivät ole
-    // vertailukelpoisia keskenään: ne lähtevät eri paikasta.
-    document.getElementById("trainsOut").innerHTML = tulokset.every((x) => x.rows === null)
+    // Yhden aseman kaupungeissa ei asemaotsikkoa. Usean aseman kaupungissa jokainen asema on
+    // oma lohkonsa, koska rivit eivät ole vertailukelpoisia keskenään: ne lähtevät eri paikasta.
+    // Lähtevät ja saapuvat rinnakkain leveällä näytöllä (asemanäyttö), allekkain kapealla.
+    const multi = codes.length > 1, hk = multi ? "h4" : "h3";
+    const lista = (rows, kind) => rows === null ? `<p class="muted">${t("trainsErr")}</p>`
+      : rows.length ? railTableHtml(rows, 0, kind)
+      : `<p>${t(kind === "ARRIVAL" ? "trainsArrEmpty" : "trainsEmpty")}</p>`;
+    document.getElementById("trainsOut").innerHTML = [...lahdot, ...saapuvat].every((x) => x.rows === null)
       ? `<div class="error">${t("trainsErr")}</div>`
-      : tulokset.map(({ code, rows }) => {
-        const sisalto = rows === null ? `<p class="muted">${t("trainsErr")}</p>`
-          : rows.length ? railTableHtml(rows) : `<p>${t("trainsEmpty")}</p>`;
-        return codes.length > 1 ? `<h3>${esc(nimi(code))}</h3>${sisalto}` : sisalto;
+      : codes.map((code, i) => {
+        const sarakkeet = `<div class="rail-cols">` +
+          `<section><${hk} class="rail-kind">${t("trainsDepH")}</${hk}>${lista(lahdot[i].rows, "DEPARTURE")}</section>` +
+          `<section><${hk} class="rail-kind">${t("trainsArrH")}</${hk}>${lista(saapuvat[i].rows, "ARRIVAL")}</section></div>`;
+        return multi ? `<h3 class="rail-station">${esc(nimi(code))}</h3>${sarakkeet}` : sarakkeet;
       }).join("");
   };
   await draw();
