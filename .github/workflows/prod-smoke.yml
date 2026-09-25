@@ -115,10 +115,21 @@ jobs:
   # (BASE-parametrisoitu). Erillinen job, jotta mahdollinen flake ei sotke
   # ydinvahdin signaalia — punainen prod-smoke on aina tutkittava, punainen
   # full-smoke voi olla ajoituskohinaa (re-run ensin).
+  #
+  # ERIEN JALKEEN, EI RINNAKKAIN (25.9.2026): ilman needs-riippuvuutta tama ajoi samaan aikaan
+  # eran kanssa samalla Digitransit-avaimella. 25.9. kasiajossa molemmat kaatuivat 429:aan
+  # (uusintapainatus-nosto, konsolivirheet, Raasepori), yksin uudelleen ajettuna 220/0; 24.9.
+  # ajastetun ajon "kayttoehdot: nakyma vajaa" syntyi samassa asetelmassa. Siksi odotetaan erat
+  # (myos punaiset: !cancelled) ja annetaan kiintion palautua saman 5 min kuin eran uusinnoille.
   full-smoke-prod:
+    needs: prod-smoke
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
+      - name: Kiintion jaahdytys erien jalkeen (5 min)
+        run: sleep 300
+
       - uses: actions/checkout@v5
 
       - uses: actions/setup-node@v5
