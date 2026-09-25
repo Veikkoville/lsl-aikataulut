@@ -6744,18 +6744,23 @@ function printMapSvg(lines, opts = {}) {
   const labels = [];
   const list = [...cand.values()].sort((a, b) => b.pri - a.pri || a.y - b.y);
   const maxLabels = opts.maxLabels ?? 12;
+  // Pitkä nimi rivitetään kahdelle (tarvittaessa kolmelle) riville välilyönnistä tai yhdysviivan jälkeen, ja lappu mitoitetaan
+  // mitatusta tekstin leveydestä. Ennen nimi katkesi 30 merkkiin "…":lla ja leveys arvattiin merkkimäärästä,
+  // joten Lappeenrannan "Muukontie-Hakalinkatu keskustaan" näkyi muodossa "Muukontie-Hakalinkatu keskust…".
+  const LW = 150 * k, LS = Math.round(13 * k);
+  const fsWidth = s => cbTextWidth(s, true) * FS / 13;
   for (const c of list) {
     if (labels.length >= maxLabels) break;
-    let name = c.name;
-    if (name.length > 30) name = name.slice(0, 29) + "…";
-    const w = Math.round(name.length * FS * 0.58 + 10), hgt = LH;
+    let rows = cbFitLines(c.name, LW * 13 / FS, true, 2);
+    if (rows[rows.length - 1].endsWith("…")) rows = cbFitLines(c.name, LW * 13 / FS, true, 3);
+    const w = Math.round(Math.max(...rows.map(fsWidth)) + 10), hgt = LH + (rows.length - 1) * LS;
     const tries = [[7, -hgt / 2], [-w - 7, -hgt / 2], [-w / 2, -hgt - 6], [-w / 2, 7]];
     for (const [dx, dy] of tries) {
       const b = { x: c.x + dx, y: c.y + dy, w, h: hgt };
       if (overlaps(b)) continue;
       placed.push(b);
       labels.push(`<g class="pm-label"><rect x="${f(b.x)}" y="${f(b.y)}" width="${w}" height="${hgt}" rx="2" fill="#fff" stroke="#000" stroke-width="${f(0.9 * k)}"/>`
-        + `<text x="${f(b.x + 5)}" y="${f(b.y + hgt * 0.72)}" font-size="${FS}" font-weight="600" fill="#000">${esc(name)}</text></g>`);
+        + rows.map((r, j) => `<text x="${f(b.x + 5)}" y="${f(b.y + LH * 0.72 + j * LS)}" font-size="${FS}" font-weight="600" fill="#000">${esc(r)}</text>`).join("") + `</g>`);
       break;
     }
   }
