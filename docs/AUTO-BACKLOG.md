@@ -60,6 +60,12 @@ nämä samoin kuin tapaamisista kirjatut signaalit.
       lomaksi, talvi- ja la-su-variantit uusiin luokkiin, ja tuntemattomien maara putoaa
       15:sta korkeintaan kahteen.
       (tutkimuskierros 2026-08-31, lahde: kausivalidointi-ajo 2026-08-25, run 32812513577)
+      TARKENNUS 2026-09-25 (PR #21 suljettu, katselmointi): (1) fixtuurit poimitaan ajon 32812513577
+      lokin serviceId-uudet-riveilta sellaisinaan, ei keksita; (2) koul/loma kopioidaan index.html:n
+      saannosta (ei koulp ja koulujen loma-ajat = loma, 25.9.2026); (3) tapahtumavuorot jaavat
+      tuntemattomiksi: "Lahti:2026-2027 La Historic Rally" EI saa luokittua viikonpaivaksi pelkan
+      La-sanan takia (rally, fest, lisat, yksittainen paivamaara); (4) WARN muuttuu PASS-riviksi vain
+      kun kaikki uudet serviceId:t luokittuvat, muuten WARN kuten ennen.
 
 ## Tehdyt
 
