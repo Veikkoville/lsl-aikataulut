@@ -1994,17 +1994,139 @@
         padding: 0.5pt 3pt; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
   }
   .print-only { display: none; }
+
+  /* ---------- Ilme 25.9.2026 (luonnokset A + B, Villen "yhdistelmä"): valkoinen ylätunniste, kaupungin väri
+     yläraitana ja tunnuksessa, päävalikko, neutraalit säätimet, yhtenäiset toissijaiset napit ja hillitty
+     karttasävy kuten tulosteissa. --surface/--ink/--line vaihtuvat itse tummassa ja kontrastiteemassa. */
+  header {
+    background: var(--surface); color: var(--ink);
+    border-top: 4px solid var(--header-bg); border-bottom: 1px solid var(--line-header);
+    padding: 0.6rem 1rem;
+  }
+  .header-inner { gap: 0.5rem 1.5rem; }
+  .brand { flex: 0 1 auto; }
+  .brand-glyph { width: 34px; height: 34px; border-radius: 8px; background: var(--header-bg); color: #fff;
+    display: grid; place-items: center; font-weight: 800; font-size: 1.05rem; line-height: 1; flex: none; }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.005em; line-height: 1.2; }
+  header p { color: var(--ink-muted); opacity: 1; font-size: 0.78rem; }
+  .hdr-nav { display: flex; gap: 1.25rem; flex: 1 1 auto; min-width: 0; }
+  .hdr-nav a { color: var(--ink); font-weight: 700; font-size: 0.95rem; text-decoration: none;
+    padding: 0.45rem 0; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .hdr-nav a:hover { border-bottom-color: var(--line); }
+  .hdr-nav a[aria-current="page"] { border-bottom-color: var(--header-bg); }
+  .hdr-tools .seg, .hdr-btn { border-color: var(--line); }
+  .hdr-tools .seg .hdr-btn + .hdr-btn { border-left-color: var(--line); }
+  .hdr-btn { color: var(--ink); background: var(--surface); }
+  .hdr-btn:hover { background: var(--accent-soft); }
+  .hdr-btn[aria-pressed="true"] { background: var(--header-bg); color: #fff; }
+  html[data-contrast="high"] header { border-bottom: 2px solid var(--ink); }
+  html[data-contrast="high"] .hdr-btn, html[data-contrast="high"] .hdr-tools .seg { border-color: var(--ink); }
+  @media (max-width: 1199px) { .hdr-nav { order: 3; flex-basis: 100%; overflow-x: auto; gap: 1.1rem; } }
+  @media (max-width: 520px) {
+    header { padding: 0.5rem 0.8rem; }
+    header p { display: none; }
+    .hdr-tools { width: auto; margin-left: auto; }
+  }
+  /* Toissijainen nappi kaupungin värillä (ennen musta 2 px reuna, joka näytti oletusnapilta). --blue on
+     vaaleassa AA-syvennetty brändiväri ja tummassa sen vaalea versio, joten teksti on luettava molemmissa. */
+  button.secondary, a.btnlink.secondary { border: 1.5px solid var(--blue); color: var(--blue); background: var(--surface); }
+  button.secondary:hover, a.btnlink.secondary:hover { background: var(--accent-soft); border-color: var(--blue); }
+  html[data-contrast="high"] button.secondary, html[data-contrast="high"] a.btnlink.secondary { border-width: 2px; }
+  /* Valkoinen teksti vain napin värin (--btn-bg) päällä: tummassa teemassa --accent on vaalea tekstisävy, ja
+     sen päällä valkoinen jäi alle AA:n (Hae yhteydet ja aktiivinen välilehti, myös Lahden sinisellä). */
+  .tabs button[aria-pressed="true"] { background: var(--btn-bg); border-color: var(--btn-bg); }
+  .sc-cta { background: var(--btn-bg); }
+  .sc-cta:hover { background: var(--btn-hover); }
+  /* Etusivun pääkuva (luonnos A): teksti vasemmalla, esimerkkijuliste ja vihon karttasivu oikealla, ei värikaistaa. */
+  .reila-hero.hero-paper { background: transparent; padding: 1.25rem 0 0.5rem; border-radius: 0; }
+  .hp-grid { display: grid; gap: 1.5rem; align-items: center; }
+  @media (min-width: 860px) { .hp-grid { grid-template-columns: 1.05fr 0.95fr; gap: 2rem; } }
+  .hp-eyebrow { margin: 0 0 0.6rem; font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--blue); }
+  .hero-paper .reila-hero-h1 { font-size: clamp(2rem, 1.4rem + 2.2vw, 2.9rem); letter-spacing: -0.02em; line-height: 1.06; }
+  .hero-paper .reila-hero-sub { font-size: 1.08rem; max-width: 34rem; }
+  .hp-cta { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.4rem; }
+  .hp-cta .btnlink { min-height: 48px; font-weight: 700; padding: 0.6rem 1.1rem; }
+  .hp-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem 1.5rem; margin-top: 1.6rem;
+    padding-top: 1.1rem; border-top: 1px solid var(--line); }
+  .hp-fact[hidden] { display: none; }
+  .hp-fact b { display: block; font-size: 1.6rem; font-weight: 800; line-height: 1.1; color: var(--ink); }
+  .hp-fact span { display: block; font-size: 0.84rem; color: var(--ink-muted); margin-top: 2px; }
+  .hp-papers { position: relative; margin: 0; height: 450px; }
+  .hp-papers[hidden] { display: none; }
+  .hp-papers img { position: absolute; background: #fff; border-radius: 3px;
+    box-shadow: 0 1px 2px rgba(20, 20, 20, 0.08), 0 14px 32px -14px rgba(20, 20, 20, 0.32); }
+  .hp-poster { left: 0; top: 0; width: 55%; height: auto; }
+  .hp-booklet { right: 0; top: 24%; width: 56%; height: auto; }
+  .hp-tag { position: absolute; font-size: 0.8rem; color: var(--ink-muted); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 999px; padding: 0.3rem 0.7rem; white-space: nowrap; }
+  .hp-tag:empty { display: none; }
+  .hp-tag-poster { left: 0.5rem; bottom: 0.2rem; }
+  .hp-tag-booklet { right: 0.5rem; top: calc(24% - 2.3rem); }
+  @media (max-width: 859px) { .hp-papers { height: 360px; max-width: 520px; } }
+  @media (max-width: 520px) { .hp-papers { height: 270px; } }
+  .hp-h2 { margin: 2.2rem 0 0.2rem; font-size: 1.35rem; font-weight: 800; }
+  /* Nostot listana eikä kortteina: yläviiva ja oma ikoni jokaiselle toiminnolle (ennen 3/5 samaa tulostinta). */
+  .hero-paper .hero-primary .hl { border: 0; border-top: 2px solid var(--ink); border-radius: 0; background: transparent;
+    padding: 0.9rem 0.25rem 0.6rem; }
+  .hero-paper .hero-primary .hl:hover { background: var(--accent-soft); }
+  .hero-paper .hero-primary .hl .ic { color: var(--blue); width: 1.6em; height: 1.6em; }
+  .hero-paper .hero-primary .hl-t { font-weight: 800; font-size: 1.05rem; }
+  .hero-paper .hero-secondary .hl { background: var(--surface); }
+  /* Henkilöstön tilanne (#/tilanne, luonnos B): tilaruudut ja tulostustoiminnot. */
+  .st-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.8rem 1rem; margin: 0.4rem 0 1.2rem; }
+  .st-head h1 { margin: 0; font-size: 1.9rem; font-weight: 800; letter-spacing: -0.015em; }
+  .st-head p { margin: 0.3rem 0 0; }
+  .st-acts { margin-left: auto; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .st-acts .btnlink, .st-row .ic { flex: none; }
+  .st-tiles { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 1.2rem; }
+  .st-tile { display: flex; flex-direction: column; gap: 0.3rem; padding: 1rem 1.05rem; background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); text-decoration: none; }
+  .st-tile:hover { border-color: var(--blue); }
+  .st-k { display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; font-weight: 700; color: var(--ink-muted); }
+  .st-k .ic { color: var(--blue); }
+  .st-v { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.15; }
+  .st-d { font-size: 0.88rem; color: var(--ink-muted); }
+  .st-tile.st-ok .st-v { color: var(--green); }
+  .st-tile.st-warn .st-v { color: var(--sev-warning); }
+  .st-cols { display: grid; gap: 1rem; }
+  @media (min-width: 820px) { .st-cols { grid-template-columns: 1.5fr 1fr; align-items: start; } }
+  .st-panel h2 { margin: 0; font-size: 1.1rem; font-weight: 800; }
+  .st-panel > p { margin: 0.2rem 0 0.4rem; font-size: 0.88rem; }
+  .st-row { display: flex; align-items: center; gap: 0.9rem; padding: 0.75rem 0; border-top: 1px solid var(--line-divider);
+    color: var(--ink); text-decoration: none; }
+  .st-row:hover .st-rt b { text-decoration: underline; }
+  .st-thumb { width: 56px; height: 56px; flex: none; border-radius: 4px; border: 1px solid var(--line); object-fit: cover;
+    object-position: top; background: #fff; }
+  .st-ico { display: grid; place-items: center; background: var(--accent-soft); border-color: transparent; color: var(--blue); }
+  .st-ico .ic { width: 1.5em; height: 1.5em; }
+  .st-rt { display: flex; flex-direction: column; min-width: 0; }
+  .st-rt span { font-size: 0.88rem; color: var(--ink-muted); }
+  .st-go { margin-left: auto; font-weight: 700; color: var(--blue); white-space: nowrap; font-size: 0.9rem; }
+  /* Linjasivun lähdöt tunneittain (paperin ruudukko): tunti vasemmalla, minuutit napeissa. */
+  .timegrid.tg-grouped { display: block; border-top: 2px solid var(--blue); }
+  .tg-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.3rem 0; border-bottom: 1px solid var(--line-divider); }
+  .tg-row:nth-child(even) { background: color-mix(in srgb, var(--surface-page) 60%, transparent); }
+  .tg-h { width: 2.1rem; flex: none; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+  .tg-mins { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .tg-grouped button { min-width: 2.9rem; font-variant-numeric: tabular-nums; }
+  /* Ruudun kartat samaan hillittyyn sävyyn kuin tulosteiden MML-pohja: reitti ja pysäkit ovat kuvan kirkkain asia. */
+  .leaflet-tile-pane { filter: saturate(0.45) brightness(1.03); }
 </style>
 </head>
 <body>
 <header>
   <div class="header-inner">
     <a class="brand" id="brandLink" href="#/" aria-label="Etusivulle">
+      <span class="brand-glyph" id="brandGlyph" aria-hidden="true">L</span>
       <div>
         <h1 id="appTitle">Lahden bussiaikataulut</h1>
         <p id="appSub">Epävirallinen palvelu · data: Lahden seudun liikenne / Waltti (CC BY 4.0)</p>
       </div>
     </a>
+    <!-- Päävalikko (ilme 25.9.2026): kuntalaisen etusivu, tulosteet, tiski ja henkilöstön tilanne.
+         Täytetään updateChromessa (kieli + PROXY_URL), aktiivinen kohta route():ssa. -->
+    <nav class="hdr-nav" id="hdrNav"></nav>
     <!-- Globaalit esteettömyys-/kielikontrollit: näkyvät joka sivulla ja sticky-headerissa.
          Sama tila kuin Asetukset-paneelissa (data-*-opt + setTextSize/setContrast/setLanguage),
          ei rinnakkaista totuutta. -->
@@ -3573,6 +3695,11 @@ const STRINGS = {
     heroHlWatchDesc: "Tulevat aikataulumuutokset ja milloin ne astuvat voimaan",
     heroHlReprint: "Uusintapainatus",
     heroHlReprintDesc: "Mitkä painamasi tulosteet ovat vanhentuneet",
+    heroCtaPoster: "Tulosta pysäkin juliste", heroCtaBooklet: "Kokoa aikatauluvihko", heroPrintsH: "Mitä voit tulostaa",
+    heroFactLines: "linjaa aikataulussa", heroFactLangs: "kieltä: suomi, ruotsi ja englanti",
+    heroFactWatchOk: "vanhentunutta julistetta, muutosvahti tarkisti {date}", heroFactWatchNow: "pysäkkiä tarvitsee uuden julisteen",
+    heroFactWatchSoon: "pysäkin aikataulu muuttuu {date}", heroExample: "Esimerkki: {stop}", heroExampleBooklet: "Vihko, linja {line}",
+    heroPapersAlt: "Esimerkki kaupungin pysäkkijulisteesta ja aikatauluvihon sivusta",
     heroHlReprintStale: "{n} tulostetta on vanhentunut, tarkista lista",
     heroHlReprintStale1: "1 tuloste on vanhentunut, tarkista lista",
     heroHlReprintOk: "{n} tulostetta seurannassa, kaikki ajan tasalla",
@@ -3768,6 +3895,20 @@ const STRINGS = {
     emailSubNeedEmail: "Syötä kelvollinen sähköpostiosoite.",
     emailSubNeedLines: "Valitse vähintään yksi linja.",
     deskTitle: "Palvelutiski",
+    navAria: "Päävalikko", navHome: "Etusivu", navPrints: "Tulosteet", navStaff: "Henkilöstö",
+    staffTitle: "Tilanne {date}", staffSub: "Mitä pysäkeillä ja tiskillä pitää tänään huomioida.",
+    staffTilePosters: "Pysäkkijulisteet", staffPostersOk: "Ajan tasalla", staffPostersNow: "{n} pysäkkiä",
+    staffPostersSoon: "{n} muuttuu", staffPostersOkDesc: "Muutosvahti tarkisti kaikki pysäkit {date}.",
+    staffPostersNowDesc: "Tarvitsevat uuden julisteen (muutosvahti {date}).", staffPostersSoonDesc: "Aikataulu muuttuu {date}. Tulosta uudet julisteet etukäteen.",
+    staffPostersNoData: "Muutosvahtia ei ole vielä ajettu tälle kaupungille.", staffTileReprint: "Uusintapainatus",
+    staffReprintN: "{n} seurannassa", staffReprintNone: "Ei seurannassa",
+    staffReprintNoneDesc: "Merkitse painetut tulosteet, niin näet kun ne vanhenevat.", staffTileAlerts: "Häiriöt",
+    staffAlertsN: "{n} voimassa", staffAlertsNone: "Ei häiriöitä", staffAlertsNoneDesc: "Ei voimassa olevia häiriötiedotteita.",
+    staffTileSeason: "Aikataulukausi", staffSeasonAuto: "Päivittyy itsestään",
+    staffSeasonAutoDesc: "Tulosteet syntyvät aina tulostuspäivän aikataulusta.",
+    staffPrintsH: "Tulosta", staffPrintsSub: "Tulosteet syntyvät tulostuspäivän aikataulusta.", staffDeskH: "Asiakaspalvelu",
+    staffDeskDesc: "Seuraavat lähdöt, junat ja tulosteet asiakkaalle mukaan.", staffScreensDesc: "Pysäkkinäytöt ja kioskiosoitteet seinänäytöille.",
+    staffCorridorDesc: "Saman suunnan linjat yhdessä taulukossa.", staffOpen: "Avaa",
     deskExit: "← Poistu palvelutiskistä",
     deskRouteTitle: "Reittihaku (A→B)",
     deskKbdHint: "Tai täytä lähtö ja määränpää erikseen ja valitse ehdotus.",
@@ -4179,6 +4320,11 @@ const STRINGS = {
     heroHlWatchDesc: "Upcoming timetable changes and when they take effect",
     heroHlReprint: "Reprint list",
     heroHlReprintDesc: "Which of your printed sheets are out of date",
+    heroCtaPoster: "Print a stop poster", heroCtaBooklet: "Build a timetable booklet", heroPrintsH: "What you can print",
+    heroFactLines: "lines in the timetable", heroFactLangs: "languages: Finnish, Swedish and English",
+    heroFactWatchOk: "outdated posters, change watch checked {date}", heroFactWatchNow: "stops need a new poster",
+    heroFactWatchSoon: "stop timetables change {date}", heroExample: "Example: {stop}", heroExampleBooklet: "Booklet, line {line}",
+    heroPapersAlt: "Example of a stop poster and a timetable booklet page",
     heroHlReprintStale: "{n} printed sheets are out of date, check the list",
     heroHlReprintStale1: "1 printed sheet is out of date, check the list",
     heroHlReprintOk: "{n} sheets tracked, all up to date",
@@ -4362,6 +4508,20 @@ const STRINGS = {
     emailSubNeedEmail: "Enter a valid email address.",
     emailSubNeedLines: "Choose at least one line.",
     deskTitle: "Service desk",
+    navAria: "Main menu", navHome: "Home", navPrints: "Prints", navStaff: "Staff",
+    staffTitle: "Status {date}", staffSub: "What to keep in mind at stops and at the desk today.",
+    staffTilePosters: "Stop posters", staffPostersOk: "Up to date", staffPostersNow: "{n} stops",
+    staffPostersSoon: "{n} changing", staffPostersOkDesc: "The change watch checked every stop on {date}.",
+    staffPostersNowDesc: "Need a new poster (change watch {date}).", staffPostersSoonDesc: "Timetable changes {date}. Print the new posters in advance.",
+    staffPostersNoData: "The change watch has not run for this city yet.", staffTileReprint: "Reprint",
+    staffReprintN: "{n} tracked", staffReprintNone: "Not tracked",
+    staffReprintNoneDesc: "Mark your printed sheets to see when they go out of date.", staffTileAlerts: "Disruptions",
+    staffAlertsN: "{n} active", staffAlertsNone: "None", staffAlertsNoneDesc: "No active disruption notices.",
+    staffTileSeason: "Timetable season", staffSeasonAuto: "Updates itself",
+    staffSeasonAutoDesc: "Prints always use the timetable of the print date.",
+    staffPrintsH: "Print", staffPrintsSub: "Prints use the timetable of the print date.", staffDeskH: "Customer service",
+    staffDeskDesc: "Next departures, trains and prints for the customer.", staffScreensDesc: "Stop displays and kiosk addresses for wall screens.",
+    staffCorridorDesc: "Lines in the same direction in one table.", staffOpen: "Open",
     deskExit: "← Exit service desk",
     deskRouteTitle: "Journey search (A→B)",
     deskKbdHint: "Or fill in origin and destination separately and pick a suggestion.",
@@ -4759,6 +4919,11 @@ const STRINGS = {
     heroHlWatchDesc: "Kommande tidtabellsändringar och när de träder i kraft",
     heroHlReprint: "Omtryck",
     heroHlReprintDesc: "Vilka av dina utskrifter är föråldrade",
+    heroCtaPoster: "Skriv ut hållplatsaffisch", heroCtaBooklet: "Sammanställ tidtabellshäfte", heroPrintsH: "Det här kan du skriva ut",
+    heroFactLines: "linjer i tidtabellen", heroFactLangs: "språk: finska, svenska och engelska",
+    heroFactWatchOk: "föråldrade affischer, ändringsbevakningen kontrollerade {date}", heroFactWatchNow: "hållplatser behöver en ny affisch",
+    heroFactWatchSoon: "hållplatsers tidtabell ändras {date}", heroExample: "Exempel: {stop}", heroExampleBooklet: "Häfte, linje {line}",
+    heroPapersAlt: "Exempel på en hållplatsaffisch och en sida ur tidtabellshäftet",
     heroHlReprintStale: "{n} utskrifter är föråldrade, kontrollera listan",
     heroHlReprintStale1: "1 utskrift är föråldrad, kontrollera listan",
     heroHlReprintOk: "{n} utskrifter bevakas, alla är aktuella",
@@ -4944,6 +5109,20 @@ const STRINGS = {
     emailSubNeedEmail: "Ange en giltig e-postadress.",
     emailSubNeedLines: "Välj minst en linje.",
     deskTitle: "Servicedisk",
+    navAria: "Huvudmeny", navHome: "Startsida", navPrints: "Utskrifter", navStaff: "Personal",
+    staffTitle: "Läget {date}", staffSub: "Det här ska man tänka på vid hållplatserna och disken i dag.",
+    staffTilePosters: "Hållplatsaffischer", staffPostersOk: "Aktuella", staffPostersNow: "{n} hållplatser",
+    staffPostersSoon: "{n} ändras", staffPostersOkDesc: "Ändringsbevakningen kontrollerade alla hållplatser {date}.",
+    staffPostersNowDesc: "Behöver en ny affisch (ändringsbevakning {date}).", staffPostersSoonDesc: "Tidtabellen ändras {date}. Skriv ut de nya affischerna i förväg.",
+    staffPostersNoData: "Ändringsbevakningen har inte körts för staden ännu.", staffTileReprint: "Nytryck",
+    staffReprintN: "{n} bevakas", staffReprintNone: "Bevakas inte",
+    staffReprintNoneDesc: "Markera tryckta utskrifter så ser du när de blir föråldrade.", staffTileAlerts: "Störningar",
+    staffAlertsN: "{n} aktiva", staffAlertsNone: "Inga störningar", staffAlertsNoneDesc: "Inga aktiva störningsmeddelanden.",
+    staffTileSeason: "Tidtabellsperiod", staffSeasonAuto: "Uppdateras själv",
+    staffSeasonAutoDesc: "Utskrifterna följer alltid utskriftsdagens tidtabell.",
+    staffPrintsH: "Skriv ut", staffPrintsSub: "Utskrifterna följer utskriftsdagens tidtabell.", staffDeskH: "Kundservice",
+    staffDeskDesc: "Nästa avgångar, tåg och utskrifter åt kunden.", staffScreensDesc: "Hållplatsskärmar och kioskadresser för väggskärmar.",
+    staffCorridorDesc: "Linjer i samma riktning i en tabell.", staffOpen: "Öppna",
     deskExit: "← Avsluta servicedisk",
     deskRouteTitle: "Reseökning (A→B)",
     deskKbdHint: "Eller fyll i startplats och destination var för sig och välj ett förslag.",
@@ -5450,6 +5629,15 @@ function faresWhereItems(f) {
 }
 
 // Staattisen kehyksen (otsikko, header, footer) tekstit valitulla kielellä
+// Päävalikon aktiivinen kohta osoitteen ensimmäisestä osasta; tulostekeskuksen vanhat reitit
+// (#/tulosta, #/uusintapainatus) kuuluvat Tulosteisiin.
+function updateNavCurrent(p0) {
+  const raw = p0 ?? (location.hash.replace(/^#\/?/, "").split(/[/?]/)[0] || "");
+  const k = { tulosta: "tulosteet", uusintapainatus: "tulosteet" }[raw] ?? raw;
+  document.querySelectorAll("#hdrNav a").forEach(a =>
+    a.dataset.nav === k ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+}
+
 function updateChrome() {
   document.documentElement.lang = lang;
   document.title = t("appTitleTag");
@@ -5473,6 +5661,13 @@ function updateChrome() {
   document.getElementById("appTitle").textContent = t("appTitle");
   document.getElementById("appSub").textContent = t("headerSub");
   document.getElementById("brandLink").setAttribute("aria-label", t("toHomeAria"));
+  document.getElementById("brandGlyph").textContent = String(CONFIG.city || "R").charAt(0).toUpperCase();
+  const nav = document.getElementById("hdrNav");
+  nav.setAttribute("aria-label", t("navAria"));
+  nav.innerHTML = [["", "#/", t("navHome")], ["tulosteet", "#/tulosteet/vihko", t("navPrints")],
+    ...(PROXY_URL ? [["palvelutiski", "#/palvelutiski", t("deskTitle")], ["tilanne", "#/tilanne", t("navStaff")]] : [])]
+    .map(([k, href, label]) => `<a href="${href}" data-nav="${k}">${label}</a>`).join("");
+  updateNavCurrent();
   document.getElementById("appFooter").innerHTML = `
     <div class="foot-cols">
       <div class="foot-brand">
@@ -6247,6 +6442,12 @@ const ICONS = {
   print: '<path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 13H4a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-2"/>',
   monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  poster: '<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M8 7h8M8 11h3M13 11h3M8 14h3M13 14h3M8 17h3"/>',
+  book: '<path d="M12 6c-2-1.5-5-2-8-1.5v14c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-14c-3-.5-6 0-8 1.5z"/><path d="M12 6v14"/>',
+  desk: '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4M7 8h6M7 11h4"/>',
+  shield: '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+  repeat: '<path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 4.6a3.2 3.2 0 0 1 0 6.2M21 20c0-2.6-1.6-4.6-4-5.3"/>',
   tools: '<path d="M14.5 6.5a3.5 3.5 0 0 1-4.6 4.6L5 16l3 3 4.9-4.9a3.5 3.5 0 0 1 4.6-4.6l-2.4 2.4-1.9-1.9z"/>',
   bus: '<rect x="4" y="4" width="16" height="13" rx="2"/><path d="M4 8h16M4 11h16"/><circle cx="8" cy="20" r="1.3"/><circle cx="16" cy="20" r="1.3"/>',
   ferry: '<path d="M4 18l1.6-5.5 6.4-2 6.4 2L20 18"/><path d="M12 10.5V6M9 6h6"/><path d="M3 20c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1"/>',
@@ -6311,21 +6512,32 @@ function brandAccentVars() {
   return { base, dark, hover: tint(0.08), chip: tint(0.11) };
 }
 
-// CONFIG.brandAccent: koko nakyma kaupungin varilla, ei vain ylatunniste ja tiski.
-// Oletuksena POIS, jotta yhden kaupungin teemaus ei muuta 16 muuta demoa. Inkoolla paalla:
-// kunta pyysi nakymaa omilla vareillaan. Sama AA-syvennys kuin tiskilla (5,5:1 valkoiselle),
-// joten aksentti ei jaa kontrastin rajalle.
+// Koko nakyma kaupungin varilla (ilme 25.9.2026: kaikki kaupungit, ennen vain Inkoo CONFIG.brandAccentilla,
+// jolloin kunnan vari ja Reittarin sininen kilpailivat samalla sivulla). Tokenit omana tyylilohkonaan eika
+// inline-tyylina, jotta teemat sailyvat: vaalea normaali saa AA-syvennetyn brandivarin (5,5:1 valkoiselle,
+// sama kuin tiskilla), tumma teema vaalean version teksteihin ja linkkeihin, korkea kontrasti ja Vaasan/Kotkan
+// kasin viritetyt html[data-city]-arvot jaavat voimaan (:where() pitaa painoarvon :rootin tasolla).
+// CONFIG.brandAccent === false kytkee pois.
+function lightAccent(base) {
+  const rgb = [1, 3, 5].map(i => parseInt(base.slice(i, i + 2), 16));
+  const bg = relLum("161b20");
+  for (let a = 0; a <= 1.0001; a += 0.05) {
+    const h = rgb.map(v => Math.round(v + (255 - v) * a).toString(16).padStart(2, "0")).join("");
+    if ((relLum(h) + 0.05) / (bg + 0.05) >= 4.8) return "#" + h;
+  }
+  return "#ffffff";
+}
 function applyBrandAccent() {
-  if (!CONFIG.brandAccent) return;
-  const v = brandAccentVars();
-  if (!v) return;
-  const r = document.documentElement.style;
-  r.setProperty("--accent", v.base);
-  r.setProperty("--accent-dark", v.dark);
-  r.setProperty("--accent-soft", v.chip);
-  r.setProperty("--blue", v.base);
-  r.setProperty("--btn-bg", v.base);
-  r.setProperty("--btn-hover", v.dark);
+  let el = document.getElementById("cityTheme");
+  const v = CONFIG.brandAccent === false ? null : brandAccentVars();
+  if (!v) { el?.remove(); return; }
+  if (!el) { el = document.createElement("style"); el.id = "cityTheme"; document.head.appendChild(el); }
+  const light = lightAccent(v.base);
+  el.textContent =
+    `:root:where(:not([data-theme="dark"]):not([data-contrast="high"])){--accent:${v.base};--accent-dark:${v.dark};` +
+    `--accent-soft:${v.chip};--blue:${v.base};--btn-bg:${v.base};--btn-hover:${v.dark};--hover:${v.hover};--chip:${v.chip}}` +
+    `html[data-theme="dark"]:where(:not([data-contrast="high"])){--accent:${light};--blue:${light};` +
+    `--btn-bg:${v.base};--btn-hover:${v.dark}}`;
 }
 
 function deskAccentStyle() {
@@ -8701,21 +8913,47 @@ function heroJourneyHtml() {
 // Siksi ensimmäinen ruutu on kaupungin oma työ: julisteet, vihot, tiski ja muutosvahti.
 // Matkustajan reittihaku säilyy alempana samoilla kentillä (smoke: .hero-journey #homeFromInput),
 // tai linkkinä kaupungin reittioppaaseen kun CONFIG.externalPlanner on asetettu.
+// Ilme 25.9.2026 (luonnos A "Paperi edellä"): ensimmäinen ruutu näyttää tuotteen eli paperin. Esimerkkikuvat
+// ovat staattisia (tools/hero-kuvat.js tuotannosta), jotta etusivun avaus ei kuluta rajapinnan kiintiötä;
+// kuvateksti kertoo, että kyse on esimerkistä. Nostot ja niiden ID:t ennallaan, vain ikonit ja asettelu uudet.
 function heroLayerHtml() {
-  return `<section class="reila-hero hero-layer no-print">
-      <h1 class="reila-hero-h1">${t("heroLayerTitle")}</h1>
-      <p class="reila-hero-sub">${t("heroLayerSub")}</p>
+  const season = CONFIG.season ? (CONFIG.season[lang] || CONFIG.season.fi) : "";
+  const img = kind => `img/hero/${cityKey}-${kind}.webp`;
+  return `<section class="reila-hero hero-layer hero-paper no-print">
+      <div class="hp-grid">
+        <div class="hp-text">
+          ${season ? `<p class="hp-eyebrow">${esc(season)}</p>` : ""}
+          <h1 class="reila-hero-h1">${t("heroLayerTitle")}</h1>
+          <p class="reila-hero-sub">${t("heroLayerSub")}</p>
+          <div class="hp-cta">
+            <a class="btnlink" href="#/tulosteet/julisteet">${icon("print")}${t("heroCtaPoster")}</a>
+            <a class="btnlink secondary" href="#/tulosteet/vihko">${icon("book")}${t("heroCtaBooklet")}</a>
+          </div>
+          <div class="hp-facts">
+            <div class="hp-fact" id="hpFactLines" hidden><b></b><span>${t("heroFactLines")}</span></div>
+            <div class="hp-fact"><b>3</b><span>${t("heroFactLangs")}</span></div>
+            <div class="hp-fact" id="hpFactWatch" hidden><b></b><span></span></div>
+          </div>
+        </div>
+        <figure class="hp-papers" id="hpPapers" hidden>
+          <img class="hp-poster" id="hpPoster" src="${img("juliste")}" alt="${t("heroPapersAlt")}" width="720" height="1018" decoding="async">
+          <img class="hp-booklet" id="hpBooklet" src="${img("vihko")}" alt="" decoding="async">
+          <figcaption class="hp-tag hp-tag-poster" id="hpTagPoster"></figcaption>
+          <span class="hp-tag hp-tag-booklet" id="hpTagBooklet"></span>
+        </figure>
+      </div>
+      <h2 class="hp-h2">${t("heroPrintsH")}</h2>
       <div class="hero-highlights hero-primary">
         <a class="hl" href="#/tulosteet/julisteet">
-          ${icon("print")}<span class="hl-t">${t("heroHlPosters")}</span><span class="hl-d">${t("heroHlPostersDesc")}</span></a>
+          ${icon("poster")}<span class="hl-t">${t("heroHlPosters")}</span><span class="hl-d">${t("heroHlPostersDesc")}</span></a>
         <a class="hl" href="#/tulosteet/vihko">
-          ${icon("print")}<span class="hl-t">${t("heroHlBooklet")}</span><span class="hl-d">${t("heroHlBookletDesc")}</span></a>
+          ${icon("book")}<span class="hl-t">${t("heroHlBooklet")}</span><span class="hl-d">${t("heroHlBookletDesc")}</span></a>
         ${PROXY_URL ? `<a class="hl" href="#/palvelutiski">
-          ${icon("info")}<span class="hl-t">${t("heroHlDesk")}</span><span class="hl-d">${t("heroHlDeskDesc")}</span></a>` : ""}
+          ${icon("desk")}<span class="hl-t">${t("heroHlDesk")}</span><span class="hl-d">${t("heroHlDeskDesc")}</span></a>` : ""}
         <a class="hl" href="#/tulosteet/muutokset" id="hlWatch">
-          ${icon("calendar")}<span class="hl-t">${t("heroHlWatch")}</span><span class="hl-d" id="hlWatchDesc">${t("heroHlWatchDesc")}</span></a>
+          ${icon("shield")}<span class="hl-t">${t("heroHlWatch")}</span><span class="hl-d" id="hlWatchDesc">${t("heroHlWatchDesc")}</span></a>
         <a class="hl" href="#/uusintapainatus" id="hlReprint">
-          ${icon("print")}<span class="hl-t">${t("heroHlReprint")}</span><span class="hl-d" id="hlReprintDesc">${t("heroHlReprintDesc")}</span></a>
+          ${icon("repeat")}<span class="hl-t">${t("heroHlReprint")}</span><span class="hl-d" id="hlReprintDesc">${t("heroHlReprintDesc")}</span></a>
       </div>
       <div class="hero-highlights hero-secondary">
         <button type="button" class="hl" id="hlBilingual">
@@ -8727,6 +8965,89 @@ function heroLayerHtml() {
         <h3 class="hero-journey-h">${icon("route")} ${t("heroJourneyHeading")} <span class="ab-badge">A → B</span></h3>${heroFieldsHtml()}
       </div>`}
     </section>`;
+}
+
+// Henkilöstön tilanne (ilme 25.9.2026, luonnos B, Villen "yhdistelmä"): yhdellä silmäyksellä onko pysäkeillä tai
+// tiskillä tänään tehtävää. Vain julkista tietoa, jota sovellus jo näyttää (muutosvahdin yhteenveto, paikallinen
+// uusintapainatusseuranta, häiriötiedotteet, CONFIG.season), ei kirjautumista eikä uusia kyselytyyppejä.
+async function viewStaff() {
+  const nav = navSeq;
+  if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
+  const now = new Date();
+  const day = now.toLocaleDateString(lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI", { weekday: "short", day: "numeric", month: "numeric" });
+  const tile = (id, ic, k, href) => `<a class="st-tile" id="${id}" href="${href}">
+      <span class="st-k">${icon(ic)}${k}</span><b class="st-v">…</b><span class="st-d"></span></a>`;
+  const base = reprintLoad();
+  const tracked = Object.keys(base).filter(id => base[id] && base[id].sig).length;
+  const row = (href, thumb, title, desc) => `<a class="st-row" href="${href}">
+      ${thumb}<span class="st-rt"><b>${title}</b><span>${desc}</span></span><span class="st-go">${t("staffOpen")} →</span></a>`;
+  const img = kind => `<img class="st-thumb" src="img/hero/${cityKey}-${kind}.webp" alt="" loading="lazy">`;
+  const ico = name => `<span class="st-thumb st-ico">${icon(name)}</span>`;
+  setView(`
+    ${crumbHtml()}
+    <section class="staff no-print">
+      <div class="st-head"><div><h1>${t("staffTitle", { date: day })}</h1><p class="muted">${t("staffSub")}</p></div>
+        <div class="st-acts"><a class="btnlink secondary" href="#/palvelutiski">${icon("desk")}${t("deskTitle")}</a>
+          <a class="btnlink" href="#/tulosteet/vihko">${icon("print")}${t("navPrints")}</a></div></div>
+      <div class="st-tiles">
+        ${tile("stPosters", "shield", t("staffTilePosters"), "#/tulosteet/muutokset")}
+        <a class="st-tile" id="stReprint" href="#/uusintapainatus"><span class="st-k">${icon("repeat")}${t("staffTileReprint")}</span>
+          <b class="st-v">${tracked ? t("staffReprintN", { n: tracked }) : t("staffReprintNone")}</b>
+          <span class="st-d" id="hlReprintDesc">${tracked ? "" : t("staffReprintNoneDesc")}</span></a>
+        ${tile("stAlerts", "warning", t("staffTileAlerts"), "#/poikkeukset")}
+        <a class="st-tile" id="stSeason" href="#/tulosteet/vihko"><span class="st-k">${icon("calendar")}${t("staffTileSeason")}</span>
+          <b class="st-v">${CONFIG.season ? esc((CONFIG.season[lang] || CONFIG.season.fi).replace(/\s+\d.*$/, "")) : t("staffSeasonAuto")}</b>
+          <span class="st-d">${CONFIG.season ? esc((CONFIG.season[lang] || CONFIG.season.fi).replace(/^\D+/, "")) : t("staffSeasonAutoDesc")}</span></a>
+      </div>
+      <div class="st-cols">
+        <div class="card st-panel"><h2>${t("staffPrintsH")}</h2><p class="muted">${t("staffPrintsSub")}</p>
+          ${row("#/tulosteet/julisteet", img("juliste"), t("heroHlPosters"), t("heroHlPostersDesc"))}
+          ${row("#/tulosteet/vihko", img("vihko"), t("heroHlBooklet"), t("heroHlBookletDesc"))}
+          ${(CONFIG.corridors || []).length ? row("#/tulosteet/kaytava", ico("route"), t("tabCorridor"), t("staffCorridorDesc")) : ""}
+          ${row("#/tulosteet/muutokset", ico("shield"), t("heroHlWatch"), t("heroHlWatchDesc"))}
+        </div>
+        <div class="card st-panel"><h2>${t("staffDeskH")}</h2>
+          ${row("#/palvelutiski", ico("desk"), t("deskTitle"), t("staffDeskDesc"))}
+          ${row("#/tulosteet/naytot", ico("monitor"), t("tabScreens"), t("staffScreensDesc"))}
+        </div>
+      </div>
+    </section>`);
+  const put = (id, v, d) => { const el = document.getElementById(id); if (!el || navStale(nav)) return;
+    el.querySelector(".st-v").textContent = v; el.querySelector(".st-d").textContent = d; };
+  const lyhyt = iso => { const [y, m, dd] = String(iso || "").slice(0, 10).split("-"); return y && m && dd ? `${+dd}.${+m}.${y}` : ""; };
+  fetch("docs/muutosvahti/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).then(j => {
+    const c = j?.kaupungit?.[cityKey];
+    if (!c) { put("stPosters", "–", t("staffPostersNoData")); return; }
+    const el = document.getElementById("stPosters");
+    el?.classList.add(c.muuttunut ? "st-warn" : c.tulossa ? "st-soon" : "st-ok");
+    if (c.muuttunut) put("stPosters", t("staffPostersNow", { n: c.muuttunut }), t("staffPostersNowDesc", { date: lyhyt(c.ajettu) }));
+    else if (c.tulossa) put("stPosters", t("staffPostersSoon", { n: c.tulossa }), t("staffPostersSoonDesc", { date: lyhyt(c.voimaan) }));
+    else put("stPosters", t("staffPostersOk"), t("staffPostersOkDesc", { date: lyhyt(c.ajettu) }));
+  }).catch(() => put("stPosters", "–", t("staffPostersNoData")));
+  loadAllAlerts().then(all => {
+    const { disruptions } = classifyAlerts(all);
+    document.getElementById("stAlerts")?.classList.add(disruptions.length ? "st-warn" : "st-ok");
+    put("stAlerts", disruptions.length ? t("staffAlertsN", { n: disruptions.length }) : t("staffAlertsNone"),
+      disruptions.length ? (disruptions[0].alertHeaderText || "") : t("staffAlertsNoneDesc"));
+  }).catch(() => put("stAlerts", "–", ""));
+  // Sama laskenta kuin etusivun nostossa (välimuisti ensin, kyselyt vain vanhentuneista), maalaa #hlReprintDesc.
+  if (tracked) onIdle(() => fillReprintHighlight());
+}
+
+// Etusivun esimerkkikuvat: kuva näytetään vasta kun se on ladattu (kuvaton kaupunki = ei rikkinäistä
+// kuvaketta), kuvateksti luettelosta img/hero/index.json (tools/hero-kuvat.py kirjoittaa).
+async function fillHeroPapers() {
+  const fig = document.getElementById("hpPapers"), po = document.getElementById("hpPoster");
+  if (!fig || !po) return;
+  const show = () => { if (po.naturalWidth) fig.hidden = false; };
+  if (po.complete) show(); else po.addEventListener("load", show, { once: true });
+  try {
+    const r = await fetch("img/hero/index.json", { cache: "no-cache" });
+    const e = r.ok ? (await r.json())[cityKey] : null;
+    if (!e || !document.getElementById("hpTagPoster")) return;
+    document.getElementById("hpTagPoster").textContent = t("heroExample", { stop: e.stop });
+    document.getElementById("hpTagBooklet").textContent = t("heroExampleBooklet", { line: e.line });
+  } catch (err) { /* kuvateksti ei ole kriittinen */ }
 }
 
 // Etusivun muutosvahti-nosto: lukee viikkoajon yhteenvedon (docs/muutosvahti/index.json, sama
@@ -8744,6 +9065,16 @@ async function fillWatchHighlight() {
     el.textContent = c.muuttunut ? t("heroHlWatchNow", { n: c.muuttunut })
       : c.tulossa ? t("heroHlWatchSoon", { n: c.tulossa, date: c.voimaan ? fmtDateLong(c.voimaan) : "" })
       : t("heroHlWatchOk", { date: d });
+    // Sama tieto etusivun lukuriviin (ilme 25.9.2026): luku + selite, ei erillistä hakua.
+    const fw = document.getElementById("hpFactWatch");
+    if (fw) {
+      fw.querySelector("b").textContent = String(c.muuttunut || c.tulossa || 0);
+      const lyhyt = iso => { const [y, m, dd] = String(iso || "").slice(0, 10).split("-"); return y && m && dd ? `${+dd}.${+m}.${y}` : ""; };
+      fw.querySelector("span").textContent = c.muuttunut ? t("heroFactWatchNow")
+        : c.tulossa ? t("heroFactWatchSoon", { date: lyhyt(c.voimaan) })
+        : t("heroFactWatchOk", { date: lyhyt(c.ajettu) });
+      fw.hidden = false;
+    }
   } catch (e) { /* nosto ei ole kriittinen */ }
 }
 
@@ -8850,6 +9181,7 @@ function viewRoutes() {
     }
   } catch (e) { /* rikkinäinen merkintä ohitetaan */ }
   fillWatchHighlight();
+  fillHeroPapers();
   // Uusintapainatus-nosto vasta ensimaalauksen jälkeen: se on ainoa nosto joka voi tehdä
   // verkkokyselyitä (yksi per seurattu tuloste), eikä etusivu saa odottaa niitä.
   onIdle(() => fillReprintHighlight());
@@ -8909,6 +9241,8 @@ function viewRoutes() {
   // alapuolella, ettei listan täyttyminen aiheuta layout shiftiä (CLS).
   loadRoutes().then(routes => {
     if (mySeq !== viewSeq) return; // näkymä ehti vaihtua latauksen aikana
+    const fl = document.getElementById("hpFactLines");
+    if (fl) { fl.querySelector("b").textContent = String(routes.length); fl.hidden = false; }
     const list = document.getElementById("routeList");
     if (!list) return;
     list.style.minHeight = "";
@@ -9942,7 +10276,10 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
         }
       }
     }
-    const grid = sts.map(st => {
+    // Ilme 25.9.2026: lähdöt tunneittain kuten paperilla (tunti rivin alussa, napissa minuutit). Ryhmä näytettävän
+    // ajan mukaan, jotta tunnin rajan ylittävä reaaliaikainen lähtö menee oikealle riville. Napit ennallaan.
+    const hours = new Map();
+    sts.forEach(st => {
       const past = isToday && depEpoch(st) < now;
       // Menneelle lähdölle aikataulun mukainen aika: toteutunut aika (esim. 08:42 kun
       // aikataulussa 8.45) näytti ilman ●-merkkiä aikataululta, jota ei ole (auditointi 23.9.).
@@ -9953,11 +10290,15 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       // Koulupäivävuoro: sama sääntö kuin julisteen koulupäivälohkossa (schoolOf).
       // Linjasivu näytti ne tavallisina (Joensuun 201: 7.00, 8.00, 14.00...; auditointi 23.9.).
       const school = schoolOf(st.trip?.serviceId) === "koul";
-      return `<button type="button" class="${cls}" data-dep="${st.scheduledDeparture}" aria-pressed="false"` +
+      const h = fmtSec(dep).slice(0, 2);
+      if (!hours.has(h)) hours.set(h, []);
+      hours.get(h).push(`<button type="button" class="${cls}" data-dep="${st.scheduledDeparture}" aria-pressed="false"` +
         ` aria-label="${t("depSelectAria", { time: fmtSec(dep) })}${fromTitle ? ", " + esc(fromTitle) : ""}${school ? ", " + esc(t("depSchoolLegend")) : ""}"` +
         `${st.realtime && !past ? ` title="${t("rtTitleAttr")}"` : fromTitle ? ` title="${esc(fromTitle)}"` : ""}>` +
-        `${fmtSec(dep)}${school ? " " + t("depSchoolMark") : ""}${st._to ? " " + t("depShortMark") : ""}${st.realtime && !past ? " ●" : ""}${st._from ? "*" : ""}</button>`;
-    }).join("");
+        `${fmtSec(dep).slice(3)}${school ? " " + t("depSchoolMark") : ""}${st._to ? " " + t("depShortMark") : ""}${st.realtime && !past ? " ●" : ""}${st._from ? "*" : ""}</button>`);
+    });
+    const grid = [...hours].map(([h, b]) =>
+      `<div class="tg-row"><b class="tg-h" aria-hidden="true">${h}</b><div class="tg-mins">${b.join("")}</div></div>`).join("");
     const otherFrom = [...new Set(sts.filter(st => st._from).map(st => st._from))];
     const shortTo = [...new Set(sts.filter(st => st._to).map(st => st._to))];
     const anySchool = sts.some(st => schoolOf(st.trip?.serviceId) === "koul");
@@ -9967,7 +10308,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       <p class="muted">${t("depsFromStop", { stop: esc((refStop || current.stops[0]).name) })}</p>
       ${nextHtml}
       ${remindHtml}
-      <div class="timegrid" id="timegrid">${grid}</div>
+      <div class="timegrid tg-grouped" id="timegrid">${grid}</div>
       ${anySchool ? `<p class="muted">${esc(t("depSchoolMark"))} = ${esc(t("depSchoolLegend"))}</p>` : ""}
       ${shortTo.length ? `<p class="muted">${esc(t("depShortMark"))} = ${esc(t("depShortLegend", { stops: shortTo.join(", ") }))}</p>` : ""}
       ${otherFrom.length ? `<p class="muted">* ${esc(t("depOtherOriginLegend", { stops: otherFrom.join(", ") }))}</p>` : ""}
@@ -16186,6 +16527,7 @@ async function route() {
   if (parts[0] !== "palvelutiski") exitDeskMode(); // poistuttaessa palvelutiskistä palauta normaali ulkoasu
   const stripFeed = s => String(s || "").replace(/^[^:]+:/, ""); // "Lahti:3" → "3"
   track("view", parts[0] || "home");
+  updateNavCurrent(parts[0] || "");
   const nav = ++navSeq;
   try {
     if (parts[0] === "asetukset") viewSettings();
@@ -16197,6 +16539,7 @@ async function route() {
     // Vanhat reitit ohjautuvat yhdistettyyn keskukseen oikealle välilehdelle (QR-yhteensopivuus):
     // #/tulosta = vihko-välilehti; bare #/tulosteet = julisteet (entinen sisältö); välilehti
     // myös polusta (#/tulosteet/<tab>) tai kyselystä (?tab=<tab>).
+    else if (parts[0] === "tilanne") await viewStaff();
     else if (parts[0] === "uusintapainatus") await viewPrintCenter("uusintapainatus", query);
     else if (parts[0] === "tulosta") await viewPrintCenter("vihko", query);
     else if (parts[0] === "tulosteet") await viewPrintCenter(query.get("tab") || parts[1] || "julisteet", query);

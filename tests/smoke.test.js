@@ -121,6 +121,24 @@ async function printHygiene(page, label) {
   (layer && layer.hls >= 2 && layer.bilingual && layer.print && layer.journeyFields)
     ? ok(`etusivu (Lahti, layer): arvolupaus-hero + ${layer.hls} nostoa + A->B toissijaisena`)
     : fail("etusivu (Lahti, layer): layer-hero puuttuu/vajaa: " + JSON.stringify(layer));
+  // Ilme 25.9.2026: pääkuvassa kaupungin esimerkkijuliste + vihon sivu (staattiset kuvat, ei kyselyjä),
+  // kuvateksti luettelosta, linjamäärä samasta loadRoutes-hausta kuin linjalista; kaupungin väri tokeneina
+  // (#cityTheme) ja päävalikossa Etusivu aktiivisena.
+  await page.waitForFunction(() => !document.getElementById("hpPapers")?.hidden
+    && document.getElementById("hpTagPoster")?.textContent && !document.getElementById("hpFactLines")?.hidden,
+    { timeout: 15000 }).catch(() => {});
+  const paper = await page.evaluate(() => ({
+    kuvat: [...document.querySelectorAll("#hpPapers img")].map(i => i.naturalWidth),
+    teksti: document.getElementById("hpTagPoster")?.textContent || "",
+    linjat: +(document.querySelector("#hpFactLines b")?.textContent || 0),
+    listassa: document.querySelectorAll("#routeList li").length,
+    teema: !!document.getElementById("cityTheme"),
+    valikko: document.querySelector('#hdrNav a[aria-current="page"]')?.dataset.nav,
+  }));
+  (paper.kuvat.length === 2 && paper.kuvat.every(w => w > 0) && paper.teksti && paper.linjat > 0
+    && paper.teema && paper.valikko === "")
+    ? ok(`etusivu (Lahti): pääkuvassa esimerkkijuliste ja vihko (${paper.teksti}), ${paper.linjat} linjaa, kaupungin väri, valikko`)
+    : fail("etusivu (Lahti): pääkuvan paperit/luvut/teema pielessä: " + JSON.stringify(paper));
   // Journey-hero greenfield-kaupungilla (Salo): ei layer-osiota, A->B ensisijaisena
   await page.goto(BASE + "/?city=salo#/", { waitUntil: "networkidle2" });
   const journey = await page.evaluate(() => ({
@@ -739,11 +757,12 @@ async function printHygiene(page, label) {
   // Takaisin Vaasaan: seuraavat tarkistukset (teema, tiski) lukevat sivun tilan
   // navigoimatta itse, joten Lahti-välikäynti ei saa jäädä voimaan.
   await page.goto(BASE + "/?city=vaasa#/", { waitUntil: "networkidle2" });
-  // Vaasan demo: Liftin pinkki brändiväri (per-kaupunki) — header + primary-napit magenta (R>B),
+  // Vaasan demo: Liftin pinkki brändiväri (per-kaupunki) — tunnus/yläraita + primary-napit magenta (R>B),
   // kirkas #E6007E aksenttiraita. data-city="vaasa" gating → muut kaupungit (sininen) ennallaan.
+  // Ilme 25.9.2026: ylätunniste on valkoinen, kaupungin väri on tunnuksessa ja yläraidassa.
   const vTheme = await page.evaluate(() => {
     const rgb = s => (s.match(/\d+/g) || []).map(Number);
-    const hdr = rgb(getComputedStyle(document.querySelector("header")).backgroundColor);
+    const hdr = rgb(getComputedStyle(document.getElementById("brandGlyph")).backgroundColor);
     const btnEl = document.querySelector(".sc-cta, .btn-primary");
     const btn = btnEl ? rgb(getComputedStyle(btnEl).backgroundColor) : [0, 0, 0];
     return { city: document.documentElement.dataset.city, hdrPink: hdr[0] > hdr[2] + 40, btnPink: btn[0] > btn[2] + 40,
@@ -2461,6 +2480,23 @@ async function printHygiene(page, label) {
   (staleNav.hash === "#/liput" && staleNav.fares && !staleNav.printCenter)
     ? ok("navigointi: myöhästynyt tulostekeskus ei piirry lippusivun päälle")
     : fail("navigointi: vanhentunut näkymä piirsi uudemman päälle: " + JSON.stringify(staleNav));
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+
+  // --- Henkilöstön tilanne (#/tilanne, ilme 25.9.2026) ---
+  // Neljä tilaruutua täyttyvät olemassa olevasta datasta (muutosvahdin yhteenveto, häiriöt, CONFIG.season),
+  // päävalikossa Henkilöstö aktiivisena. Rakenne, ei tekstiä: smoke voi olla tässä kohtaa muulla kielellä.
+  await page.goto(BASE + "/?city=lappeenranta#/tilanne", { waitUntil: "networkidle2" });
+  await page.waitForFunction(() => ["stPosters", "stAlerts"].every(id =>
+    (document.querySelector(`#${id} .st-v`)?.textContent || "…") !== "…"), { timeout: 20000 }).catch(() => {});
+  const staff = await page.evaluate(() => ({
+    ruudut: document.querySelectorAll(".st-tiles .st-tile").length,
+    arvot: [...document.querySelectorAll(".st-tiles .st-v")].map(v => v.textContent.trim()),
+    rivit: document.querySelectorAll(".st-panel .st-row").length,
+    valikko: document.querySelector('#hdrNav a[aria-current="page"]')?.dataset.nav,
+  }));
+  (staff.ruudut === 4 && staff.arvot.every(v => v && v !== "…") && staff.rivit >= 5 && staff.valikko === "tilanne")
+    ? ok(`henkilöstö (Lappeenranta): ${staff.ruudut} tilaruutua täynnä (${staff.arvot.join(" / ")}), ${staff.rivit} toimintoa`)
+    : fail("henkilöstö: tilanne-näkymä vajaa: " + JSON.stringify(staff));
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
 
   // --- Konsolivirheet ---
