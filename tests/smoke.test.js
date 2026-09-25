@@ -1687,7 +1687,12 @@ async function printHygiene(page, label) {
     await page.waitForFunction(l => document.documentElement.lang === l, { timeout: 10000 }, lg);
     for (const [hash, id] of [["tietosuoja", "legalPrivacy"], ["kayttoehdot", "legalTerms"]]) {
       await page.goto(BASE + "/#/" + hash, { waitUntil: "networkidle2" });
-      await sleep(150);
+      // Odotetaan näkymää eikä kiinteää aikaa: 150 ms ei aina riittänyt CI:ssä (prod-smoke 24.9.).
+      // Aikakatkaisu ei kaada tässä, vaan alla oleva tarkistus raportoi vajaan näkymän.
+      await page.waitForFunction((i, l) => {
+        const el = document.getElementById(i);
+        return el && el.getAttribute("lang") === l && el.querySelector("h2") && el.querySelectorAll("h3").length >= 5;
+      }, { timeout: 5000 }, id, lg).catch(() => {});
       const st = await page.evaluate(i => {
         const el = document.getElementById(i);
         return { on: !!el, lang: el && el.getAttribute("lang"), h2: !!(el && el.querySelector("h2")),
@@ -1716,6 +1721,10 @@ async function printHygiene(page, label) {
   (legalFoot.evasteet === "" && !legalFoot.banneri)
     ? ok("evästeet: sivu ei aseta evästeitä eikä näytä evästebanneria")
     : fail("evästeet: " + JSON.stringify({ evasteet: legalFoot.evasteet, banneri: legalFoot.banneri }));
+  // Eristys seuraavista: kielenvaihdot käynnistävät näkymien latauksia, jotka voivat valmistua vasta
+  // seuraavan testin aikana ja piirtää sen päälle (CI 25.9.2026: #batchLine katosi 30 ms piirtymisen
+  // jälkeen, kun legal-silmukka ei enää odottanut kiinteää aikaa). Täysi lataus katkaisee ne.
+  await page.reload({ waitUntil: "networkidle2" });
 
   // --- Vanha #/tulosteet (bare) ohjautuu julisteet-välilehdelle; #/tulosteet/<tab> osoitteistettu ---
   await page.goto(BASE + "/#/tulosteet", { waitUntil: "networkidle2" });
