@@ -7100,6 +7100,12 @@ function stopRefresh() {
 }
 
 let viewSeq = 0;
+// Navigointilaskuri (25.9.2026): kasvaa jokaisella route()-kutsulla. Näkymä, joka hakee dataa ennen
+// piirtoaan, tarkistaa sen ennen setView:tä, ettei myöhästynyt lataus piirrä uudemman näkymän päälle
+// (CI: tulostekeskus katosi 30 ms piirtymisensä jälkeen). viewSeq ei riitä tähän, koska se kasvaa
+// vasta piirrossa: kahdesta rinnakkain odottavasta näkymästä hitaampi voittaisi.
+let navSeq = 0;
+const navStale = nav => nav !== navSeq;
 
 // Lykkää ei-kriittisen työn ensimaalauksen jälkeen (TBT pienemmäksi).
 // Safari ei tue requestIdleCallbackia → setTimeout-fallback.
@@ -9406,6 +9412,7 @@ async function fillRailHints() {
 // rikkaalla popupilla (määränpää, myöhästymä, seuraavat pysäkit). Avataan esim.
 // pysäkki-/lähellä-näkymän linjabadgea klikkaamalla.
 async function viewRouteMap(routeId) {
+  const nav = navSeq;
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`<p class="muted">${t("loadingRoute")}</p>`);
   const ids = await lineIds(routeId);
@@ -9420,6 +9427,7 @@ async function viewRouteMap(routeId) {
   const route = routesArr.find(r => r.gtfsId === routeId) || routesArr[0];
   if (!route) throw new Error(t("errRouteNotFound") + routeId);
   const patterns = routesArr.flatMap(r => r.patterns || []);  // kaikki suunnat unioniin
+  if (navStale(nav)) return;
   setView(`
     ${crumbHtml()}
     <div class="card">
@@ -9468,6 +9476,7 @@ async function viewRouteMap(routeId) {
 // autoPrint (?print=rack|key|all): tulosteet-sivu ja palvelutiski avaavat linjatulosteen suoraan
 // tästä näkymästä, jotta tulostuslogiikka on yhdessä paikassa eikä kahtena kopiona (3.9.2026).
 async function viewRoute(routeId, patternCode, date, autoPrint) {
+  const nav = navSeq;
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`<p class="muted">${t("loadingRoute")}</p>`);
   date = date || todayISO();
@@ -9556,6 +9565,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     if (matched.length) routeAlertsHtml = matched.map(a => alertHtml(a, true)).join("");
   } catch (err) { /* tiedotteiden puuttuminen ei kaada linjasivua */ }
 
+  if (navStale(nav)) return;
   setView(`
     ${crumbHtml()}
     <div class="card no-print">
@@ -10257,6 +10267,7 @@ function cleanStopDepartures(stop, stopId) {
 }
 
 async function viewStop(stopId) {
+  const nav = navSeq;
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`<p class="muted">${t("loadingStopDeps")}</p>`);
 
@@ -10300,6 +10311,7 @@ async function viewStop(stopId) {
   };
 
   const { stop, cachedAt } = await fetchStop();
+  if (navStale(nav)) return;
   lastStopData = stop;
   const accNote = stop.wheelchairBoarding === "POSSIBLE"
     ? `<p class="muted">${icon("wheelchair")} ${t("accStop")}</p>`
@@ -10529,6 +10541,7 @@ async function requestWakeLock() {
 }
 
 async function viewMonitor(stopId) {
+  const nav = navSeq;
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`<p class="muted">${t("loadingStopDeps")}</p>`);
 
@@ -10571,7 +10584,8 @@ async function viewMonitor(stopId) {
 
   let stop, cachedAt;
   try { ({ stop, cachedAt } = await fetchStop()); }
-  catch (err) { showError(err); return; }
+  catch (err) { if (!navStale(nav)) showError(err); return; }
+  if (navStale(nav)) return;   // ei myöskään kioskitilaa uudemman näkymän päälle
 
   document.body.classList.add("monitor-mode");
   setView(`
@@ -11404,6 +11418,7 @@ function viewFeedback() {
 /* ---------- Liput ja hinnat (CONFIG.fares, vain kaupungeille joille määritelty) ---------- */
 
 async function viewFares() {
+  const nav = navSeq;
   // Kaupungin ylläpidossa julkaistut hinnat menevät CONFIG-oletuksen edelle,
   // jotta kaupunki voi päivittää hinnat itse ilman koodimuutosta.
   let f = CONFIG.fares;
@@ -11518,6 +11533,7 @@ async function viewFares() {
   const sourceP = (srcNote || srcLink) ? `
       <p class="muted fares-source">${srcNote ?? ""}${srcLink ? `
         <a href="${esc(f.url)}" target="_blank" rel="noopener">${srcLink}</a>` : ""}</p>` : "";
+  if (navStale(nav)) return;
   setView(`
     ${crumbHtml()}
     <div class="card">
@@ -12685,9 +12701,11 @@ async function deskFindDefaultStop() {
 }
 
 async function viewServiceDesk() {
+  const nav = navSeq;
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   document.body.classList.add("desk-mode");
   await findFeed().catch(() => {});
+  if (navStale(nav)) return;   // route() poisti jo desk-moden uudelle näkymälle
   setView(`
     <!-- Tiskinäkymä on kokonaan no-print: paperille menee vain #deskPrintOut-säiliöön
          koottu aikataulu. Sama kuvio kuin pysäkkisivulla (9039fc7) ja linjasivulla.
@@ -13986,8 +14004,10 @@ async function viewPlan(parts) {
 async function viewAccessibilityStatement() {
   // Jos kaupunki on julkaissut virallisen selosteen ylläpidossa, näytetään se
   // digipalvelulain (306/2019) mukaisessa muodossa; muuten oletus (prototyyppi).
+  const nav = navSeq;
   let pub = null;
   try { pub = (await loadPublished()).a11y; } catch (e) {}
+  if (navStale(nav)) return;
   if (pub && pub.orgName) { viewOfficialA11y(pub); return; }
   setView(`
     ${crumbHtml()}
@@ -15736,10 +15756,12 @@ const PRINT_TABS = ["vihko", "kaytava", "julisteet", "muutokset", "uusintapainat
 // esivalitsevat linjat kyselyllä ja käynnistävät koonnin, jotta jokainen tuloste on
 // toteutettu vain kerran ja vain täällä (3.9.2026).
 async function viewPrintCenter(tab, query) {
+  const nav = navSeq;
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   tab = PRINT_TABS.includes(tab) ? tab : "vihko";
   setView(`<p class="muted">${t("loadingRoutes")}</p>`);
   const routes = await loadRoutes();
+  if (navStale(nav)) return;
   const today = todayISO();
   setView(`
     ${crumbHtml()}
@@ -16159,6 +16181,7 @@ async function route() {
   if (parts[0] !== "palvelutiski") exitDeskMode(); // poistuttaessa palvelutiskistä palauta normaali ulkoasu
   const stripFeed = s => String(s || "").replace(/^[^:]+:/, ""); // "Lahti:3" → "3"
   track("view", parts[0] || "home");
+  const nav = ++navSeq;
   try {
     if (parts[0] === "asetukset") viewSettings();
     else if (parts[0] === "sahkoposti") viewEmailSub();
@@ -16186,7 +16209,8 @@ async function route() {
     else if (parts[0] === "pysakki" && parts[1]) { track("stop", stripFeed(parts[1])); await viewStop(parts[1]); }
     else await viewRoutes();
   } catch (err) {
-    showError(err);
+    // Vanhentuneen näkymän virhe ei saa korvata näkymää, johon käyttäjä on jo siirtynyt.
+    if (!navStale(nav)) showError(err);
   }
 }
 

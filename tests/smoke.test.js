@@ -2420,6 +2420,28 @@ async function printHygiene(page, label) {
     ? ok("vihon reittijana: pitkät pysäkkinimet eivät mene päällekkäin eivätkä yli reunan (vakioaineisto)")
     : fail("vihon reittijana (nimiä, yli reunan, päällekkäin): " + JSON.stringify(lf.jana ?? lf));
 
+  // --- Myöhästynyt näkymä ei piirrä uudemman päälle (25.9.2026) ---
+  // Linjalistan lataus hidastetaan 1,5 s:iin, avataan tulostekeskus ja siirrytään heti lippusivulle.
+  // Ennen navSeq-tarkistusta tulostekeskus piirtyi lippusivun päälle latauksen valmistuttua (CI:ssä
+  // #batchLine katosi 30 ms piirtymisensä jälkeen, kun vanhentunut näkymä piirsi päälle).
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  const staleNav = await page.evaluate(async () => {
+    const orig = loadRoutes;
+    loadRoutes = () => new Promise(r => setTimeout(() => r(orig()), 1500));
+    try {
+      location.hash = "#/tulosteet/julisteet";
+      await new Promise(r => setTimeout(r, 200));
+      location.hash = "#/liput";
+      await new Promise(r => setTimeout(r, 2500));
+      return { hash: location.hash, printCenter: !!document.getElementById("batchLine"),
+               fares: !!document.querySelector("#app h2")?.textContent.includes(t("faresTitle")) };
+    } finally { loadRoutes = orig; }
+  });
+  (staleNav.hash === "#/liput" && staleNav.fares && !staleNav.printCenter)
+    ? ok("navigointi: myöhästynyt tulostekeskus ei piirry lippusivun päälle")
+    : fail("navigointi: vanhentunut näkymä piirsi uudemman päälle: " + JSON.stringify(staleNav));
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+
   // --- Konsolivirheet ---
   // Nimeä verkkovirheet: jokainen "Failed to load resource: net::X" kuluttaa ensimmäisen
   // vielä käyttämättömän requestfailed-tapahtuman jolla on sama virheteksti. Osoitteesta
