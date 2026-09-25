@@ -1439,6 +1439,27 @@ async function printHygiene(page, label) {
       (bm.has && bm.paths >= 1 && bm.texts >= 3 && bm.imgs === bm.tiles && bm.tiles >= 1 && bm.tiles <= 48 && bm.attr && bm.afterH2)
         ? ok(`tulostusvihko: reittikaavio linjan alla (${bm.paths} viivaa, ${bm.texts} tekstiä, ${bm.tiles} taustakarttatiiltä + lähdemerkintä)`)
         : fail("tulostusvihko: reittikaavio puuttuu tai pielessä: " + JSON.stringify(bm));
+      // Kartan nimilaput (25.9.2026): pitkä nimi rivittyy eikä katkea "…":iin, ja teksti pysyy lapun
+      // sisällä. Ennen nimi katkesi 30 merkkiin (Lappeenranta 28 lappua) ja leveys arvattiin merkkimäärästä.
+      const pmLab = await page.evaluate(() => {
+        const names = ["Muukontie-Hakalinkatu keskustaan", "Keskusta", "Hallituskatu- Itsenäisyydenkatu keskustaan"];
+        const stops = names.map((name, i) => ({ name, lat: 61.06 - i * 0.005, lon: 28.10 + i * 0.07 }));
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:-9999px;top:0;width:640px";
+        host.innerHTML = printMapSvg([{ shortName: "1", dirs: [{ points: stops.map(s => [s.lat, s.lon]), stops }] }], {});
+        document.body.appendChild(host);
+        const norm = s => s.replace(/\s+/g, "");
+        const labs = [...host.querySelectorAll(".pm-label")].map(g => {
+          const r = g.querySelector("rect").getBBox(), ts = [...g.querySelectorAll("text")];
+          return { txt: ts.map(t => t.textContent).join(" "),
+                   inside: ts.every(t => { const b = t.getBBox(); return b.x + b.width <= r.x + r.width + 0.5 && b.y + b.height <= r.y + r.height + 1.5; }) };
+        });
+        host.remove();
+        return { labs, whole: [names[0], names[2]].every(nm => labs.some(l => norm(l.txt) === norm(nm))) };
+      });
+      (pmLab.whole && pmLab.labs.every(l => l.inside && !l.txt.includes("…")))
+        ? ok(`tulostusvihko: kartan pitkät nimilaput rivittyvät kokonaisina lapun sisälle (${pmLab.labs.length} lappua)`)
+        : fail("tulostusvihko: kartan nimilappu katkeaa tai valuu yli: " + JSON.stringify(pmLab));
     }
     // Isot pysäkit -rajaus (pickKeyStops): liikaa timepointteja → 10; ≤12 ennallaan; hub pakotettu; sananraja
     const cap = await page.evaluate(() => {
