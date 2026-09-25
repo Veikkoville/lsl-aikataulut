@@ -3610,7 +3610,31 @@ const CONFIGS = {
   },
 };
 
-const cityKey = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();
+// Jaettu reittilinkki ilman ?city-parametria (25.9.2026: Kotkan reitti avautui Lahden sivulle, koska
+// reittihaun jakonappi pudotti parametrin). Kaupunki päätellään lähtöpisteestä: ensin kaupunki, jonka
+// hakualueen suorakulmion sisällä piste on (useasta lähin keskipiste), muuten lähin keskipiste alle 60 km.
+// Parametri lisätään osoitteeseen, jotta seuraavat linkit ja QR-koodit kantavat sen.
+function cityFromSharedRoute() {
+  try {
+    const m = decodeURIComponent(location.hash).match(/^#\/reitti\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if (!m) return null;
+    const lat = +m[1], lon = +m[2];
+    const km = f => Math.hypot((f.lat - lat) * 111, (f.lon - lon) * 111 * Math.cos(lat * Math.PI / 180));
+    let best = null, bestKm = Infinity, inside = false;
+    for (const [k, c] of Object.entries(CONFIGS)) {
+      const f = c.area?.focus, r = c.area?.rect;
+      if (!f) continue;
+      const inRect = !!r && lat >= r.minLat && lat <= r.maxLat && lon >= r.minLon && lon <= r.maxLon;
+      if (inside && !inRect) continue;
+      const d = km(f);
+      if ((inRect && !inside) || d < bestKm) { best = k; bestKm = d; inside = inside || inRect; }
+    }
+    if (!best || (!inside && bestKm > 60)) return null;
+    if (best !== "lahti") history.replaceState(history.state, "", location.pathname + "?city=" + best + location.hash);
+    return best;
+  } catch (e) { return null; }
+}
+const cityKey = (new URLSearchParams(location.search).get("city") || cityFromSharedRoute() || "lahti").toLowerCase();
 const CONFIG = CONFIGS[cityKey] || CONFIGS.lahti;
 
 // Vyöhykehinnoitellussa kaupungissa tasataksakentät (single/season/day/capDay/capWeek)
@@ -14253,7 +14277,8 @@ async function viewPlan(parts) {
     document.getElementById("moreBtn")?.addEventListener("click", () => search("more"));
     document.getElementById("earlierBtn")?.addEventListener("click", () => search("earlier"));
     document.getElementById("shareBtn")?.addEventListener("click", async e => {
-      const url = location.origin + location.pathname + planHash();
+      // appUrl säilyttää ?city=-parametrin (ennen pudotti sen, ja Kotkan reitti avautui Lahden sivulle).
+      const url = appUrl(planHash());
       try {
         if (navigator.share) { await navigator.share({ url }); return; }
         await navigator.clipboard.writeText(url);
