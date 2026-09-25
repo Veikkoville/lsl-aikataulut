@@ -47,7 +47,17 @@ jobs:
     env:
       SMOKE_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
     steps:
+      # Kaatuneen ajon OMA commit, ei repon nykyista masteria (25.9.2026: kasiajossa 24.9. ajolle
+      # agentti luki jo korjatun testin ja paatteli sen perusteella vaarin, mita ajossa tapahtui).
+      - name: Selvita kaatuneen ajon commit
+        id: ajo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "sha=$(gh run view "$SMOKE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha --jq .headSha)" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.ajo.outputs.sha }}
 
       # Raportit tulevat siita ajosta joka kaatui, eivat tasta ajosta.
       # if-no-files-found ei riita: jos smoke kaatui ennen arkistointia, jatketaan
@@ -72,7 +82,7 @@ jobs:
             --allowedTools "Read,Grep,Glob,Bash(ls:*),Bash(cat:*),Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh issue comment:*),Bash(gh run view:*),Bash(gh run list:*)"
           prompt: |
             Tuotanto-smoke kaatui. Luokittele syy ja tee KORKEINTAAN yksi asia: avaa issue tai ala avaa.
-            Ajo: https://github.com/${{ github.repository }}/actions/runs/${{ env.SMOKE_RUN_ID }} (id ${{ env.SMOKE_RUN_ID }}). Raportit ovat kansiossa raportit/ (prod-smoke-report-era*.txt ja .json).
+            Ajo: https://github.com/${{ github.repository }}/actions/runs/${{ env.SMOKE_RUN_ID }} (id ${{ env.SMOKE_RUN_ID }}). Tyohakemisto on kaatuneen ajon commitissa ${{ steps.ajo.outputs.sha }}, eli testikoodi on sama kuin ajossa; nykyinen master voi olla muuttunut. Raportit ovat kansiossa raportit/ (prod-smoke-report-era*.txt ja .json).
             Jos kansio on tyhja, lue loki: gh run view ${{ env.SMOKE_RUN_ID }} --log-failed.
 
             ET saa muuttaa yhtaan tiedostoa, avata PR:aa, mergata mitaan etka ajaa mitaan deployta.
