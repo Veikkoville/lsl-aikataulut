@@ -1,0 +1,236 @@
+{
+ "hameenlinna": {
+  "stop": "Turuntien silta L",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   689
+  ]
+ },
+ "inkoo": {
+  "stop": "Inkoo",
+  "line": "192",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   554
+  ]
+ },
+ "joensuu": {
+  "stop": "Koskikatu L",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   841
+  ]
+ },
+ "jyvaskyla": {
+  "stop": "Urhonkatu 1",
+  "line": "1M",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   495
+  ]
+ },
+ "kajaani": {
+  "stop": "Kirkko E",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   670
+  ]
+ },
+ "kotka": {
+  "stop": "Kauppatori Kirkkokatu",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   682
+  ]
+ },
+ "kouvola": {
+  "stop": "Matkakeskus H1",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   816
+  ]
+ },
+ "kuopio": {
+  "stop": "Matkakeskus E",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   599
+  ]
+ },
+ "lahti": {
+  "stop": "Matkakeskus D",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   816
+  ]
+ },
+ "lappeenranta": {
+  "stop": "Oikokatu L",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   539
+  ]
+ },
+ "mikkeli": {
+  "stop": "Mikkeli laituri 5",
+  "line": "1R",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   482
+  ]
+ },
+ "oulu": {
+  "stop": "Pokkitörmä",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   698,
+   816
+  ]
+ },
+ "pori": {
+  "stop": "Teljäntori P",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   680
+  ]
+ },
+ "raasepori": {
+  "stop": "Tammisaaren linja-autoasema",
+  "line": "201",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   740
+  ]
+ },
+ "rovaniemi": {
+  "stop": "Poliisilaitos E",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   698,
+   860
+  ]
+ },
+ "salo": {
+  "stop": "Salo linja-autoasema",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   843
+  ]
+ },
+ "turku": {
+  "stop": "Kauppatori C4",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   841
+  ]
+ },
+ "vaasa": {
+  "stop": "Vaasanpuistikko / matkakeskus P",
+  "line": "1",
+  "date": "2026-09-25",
+  "poster": [
+   720,
+   1019
+  ],
+  "booklet": [
+   700,
+   816
+  ]
+ }
+}

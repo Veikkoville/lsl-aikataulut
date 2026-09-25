@@ -16,3 +16,6 @@ REDESIGN-INVENTAARIO.md
 # Kausivalidoinnin lokaali tulosraportti (CI kirjoittaa oman artefaktiksi)
 kausivalidointi-tulos.json
 kausivalidointi-loki.txt
+
+# Etusivun esimerkkikuvien valivaihe (tools/hero-kuvat.js), vain webp-kuvat repoon
+tools/.hero-pdf/
