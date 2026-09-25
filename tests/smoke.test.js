@@ -2289,6 +2289,83 @@ async function printHygiene(page, label) {
     ? ok("juliste: paloitellun lohkon päivätyyppiotsikko kulkee taulukon mukana (break-after: avoid)")
     : fail("juliste: päivätyyppiotsikon break-after = " + JSON.stringify(jf.orpo ?? jf));
 
+  // --- Lappeenrannan auditoinnin yleiset korjaukset (25.9.2026), vakioaineistolla ---
+  // Jokainen näistä oli Lappeenrannan demossa näkyvä vika, mutta korjaus koskee kaikkia kaupunkeja.
+  const lprFix = await page.evaluate(() => {
+    const r = {};
+    // (1) koulu/loma-tunnistus: "koulujen loma-ajat" ja "ei koul" = loma, "ei loma" = koulupäivä
+    r.koulu = ["Ma-Pe koulujen loma-ajat 2026-2027", "M-P ei koulp talvi", "Koulupäiväliikenne 2026-2027",
+      "M-P ei loma", "Ma-To KP 20261101 asti", "Ma-Pe LP"].map(schoolOf).join(",");
+    // (2) rengaslinjan päätepysäkki: edellisen kierroksen saapuminen ja seuraavan lähtö samalla
+    // avaimella; saapuminen ensin ei saa poistaa lähtöä
+    const st = (dep, loppuId, loppu, alkuId, alku) => ({ headsign: "Vuoksenniska", scheduledDeparture: dep, serviceDay: 0,
+      trip: { route: { gtfsId: "X:21", shortName: "21" },
+              arrivalStoptime: { scheduledArrival: loppu, stop: { gtfsId: loppuId } },
+              departureStoptime: { scheduledDeparture: alku, stop: { gtfsId: alkuId } } } });
+    const stop = { gtfsId: "X:1", name: "Vuoksenniska P", routes: [{ gtfsId: "X:21", shortName: "21" }],
+      stoptimesWithoutPatterns: [st(45300, "X:1", 45300, "X:1", 42600), st(45300, "X:1", 48000, "X:1", 45300)] };
+    try { cleanStopDepartures(stop, "X:1"); r.rengas = stop.stoptimesWithoutPatterns.map(s => s.trip.departureStoptime.scheduledDeparture).join(","); }
+    catch (e) { r.rengas = "virhe: " + e.message; }
+    // (3) syötteen väärä directionId: pattern kulkee oman suuntansa vastaisesti kadun toisen puolen
+    // pysäkeillä (eri gtfsId, ~20 m päässä) -> siirretään toiseen suuntaan
+    const s = (id, lat) => ({ gtfsId: id, name: id, lat, lon: 28.0 });
+    const ps = assignDirKeys([
+      { code: "A0", directionId: 0, stops: [s("a1", 61.00), s("a2", 61.01), s("a3", 61.02), s("a4", 61.03)] },
+      { code: "B1", directionId: 1, stops: [s("b4", 61.0302), s("b3", 61.0202), s("b2", 61.0102), s("b1", 61.0002)] },
+      { code: "V0", directionId: 0, stops: [s("b3", 61.0202), s("b2", 61.0102), s("b1", 61.0002)] },
+    ]);
+    r.suunta = ps.map(p => p.code + ":" + dirKey(p)).join(",");
+    // (4) keskustan solmupysäkillä kilpi Keskusta/kaupunki ja <= 5 min jäljellä = saapuminen
+    const vanha = { c: CONFIG.centerStopNames, city: CONFIG.city };
+    CONFIG.centerStopNames = ["Testikatu"]; CONFIG.city = "Testilä";
+    r.saapuu = [arrivingHere("Keskusta", "Testikatu L", 120, false), arrivingHere("Keskusta", "Testikatu L", 600, false),
+      arrivingHere("Testilä", "Testikatu I", 200, false), arrivingHere("Kylä", "Testikatu L", 120, false)].join(",");
+    CONFIG.centerStopNames = vanha.c; CONFIG.city = vanha.city;
+    // (5) haku: 34 km päässä oleva tarkka alueosuma voittaa lähellä olevan sanan alun; pyöräparkki taakse
+    const f = AREA.focus;
+    r.haku = rankPlaceHits("Imatra", [{ gtfsId: "x:1", name: "Imatrantie L", lat: f.lat + 0.004, lon: f.lon }],
+      [{ name: "Imatra", layer: "localadmin", lat: f.lat + 0.3, lon: f.lon }])[0]?.name;
+    r.pyora = rankPlaceHits("matkakeskus", [], [{ name: "Pyöräparkki A Matkakeskus", layer: "bikepark", lat: f.lat, lon: f.lon },
+      { name: "Matkakeskus", layer: "venue", lat: f.lat + 0.01, lon: f.lon }])[0]?.layer;
+    // (6) taivutus: -ukse-vartalo
+    r.nl = [parseNlTrip("Matkakeskukselta yliopistolle").from, trimFiDest("Matkakeskukseen")].join(",");
+    // (7) linjastokartan kaupunkikohtainen hex-väri
+    const vs = CONFIG.netLineStyles;
+    CONFIG.netLineStyles = { T1: ["#ffdd00", 1] };
+    const ns = netStyleFor("T1", "BUS");
+    r.vari = [ns.color, ns.dash === PM_DASHES[1], ns.badgeText].join(",");
+    CONFIG.netLineStyles = vs;
+    // (8) napautus osuu myös piirtämättömään varianttiin
+    r.napautus = linesNear([{ key: "A", pts: [[0, 0], [0, 0.001]], ptsList: [[[0, 0], [0, 0.001]], [[1, 1], [1, 1.001]]] }],
+      { lat: 1, lng: 1.0005 }).map(l => l.key).join(",");
+    return r;
+  }).catch(e => ({ virhe: e.message }));
+  const lf = lprFix;
+  (lf.koulu === "loma,loma,koul,koul,koul,loma")
+    ? ok("koulu/loma: \"koulujen loma-ajat\" ja \"ei koul\" = loma, \"ei loma\" = koulupäivä (vakioaineisto)")
+    : fail("koulu/loma-tunnistus: " + JSON.stringify(lf.koulu ?? lf));
+  (lf.rengas === "45300")
+    ? ok("pysäkkisivu: rengaslinjan lähtö säilyy, kun edellisen kierroksen saapuminen on samalla avaimella (vakioaineisto)")
+    : fail("pysäkkisivu: rengaslinjan lähtö: " + JSON.stringify(lf.rengas ?? lf));
+  (lf.suunta === "A0:0,B1:1,V0:1")
+    ? ok("suunnat: väärällä directionId:llä merkitty pattern siirtyy oikeaan suuntaan (vakioaineisto)")
+    : fail("suunnat: " + JSON.stringify(lf.suunta ?? lf));
+  (lf.saapuu === "true,false,true,false")
+    ? ok("keskustan solmupysäkki: Keskusta-kilpinen päättyvä vuoro on saapuminen, pitkä jatko on lähtö (vakioaineisto)")
+    : fail("keskustan saapumiset: " + JSON.stringify(lf.saapuu ?? lf));
+  (lf.haku === "Imatra" && lf.pyora === "venue")
+    ? ok("haku: kaukainen tarkka alueosuma voittaa lähellä olevan sanan alun, pyöräparkki taakse (vakioaineisto)")
+    : fail("haku: " + JSON.stringify({ haku: lf.haku, pyora: lf.pyora, virhe: lf.virhe }));
+  (lf.nl === "Matkakeskus,Matkakeskus")
+    ? ok("tiskin lause: \"Matkakeskukselta\" ja \"Matkakeskukseen\" -> Matkakeskus")
+    : fail("tiskin lause: " + JSON.stringify(lf.nl ?? lf));
+  (lf.vari === "#ffdd00,true,#1a1a1a")
+    ? ok("linjastokartta: kaupungin oma hex-väri ja tumma teksti vaalealle")
+    : fail("linjastokartan väri: " + JSON.stringify(lf.vari ?? lf));
+  (lf.napautus === "A")
+    ? ok("linjastokartta: napautus osuu myös piirtämättömään liikennöivään varianttiin")
+    : fail("linjastokartan napautus: " + JSON.stringify(lf.napautus ?? lf));
+
   // --- Konsolivirheet ---
   // Nimeä verkkovirheet: jokainen "Failed to load resource: net::X" kuluttaa ensimmäisen
   // vielä käyttämättömän requestfailed-tapahtuman jolla on sama virheteksti. Osoitteesta

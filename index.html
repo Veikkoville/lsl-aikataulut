@@ -2913,8 +2913,13 @@ const CONFIGS = {
   lappeenranta: {
     city: "Lappeenranta",
     cityGenitive: "Lappeenrannan",
-    operator: "Lappeenrannan joukkoliikenne",
-    operatorShort: "Lappeenranta",
+    cityNames: { sv: "Villmanstrand" },
+    cityGenitives: { sv: "Villmanstrands" },
+    // Virallinen nimi "Lappeenrannan seudun joukkoliikenne" (vihko s. 2: vastaa Lappeenrannan ja
+    // Imatran liikenteestä), brändi Jouko. Ennen "Lappeenrannan joukkoliikenne" / "Lappeenranta",
+    // ja Jouko ei näkynyt demossa missään (auditointi 25.9.2026).
+    operator: "Lappeenrannan seudun joukkoliikenne",
+    operatorShort: "Jouko",
     feedMatch: /lappeenranta/i,
     rail: "LR",
     heroEmphasis: "layer",
@@ -2933,6 +2938,60 @@ const CONFIGS = {
     // Reittioppaan teemaväri (lappeenranta.digitransit.fi meta theme-color, luettu
     // 7.8.2026). headerBgColor() pitää AA:n valkoiselle.
     brandColor: "#D4007A",
+    // SaiPan ottelubussit ajavat vain ottelupäivinä (vihko s. 48 ja 50: lähtö 50/40 min ennen
+    // ottelun alkua). Pois julisteista: kaksi ottelutorstaita 42 päivässä tulostui "To"-lohkona
+    // viikoittaisena lähtönä (auditointi 25.9.2026).
+    eventLines: ["1011", "1012"],
+    // Yleissanat, joilla Pelias antaa sivuosuman (auditointi 25.9.2026): "asema" -> Asemakatu
+    // Lauritsalassa, "tori" -> Imatran Torikatu, "matkakeskus" -> pyöräparkit, "Eksote" ei löydy.
+    // Kohdenimet on todennettu osumiksi samassa auditoinnissa.
+    searchAliases: { asema: "rautatieasema", juna: "rautatieasema", tori: "kauppatori",
+      matkakeskus: "linja-autoasema", bussiasema: "linja-autoasema", eksote: "keskussairaala" },
+    // Linjastokartan tyylit. Paikallislinjat 1-8 Joukon oman linjakartan väreillä (vihko s. 9,
+    // värit luettu PDF:n vektoreista 25.9.2026), rinnakkaislinjat (1X, 2H, 3K) samalla värillä
+    // katkoviivana. Muut [NET_COLORS, PM_DASHES]: Imatran 21-25 yhtenäisellä, lähi- ja seutulinjat
+    // katkoviivoilla, kaikki yhdistelmät eri. Ennen hajautus antoi 2/200, 1X/14/113, 12/111...
+    // saman tyylin, ja keskusta näkyi ruskeana massana (auditointi 25.9.2026).
+    netLineStyles: {
+      "1": ["#00aa95", 0], "1X": ["#00aa95", 1], "2": ["#ffdd00", 0], "2H": ["#ffdd00", 1],
+      "3": ["#9d4392", 0], "3K": ["#9d4392", 1], "4": ["#ed6d05", 0], "5": ["#00512d", 0],
+      "7": ["#ea488e", 0], "8": ["#43b1e5", 0], "12": [0, 4], "14": [1, 4],
+      "21": [0, 0], "22": [1, 0], "23": [2, 0], "24": [3, 0], "25": [5, 0],
+      "100": [1, 1], "101": [2, 1], "620": [3, 1], "1001": [4, 1], "1003": [5, 1],
+      "113": [0, 2], "114": [1, 2], "610": [2, 2], "110": [3, 2], "111": [4, 2], "112": [5, 2],
+      "201": [0, 3], "604": [1, 3], "120": [2, 3], "121": [3, 3], "130": [4, 3], "200": [5, 3],
+      "1011": [4, 4], "1012": [5, 4],
+      "603": [0, 5], "300": [1, 5], "301": [2, 5], "500": [3, 5], "601": [4, 5], "602": [5, 5],
+    },
+    // Poikkeuspäivät #/poikkeukset-sivulle yleisen pyhäpäivälistan sijaan (yleinen lista väitti
+    // 25.12. ajettavan sunnuntaiaikataululla, vaikka Jouko ei liikennöi, ja syysloma puuttui;
+    // auditointi 25.9.2026). Pyhät: talviaikataulu 13.8.2026-6.6.2027 s. 114 sanasta sanaan.
+    // Lomat: lappeenranta.fi "Lukuvuoden työpäivät, jaksot ja lomat" (syysloma vko 43). Syysloma
+    // todennettu syötteestä: "Koulupäiväliikenne" ei aja 20.10. ja 22.10., "Ma-Pe koulujen
+    // loma-ajat" (114, 201, 301) ajaa 19.-23.10. HUOM jouluaatto: vihko "perjantailiikenne",
+    // kaupungin verkkosivu 25.9. "sunnuntailiikenne" -> tässä vihkon tieto, varmista Joukolta.
+    // Päivitä kauden vaihtuessa (kesäaikataulu 2027).
+    exceptions: {
+      source: "Joukon talviaikataulu 2026–2027 (s. 114) ja lappeenranta.fi: lukuvuoden lomat",
+      checked: "2026-09-25",
+      days: [
+        { from: "2026-10-19", to: "2026-10-23", name: "Syysloma", fi: "Koulupäivävuoroja ei ajeta. Loma-ajan vuorot ajetaan (mm. linjat 114, 201 ja 301)." },
+        { from: "2026-10-31", name: "Pyhäinpäivä", fi: "Lauantailiikenne." },
+        { from: "2026-12-06", name: "Itsenäisyyspäivä", fi: "Sunnuntailiikenne." },
+        { from: "2026-12-23", to: "2027-01-06", name: "Joululoma", fi: "Koulupäivävuoroja ei ajeta." },
+        { from: "2026-12-24", name: "Jouluaatto", fi: "Perjantailiikenne." },
+        { from: "2026-12-25", name: "Joulupäivä", fi: "Ei liikennöintiä." },
+        { from: "2026-12-26", name: "Tapaninpäivä", fi: "Sunnuntailiikenne." },
+        { from: "2026-12-31", name: "Uudenvuodenaatto", fi: "Perjantailiikenne." },
+        { from: "2027-01-01", name: "Uudenvuodenpäivä", fi: "Sunnuntailiikenne." },
+        { from: "2027-01-06", name: "Loppiainen", fi: "Sunnuntailiikenne." },
+        { from: "2027-03-01", to: "2027-03-05", name: "Talviloma", fi: "Koulupäivävuoroja ei ajeta." },
+        { from: "2027-03-26", name: "Pitkäperjantai", fi: "Sunnuntailiikenne." },
+        { from: "2027-03-29", name: "2. pääsiäispäivä", fi: "Sunnuntailiikenne." },
+        { from: "2027-05-01", name: "Vappupäivä", fi: "Sunnuntailiikenne." },
+        { from: "2027-05-06", name: "Helatorstai", fi: "Sunnuntailiikenne." },
+      ],
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       // focus = Oikokatu; rect kattaa linjapysäkit (7.8.2026: lat 60.713–61.242,
@@ -3518,7 +3577,7 @@ const STRINGS = {
     fbLink: "Anna palautetta",
     fbTitle: "Palaute ja vikailmoitus",
     fbIntro: "Huomasitko väärän aikataulun, rikkinäisen pysäkin tai virheen sovelluksessa? Kerro siitä. Viesti auttaa palvelun kehittämisessä.",
-    fbDisclaimer: "Tämä on epävirallinen palvelu. Suoraan bussiliikennettä koskeva palaute kannattaa lähettää myös {op}:lle.",
+    fbDisclaimer: "Tämä on epävirallinen palvelu. Suoraan bussiliikennettä koskeva palaute kannattaa lähettää myös liikenteen järjestäjälle ({op}).",
     fbCategory: "Aihe",
     fbCatSchedule: "Väärä aikataulu",
     fbCatStop: "Pysäkin ongelma",
@@ -3907,7 +3966,7 @@ const STRINGS = {
     openFullMap: "Koko kartta",
     stopTimelineTitle: "Pysäkit ja seuraava lähtö",
     timelineSelected: "Linjan {time} lähtö",
-    depFromOther: "lähtee pysäkiltä {stop}", depSchoolMark: "K", depSchoolLegend: "ajetaan vain koulupäivinä", depOtherOriginLegend: "lähtee eri pysäkiltä: {stops}", viaStop: "kautta {stop}",
+    depFromOther: "lähtee pysäkiltä {stop}", depSchoolMark: "K", depSchoolLegend: "ajetaan vain koulupäivinä", depOtherOriginLegend: "lähtee eri pysäkiltä: {stops}", depShortMark: "X", depEndsAt: "päättyy pysäkille {stop}", depShortLegend: "päättyy aiemmin: {stops}", viaStop: "kautta {stop}",
     depSelectAria: "Lähtö {time}, näytä pysäkkiajat",
     routePatternLabel: "Reittikuvio:",
     nextDeps: "Seuraavat lähdöt:",
@@ -4489,7 +4548,7 @@ const STRINGS = {
     openFullMap: "Full map",
     stopTimelineTitle: "Stops and next departure",
     timelineSelected: "The {time} departure",
-    depFromOther: "departs from {stop}", depSchoolMark: "S", depSchoolLegend: "school days only", depOtherOriginLegend: "departs from a different stop: {stops}", viaStop: "via {stop}",
+    depFromOther: "departs from {stop}", depSchoolMark: "S", depSchoolLegend: "school days only", depOtherOriginLegend: "departs from a different stop: {stops}", depShortMark: "X", depEndsAt: "ends at {stop}", depShortLegend: "ends early: {stops}", viaStop: "via {stop}",
     depSelectAria: "Departure {time}, show stop times",
     routePatternLabel: "Route variant:",
     nextDeps: "Next departures:",
@@ -5071,7 +5130,7 @@ const STRINGS = {
     openFullMap: "Hela kartan",
     stopTimelineTitle: "Hållplatser och nästa avgång",
     timelineSelected: "Avgången {time}",
-    depFromOther: "avgår från {stop}", depSchoolMark: "S", depSchoolLegend: "endast skoldagar", depOtherOriginLegend: "avgår från en annan hållplats: {stops}", viaStop: "via {stop}",
+    depFromOther: "avgår från {stop}", depSchoolMark: "S", depSchoolLegend: "endast skoldagar", depOtherOriginLegend: "avgår från en annan hållplats: {stops}", depShortMark: "X", depEndsAt: "slutar vid {stop}", depShortLegend: "slutar tidigare: {stops}", viaStop: "via {stop}",
     depSelectAria: "Avgång {time}, visa hållplatstider",
     routePatternLabel: "Linjevariant:",
     nextDeps: "Följande avgångar:",
@@ -5820,6 +5879,22 @@ function periodLabel(p) {
   return p.to ? t("periodUntil", { date: fmtDayMonthNum(p.to) }) : t("periodFrom", { date: fmtDayMonthNum(p.from) });
 }
 
+// serviceId -> "koul" | "loma" | "". Waltti-feedit kirjoittavat "koul"/"loma" auki serviceId:hin;
+// Lahden talvifeed käyttää token-lyhenteitä KP/LP (todennettu 12.8.2026: koko feedissä 0 koul/loma-
+// osumaa, 7 KP- ja 5 LP-serviceId:tä; LP aktiivinen 10.–11.8. + syysloma 19.–23.10. → KP =
+// koulupäivä, LP = loma-aika). Lyhenteet vain isoina token-osumina, ettei osuta muiden feedien
+// sanansisäisiin kirjainpareihin. "ei koul" ja "koulujen loma-ajat" ovat loma-aikaa (Jyväskylä
+// "M-P ei koulp" ja Lappeenranta "Ma-Pe koulujen loma-ajat" tulostuivat "koulupäivinä", vertailu ja
+// auditointi 25.9.2026), "ei loma" on koulupäivä. Sama sääntö julisteelle, vihkolle ja linjasivulle.
+function schoolOf(sid) {
+  sid = sid || "";
+  if (/\bei[\s_-]*loma/i.test(sid)) return "koul";
+  if (/\bei[\s_-]*koul/i.test(sid) || (/loma/i.test(sid) && /koul/i.test(sid))) return "loma";
+  if (/koul/i.test(sid) || /\bKP\b/.test(sid)) return "koul";
+  if (/loma/i.test(sid) || /\bLP\b/.test(sid)) return "loma";
+  return "";
+}
+
 // Ryhmittele patternin vuorot TODELLISEN ajopäivä-patternin mukaan (activeDates).
 // Palauttaa lohkot { dows:Set, school:"koul"|"loma"|"", trips:[], label } otsikko-
 // järjestyksessä. KOUL/LOMA erottuvat omiksi lohkoiksi kun serviceId ne koodaa.
@@ -5871,17 +5946,7 @@ function groupTripsByDays(trips, refISO, opts) {
         .filter(w => perDow[w] >= minOcc || (anchored && perDow[w] === 1 && availInSpan[w] === 1))
         .sort((a, b) => a - b);
       if (!dows.length) continue;
-      const sid = tr.serviceId || "";
-      // Waltti-feedit kirjoittavat "koul"/"loma" auki serviceId:hin; Lahden talvifeed
-      // käyttää token-lyhenteitä KP/LP (todennettu 12.8.2026: koko feedissä 0 koul/loma-
-      // osumaa, 7 KP- ja 5 LP-serviceId:tä; LP aktiivinen 10.–11.8. + syysloma 19.–23.10.
-      // → KP = koulupäivä, LP = loma-aika). Lyhenteet vain isoina token-osumina, ettei
-      // osuta muiden feedien sanansisäisiin kirjainpareihin.
-      // "ei koul" on koulupäivän vastakohta: Jyväskylän syyslomapalvelu "M-P ei koulp talvi"
-      // (12.–16.10.2026) tulostui "koulupäivinä", koska /koul/ osui siihen (vertailu 25.9.2026).
-      const school = /\bei[\s_-]*koul/i.test(sid) ? "loma"
-                   : (/koul/i.test(sid) || /\bKP\b/.test(sid)) ? "koul"
-                   : (/loma/i.test(sid) || /\bLP\b/.test(sid)) ? "loma" : "";
+      const school = schoolOf(tr.serviceId);
       const key = dows.join(",") + "|" + school;
       if (!groups.has(key)) groups.set(key, { dows: new Set(dows), school, trips: [] });
       groups.get(key).trips.push(tr);
@@ -6266,9 +6331,49 @@ function patternOrientation(refIdx, stops) {
 function assignDirKeys(patterns) {
   const list = (patterns || []).filter(Boolean);
   if (!list.length) return list;
-  // Feed julkaisee suunnan: kaytetaan sita sellaisenaan.
+  // Feed julkaisee suunnan: kaytetaan sita, mutta tarkistetaan pysakkijarjestyksesta. Lappeenrannan
+  // syotteessa yksittainen pattern on merkitty vaaraan suuntaan (25:0:02, 2:0:04, 2:1:06, 602:0:02),
+  // jolloin vastakkaisen suunnan vuorot nakyivat linjasivulla vaaralla valilehdella *-merkilla ja
+  // puuttuivat oikealta (auditointi 25.9.2026). Pattern siirretaan toiseen suuntaan vain kun se
+  // kulkee OMAN suuntansa pisinta patternia vastaan JA toisen suunnan pisimman mukana (tai toista
+  // suuntaa ei ole, kuten linjalla 602). Epaselva (0) jaa ennalleen.
   if (list.some(p => p.directionId != null && p.directionId >= 0)) {
     for (const p of list) p.__dir = (p.directionId != null && p.directionId >= 0) ? p.directionId : "d?";
+    // Vertailu SIJAINNILLA, ei pysäkkitunnuksella: vastakkainen suunta kulkee kadun toisen puolen
+    // pysäkeillä (eri gtfsId), jolloin tunnusvertailu antoi 0 eikä käännettyä patternia tunnistettu
+    // (linjat 2 ja 602). Kukin pysäkki kohdistetaan lähimpään alle 200 m:n referenssipysäkkiin.
+    const refOf = d => {
+      const ps = list.filter(p => p.__dir === d);
+      return ps.reduce((a, b) => ((b.stops || []).length > (a.stops || []).length ? b : a), ps[0]);
+    };
+    const orient = (ref, stops) => {
+      const rs = (ref.stops || []);
+      if (!rs.every(s => s.lat != null) || !(stops || []).every(s => s.lat != null)) {
+        const idx = new Map();
+        rs.forEach((st, i) => { if (!idx.has(st.gtfsId)) idx.set(st.gtfsId, i); });
+        return patternOrientation(idx, stops);
+      }
+      const pos = [];
+      for (const st of stops || []) {
+        let best = -1, bd = 0.2;
+        rs.forEach((r, i) => {
+          const d = Math.hypot((r.lat - st.lat) * 111, (r.lon - st.lon) * 55);
+          if (d < bd) { bd = d; best = i; }
+        });
+        if (best >= 0 && best !== pos[pos.length - 1]) pos.push(best);
+      }
+      let inc = 0, dec = 0;
+      for (let i = 1; i < pos.length; i++) { if (pos[i] > pos[i - 1]) inc++; else if (pos[i] < pos[i - 1]) dec++; }
+      return pos.length < 2 || inc === dec ? 0 : (inc > dec ? 1 : -1);
+    };
+    const dirs = [...new Set(list.map(p => p.__dir))].filter(d => d === 0 || d === 1);
+    const refs = new Map(dirs.map(d => [d, refOf(d)]));
+    for (const p of list) {
+      const own = refs.get(p.__dir);
+      if (!own || p === own || orient(own, p.stops) >= 0) continue;
+      const other = refs.get(1 - p.__dir);
+      if (!other || orient(other, p.stops) > 0) p.__dir = 1 - p.__dir;
+    }
     return list;
   }
   const ref = list.reduce((a, b) => ((b.stops || []).length > (a.stops || []).length ? b : a), list[0]);
@@ -6330,6 +6435,14 @@ const MODE_COLORS = { RAIL: "#00833b", SUBWAY: "#a33d00", TRAM: "#6b3fa0", FERRY
 function netStyleFor(key, mode) {
   // netLineStyles = vain kartan viivat (linjamerkit lukevat pelkän lineStylesin, ks. badgeHtml).
   const mapped = (CONFIG.lineStyles && CONFIG.lineStyles[key]) || (CONFIG.netLineStyles && CONFIG.netLineStyles[key]);
+  // Kaupungin oma virallinen linjaväri ["#rrggbb", viiva] (Lappeenranta: Joukon linjakartan
+  // paletti, vihko s. 9). Tumma teksti vaalealle taustalle (2 keltainen).
+  if (mapped && typeof mapped[0] === "string") {
+    const hex = mapped[0], di = mapped[1] || 0;
+    const n = parseInt(hex.slice(1), 16), lum = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+    return { color: hex, dash: PM_DASHES[di], ci: null, di, stroke: hex, badge: hex,
+      badgeText: lum > 160 ? "#1a1a1a" : "#fff" };
+  }
   if (mapped) {
     const [ci, di] = mapped;
     return { color: NET_COLORS[ci], dash: PM_DASHES[di], ci, di,
@@ -7914,12 +8027,23 @@ function bindFavButton(item) {
 //     "Joensuu - PKKS" jatkaa 5-10 min keskussairaalaan, vihkossa vain tarvittaessa).
 // Aikaraja ja vuoron alkupysäkki suojaavat lyhyitä silmukoita ja läpiajolinjoja, joiden kilpi
 // voi olla pysäkin paikka kesken reitin.
+// (3) keskustan solmupysäkillä (CONFIG.centerStopNames) kilpi on "Keskusta" tai kaupungin nimi ja
+//     vuoro päättyy enintään 5 minuutin päästä: bussi on tulossa keskustaan, ei lähdössä.
+//     Lappeenrannan Oikokatu L:n julisteessa oli ~120 tällaista "lähtöä" (1, 1X, 4, 7 "Keskusta",
+//     100 ja 110-113, 300, 601, 603, 610 "Lappeenranta"; auditointi 25.9.2026). Raja on tiukempi
+//     kuin (2):ssa, koska keskustan läpi ajava linja voi näyttää kilpeä "Keskusta" pitkään.
 const ARRIVAL_TAIL_MAX_S = 15 * 60;
+const CENTER_ARRIVAL_MAX_S = 5 * 60;
 function arrivingHere(headsign, stopName, secsLeft, isFirst) {
   if (isFirst || !(secsLeft >= 0 && secsLeft <= ARRIVAL_TAIL_MAX_S)) return false;
   const paikka = String(headsign || "").split(/\s+[-–]\s+/)[0].trim().toLowerCase();
   const nimi = String(stopName || "").trim().toLowerCase();
-  return !!paikka && (nimi === paikka || nimi.startsWith(paikka + " "));
+  if (!paikka) return false;
+  if (nimi === paikka || nimi.startsWith(paikka + " ")) return true;
+  if (secsLeft > CENTER_ARRIVAL_MAX_S) return false;
+  const keskus = ["keskusta", "centrum", "centre", String(CONFIG.city || "").toLowerCase()];
+  const solmu = (CONFIG.centerStopNames || []).some(c => nimi === c.toLowerCase() || nimi.startsWith(c.toLowerCase() + " "));
+  return solmu && keskus.includes(paikka);
 }
 // Lähtölistojen kyselyihin: vuoron ensimmäinen ja viimeinen pysähdys (dropArrivals).
 const TRIP_ENDS_FIELDS = "departureStoptime { scheduledDeparture stop { gtfsId } } " +
@@ -8883,6 +9007,11 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
        }`, { id: stopId });
     pats = data.stop?.patterns || [];
   }
+  // Tapahtumalinjat (CONFIG.eventLines, esim. SaiPan ottelubussit) ajavat vain tapahtumapäivinä
+  // ilman kiinteää aikataulua. Kaksi ottelutorstaita 42 päivässä riitti "To"-lohkoon, ja
+  // julisteessa ne näyttivät viikoittaisilta lähdöiltä (Lappeenranta, auditointi 25.9.2026).
+  const eventLines = CONFIG.eventLines || [];
+  if (eventLines.length) pats = pats.filter(p => !eventLines.includes(p.route?.shortName));
   const memo = ptdMemo || new Map();
   // Eräkysely ensin (patternTripsMany: 5 patternia/pyyntö aliaksilla, 3 erää rinnakkain):
   // Lahti Matkakeskus D 27 proxy-kutsua → 6, Oulu Raatti P 42 → 9. Mitattu 3.9.2026: verkko oli
@@ -9025,7 +9154,11 @@ async function fillRailHints() {
   // vaihtoehto (3/3). Linkki nakyy vain kun matkan maaranpaa on tiedossa.
   let asemaLink = "";
   try {
-    const st = (await loadAreaStops()).find(x => x.vehicleMode === "RAIL");
+    // Lähin asema kaupungin keskipisteestä, ei rajauksen ensimmäinen: Lappeenrannan rajauksessa
+    // on myös Imatran asema, ja linkki haki reitin sieltä 35 km päästä (auditointi 25.9.2026).
+    const kmF = x => Math.hypot((x.lat - AREA.focus.lat) * 111, (x.lon - AREA.focus.lon) * 55);
+    const st = (await loadAreaStops()).filter(x => x.vehicleMode === "RAIL" && x.lat != null)
+      .sort((a, b) => kmF(a) - kmF(b))[0];
     if (st && planState && planState.to && st.lat != null) {
       const enc = q => encodeURIComponent(`${q.lat.toFixed(5)},${q.lon.toFixed(5)},${q.name}`);
       const opts = new URLSearchParams();
@@ -9211,7 +9344,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       ${curDirPatterns.length > 1 ? `
         <div class="row no-print" style="margin:0.3rem 0">
           <label class="muted" for="variantSel">${t("routePatternLabel")}</label>
-          <select id="variantSel">
+          <select id="variantSel" style="max-width:100%;min-width:0">
             ${curDirPatterns.map(p => `
               <option value="${esc(p.code)}"${p === current ? " selected" : ""}>
                 ${esc(patternLabel(p))} (${t("nStops", { n: (p.stops || []).length })})
@@ -9349,7 +9482,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     stop(id: $stopId) {
       stoptimesForServiceDate(date: $date, omitNonPickups: true) {
         pattern { code }
-        stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay trip { gtfsId serviceId } }
+        stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay trip { gtfsId serviceId arrivalStoptime { stop { gtfsId name@L } } } }
       }
     }
   }`;
@@ -9404,7 +9537,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     const { pat, trips, allTrips } = await bestPatternForDate(iso);
     const refStop = pickRefStop(pat, allTrips);
     if (!trips.length || !refStop) return { sts: [], pat, refStop, stale: routeCachedAt };
-    const { data: tt, cachedAt } = await cachedGql(`tt2:${routeId}:dir${curDir}:${refStop.gtfsId}:${iso}`, TT_QUERY,
+    const { data: tt, cachedAt } = await cachedGql(`tt3:${routeId}:dir${curDir}:${refStop.gtfsId}:${iso}`, TT_QUERY,
       { stopId: refStop.gtfsId, date: iso.replace(/-/g, "") });
     // Yksi (varhaisin) lähtö per vuoro: jos lähtöpysäkki on reitillä kahdesti (silmukka/
     // palveluliikenne, esim. Salo 31, Kajaani Pali), stoptimesForServiceDate palauttaa
@@ -9431,9 +9564,20 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       if (stts.length < 2) continue;
       if (stts.slice(0, -1).some(s => s.stop?.gtfsId === refStop.gtfsId)) continue;
       const first = stts[0];
+      const last = stts[stts.length - 1];
       byTrip.set("from:" + (first.stop?.gtfsId || "") + ":" + first.scheduledDeparture, {
         scheduledDeparture: first.scheduledDeparture, realtimeDeparture: first.scheduledDeparture,
-        realtime: false, serviceDay, _from: first.stop?.name || "", trip: { serviceId: tr.serviceId || "" } });
+        realtime: false, serviceDay, _from: first.stop?.name || "",
+        trip: { serviceId: tr.serviceId || "", arrivalStoptime: { stop: last?.stop || null } } });
+    }
+    // Aiemmin päättyvä vuoro (_to): päätepysäkki eri kuin hallitsevan patternin (laiturikirjain
+    // ei ratkaise). Linjasivu näytti ne koko reitin vuoroina: 2:n 18.30-22.30 Kivisalmesta ajavat
+    // vain Keskustaan, 100:n 14.11 ja 21.10 päättyvät Joutsenoon; vihko merkitsee ne X:llä
+    // (Lappeenranta, auditointi 25.9.2026).
+    const mainEnd = cbStopBase((pat.stops || [])[(pat.stops || []).length - 1]?.name);
+    for (const s of byTrip.values()) {
+      const end = s.trip?.arrivalStoptime?.stop?.name;
+      if (end && mainEnd && cbStopBase(end) !== mainEnd) s._to = end;
     }
     const sts = [...byTrip.values()].sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
     return { sts, pat, refStop, stale: cachedAt || routeCachedAt };
@@ -9517,17 +9661,19 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       // aikataulussa 8.45) näytti ilman ●-merkkiä aikataululta, jota ei ole (auditointi 23.9.).
       const dep = (st.realtime && !past) ? st.realtimeDeparture : st.scheduledDeparture;
       const cls = "timegrid-dep" + (past ? " past" : "") + (st.realtime && !past ? " rt" : "");
-      const fromTitle = st._from ? t("depFromOther", { stop: st._from }) : "";
-      // Koulupäivävuoro: sama serviceId-tekstihaku kuin julisteen koulupäivälohkossa (/koul/i).
+      const fromTitle = [st._from ? t("depFromOther", { stop: st._from }) : "",
+        st._to ? t("depEndsAt", { stop: st._to }) : ""].filter(Boolean).join(", ");
+      // Koulupäivävuoro: sama sääntö kuin julisteen koulupäivälohkossa (schoolOf).
       // Linjasivu näytti ne tavallisina (Joensuun 201: 7.00, 8.00, 14.00...; auditointi 23.9.).
-      const school = /koul/i.test(st.trip?.serviceId || "");
+      const school = schoolOf(st.trip?.serviceId) === "koul";
       return `<button type="button" class="${cls}" data-dep="${st.scheduledDeparture}" aria-pressed="false"` +
         ` aria-label="${t("depSelectAria", { time: fmtSec(dep) })}${fromTitle ? ", " + esc(fromTitle) : ""}${school ? ", " + esc(t("depSchoolLegend")) : ""}"` +
         `${st.realtime && !past ? ` title="${t("rtTitleAttr")}"` : fromTitle ? ` title="${esc(fromTitle)}"` : ""}>` +
-        `${fmtSec(dep)}${school ? " " + t("depSchoolMark") : ""}${st.realtime && !past ? " ●" : ""}${st._from ? "*" : ""}</button>`;
+        `${fmtSec(dep)}${school ? " " + t("depSchoolMark") : ""}${st._to ? " " + t("depShortMark") : ""}${st.realtime && !past ? " ●" : ""}${st._from ? "*" : ""}</button>`;
     }).join("");
     const otherFrom = [...new Set(sts.filter(st => st._from).map(st => st._from))];
-    const anySchool = sts.some(st => /koul/i.test(st.trip?.serviceId || ""));
+    const shortTo = [...new Set(sts.filter(st => st._to).map(st => st._to))];
+    const anySchool = sts.some(st => schoolOf(st.trip?.serviceId) === "koul");
     el.innerHTML = `
       ${redirectNote ? `<p class="redirect-note">${icon("warning")} ${esc(redirectNote)}</p>` : ""}
       ${stale ? staleNoteHtml(stale) : ""}
@@ -9536,6 +9682,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       ${remindHtml}
       <div class="timegrid" id="timegrid">${grid}</div>
       ${anySchool ? `<p class="muted">${esc(t("depSchoolMark"))} = ${esc(t("depSchoolLegend"))}</p>` : ""}
+      ${shortTo.length ? `<p class="muted">${esc(t("depShortMark"))} = ${esc(t("depShortLegend", { stops: shortTo.join(", ") }))}</p>` : ""}
       ${otherFrom.length ? `<p class="muted">* ${esc(t("depOtherOriginLegend", { stops: otherFrom.join(", ") }))}</p>` : ""}
       ${isToday ? `<p class="muted"><span class="rt">●</span> ${t("rtLegend")}</p>` : ""}`;
     const rb = document.getElementById("remindBtn");
@@ -9828,6 +9975,15 @@ function dedupStopDuplicates(stop) {
   }
 }
 
+// Pysäkin lähtölistan siivous: saapumiset pois ENNEN duplikaattien poistoa. Rengaslinjan
+// päätepysäkillä edellisen kierroksen saapuminen ja seuraavan lähtö saavat saman avaimen
+// (linja|kilpi|aika), ja jos saapuminen oli vastauksessa ensin, lähtö poistui duplikaattina
+// (Imatra, Vuoksenniska P linja 21: 12.35 ja 13.35 puuttuivat, auditointi 25.9.2026).
+function cleanStopDepartures(stop, stopId) {
+  dropArrivals(stop, stopId);
+  dedupStopDuplicates(stop);
+}
+
 async function viewStop(stopId) {
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`<p class="muted">${t("loadingStopDeps")}</p>`);
@@ -9845,8 +10001,7 @@ async function viewStop(stopId) {
          }
        }`, { id: stopId });
     if (!data.stop) throw new Error(t("errStopNotFound") + stopId);
-    dedupStopDuplicates(data.stop);
-    dropArrivals(data.stop, stopId);
+    cleanStopDepartures(data.stop, stopId);
     return { stop: data.stop, cachedAt };
   };
 
@@ -10117,8 +10272,7 @@ async function viewMonitor(stopId) {
          }
        }`, { id: stopId });
     if (!data.stop) throw new Error(t("errStopNotFound") + stopId);
-    dedupStopDuplicates(data.stop);
-    dropArrivals(data.stop, stopId);
+    cleanStopDepartures(data.stop, stopId);
     return { stop: data.stop, cachedAt };
   };
   // Kioskinäyttö on ilman valvojaa: jos verkko katkeaa, taulu EI saa jäädä väittämään
@@ -10304,11 +10458,16 @@ function segDistM(lat, lon, a, b) {
 // Linjat jotka kulkevat annetun pisteen ohi. Kynnys kasvaa portaittain, jotta napautus
 // osuu myös kun sormi ei osu viivalle pikselilleen; ensimmäinen osuva taso voittaa, jolloin
 // tarkka napautus ei vedä mukaan naapurikadun linjoja.
+// Osumatesti kaikista liikennöivistä varianteista (l.ptsList), ei vain piirretystä: suunnat
+// kulkevat keskustassa eri katuja, ja napautus Kauppakadulla jätti 300:n ja 113:n pois
+// (Lappeenranta, auditointi 25.9.2026).
 function linesNear(lines, latlng) {
   for (const limit of [60, 150, 400]) {
     const hit = lines.filter(l => {
-      for (let i = 1; i < l.pts.length; i++) {
-        if (segDistM(latlng.lat, latlng.lng, l.pts[i - 1], l.pts[i]) <= limit) return true;
+      for (const pts of (l.ptsList || [l.pts])) {
+        for (let i = 1; i < pts.length; i++) {
+          if (segDistM(latlng.lat, latlng.lng, pts[i - 1], pts[i]) <= limit) return true;
+        }
       }
       return false;
     });
@@ -10360,7 +10519,9 @@ async function viewNetworkMap() {
     // Pysäkit ensin, jotta viivat piirtyvät niiden päälle.
     let stopCount = 0, stopBounds = null;
     const stopMarkers = [];
-    if (CONFIG.areaScoped) {
+    // Pysäkit kaikissa kaupungeissa (ennen vain areaScoped): Lappeenrannan linjastokartalla oli
+    // 0 pysäkkiä (auditointi 25.9.2026). Näkyvät vasta zoomilla 12 (syncStops).
+    {
       try {
         for (const st of await loadAreaStops()) {
           const isRail = st.vehicleMode === "RAIL", isFerry = st.vehicleMode === "FERRY";
@@ -10395,19 +10556,28 @@ async function viewNetworkMap() {
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(r);
     }
-    const drawnLines = [];   // { key, label, gtfsId, pts } korridoritietoa varten
+    const drawnLines = [];   // { key, label, gtfsId, pts, ptsList } korridoritietoa varten
     for (const [key, group] of groups) {
-      let best = null, bestTrips = -1, bestLen = -1, owner = null;
+      // Piirrettävä variantti: pisin niistä, joilla on vähintään 20 % vilkkaimman variantin
+      // vuoroista. Pelkkä vuoromäärä piirsi Lappeenrannan 12:n (pe/la-yökierros, syöte pilkkoo
+      // sen lyhyiksi vuoroiksi) Keskusta-Yliopisto-pätkänä (auditointi 25.9.2026); pelkkä pituus
+      // piirsi Joensuun 201:n harvinaisen Utran variantin (2/42 vuoroa, auditointi 23.9.2026).
+      const cand = [];
       for (const r of group) {
         for (const p of (r.patterns || [])) {
           if (!(p.patternGeometry && p.patternGeometry.points)) continue;
-          const n = tripsOf(p), len = p.patternGeometry.length || 0;
-          if (n > bestTrips || (n === bestTrips && len > bestLen)) { bestTrips = n; bestLen = len; best = p; owner = r; }
+          cand.push({ p, r, n: tripsOf(p), len: p.patternGeometry.length || 0 });
         }
       }
-      if (!best) continue;
+      if (!cand.length) continue;
+      const maxTrips = Math.max(...cand.map(c => c.n));
+      const pick = cand.filter(c => c.n >= maxTrips * 0.2)
+        .reduce((a, c) => (c.len > a.len || (c.len === a.len && c.n > a.n) ? c : a));
+      const best = pick.p, owner = pick.r;
       const pts = decodePolyline(best.patternGeometry.points);
       if (!pts.length) continue;
+      const ptsList = cand.filter(c => c.n > 0 && c.p !== best).map(c => decodePolyline(c.p.patternGeometry.points));
+      ptsList.unshift(pts);
       const st = netStyleFor(owner.shortName || owner.gtfsId, owner.mode);
       const color = owner.color ? "#" + owner.color : st.color;
       const line = L.polyline(pts, { color, weight: 3, opacity: 0.55,
@@ -10427,7 +10597,7 @@ async function viewNetworkMap() {
       bounds = bounds ? bounds.extend(line.getBounds()) : line.getBounds();
       drawnKeys.add(key);
       drawnLines.push({ key, short: owner.shortName || "", name: owner.longName || "",
-        gtfsId: owner.gtfsId, pts, badge: st.badge, badgeText: st.badgeText });
+        gtfsId: owner.gtfsId, pts, ptsList, badge: st.badge, badgeText: st.badgeText });
       drawn++;
     }
     // "Mitkä linjat kulkevat tätä väliä" oli Inkoon havainto: päällekkäiset viivat eivät
@@ -10448,8 +10618,11 @@ async function viewNetworkMap() {
       // Rajaus kaupungin ytimeen (12 km focus-pisteestä), ei kaikkien linjojen unioniin:
       // Joensuussa seutulinjat Lieksaan ja Kiteelle veivät avausnäkymän zoomille 8, ja
       // kaupungin linjasto jäi möykyksi keskelle (auditointi 23.9.2026).
+      // Kapealla näytöllä säde 6 km: 12 km avasi puhelimella Lappeenrannan koko maakuntaan
+      // (zoom 9, auditointi 25.9.2026).
       const kmF = ([la, lo]) => Math.hypot((la - AREA.focus.lat) * 111, (lo - AREA.focus.lon) * 55);
-      const core = drawnLines.flatMap(l => l.pts).filter(p => kmF(p) <= 12);
+      const coreKm = (document.getElementById("netMap")?.clientWidth || 800) < 600 ? 6 : 12;
+      const core = drawnLines.flatMap(l => l.pts).filter(p => kmF(p) <= coreKm);
       fitMap(map, core.length >= 2 ? L.latLngBounds(core) : bounds);
     }
     // Pysakit viivojen paalle, ja kaukaa katsottuna piiloon: puhelimen avauszoomilla 158
@@ -10477,7 +10650,9 @@ async function viewNetworkMap() {
         if (seen.has(k) || !drawnKeys.has(k)) return false;
         seen.add(k);
         return true;
-      }).map(r => {
+      // numerojärjestys (syötteen järjestys oli Lappeenrannassa 130, 113, 112 ... 1)
+      }).sort((a, b) => String(a.shortName || a.longName || "").localeCompare(String(b.shortName || b.longName || ""), "fi", { numeric: true }))
+      .map(r => {
         const st = netStyleFor(r.shortName || r.gtfsId, r.mode);
         // Viivan malli piirretaan SVG:lla samalla dash-kuviolla kuin kartalla, jotta selite
         // todella erottaa linjat. Vari tulee CSS-tokenista (net-c0..net-c5, kulkutavalla
@@ -11557,6 +11732,10 @@ function rankPlaceHits(q, rawStops, places) {
     return 3;
   };
   const AREA_LAYERS = new Set(["localadmin", "locality", "neighbourhood", "borough", "county"]);
+  // Etäisyys vaikuttaa enintään 15 km:iin asti: muuten 34 km päässä oleva tarkka osuma hävisi
+  // lähellä olevalle sanan alulle ("Imatra" -> Lappeenrannan Imatrantie L, ja tiski ohjasi
+  // "Imatrasta Lappeenrantaan" sieltä; auditointi 25.9.2026).
+  const dist = (lat, lon) => Math.min(km(lat, lon), 15) / 2;
   const items = [];
   for (const s of rawStops || []) {
     if (s.lat == null) continue;
@@ -11564,14 +11743,17 @@ function rankPlaceHits(q, rawStops, places) {
     const qu = quality(full.replace(/ [a-zåäö]$/, ""));  // laiturikirjain ei heikennä osumaa
     items.push({ hit: { name: s.name + (s.code ? ` (${s.code})` : ""), lat: s.lat, lon: s.lon, layer: "stop",
                         gtfsId: s.gtfsId, code: s.code, stopName: s.name },
-      key: full, score: qu * 4 + km(s.lat, s.lon) / 2 });
+      key: full, score: qu * 4 + dist(s.lat, s.lon) });
   }
   for (const p of places || []) {
     const first = (p.name || "").split(",")[0].toLowerCase().replace(/\s+/g, " ").trim();
     let qu = quality(p.layer === "stop" ? first.replace(/ [a-zåäö]$/, "") : first);
     if ((p.conf ?? 1) < 0.5) qu = Math.max(qu, 3);
     const bonus = (qu === 0 && AREA_LAYERS.has(p.layer)) ? 1.5 : 0;
-    items.push({ hit: p, key: first, score: qu * 4 + km(p.lat, p.lon) / 2 - bonus });
+    // Pyöräparkit ja kaupunkipyöräasemat eivät ole matkan kohteita: "matkakeskus" antoi
+    // Lappeenrannassa ensin kolme pyöräparkkia (auditointi 25.9.2026).
+    const bike = /^bike/.test(p.layer || "") ? 8 : 0;
+    items.push({ hit: p, key: first, score: qu * 4 + dist(p.lat, p.lon) - bonus + bike });
   }
   items.sort((a, b) => a.score - b.score);
   // Tuplat pois: sama nimi (laiturikirjain mukaan lukien, Kauppatori I ja L ovat eri pysäkit)
@@ -11783,9 +11965,12 @@ function bindPlaceInput(input, listEl, onPick) {
 
 // Suomen lähtö-/määränpääsijapäätteen trimmaus (best-effort; täydellinen lemmaus vaatisi
 // kirjaston, joten epäonnistuessa geocoderin sumeus + graceful fallback paikkaavat).
-function trimFiOrig(w) { return w.replace(/:?(sta|stä|lta|ltä)$/i, ""); }
+// -us/-ys-sanojen vartalo on -ukse-/-ykse-: "Matkakeskukselta" jäi muotoon "Matkakeskukse"
+// ja haku osui Matkamiehenkatuun (Lappeenranta, auditointi 25.9.2026).
+function trimFiOrig(w) { return w.replace(/:?(sta|stä|lta|ltä)$/i, "").replace(/(u|y)kse$/i, "$1s"); }
 function trimFiDest(w) {
   return w
+    .replace(/(u|y)kse(en|lle)$/i, "$1s")    // Matkakeskukseen, Matkakeskukselle -> Matkakeskus
     .replace(/:?(lle|seen)$/i, "")
     .replace(/:?([aeiouyåäö])\1n$/i, "$1")   // illatiivi vokaalinpidennyksellä: Turkuun→Turku, Helsinkiin→Helsinki
     .replace(/:?h([aeiouyåäö])n$/i, "");      // illatiivi -hVn: maahan→maa
@@ -12625,8 +12810,7 @@ async function viewServiceDesk() {
     try {
       const d = await gql(DESK_DEPS_QUERY, { id: gtfsId });
       if (!d.stop || curStop !== gtfsId) return;   // pysäkki vaihtui haun aikana → hylkää tulos
-      dedupStopDuplicates(d.stop);
-      dropArrivals(d.stop, gtfsId);
+      cleanStopDepartures(d.stop, gtfsId);
       renderDeskDeps(d.stop);
     } catch (e) {
       const dep = document.getElementById("deskDeps");
