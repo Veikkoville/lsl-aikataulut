@@ -2497,6 +2497,26 @@ async function printHygiene(page, label) {
   (staff.ruudut === 4 && staff.arvot.every(v => v && v !== "…") && staff.rivit >= 5 && staff.valikko === "tilanne")
     ? ok(`henkilöstö (Lappeenranta): ${staff.ruudut} tilaruutua täynnä (${staff.arvot.join(" / ")}), ${staff.rivit} toimintoa`)
     : fail("henkilöstö: tilanne-näkymä vajaa: " + JSON.stringify(staff));
+  // Suuri kontrasti kaupungin värillä (25.9.2026): vaaleassa nappi/teksti ≥ 7:1 valkoista vasten ja kaupungin
+  // sävyinen (Lappeenranta magenta, R > B), tummassa tekstisävy ≥ 7:1 mustaa vasten. Tila nollataan lopuksi.
+  const hcCheck = async theme => {
+    await page.evaluate(t => { localStorage.setItem("contrast", "high"); localStorage.setItem("theme", t); }, theme);
+    await page.reload({ waitUntil: "networkidle2" });
+    return page.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement);
+      const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+      const lum = h => { const v = rgb(h).map(c => c / 255).map(c => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+        return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+      const btn = cs.getPropertyValue("--btn-bg").trim(), txt = cs.getPropertyValue("--blue").trim();
+      return { btn, txt, btnWhite: 1.05 / (lum(btn) + 0.05), txtBlack: (lum(txt) + 0.05) / 0.05,
+        pink: rgb(btn)[0] > rgb(btn)[2] + 40 };
+    });
+  };
+  const hcLight = await hcCheck("light"), hcDark = await hcCheck("dark");
+  await page.evaluate(() => { localStorage.removeItem("contrast"); localStorage.removeItem("theme"); });
+  (hcLight.pink && hcLight.btnWhite >= 7 && hcDark.txtBlack >= 7 && hcDark.btnWhite >= 7)
+    ? ok(`suuri kontrasti (Lappeenranta): kaupungin väri ${hcLight.btn} ${hcLight.btnWhite.toFixed(1)}:1, tummassa ${hcDark.txt} ${hcDark.txtBlack.toFixed(1)}:1`)
+    : fail("suuri kontrasti: kaupungin väri puuttuu tai alle 7:1: " + JSON.stringify({ hcLight, hcDark }));
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
 
   // --- Konsolivirheet ---

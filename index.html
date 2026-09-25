@@ -2005,7 +2005,7 @@
   }
   .header-inner { gap: 0.5rem 1.5rem; }
   .brand { flex: 0 1 auto; }
-  .brand-glyph { width: 34px; height: 34px; border-radius: 8px; background: var(--header-bg); color: #fff;
+  .brand-glyph { width: 34px; height: 34px; border-radius: 8px; background: var(--btn-bg); color: #fff;
     display: grid; place-items: center; font-weight: 800; font-size: 1.05rem; line-height: 1; flex: none; }
   header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.005em; line-height: 1.2; }
   header p { color: var(--ink-muted); opacity: 1; font-size: 0.78rem; }
@@ -2018,7 +2018,7 @@
   .hdr-tools .seg .hdr-btn + .hdr-btn { border-left-color: var(--line); }
   .hdr-btn { color: var(--ink); background: var(--surface); }
   .hdr-btn:hover { background: var(--accent-soft); }
-  .hdr-btn[aria-pressed="true"] { background: var(--header-bg); color: #fff; }
+  .hdr-btn[aria-pressed="true"] { background: var(--btn-bg); color: #fff; }
   html[data-contrast="high"] header { border-bottom: 2px solid var(--ink); }
   html[data-contrast="high"] .hdr-btn, html[data-contrast="high"] .hdr-tools .seg { border-color: var(--ink); }
   @media (max-width: 1199px) { .hdr-nav { order: 3; flex-basis: 100%; overflow-x: auto; gap: 1.1rem; } }
@@ -6533,11 +6533,26 @@ function applyBrandAccent() {
   if (!v) { el?.remove(); return; }
   if (!el) { el = document.createElement("style"); el.id = "cityTheme"; document.head.appendChild(el); }
   const light = lightAccent(v.base);
+  // Suuri kontrasti kaupungin värillä (Villen havainto 25.9.2026: kaikissa oli sama sininen). Raja AAA 7:1:
+  // vaaleassa brändiväri syvennetään valkoista vasten, tummassa tekstisävy vaalennetaan mustaa vasten ja
+  // napit pysyvät syvinä valkoisella tekstillä. Vaasan/Kotkan käsin viritetyt kontrastiarvot voittavat.
+  const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const toHex = a => "#" + a.map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0")).join("");
+  let hcRgb = rgbOf(v.base);
+  for (let i = 0; i < 60 && 1.05 / (relLum(toHex(hcRgb).slice(1)) + 0.05) < 7; i++) hcRgb = hcRgb.map(x => x * 0.94);
+  const hc = toHex(hcRgb), hcDark = toHex(hcRgb.map(x => x * 0.8));
+  let hcLight = "#ffffff";
+  for (let a = 0; a <= 1.0001; a += 0.05) {
+    const h = toHex(rgbOf(v.base).map(x => x + (255 - x) * a));
+    if ((relLum(h.slice(1)) + 0.05) / 0.05 >= 7) { hcLight = h; break; }
+  }
   el.textContent =
     `:root:where(:not([data-theme="dark"]):not([data-contrast="high"])){--accent:${v.base};--accent-dark:${v.dark};` +
     `--accent-soft:${v.chip};--blue:${v.base};--btn-bg:${v.base};--btn-hover:${v.dark};--hover:${v.hover};--chip:${v.chip}}` +
     `html[data-theme="dark"]:where(:not([data-contrast="high"])){--accent:${light};--blue:${light};` +
-    `--btn-bg:${v.base};--btn-hover:${v.dark}}`;
+    `--btn-bg:${v.base};--btn-hover:${v.dark}}` +
+    `html[data-contrast="high"]:where(:not([data-theme="dark"])){--accent:${hc};--blue:${hc};--btn-bg:${hc};--btn-hover:${hcDark}}` +
+    `html[data-theme="dark"][data-contrast="high"]{--accent:${hcLight};--blue:${hcLight};--btn-bg:${hc};--btn-hover:${hcDark}}`;
 }
 
 function deskAccentStyle() {
