@@ -2517,6 +2517,16 @@ async function printHygiene(page, label) {
   (hcLight.pink && hcLight.btnWhite >= 7 && hcDark.txtBlack >= 7 && hcDark.btnWhite >= 7)
     ? ok(`suuri kontrasti (Lappeenranta): kaupungin väri ${hcLight.btn} ${hcLight.btnWhite.toFixed(1)}:1, tummassa ${hcDark.txt} ${hcDark.txtBlack.toFixed(1)}:1`)
     : fail("suuri kontrasti: kaupungin väri puuttuu tai alle 7:1: " + JSON.stringify({ hcLight, hcDark }));
+  // Jaettu reittilinkki ilman ?city (25.9.2026: kaverin jakama Kotkan reitti avautui Lahden sivulle, koska
+  // jakonappi pudotti parametrin). about:blank välissä, jotta linkki avautuu tuoreena kuten oikeasti jaettuna.
+  await page.goto("about:blank");
+  await page.goto(BASE + "/#/reitti/60.57315%2C26.95551%2CTavastilan%20seisake%2C%20Kotka/60.48312%2C26.85813%2CKarhuvuori%2C%20Kotka",
+    { waitUntil: "networkidle2" });
+  const jako = await page.evaluate(() => ({ city: document.documentElement.dataset.city, search: location.search,
+    share: typeof planHash === "function" ? appUrl(planHash()) : "" }));
+  (jako.city === "kotka" && jako.search === "?city=kotka" && jako.share.includes("?city=kotka#/reitti/"))
+    ? ok("jaettu reittilinkki ilman ?city: Kotka päätellään lähtöpisteestä ja jakolinkki kantaa kaupungin")
+    : fail("jaettu reittilinkki: kaupunki väärin tai jakolinkki ilman ?city: " + JSON.stringify(jako));
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
 
   // --- Konsolivirheet ---
