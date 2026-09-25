@@ -1687,7 +1687,12 @@ async function printHygiene(page, label) {
     await page.waitForFunction(l => document.documentElement.lang === l, { timeout: 10000 }, lg);
     for (const [hash, id] of [["tietosuoja", "legalPrivacy"], ["kayttoehdot", "legalTerms"]]) {
       await page.goto(BASE + "/#/" + hash, { waitUntil: "networkidle2" });
-      await sleep(150);
+      // Odotetaan näkymää eikä kiinteää aikaa: 150 ms ei aina riittänyt CI:ssä (prod-smoke 24.9.).
+      // Aikakatkaisu ei kaada tässä, vaan alla oleva tarkistus raportoi vajaan näkymän.
+      await page.waitForFunction((i, l) => {
+        const el = document.getElementById(i);
+        return el && el.getAttribute("lang") === l && el.querySelector("h2") && el.querySelectorAll("h3").length >= 5;
+      }, { timeout: 5000 }, id, lg).catch(() => {});
       const st = await page.evaluate(i => {
         const el = document.getElementById(i);
         return { on: !!el, lang: el && el.getAttribute("lang"), h2: !!(el && el.querySelector("h2")),
