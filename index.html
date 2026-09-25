@@ -14967,6 +14967,76 @@ function cbGridHtml(d, codeFor) {
     + `<thead><tr><th scope="col" class="cb-hcol">${t("compactHour")}</th>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
+// Reittijanan tekstin leveys samalla fontilla kuin janan SVG:ssä (viewBox-yksikkö = px 13 px:n
+// fontilla). Ilman canvasia arvio merkkimäärästä.
+let cbMeasure;
+function cbTextWidth(s, bold) {
+  try {
+    cbMeasure = cbMeasure || document.createElement("canvas").getContext("2d");
+    cbMeasure.font = (bold ? "700 " : "") + "13px system-ui, Arial, sans-serif";
+    return cbMeasure.measureText(String(s)).width;
+  } catch (e) { return String(s).length * 7.2; }
+}
+
+// Nimen rivitys kaistan leveyteen: rivi katkeaa välilyönnistä tai yhdysviivan jälkeen (viiva jää
+// riville), enintään maxLines riviä, ja silti liian pitkä rivi lyhenee "…":lla.
+function cbFitLines(name, avail, bold, maxLines) {
+  const wd = s => cbTextWidth(s, bold);
+  const parts = [];
+  for (const word of String(name).split(/\s+/).filter(Boolean))
+    word.split(/(?<=[-–])/).forEach((t, k) => parts.push({ t, glue: k > 0 }));
+  const lines = [];
+  for (const p of parts) {
+    if (!lines.length) { lines.push(p.t); continue; }
+    const joined = lines[lines.length - 1] + (p.glue ? "" : " ") + p.t;
+    if (wd(joined) <= avail || lines.length >= maxLines) lines[lines.length - 1] = joined;
+    else lines.push(p.t);
+  }
+  const trim = s => s.replace(/[\s\-–]+$/, "");
+  return lines.map(l => {
+    if (wd(l) <= avail) return l;
+    let s = l;
+    while (s.length > 1 && wd(trim(s) + "…") > avail) s = s.slice(0, -1);
+    return trim(s) + "…";
+  });
+}
+
+// Reittijanan pysäkkinimet (25.9.2026). Nimi rivitetään enintään kolmelle riville ja keskitetään
+// pisteensä kohdalle; naapurit työnnetään erilleen, jos ne osuvat toisiinsa, mutta jokainen nimi pysyy
+// oman pisteensä päällä ja kuvan sisällä. Nimi saa ensin lainata tilaa kapeammalta naapurilta (rivitys
+// 1,6 x oma kaista); jos se ei mahdu, rivitetään tiukemmin, ja viimeisenä omaan kaistaansa (puoliväli
+// naapuriin, päädyissä kuvan reuna), joka mahtuu aina. Ennen nimi katkesi vain välilyönnistä ja rivin
+// pituus arvattiin merkkimäärästä, joten Lappeenrannan "Suolavuorentie-Sahurinkatu keskustasta" meni
+// naapurinsa päälle ja päätypysäkin nimi leikkautui kuvan reunasta.
+function cbStripNames(names, xs, W, yBase) {
+  const n = names.length, GAP = 6, EDGE = 2;
+  const bold = i => i === 0 || i === n - 1;
+  const lane = i => (i === 0 ? xs[0] - EDGE : (xs[i] - xs[i - 1]) / 2)
+    + (i === n - 1 ? W - EDGE - xs[i] : (xs[i + 1] - xs[i]) / 2) - GAP;
+  const clampC = (c, w) => Math.min(Math.max(c, EDGE + w / 2), W - EDGE - w / 2);
+  for (const f of [1.6, 1.3, 1]) {
+    const L = names.map((nm, i) => {
+      const lines = cbFitLines(nm, Math.min(lane(i) * f, W - 2 * EDGE), bold(i), 3);
+      return { lines, w: Math.max(...lines.map(l => cbTextWidth(l, bold(i)))) };
+    });
+    const c = L.map((l, i) => clampC(xs[i], l.w));
+    for (let k = 0; k < 60; k++) {
+      let moved = false;
+      for (let i = 0; i < n - 1; i++) {
+        const need = (L[i].w + L[i + 1].w) / 2 + GAP - (c[i + 1] - c[i]);
+        if (need > 0.01) { c[i] -= need / 2; c[i + 1] += need / 2; moved = true; }
+      }
+      for (let i = 0; i < n; i++) c[i] = clampC(c[i], L[i].w);
+      if (!moved) break;
+    }
+    const ok = c.every((ci, i) => Math.abs(ci - xs[i]) <= L[i].w / 2
+      && (i === n - 1 || c[i + 1] - ci >= (L[i].w + L[i + 1].w) / 2 + GAP - 0.5));
+    if (!ok && f !== 1) continue;
+    return L.map((l, i) => `<g class="cb-stop">` + l.lines.map((ln, j) =>
+      `<text x="${c[i].toFixed(1)}" y="${(yBase - (l.lines.length - 1 - j) * 14).toFixed(1)}" font-size="13" text-anchor="middle"${bold(i) ? ' font-weight="700"' : ""} fill="#000">${esc(ln)}</text>`).join("") + `</g>`).join("");
+  }
+}
+
 // Reittijana: pääsuunnan isot pysäkit (samat kuin laajan vihkon sarakkeet) ja tyypillinen
 // matka-aika niiden välillä kumpaankin suuntaan (mediaani). Vastasuunta haetaan perusnimellä,
 // koska vastakkaisen laiturin pysäkki on datassa eri pysäkki.
@@ -14992,20 +15062,7 @@ function cbStripSvg(dirs) {
   }
   const W = 600, PADX = 40, n = ks.length, step = (W - 2 * PADX) / (n - 1), yL = 60;
   const xs = ks.map((_, i) => PADX + i * step);
-  const wrap = (name, max) => {
-    const words = name.split(/\s+/), out = [""];
-    for (const w of words) {
-      const cur = out[out.length - 1];
-      if (!cur) out[out.length - 1] = w;
-      else if ((cur + " " + w).length <= max) out[out.length - 1] = cur + " " + w;
-      else if (out.length < 2) out.push(w);
-      else out[1] = (out[1] + " " + w).slice(0, max - 1) + "…";
-    }
-    return out;
-  };
-  const maxCh = Math.max(8, Math.floor(step / 7));
-  const names = ks.map((s, i) => wrap(cbStopBase(s.name), maxCh).map((ln, j, arr) =>
-    `<text x="${xs[i].toFixed(1)}" y="${(yL - 16 - (arr.length - 1 - j) * 14).toFixed(1)}" font-size="13" text-anchor="middle"${i === 0 || i === n - 1 ? ' font-weight="700"' : ""} fill="#000">${esc(ln)}</text>`).join("")).join("");
+  const names = cbStripNames(ks.map(s => cbStopBase(s.name)), xs, W, yL - 16);
   const mins = s => s == null ? "" : Math.max(1, Math.round(s / 60));
   const segs = fw.map((s, i) => {
     const cx = ((xs[i] + xs[i + 1]) / 2).toFixed(1), f = mins(s), b = mins(bw[i]);

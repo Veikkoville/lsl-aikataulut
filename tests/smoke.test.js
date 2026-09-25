@@ -2354,6 +2354,32 @@ async function printHygiene(page, label) {
     // (8) napautus osuu myös piirtämättömään varianttiin
     koe("napautus", () => linesNear([{ key: "A", pts: [[0, 0], [0, 0.001]], ptsList: [[[0, 0], [0, 0.001]], [[1, 1], [1, 1.001]]] }],
       { lat: 1, lng: 1.0005 }).map(l => l.key).join(","));
+    // (9) vihon reittijana: Lappeenrannan linjan 1 pitkät pysäkkinimet eivät mene päällekkäin eivätkä
+    // yli kuvan reunan. Jana rakennetaan oikealla cbStripSvg:llä, ja nimien tekstilaatikot mitataan.
+    koe("jana", () => {
+      const nimet = ["Kiiskinmäki", "Suolavuorentie-Sahurinkatu keskustasta", "Hallituskatu 42 keskustaan", "Keskusta L",
+        "Merenlahdentie 33 keskustasta", "Viipurintie-Ajurinkatu keskustaan"];
+      const stops = nimet.map((nimi, i) => ({ gtfsId: "J:" + i, name: nimi }));
+      const vuoro = k => ({ _stops: "J", stoptimes: stops.map((stop, i) => ({ stop, timepoint: true, scheduledDeparture: 21600 + k * 1800 + i * 300 })) });
+      const host = document.createElement("div");
+      host.style.cssText = "position:absolute;left:0;top:0;width:600px";
+      host.innerHTML = cbStripSvg([{ groups: [{ trips: [vuoro(0), vuoro(1)] }] }, { groups: [] }]);
+      document.body.appendChild(host);
+      const svg = host.querySelector("svg");
+      const W = svg.viewBox.baseVal.width;
+      // rivi = y-attribuutti: saman nimen rivit ovat 14 yksikön välein ja tekstilaatikko on sitä korkeampi,
+      // joten päällekkäisyys lasketaan saman rivin teksteistä
+      const tx = [...svg.querySelectorAll('text[font-size="13"]')].map(e => ({ y: e.getAttribute("y"), b: e.getBBox() }));
+      host.remove();
+      const yli = tx.filter(({ b }) => b.x < 0 || b.x + b.width > W).length;
+      let paalle = 0;
+      for (let i = 0; i < tx.length; i++) for (let j = i + 1; j < tx.length; j++) {
+        const a = tx[i].b, b = tx[j].b;
+        if (tx[i].y === tx[j].y && a.x < b.x + b.width && b.x < a.x + a.width) paalle++;
+      }
+      const bb = tx;
+      return [bb.length > 0, yli, paalle].join(",");
+    });
     return r;
   }).catch(e => ({ virhe: e.message }));
   const lf = lprFix;
@@ -2381,6 +2407,9 @@ async function printHygiene(page, label) {
   (lf.napautus === "A")
     ? ok("linjastokartta: napautus osuu myös piirtämättömään liikennöivään varianttiin")
     : fail("linjastokartan napautus: " + JSON.stringify(lf.napautus ?? lf));
+  (lf.jana === "true,0,0")
+    ? ok("vihon reittijana: pitkät pysäkkinimet eivät mene päällekkäin eivätkä yli reunan (vakioaineisto)")
+    : fail("vihon reittijana (nimiä, yli reunan, päällekkäin): " + JSON.stringify(lf.jana ?? lf));
 
   // --- Konsolivirheet ---
   // Nimeä verkkovirheet: jokainen "Failed to load resource: net::X" kuluttaa ensimmäisen
