@@ -966,6 +966,9 @@
     padding: 0; margin: 0; border: none; box-shadow: none; }
   .poster-compact .poster-day-split { flex: 1 1 100%; break-inside: auto; }
   .poster-compact .poster-day-split table.poster-matrix { break-inside: avoid; margin-bottom: 2mm; }
+  /* Paloitellun lohkon otsikko jäi yksin arkin alareunaan ja taulukko alkoi seuraavalta arkilta
+     (Oulu Raatti P "Su", Jyväskylä Urhonkatu 1 "La", 25.9.2026): otsikko kulkee 1. taulukon mukana. */
+  .poster-compact .poster-day-split > .poster-sub { break-after: avoid; page-break-after: avoid; }
   .poster-compact .poster-sub { font-size: 1.05em; font-weight: 700; margin: 0 0 1.2mm; padding: 0 0 0.6mm;
     border-bottom: 0.6mm solid var(--header-bg, #333); }
   .poster-compact table.poster-matrix { border-collapse: collapse; font-size: 1em; width: auto; }
@@ -3805,6 +3808,7 @@ const STRINGS = {
     dayTypeNote: "Ma–Pe perustuu edustavaan arkipäivään; juhlapyhät ja koulujen loma-ajat voivat poiketa.",
     printDaysNote: "Ajopäivät luetaan suoraan aikataulusyötteestä; otsikko kertoo vuoron todelliset liikennöintipäivät. Juhlapyhät voivat poiketa.",
     dayEveryDay: "Joka päivä", schoolTerm: "koulupäivinä", schoolBreak: "loma-aikoina",
+    periodUntil: "{date} asti", periodFrom: "{date} alkaen",
     printKeyStopsPort: "Isot pysäkit (pysty)", printAllStopsLand: "Kaikki pysäkit (vaaka)",
     linePrintsTitle: "Linjatulosteet", linePrintsChoose: "Valitse linja",
     linePrintsIntro: "Lehtiteline-, pysty- ja vaakatuloste yhdeltä linjalta. Valinta avaa linjan sivun ja tulostusikkunan.",
@@ -4390,6 +4394,7 @@ const STRINGS = {
     dayTypeNote: "Mon–Fri is based on a representative weekday; public holidays and school holidays may differ.",
     printDaysNote: "Operating days are read straight from the schedule feed; each heading shows the trip's actual days of operation. Public holidays may differ.",
     dayEveryDay: "Daily", schoolTerm: "school days", schoolBreak: "school holidays",
+    periodUntil: "until {date}", periodFrom: "from {date}",
     printKeyStopsPort: "Major stops (portrait)", printAllStopsLand: "All stops (landscape)",
     linePrintsTitle: "Line printouts", linePrintsChoose: "Choose a line",
     linePrintsIntro: "Rack, portrait and landscape printouts for one line. The choice opens the line page and the print dialog.",
@@ -4971,6 +4976,7 @@ const STRINGS = {
     dayTypeNote: "Mån–Fre baseras på en representativ vardag; helgdagar och skollov kan avvika.",
     printDaysNote: "Trafikdagarna läses direkt från tidtabellsflödet; rubriken visar turens verkliga trafikdagar. Helgdagar kan avvika.",
     dayEveryDay: "Varje dag", schoolTerm: "skoldagar", schoolBreak: "skollov",
+    periodUntil: "t.o.m. {date}", periodFrom: "fr.o.m. {date}",
     printKeyStopsPort: "Stora hållplatser (stående)", printAllStopsLand: "Alla hållplatser (liggande)",
     linePrintsTitle: "Linjeutskrifter", linePrintsChoose: "Välj linje",
     linePrintsIntro: "Ställ-, stående och liggande utskrift för en linje. Valet öppnar linjesidan och utskriftsfönstret.",
@@ -5760,12 +5766,68 @@ function dowLabel(dowSet) {
 // kertaluontoiset festivaalilisät (occ < 2 samana viikonpäivänä) jätetään pois.
 const PRINT_HORIZON_DAYS = 42;
 
+// Saman päiväjoukon lohkossa voi olla kaksi PERÄKKÄISTÄ aikataulua, kun palvelu vaihtuu kesken
+// ikkunan (Oulu 51N pe: "alk 9_23" 00.41 2.10. asti, "alk 10_5" 00.39 9.10. alkaen). Ilman jakoa
+// molemmat ajat tulostuivat samaan sarakkeeseen ("00 39 41"), vaikka vain toinen ajetaan
+// (vertailu Mattersoftin tulosteeseen 25.9.2026). Jaetaan vain kun palveluiden ajopäivät eivät
+// mene päällekkäin JA aikataulut eroavat: samoina päivinä ajavat palvelut (esim. "Pe KP" + "Pe")
+// ovat saman päivän eri vuoroja, ja peräkkäiset jaksot samalla aikataululla yhdistetään.
+function splitByPeriod(g, startNum, endNum) {
+  const svcs = new Map();
+  for (const tr of g.trips) {
+    const id = tr.serviceId || "";
+    let s = svcs.get(id);
+    if (!s) svcs.set(id, s = { first: Infinity, last: -Infinity, trips: [] });
+    s.trips.push(tr);
+    for (const x of tr.activeDates || []) {
+      const n = +x;
+      if (n < startNum || n > endNum) continue;
+      if (n < s.first) s.first = n;
+      if (n > s.last) s.last = n;
+    }
+  }
+  if (svcs.size < 2) return [g];
+  const segs = [];
+  for (const s of [...svcs.values()].filter(s => s.first <= s.last).sort((a, b) => a.first - b.first)) {
+    const cur = segs[segs.length - 1];
+    if (cur && s.first <= cur.last) { cur.trips.push(...s.trips); cur.last = Math.max(cur.last, s.last); }
+    else segs.push({ first: s.first, last: s.last, trips: [...s.trips] });
+  }
+  const sigOf = seg => [...new Set(seg.trips.map(tr =>
+    (tr.stoptimes || []).map(x => x.scheduledDeparture).join(",")))].sort().join(";");
+  const merged = [];
+  for (const seg of segs) {
+    seg.sig = sigOf(seg);
+    const prev = merged[merged.length - 1];
+    if (prev && prev.sig === seg.sig) { prev.trips.push(...seg.trips); prev.last = seg.last; }
+    else merged.push(seg);
+  }
+  if (merged.length < 2) return [g];
+  return merged.map((seg, i) => ({
+    dows: new Set(g.dows), school: g.school, trips: seg.trips,
+    period: { from: i ? seg.first : null, to: i < merged.length - 1 ? seg.last : null },
+  }));
+}
+function periodKey(p) { return p ? `${p.from || ""}-${p.to || ""}` : ""; }
+// 20261002 -> "2.10." (en: "2 Oct")
+function fmtDayMonthNum(n) {
+  const s = String(n), d = +s.slice(6, 8), m = +s.slice(4, 6);
+  return lang === "en" ? new Date(2000, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+    : `${d}.${m}.`;
+}
+function periodLabel(p) {
+  if (p.from && p.to) return `${fmtDayMonthNum(p.from)}–${fmtDayMonthNum(p.to)}`;
+  return p.to ? t("periodUntil", { date: fmtDayMonthNum(p.to) }) : t("periodFrom", { date: fmtDayMonthNum(p.from) });
+}
+
 // Ryhmittele patternin vuorot TODELLISEN ajopäivä-patternin mukaan (activeDates).
 // Palauttaa lohkot { dows:Set, school:"koul"|"loma"|"", trips:[], label } otsikko-
 // järjestyksessä. KOUL/LOMA erottuvat omiksi lohkoiksi kun serviceId ne koodaa.
 // EI koskaan pudota toistuvaa vuoroa (pe-yövuorot mukaan); kertaluontoiset festi-
 // vaalilisät suodattuvat (ne eivät kuulu kausitauluun väärään päivään toistettuna).
-function groupTripsByDays(trips, refISO) {
+// opts.fallback = false: älä aja kynnyksen 1 varasääntöä (ks. alla). Pysäkkijuliste ryhmittelee
+// linja + kilpi -avaimella ja päättää varasäännöstä LINJAN tasolla (stopPosterBlocks).
+function groupTripsByDays(trips, refISO, opts) {
   const start = new Date((refISO || todayISO()) + "T12:00:00");
   const startNum = +isoOf(start).replace(/-/g, "");
   const end = new Date(start); end.setDate(start.getDate() + PRINT_HORIZON_DAYS);
@@ -5815,7 +5877,10 @@ function groupTripsByDays(trips, refISO) {
       // osumaa, 7 KP- ja 5 LP-serviceId:tä; LP aktiivinen 10.–11.8. + syysloma 19.–23.10.
       // → KP = koulupäivä, LP = loma-aika). Lyhenteet vain isoina token-osumina, ettei
       // osuta muiden feedien sanansisäisiin kirjainpareihin.
-      const school = (/koul/i.test(sid) || /\bKP\b/.test(sid)) ? "koul"
+      // "ei koul" on koulupäivän vastakohta: Jyväskylän syyslomapalvelu "M-P ei koulp talvi"
+      // (12.–16.10.2026) tulostui "koulupäivinä", koska /koul/ osui siihen (vertailu 25.9.2026).
+      const school = /\bei[\s_-]*koul/i.test(sid) ? "loma"
+                   : (/koul/i.test(sid) || /\bKP\b/.test(sid)) ? "koul"
                    : (/loma/i.test(sid) || /\bLP\b/.test(sid)) ? "loma" : "";
       const key = dows.join(",") + "|" + school;
       if (!groups.has(key)) groups.set(key, { dows: new Set(dows), school, trips: [] });
@@ -5831,8 +5896,8 @@ function groupTripsByDays(trips, refISO) {
   // Fallback yhden esiintymän kynnykseen laukeaa vain kun tiukka pass on tyhjä,
   // joten festivaalisuodatus säilyy aina kun säännöllisiäkin vuoroja on.
   let groups = build(2);
-  if (!groups.size) groups = build(1);
-  const arr = [...groups.values()].map(g => {
+  if (!groups.size && !(opts && opts.fallback === false)) groups = build(1);
+  const arr = [...groups.values()].flatMap(g => splitByPeriod(g, startNum, endNum)).map(g => {
     // dedup: sama aikataulurivi toistuu monena päivänä → yksi edustava per aikataulu
     const seen = new Set(), uniq = [];
     for (const tr of g.trips) {
@@ -5842,7 +5907,7 @@ function groupTripsByDays(trips, refISO) {
     }
     g.trips = uniq;
     // Lohkon aikataulu merkkijonona: yhdistämisen ainoa peruste (ks. alla).
-    g._sig = g.school + "|" + uniq
+    g._sig = g.school + "|" + periodKey(g.period) + "|" + uniq
       .map(tr => (tr.stoptimes || []).map(s => s.scheduledDeparture).join(","))
       .sort().join(";");
     return g;
@@ -5870,12 +5935,17 @@ function groupTripsByDays(trips, refISO) {
   const outGroups = [...byTimetable.values()];
   outGroups.forEach(g => {
     delete g._sig;
-    g.label = dowLabel(g.dows) + (g.school ? ` · ${t(g.school === "koul" ? "schoolTerm" : "schoolBreak")}` : "");
+    g.label = dowLabel(g.dows) + (g.school ? ` · ${t(g.school === "koul" ? "schoolTerm" : "schoolBreak")}` : "")
+      + (g.period ? ` · ${periodLabel(g.period)}` : "");
+    // Kokoajien (pysäkkijuliste, käytävä) lohkoavain: sama päiväjoukko + koulu/loma + voimassaolo.
+    g.key = [...g.dows].sort((a, b) => a - b).join(",") + "|" + g.school + "|" + periodKey(g.period);
   });
-  // järjestä: viikonpäiväspan alku nousevasti, sitten laajempi (Ma–Pe) ennen kapeampaa (Pe)
+  // järjestä: viikonpäiväspan alku nousevasti, sitten laajempi (Ma–Pe) ennen kapeampaa (Pe),
+  // saman päiväjoukon voimassaolojaksot aikajärjestyksessä
   outGroups.sort((a, b) => {
     const am = Math.min(...a.dows), bm = Math.min(...b.dows);
-    return am !== bm ? am - bm : b.dows.size - a.dows.size;
+    return am !== bm ? am - bm : b.dows.size !== a.dows.size ? b.dows.size - a.dows.size
+      : (a.period?.from || 0) - (b.period?.from || 0);
   });
   return outGroups;
 }
@@ -8869,11 +8939,21 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
   // groupTripsByDays ajetaan PER LINJA (sen aikasignatuuri-dedup ei saa niputtaa
   // eri linjojen samanaikaisia lähtöjä yhteen); blokit kootaan päiväpatterni-
   // avaimella → sama todellinen ajopäiväjoukko = sama julisteosio.
+  // Kausivaihdon varasääntö (kynnys 1) päätetään LINJAN tasolla, ei linja + kilpi -avaimella:
+  // tapahtumavuoroilla on usein oma kilpensä (Jyväskylän Valon kaupunki 25.–26.9.2026: S5
+  // "Keskusta"), jolloin avaimessa oli pelkkiä kertavuoroja, varasääntö laukesi ja ne tulostuivat
+  // "Pe"- ja "La"-lähtöinä joka viikolle (vertailu Mattersoftiin 25.9.2026). Jos linjalla on yksikin
+  // toistuva vuoro, sen muut kilvet eivät saa varasääntöä; kokonaan päättyvä linja saa sen yhä.
+  const lineId = L => L.route.shortName || L.route.longName || "";
+  const regular = new Set();
+  for (const L of byLine.values())
+    if (!regular.has(lineId(L)) && groupTripsByDays(L.trips, refISO, { fallback: false }).length)
+      regular.add(lineId(L));
   const blocks = new Map();
   for (const L of byLine.values()) {
-    for (const g of groupTripsByDays(L.trips, refISO)) {
-      const bk = [...g.dows].sort((a, b) => a - b).join(",") + "|" + g.school;
-      if (!blocks.has(bk)) blocks.set(bk, { dows: g.dows, school: g.school, label: g.label, lines: new Map() });
+    for (const g of groupTripsByDays(L.trips, refISO, { fallback: !regular.has(lineId(L)) })) {
+      const bk = g.key;
+      if (!blocks.has(bk)) blocks.set(bk, { dows: g.dows, school: g.school, period: g.period, label: g.label, lines: new Map() });
       const b = blocks.get(bk);
       const lk = (L.route.shortName || "") + " " + L.headsign;
       if (!b.lines.has(lk)) b.lines.set(lk, { route: L.route, headsign: L.headsign, times: [] });
@@ -8889,7 +8969,8 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
     const am = Math.min(...a.dows), bm = Math.min(...b.dows);
     return am !== bm ? am - bm
       : a.dows.size !== b.dows.size ? b.dows.size - a.dows.size
-      : (a.school ? 1 : 0) - (b.school ? 1 : 0);
+      : a.school !== b.school ? (a.school ? 1 : 0) - (b.school ? 1 : 0)
+      : (a.period?.from || 0) - (b.period?.from || 0);
   });
   return arr;
 }
@@ -14402,7 +14483,7 @@ function cbGridHtml(d, codeFor) {
   for (const g of gs) {
     const col = rootOf(g);
     const dayCode = g === col ? null
-      : codeFor("d:" + g.label, t("compactOnlyDays", { days: g.dows.size === col.dows.size && g.school
+      : codeFor("d:" + g.label, t("compactOnlyDays", { days: g.dows.size === col.dows.size && g.school && !g.period
           ? t(g.school === "koul" ? "schoolTerm" : "schoolBreak") : g.label }));
     for (const tr of g.trips) {
       const st = tr.stoptimes || [];
@@ -14641,8 +14722,8 @@ async function corridorBuild(routeIds, dateISO) {
       let trips = [];
       try { trips = await dirTripsWithDays(dirPats); } catch (e) { trips = []; }
       for (const g of groupTripsByDays(trips, dateISO)) {
-        const bk = [...g.dows].sort((x, y) => x - y).join(",") + "|" + g.school;
-        if (!blocks.has(bk)) blocks.set(bk, { dows: g.dows, school: g.school, label: g.label, rows: [] });
+        const bk = g.key;
+        if (!blocks.has(bk)) blocks.set(bk, { dows: g.dows, school: g.school, period: g.period, label: g.label, rows: [] });
         const blk = blocks.get(bk);
         for (const tr of g.trips) {
           // ensiesiintymä per pysäkki (käyntisemantiikka: 1. käynti = lähtöaika)
@@ -14673,7 +14754,8 @@ async function corridorBuild(routeIds, dateISO) {
     groups.forEach(g => g.rows.sort((x, y) => x.sortSec - y.sortSec));
     groups.sort((x, y) => {
       const am = Math.min(...x.dows), bm = Math.min(...y.dows);
-      return am !== bm ? am - bm : y.dows.size - x.dows.size;
+      return am !== bm ? am - bm : y.dows.size !== x.dows.size ? y.dows.size - x.dows.size
+        : (x.period?.from || 0) - (y.period?.from || 0);
     });
     dirs.push({
       label: `${shared[0].name} → ${shared[shared.length - 1].name}`,

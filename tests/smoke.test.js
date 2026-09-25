@@ -2226,6 +2226,69 @@ async function printHygiene(page, label) {
     ? ok("lähtölistat: päätepysäkin saapumiset ja lyhyet jatkot pois, alkupysäkki ja pitkä jatko jäävät")
     : fail("lähtölistat: saapumissuodatin: " + JSON.stringify(saapumiset));
 
+  // --- Julisteen päivätyypit: neljä vertailussa löytynyttä virhettä (Mattersoft-vertailu 25.9.2026) ---
+  // Vakioaineistolla, koska oikean syötteen tapahtumavuorot ja aikataulumuutokset ovat ohi viikossa.
+  // Viitepäivä pe 25.9.2026, ikkuna 42 pv. Päivät lasketaan viikonpäivistä, ei kirjoiteta käsin.
+  const julisteFix = await page.evaluate(async () => {
+    const REF = "2026-09-25";
+    const paivat = (dows, alku = REF, loppu = "2026-11-05") => {
+      const out = [];
+      for (const d = new Date(alku + "T12:00:00"); d <= new Date(loppu + "T12:00:00"); d.setDate(d.getDate() + 1))
+        if (dows.includes((d.getDay() + 6) % 7)) out.push(isoOf(d).replace(/-/g, ""));
+      return out;
+    };
+    const vuoro = (serviceId, activeDates, sec, headsign) => ({ serviceId, tripHeadsign: headsign, activeDates,
+      stoptimes: [{ scheduledDeparture: sec, pickupType: "SCHEDULED", headsign, stop: { gtfsId: "T:1", name: "Testi" } },
+                  { scheduledDeparture: sec + 600, pickupType: "SCHEDULED", headsign, stop: { gtfsId: "T:2", name: "Loppu" } }] });
+    const r = {};
+    // (1) Tapahtumavuoro omalla kilvellä ei saa tulostua viikoittaisena "Pe"-lähtönä, kun linjalla on
+    // toistuvia vuoroja. Kokonaan päättyvä linja (vain viimeinen viikko ikkunassa) näkyy yhä.
+    const pats = [
+      { code: "P:S5a", headsign: "PALOKKA", route: { shortName: "S5" } },
+      { code: "P:S5b", headsign: "Keskusta", route: { shortName: "S5" } },
+      { code: "P:7", headsign: "Kylä", route: { shortName: "7" } },
+    ];
+    const memo = new Map([
+      ["P:S5a", [vuoro("M-P", paivat([0, 1, 2, 3, 4]), 21600, "PALOKKA")]],
+      ["P:S5b", [vuoro("Valon kaupunki pe", ["20260925"], 66180, "Keskusta")]],
+      ["P:7", [vuoro("M-P viim", paivat([0, 1, 2, 3, 4], REF, "2026-10-01"), 25200, "Kylä")]],
+    ]);
+    const blocks = await stopPosterBlocks("T:1", REF, memo, 2, pats);
+    const nakyy = blocks.flatMap(b => b.lines.map(l => (l.route.shortName || "") + " " + l.headsign));
+    r.tapahtuma = { keskusta: nakyy.includes("S5 Keskusta"), palokka: nakyy.includes("S5 PALOKKA"), paattyva: nakyy.includes("7 Kylä") };
+    // (2) "ei koulp" on loma-aika, "koulp" koulupäivä.
+    const koulu = sid => groupTripsByDays([vuoro(sid, paivat([0, 1, 2, 3, 4]), 30000, "X")], REF).map(g => g.school).join(",");
+    r.koulu = { eiKoulp: koulu("LINKKI:M-P ei koulp talvi 2025-2026"), koulp: koulu("LINKKI:M-P koulp talvi 2026-2027") };
+    // (3) Peräkkäiset eri aikataulut jaetaan voimassaolojaksoiksi; sama aikataulu kahdessa jaksossa ei jakaudu.
+    const jaksot = (tB) => groupTripsByDays([
+      vuoro("Pe KP alk 9_23", ["20260925", "20261002"], 88860, "X"),
+      vuoro("Pe KP alk 10_5", ["20261009", "20261016", "20261030"], tB, "X")], REF)
+      .map(g => ({ from: g.period?.from || null, to: g.period?.to || null, n: g.trips.length }));
+    r.jakso = { eri: jaksot(88740), sama: jaksot(88860) };
+    // (4) Paloitellun päivälohkon otsikko ei saa jäädä yksin arkin alareunaan.
+    const box = document.createElement("div");
+    box.className = "poster-compact";
+    box.innerHTML = `<div class="poster-day poster-day-split"><p class="poster-sub">Su</p></div>`;
+    document.body.appendChild(box);
+    r.orpo = getComputedStyle(box.querySelector(".poster-sub")).breakAfter;
+    box.remove();
+    return r;
+  }).catch(e => ({ virhe: e.message }));
+  const jf = julisteFix;
+  (jf.tapahtuma && !jf.tapahtuma.keskusta && jf.tapahtuma.palokka && jf.tapahtuma.paattyva)
+    ? ok("juliste: tapahtumavuoro omalla kilvellä ei tulostu viikoittaisena, päättyvä linja näkyy (vakioaineisto)")
+    : fail("juliste: tapahtumavuoron suodatus: " + JSON.stringify(jf.tapahtuma || jf));
+  (jf.koulu && jf.koulu.eiKoulp === "loma" && jf.koulu.koulp === "koul")
+    ? ok("juliste: \"ei koulp\" = loma-aika, \"koulp\" = koulupäivä (vakioaineisto)")
+    : fail("juliste: koulu/loma-tunnistus: " + JSON.stringify(jf.koulu || jf));
+  (jf.jakso && JSON.stringify(jf.jakso.eri) === '[{"from":null,"to":20261002,"n":1},{"from":20261009,"to":null,"n":1}]'
+    && JSON.stringify(jf.jakso.sama) === '[{"from":null,"to":null,"n":1}]')
+    ? ok("juliste: kesken ikkunan vaihtuva aikataulu jaetaan jaksoiksi, sama aikataulu ei jakaudu (vakioaineisto)")
+    : fail("juliste: voimassaolojaksot: " + JSON.stringify(jf.jakso || jf));
+  (jf.orpo === "avoid")
+    ? ok("juliste: paloitellun lohkon päivätyyppiotsikko kulkee taulukon mukana (break-after: avoid)")
+    : fail("juliste: päivätyyppiotsikon break-after = " + JSON.stringify(jf.orpo ?? jf));
+
   // --- Konsolivirheet ---
   // Nimeä verkkovirheet: jokainen "Failed to load resource: net::X" kuluttaa ensimmäisen
   // vielä käyttämättömän requestfailed-tapahtuman jolla on sama virheteksti. Osoitteesta
