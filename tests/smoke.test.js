@@ -2247,15 +2247,24 @@ async function printHygiene(page, label) {
       { code: "P:S5a", headsign: "PALOKKA", route: { shortName: "S5" } },
       { code: "P:S5b", headsign: "Keskusta", route: { shortName: "S5" } },
       { code: "P:7", headsign: "Kylä", route: { shortName: "7" } },
+      { code: "P:N", headsign: "Yö", route: { shortName: "N1" } },
+      { code: "P:C", headsign: "X", route: { shortName: "C1", longName: "Kaupunki-Kylä" } },
     ];
     const memo = new Map([
       ["P:S5a", [vuoro("M-P", paivat([0, 1, 2, 3, 4]), 21600, "PALOKKA")]],
       ["P:S5b", [vuoro("Valon kaupunki pe", ["20260925"], 66180, "Keskusta")]],
       ["P:7", [vuoro("M-P viim", paivat([0, 1, 2, 3, 4], REF, "2026-10-01"), 25200, "Kylä")]],
+      // (2 kierros) perjantain yövuoro: Ma–Pe-sarakkeeseen kirjaimella "vain Pe", ei omaa "Pe"-lohkoa
+      ["P:N", [vuoro("Pe yö", paivat([4]), 84600, "Yö")]],
+      // (2 kierros) kilpi on pelkkä kaupungin nimi -> vuoron päätepysäkki ("Loppu")
+      ["P:C", [vuoro("M-P", paivat([0, 1, 2, 3, 4]), 30000, CONFIG.city)]],
     ]);
     const blocks = await stopPosterBlocks("T:1", REF, memo, 2, pats);
     const nakyy = blocks.flatMap(b => b.lines.map(l => (l.route.shortName || "") + " " + l.headsign));
     r.tapahtuma = { keskusta: nakyy.includes("S5 Keskusta"), palokka: nakyy.includes("S5 PALOKKA"), paattyva: nakyy.includes("7 Kylä") };
+    r.kanoninen = { lohkot: blocks.map(b => b.label).join("|"), selite: blocks.flatMap(b => (b.legend || []).map(l => l.text)).join("|"),
+      kilpi: nakyy.find(x => x.startsWith("C1 ")) || "",
+      odotusLohko: dowLabel(new Set([0, 1, 2, 3, 4])), odotusPe: t("compactOnlyDays", { days: dowLabel(new Set([4])) }) };
     // (2) "ei koulp" on loma-aika, "koulp" koulupäivä.
     const koulu = sid => groupTripsByDays([vuoro(sid, paivat([0, 1, 2, 3, 4]), 30000, "X")], REF).map(g => g.school).join(",");
     r.koulu = { eiKoulp: koulu("LINKKI:M-P ei koulp talvi 2025-2026"), koulp: koulu("LINKKI:M-P koulp talvi 2026-2027") };
@@ -2275,6 +2284,10 @@ async function printHygiene(page, label) {
     return r;
   }).catch(e => ({ virhe: e.message }));
   const jf = julisteFix;
+  (jf.kanoninen && jf.kanoninen.lohkot === jf.kanoninen.odotusLohko && jf.kanoninen.selite === jf.kanoninen.odotusPe
+    && jf.kanoninen.kilpi === "C1 Loppu")
+    ? ok("juliste: vain Ma–Pe/La/Su, perjantain yövuoro kirjaimella, kaupungin nimi -kilpi päätepysäkiksi (vakioaineisto)")
+    : fail("juliste: päivätyypit ja kilpi: " + JSON.stringify(jf.kanoninen || jf));
   (jf.tapahtuma && !jf.tapahtuma.keskusta && jf.tapahtuma.palokka && jf.tapahtuma.paattyva)
     ? ok("juliste: tapahtumavuoro omalla kilvellä ei tulostu viikoittaisena, päättyvä linja näkyy (vakioaineisto)")
     : fail("juliste: tapahtumavuoron suodatus: " + JSON.stringify(jf.tapahtuma || jf));
@@ -2293,9 +2306,12 @@ async function printHygiene(page, label) {
   // Jokainen näistä oli Lappeenrannan demossa näkyvä vika, mutta korjaus koskee kaikkia kaupunkeja.
   const lprFix = await page.evaluate(() => {
     const r = {};
+    // Jokainen tapaus omassa try-lohkossaan: puuttuva funktio ei saa peittää muiden tapausten tulosta
+    // (vastatestissä 25.9. koko lohko kaatui ensimmäiseen puuttuvaan funktioon).
+    const koe = (nimi, fn) => { try { r[nimi] = fn(); } catch (e) { r[nimi] = "virhe: " + e.message; } };
     // (1) koulu/loma-tunnistus: "koulujen loma-ajat" ja "ei koul" = loma, "ei loma" = koulupäivä
-    r.koulu = ["Ma-Pe koulujen loma-ajat 2026-2027", "M-P ei koulp talvi", "Koulupäiväliikenne 2026-2027",
-      "M-P ei loma", "Ma-To KP 20261101 asti", "Ma-Pe LP"].map(schoolOf).join(",");
+    koe("koulu", () => ["Ma-Pe koulujen loma-ajat 2026-2027", "M-P ei koulp talvi", "Koulupäiväliikenne 2026-2027",
+      "M-P ei loma", "Ma-To KP 20261101 asti", "Ma-Pe LP"].map(schoolOf).join(","));
     // (2) rengaslinjan päätepysäkki: edellisen kierroksen saapuminen ja seuraavan lähtö samalla
     // avaimella; saapuminen ensin ei saa poistaa lähtöä
     const st = (dep, loppuId, loppu, alkuId, alku) => ({ headsign: "Vuoksenniska", scheduledDeparture: dep, serviceDay: 0,
@@ -2309,35 +2325,35 @@ async function printHygiene(page, label) {
     // (3) syötteen väärä directionId: pattern kulkee oman suuntansa vastaisesti kadun toisen puolen
     // pysäkeillä (eri gtfsId, ~20 m päässä) -> siirretään toiseen suuntaan
     const s = (id, lat) => ({ gtfsId: id, name: id, lat, lon: 28.0 });
-    const ps = assignDirKeys([
+    koe("suunta", () => assignDirKeys([
       { code: "A0", directionId: 0, stops: [s("a1", 61.00), s("a2", 61.01), s("a3", 61.02), s("a4", 61.03)] },
       { code: "B1", directionId: 1, stops: [s("b4", 61.0302), s("b3", 61.0202), s("b2", 61.0102), s("b1", 61.0002)] },
       { code: "V0", directionId: 0, stops: [s("b3", 61.0202), s("b2", 61.0102), s("b1", 61.0002)] },
-    ]);
-    r.suunta = ps.map(p => p.code + ":" + dirKey(p)).join(",");
+    ]).map(p => p.code + ":" + dirKey(p)).join(","));
     // (4) keskustan solmupysäkillä kilpi Keskusta/kaupunki ja <= 5 min jäljellä = saapuminen
     const vanha = { c: CONFIG.centerStopNames, city: CONFIG.city };
     CONFIG.centerStopNames = ["Testikatu"]; CONFIG.city = "Testilä";
-    r.saapuu = [arrivingHere("Keskusta", "Testikatu L", 120, false), arrivingHere("Keskusta", "Testikatu L", 600, false),
-      arrivingHere("Testilä", "Testikatu I", 200, false), arrivingHere("Kylä", "Testikatu L", 120, false)].join(",");
+    // (kierros 2: silmukkakilpi "Lpr-Partala-Soskua-Lpr" päättyy 0 min päästä -> saapuminen kilvestä riippumatta)
+    koe("saapuu", () => [arrivingHere("Keskusta", "Testikatu L", 120, false), arrivingHere("Keskusta", "Testikatu L", 600, false),
+      arrivingHere("Testilä", "Testikatu I", 200, false), arrivingHere("Lpr-Partala-Soskua-Lpr", "Testikatu L", 0, false),
+      arrivingHere("Keskusta", "Muukatu 5", 120, false)].join(","));
     CONFIG.centerStopNames = vanha.c; CONFIG.city = vanha.city;
     // (5) haku: 34 km päässä oleva tarkka alueosuma voittaa lähellä olevan sanan alun; pyöräparkki taakse
     const f = AREA.focus;
-    r.haku = rankPlaceHits("Imatra", [{ gtfsId: "x:1", name: "Imatrantie L", lat: f.lat + 0.004, lon: f.lon }],
-      [{ name: "Imatra", layer: "localadmin", lat: f.lat + 0.3, lon: f.lon }])[0]?.name;
-    r.pyora = rankPlaceHits("matkakeskus", [], [{ name: "Pyöräparkki A Matkakeskus", layer: "bikepark", lat: f.lat, lon: f.lon },
-      { name: "Matkakeskus", layer: "venue", lat: f.lat + 0.01, lon: f.lon }])[0]?.layer;
+    koe("haku", () => rankPlaceHits("Imatra", [{ gtfsId: "x:1", name: "Imatrantie L", lat: f.lat + 0.004, lon: f.lon }],
+      [{ name: "Imatra", layer: "localadmin", lat: f.lat + 0.3, lon: f.lon }])[0]?.name);
+    koe("pyora", () => rankPlaceHits("matkakeskus", [], [{ name: "Matkakeskus", layer: "bikepark", lat: f.lat, lon: f.lon },
+      { name: "Lappeenrannan matkakeskus", layer: "venue", lat: f.lat + 0.01, lon: f.lon }])[0]?.layer);
     // (6) taivutus: -ukse-vartalo
-    r.nl = [parseNlTrip("Matkakeskukselta yliopistolle").from, trimFiDest("Matkakeskukseen")].join(",");
+    koe("nl", () => [parseNlTrip("Matkakeskukselta yliopistolle").from, trimFiDest("Matkakeskukseen")].join(","));
     // (7) linjastokartan kaupunkikohtainen hex-väri
     const vs = CONFIG.netLineStyles;
     CONFIG.netLineStyles = { T1: ["#ffdd00", 1] };
-    const ns = netStyleFor("T1", "BUS");
-    r.vari = [ns.color, ns.dash === PM_DASHES[1], ns.badgeText].join(",");
+    koe("vari", () => { const ns = netStyleFor("T1", "BUS"); return [ns.color, ns.dash === PM_DASHES[1], ns.badgeText].join(","); });
     CONFIG.netLineStyles = vs;
     // (8) napautus osuu myös piirtämättömään varianttiin
-    r.napautus = linesNear([{ key: "A", pts: [[0, 0], [0, 0.001]], ptsList: [[[0, 0], [0, 0.001]], [[1, 1], [1, 1.001]]] }],
-      { lat: 1, lng: 1.0005 }).map(l => l.key).join(",");
+    koe("napautus", () => linesNear([{ key: "A", pts: [[0, 0], [0, 0.001]], ptsList: [[[0, 0], [0, 0.001]], [[1, 1], [1, 1.001]]] }],
+      { lat: 1, lng: 1.0005 }).map(l => l.key).join(","));
     return r;
   }).catch(e => ({ virhe: e.message }));
   const lf = lprFix;
@@ -2350,8 +2366,8 @@ async function printHygiene(page, label) {
   (lf.suunta === "A0:0,B1:1,V0:1")
     ? ok("suunnat: väärällä directionId:llä merkitty pattern siirtyy oikeaan suuntaan (vakioaineisto)")
     : fail("suunnat: " + JSON.stringify(lf.suunta ?? lf));
-  (lf.saapuu === "true,false,true,false")
-    ? ok("keskustan solmupysäkki: Keskusta-kilpinen päättyvä vuoro on saapuminen, pitkä jatko on lähtö (vakioaineisto)")
+  (lf.saapuu === "true,false,true,true,false")
+    ? ok("keskustan solmupysäkki: <= 5 min ennen loppua päättyvä vuoro on saapuminen kilvestä riippumatta, pitkä jatko ja muu pysäkki lähtö (vakioaineisto)")
     : fail("keskustan saapumiset: " + JSON.stringify(lf.saapuu ?? lf));
   (lf.haku === "Imatra" && lf.pyora === "venue")
     ? ok("haku: kaukainen tarkka alueosuma voittaa lähellä olevan sanan alun, pyöräparkki taakse (vakioaineisto)")

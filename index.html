@@ -969,6 +969,10 @@
   /* Paloitellun lohkon otsikko jäi yksin arkin alareunaan ja taulukko alkoi seuraavalta arkilta
      (Oulu Raatti P "Su", Jyväskylä Urhonkatu 1 "La", 25.9.2026): otsikko kulkee 1. taulukon mukana. */
   .poster-compact .poster-day-split > .poster-sub { break-after: avoid; page-break-after: avoid; }
+  /* Rajattujen lähtöjen kirjaimet ja selite (canonicalPosterBlocks, 25.9.2026). */
+  .poster-legend { font-size: 0.8em; margin: 0.6mm 0 1.6mm; }
+  /* line-height 0: kirjain ei saa kasvattaa rivikorkeutta (prod-smoken asettelutarkistus, 25.9.2026) */
+  table.hourgrid td sup { font-size: 0.72em; font-weight: 700; margin-left: 0.05em; line-height: 0; }
   .poster-compact .poster-sub { font-size: 1.05em; font-weight: 700; margin: 0 0 1.2mm; padding: 0 0 0.6mm;
     border-bottom: 0.6mm solid var(--header-bg, #333); }
   .poster-compact table.poster-matrix { border-collapse: collapse; font-size: 1em; width: auto; }
@@ -2920,6 +2924,8 @@ const CONFIGS = {
     // ja Jouko ei näkynyt demossa missään (auditointi 25.9.2026).
     operator: "Lappeenrannan seudun joukkoliikenne",
     operatorShort: "Jouko",
+    // Syötteen kilvissä kaupungin lyhenne ("Lpr"), ks. stopPosterBlocks.
+    cityAbbr: ["Lpr"],
     feedMatch: /lappeenranta/i,
     rail: "LR",
     heroEmphasis: "layer",
@@ -2931,13 +2937,126 @@ const CONFIGS = {
     // molemmat suunnat molemmilla kausilla): 1+1X jakavat 26 pysäkin jakson
     // (keskusta–LUT-yliopisto), 100+101 27 pysäkin jakson (Joutsenon/Imatran seutusuunta;
     // 101 harvavuoroinen mutta elää molemmilla kausilla).
+    // Yliopiston suunta = Joukon vihkon s. 38-39 yhdistetty Keskusta-Yliopisto-taulukko: linjat
+    // 1, 1X, 5, 12 ja 101 (ennen vain 1+1X, ja suunnan tihein linja 5 puuttui; kierros 2 25.9.2026).
     corridors: [
-      { key: "yliopisto", name: "Yliopiston suunta", lines: ["1", "1X"] },
+      { key: "yliopisto", name: "Yliopiston suunta", lines: ["1", "1X", "5", "12", "101"] },
       { key: "joutseno", name: "Joutsenon suunta", lines: ["100", "101"] },
     ],
     // Reittioppaan teemaväri (lappeenranta.digitransit.fi meta theme-color, luettu
     // 7.8.2026). headerBgColor() pitää AA:n valkoiselle.
     brandColor: "#D4007A",
+    // Kaupungin ilmoittama aikataulukausi tulosteisiin (vihkon kansi: 13.8.2026-6.6.2027). Juliste
+    // näyttää silti tulostuspäivän aikataulun; kausi kertoo lukijalle mihin painettu aikataulu kuuluu.
+    season: { fi: "Talviaikataulu 13.8.2026–6.6.2027", sv: "Vintertidtabell 13.8.2026–6.6.2027",
+      en: "Winter timetable 13.8.2026–6.6.2027" },
+    // Palvelulinjat P1 (1001) ja P3 (1003): vihko s. 53 ja 55.
+    lineNotes: {
+      "1001": { fi: "Palvelulinja P1. Kyytitilaukset puh. 040 159 3256. Osa pysäkeistä ajetaan vain tarvittaessa (T).",
+        sv: "Servicelinje P1. Beställningar tfn 040 159 3256. Vissa hållplatser trafikeras endast vid behov (T).",
+        en: "Service line P1. Ride bookings tel. 040 159 3256. Some stops are served on request only (T)." },
+      "1003": { fi: "Palvelulinja P3. Kyytitilaukset puh. 040 159 3256. Osa pysäkeistä ajetaan vain tarvittaessa (T).",
+        sv: "Servicelinje P3. Beställningar tfn 040 159 3256. Vissa hållplatser trafikeras endast vid behov (T).",
+        en: "Service line P3. Ride bookings tel. 040 159 3256. Some stops are served on request only (T)." },
+    },
+    // Lipputuotteet ja hinnat: Joukon talviaikataulu 2026-2027 s. 4-6 (hinnat luettu PDF:n tekstistä
+    // 25.9.2026) ja myyntipisteet s. 116. Vyöhykkeet A/B/C kuten Vaasassa. Rivien käyttö:
+    // cardApp = arvolippu perusmatka, cash = arvolippu hiljainen aika (oma rivinimi i18n:ssä),
+    // salespoint = kertalippu, contactless = lähimaksun kertalippu, capDay = lähimaksun päivälippu.
+    // reduced = opiskelija (+65 maksaa aikuisen hinnan, poikkeukset flatBody-tekstissä).
+    fares: {
+      checked: "25.9.2026",
+      url: "https://lappeenranta.fi/jouko",
+      cardFee: "5,00",
+      zones: [
+        {
+          label: { fi: "1 vyöhyke", sv: "1 zon", en: "1 zone" },
+          single: {
+            cardApp: { adult: "2,70", child: "1,57", reduced: "1,79" },
+            contactless: "3,18",
+            salespoint: { adult: "3,60", child: "2,30", reduced: "" },
+            cash: { adult: "2,00", child: "1,14", reduced: "1,30" },
+          },
+          season: [{ d: "30", adult: "62,00", child: "37,00", reduced: "47,00" }],
+          day: [],
+          capDay: "7,42", capWeek: "",
+        },
+        {
+          label: { fi: "2 vyöhykettä", sv: "2 zoner", en: "2 zones" },
+          single: {
+            cardApp: { adult: "5,52", child: "3,19", reduced: "3,63" },
+            contactless: "6,31",
+            salespoint: { adult: "7,30", child: "4,10", reduced: "" },
+            cash: { adult: "4,17", child: "2,39", reduced: "2,70" },
+          },
+          season: [{ d: "30", adult: "64,00", child: "40,00", reduced: "49,00" }],
+          day: [],
+          capDay: "9,54", capWeek: "",
+        },
+        {
+          label: { fi: "3 vyöhykettä", sv: "3 zoner", en: "3 zones" },
+          single: {
+            cardApp: { adult: "7,63", child: "3,36", reduced: "3,85" },
+            contactless: "9,01",
+            salespoint: { adult: "9,90", child: "5,70", reduced: "" },
+            cash: { adult: "5,84", child: "2,49", reduced: "2,86" },
+          },
+          season: [{ d: "30", adult: "73,00", child: "46,00", reduced: "63,00" }],
+          day: [],
+          capDay: "12,72", capWeek: "",
+        },
+      ],
+      i18n: {
+        flatTitle: { fi: "Hinta määräytyy vyöhykkeiden mukaan", sv: "Priset bestäms enligt zonerna",
+          en: "The fare depends on the number of zones" },
+        flatBody: {
+          fi: "Joukon alueella on kolme vyöhykettä: A on Lappeenrannan paikallisliikennealue, B muu joukkoliikennealue ja C Imatran paikallisliikennealue. +65-seniorit ja eläkeläiset maksavat 30 päivän kausilipusta ja arvolipun perusmatkasta aikuisen hinnan. Heidän arvolippunsa hiljaisen ajan hinta on 1,30 € / 4,17 € / 5,84 €, ja se on voimassa myös arkisin klo 9–14. Alle 7-vuotiaat matkustavat maksutta aikuisen mukana.",
+          sv: "Joukos område har tre zoner: A är Villmanstrands lokaltrafikområde, B övrigt kollektivtrafikområde och C Imatras lokaltrafikområde. Seniorer +65 och pensionärer betalar vuxenpris för 30 dagars periodbiljett och värdebiljettens normalresa. Deras lågtrafikpris är 1,30 € / 4,17 € / 5,84 € och gäller även vardagar kl. 9–14. Barn under 7 år reser gratis i sällskap med en vuxen.",
+          en: "The Jouko area has three zones: A is the Lappeenranta local area, B the rest of the service area and C the Imatra local area. Seniors 65+ and pensioners pay the adult price for the 30-day season ticket and the value ticket standard fare. Their off-peak fare is €1.30 / €4.17 / €5.84 and also applies on weekdays 9–14. Children under 7 travel free with an adult." },
+        transfer: { fi: "Kerta- ja arvolipulla on 90 minuutin vaihto-oikeus maksettujen vyöhykkeiden sisällä.",
+          sv: "Engångs- och värdebiljetten ger 90 minuters bytesrätt inom de betalda zonerna.",
+          en: "Single and value tickets include 90 minutes of transfers within the paid zones." },
+        colAdult: { fi: "Aikuinen", sv: "Vuxen", en: "Adult" },
+        colChild: { fi: "Lapsi (7–16 v)", sv: "Barn (7–16 år)", en: "Child (7–16)" },
+        colReduced: { fi: "Opiskelija", sv: "Studerande", en: "Student" },
+        methodCardApp: { fi: "Arvolippu matkakortilla, perusmatka", sv: "Värdebiljett på resekort, normalresa",
+          en: "Value ticket on travel card, standard fare" },
+        methodCash: { fi: "Arvolippu matkakortilla, hiljainen aika (viikonloput, arkipyhät ja arkisin klo 17.30 jälkeen)",
+          sv: "Värdebiljett på resekort, lågtrafik (helger, helgdagar och vardagar efter kl. 17.30)",
+          en: "Value ticket on travel card, off-peak (weekends, public holidays and weekdays after 17:30)" },
+        methodContactless: { fi: "Lähimaksu pankkikortilla (sama kaikille)", sv: "Närbetalning med bankkort (samma för alla)",
+          en: "Contactless bank card (same for all)" },
+        methodSalespoint: { fi: "Kertalippu", sv: "Engångsbiljett", en: "Single ticket" },
+        caps: { fi: "Lähimaksulla järjestelmä laskee parhaan hinnan kalenterivuorokauden aikana: päivälippu tällä vyöhykemäärällä {day} €.",
+          sv: "Vid närbetalning räknar systemet ut det bästa priset under dygnet: dagsbiljett för detta antal zoner {day} €.",
+          en: "With contactless payment the system charges the best price for the calendar day: day ticket for this number of zones €{day}." },
+        cardFee: { fi: "Matkakortti {n} €. Latausmaksu (palvelumaksu) linja-autoissa 4,50 €.",
+          sv: "Resekort {n} €. Laddningsavgift (serviceavgift) i bussarna 4,50 €.",
+          en: "Travel card €{n}. Top-up (service) fee on buses €4.50." },
+        where: {
+          fi: ["Asiakaspalvelukeskus Winkki, Valtakatu 47 (Pääkirjasto Parvi), puh. 05 616 2220",
+            "Imatran kaupungin asiakaspalvelu, Tainionkoskentie 14",
+            "Joutsenon kirjasto, Keskuskatu 2",
+            "Kampuskauppa Aalef, Yliopistonkatu 34",
+            "Mobiililiput: palveluntarjoajat osoitteessa lappeenranta.fi/jouko"],
+          sv: ["Kundservicecentret Winkki, Valtakatu 47 (huvudbiblioteket Parvi), tfn 05 616 2220",
+            "Imatra stads kundservice, Tainionkoskentie 14",
+            "Joutseno bibliotek, Keskuskatu 2",
+            "Kampuskauppa Aalef, Yliopistonkatu 34",
+            "Mobilbiljetter: tjänsteleverantörerna på lappeenranta.fi/jouko"],
+          en: ["Winkki customer service centre, Valtakatu 47 (Parvi main library), tel. 05 616 2220",
+            "City of Imatra customer service, Tainionkoskentie 14",
+            "Joutseno library, Keskuskatu 2",
+            "Kampuskauppa Aalef, Yliopistonkatu 34",
+            "Mobile tickets: providers listed at lappeenranta.fi/jouko"] },
+        sourceNote: {
+          fi: "Tiedot on koottu Joukon talviaikataulusta 2026–2027 (s. 4–6 ja 116) ja tarkistettu {date}. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot osoitteesta lappeenranta.fi/jouko.",
+          sv: "Uppgifterna är sammanställda från Joukos vintertidtabell 2026–2027 (s. 4–6 och 116) och kontrollerade {date}. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor på lappeenranta.fi/jouko.",
+          en: "This information is compiled from Jouko's winter timetable 2026–2027 (pp. 4–6 and 116) and checked on {date}. This is an unofficial service: please confirm current prices and terms at lappeenranta.fi/jouko." },
+        sourceLink: { fi: "Joukon liput ja hinnat (lappeenranta.fi/jouko)", sv: "Joukos biljetter och priser (lappeenranta.fi/jouko)",
+          en: "Jouko tickets and fares (lappeenranta.fi/jouko)" },
+      },
+    },
     // SaiPan ottelubussit ajavat vain ottelupäivinä (vihko s. 48 ja 50: lähtö 50/40 min ennen
     // ottelun alkua). Pois julisteista: kaksi ottelutorstaita 42 päivässä tulostui "To"-lohkona
     // viikoittaisena lähtönä (auditointi 25.9.2026).
@@ -3867,7 +3986,7 @@ const STRINGS = {
     dayTypeNote: "Ma–Pe perustuu edustavaan arkipäivään; juhlapyhät ja koulujen loma-ajat voivat poiketa.",
     printDaysNote: "Ajopäivät luetaan suoraan aikataulusyötteestä; otsikko kertoo vuoron todelliset liikennöintipäivät. Juhlapyhät voivat poiketa.",
     dayEveryDay: "Joka päivä", schoolTerm: "koulupäivinä", schoolBreak: "loma-aikoina",
-    periodUntil: "{date} asti", periodFrom: "{date} alkaen",
+    periodUntil: "{date} asti", periodFrom: "{date} alkaen", alsoSchoolBreak: "myös loma-aikoina",
     printKeyStopsPort: "Isot pysäkit (pysty)", printAllStopsLand: "Kaikki pysäkit (vaaka)",
     linePrintsTitle: "Linjatulosteet", linePrintsChoose: "Valitse linja",
     linePrintsIntro: "Lehtiteline-, pysty- ja vaakatuloste yhdeltä linjalta. Valinta avaa linjan sivun ja tulostusikkunan.",
@@ -3966,7 +4085,7 @@ const STRINGS = {
     openFullMap: "Koko kartta",
     stopTimelineTitle: "Pysäkit ja seuraava lähtö",
     timelineSelected: "Linjan {time} lähtö",
-    depFromOther: "lähtee pysäkiltä {stop}", depSchoolMark: "K", depSchoolLegend: "ajetaan vain koulupäivinä", depOtherOriginLegend: "lähtee eri pysäkiltä: {stops}", depShortMark: "X", depEndsAt: "päättyy pysäkille {stop}", depShortLegend: "päättyy aiemmin: {stops}", viaStop: "kautta {stop}",
+    depFromOther: "lähtee pysäkiltä {stop}", depSchoolMark: "K", depSchoolLegend: "ajetaan vain koulupäivinä", depOtherOriginLegend: "lähtee eri pysäkiltä: {stops}", depShortMark: "X", depEndsAt: "päättyy pysäkille {stop}", depShortLegend: "päättyy eri pysäkille: {stops}", viaStop: "kautta {stop}",
     depSelectAria: "Lähtö {time}, näytä pysäkkiajat",
     routePatternLabel: "Reittikuvio:",
     nextDeps: "Seuraavat lähdöt:",
@@ -4453,7 +4572,7 @@ const STRINGS = {
     dayTypeNote: "Mon–Fri is based on a representative weekday; public holidays and school holidays may differ.",
     printDaysNote: "Operating days are read straight from the schedule feed; each heading shows the trip's actual days of operation. Public holidays may differ.",
     dayEveryDay: "Daily", schoolTerm: "school days", schoolBreak: "school holidays",
-    periodUntil: "until {date}", periodFrom: "from {date}",
+    periodUntil: "until {date}", periodFrom: "from {date}", alsoSchoolBreak: "also during school holidays",
     printKeyStopsPort: "Major stops (portrait)", printAllStopsLand: "All stops (landscape)",
     linePrintsTitle: "Line printouts", linePrintsChoose: "Choose a line",
     linePrintsIntro: "Rack, portrait and landscape printouts for one line. The choice opens the line page and the print dialog.",
@@ -4548,7 +4667,7 @@ const STRINGS = {
     openFullMap: "Full map",
     stopTimelineTitle: "Stops and next departure",
     timelineSelected: "The {time} departure",
-    depFromOther: "departs from {stop}", depSchoolMark: "S", depSchoolLegend: "school days only", depOtherOriginLegend: "departs from a different stop: {stops}", depShortMark: "X", depEndsAt: "ends at {stop}", depShortLegend: "ends early: {stops}", viaStop: "via {stop}",
+    depFromOther: "departs from {stop}", depSchoolMark: "S", depSchoolLegend: "school days only", depOtherOriginLegend: "departs from a different stop: {stops}", depShortMark: "X", depEndsAt: "ends at {stop}", depShortLegend: "ends at a different stop: {stops}", viaStop: "via {stop}",
     depSelectAria: "Departure {time}, show stop times",
     routePatternLabel: "Route variant:",
     nextDeps: "Next departures:",
@@ -5035,7 +5154,7 @@ const STRINGS = {
     dayTypeNote: "Mån–Fre baseras på en representativ vardag; helgdagar och skollov kan avvika.",
     printDaysNote: "Trafikdagarna läses direkt från tidtabellsflödet; rubriken visar turens verkliga trafikdagar. Helgdagar kan avvika.",
     dayEveryDay: "Varje dag", schoolTerm: "skoldagar", schoolBreak: "skollov",
-    periodUntil: "t.o.m. {date}", periodFrom: "fr.o.m. {date}",
+    periodUntil: "t.o.m. {date}", periodFrom: "fr.o.m. {date}", alsoSchoolBreak: "även under skollov",
     printKeyStopsPort: "Stora hållplatser (stående)", printAllStopsLand: "Alla hållplatser (liggande)",
     linePrintsTitle: "Linjeutskrifter", linePrintsChoose: "Välj linje",
     linePrintsIntro: "Ställ-, stående och liggande utskrift för en linje. Valet öppnar linjesidan och utskriftsfönstret.",
@@ -5130,7 +5249,7 @@ const STRINGS = {
     openFullMap: "Hela kartan",
     stopTimelineTitle: "Hållplatser och nästa avgång",
     timelineSelected: "Avgången {time}",
-    depFromOther: "avgår från {stop}", depSchoolMark: "S", depSchoolLegend: "endast skoldagar", depOtherOriginLegend: "avgår från en annan hållplats: {stops}", depShortMark: "X", depEndsAt: "slutar vid {stop}", depShortLegend: "slutar tidigare: {stops}", viaStop: "via {stop}",
+    depFromOther: "avgår från {stop}", depSchoolMark: "S", depSchoolLegend: "endast skoldagar", depOtherOriginLegend: "avgår från en annan hållplats: {stops}", depShortMark: "X", depEndsAt: "slutar vid {stop}", depShortLegend: "slutar vid en annan hållplats: {stops}", viaStop: "via {stop}",
     depSelectAria: "Avgång {time}, visa hållplatstider",
     routePatternLabel: "Linjevariant:",
     nextDeps: "Följande avgångar:",
@@ -8027,11 +8146,11 @@ function bindFavButton(item) {
 //     "Joensuu - PKKS" jatkaa 5-10 min keskussairaalaan, vihkossa vain tarvittaessa).
 // Aikaraja ja vuoron alkupysäkki suojaavat lyhyitä silmukoita ja läpiajolinjoja, joiden kilpi
 // voi olla pysäkin paikka kesken reitin.
-// (3) keskustan solmupysäkillä (CONFIG.centerStopNames) kilpi on "Keskusta" tai kaupungin nimi ja
-//     vuoro päättyy enintään 5 minuutin päästä: bussi on tulossa keskustaan, ei lähdössä.
-//     Lappeenrannan Oikokatu L:n julisteessa oli ~120 tällaista "lähtöä" (1, 1X, 4, 7 "Keskusta",
-//     100 ja 110-113, 300, 601, 603, 610 "Lappeenranta"; auditointi 25.9.2026). Raja on tiukempi
-//     kuin (2):ssa, koska keskustan läpi ajava linja voi näyttää kilpeä "Keskusta" pitkään.
+// (3) keskustan solmupysäkillä (CONFIG.centerStopNames) vuoro päättyy enintään 5 minuutin päästä:
+//     bussi on tulossa keskustaan, ei lähdössä. Lappeenrannan Oikokatu L:n julisteessa oli ~130
+//     tällaista "lähtöä" (1, 1X, 4, 7 "Keskusta", 100, 110-113, 300, 601, 603, 610 "Lappeenranta",
+//     130 ja 200 silmukkakilvellä; auditointi 25.9.2026). Raja on tiukempi kuin (2):ssa, koska
+//     keskustan läpi ajava linja jatkaa usein pitkään.
 const ARRIVAL_TAIL_MAX_S = 15 * 60;
 const CENTER_ARRIVAL_MAX_S = 5 * 60;
 function arrivingHere(headsign, stopName, secsLeft, isFirst) {
@@ -8041,9 +8160,9 @@ function arrivingHere(headsign, stopName, secsLeft, isFirst) {
   if (!paikka) return false;
   if (nimi === paikka || nimi.startsWith(paikka + " ")) return true;
   if (secsLeft > CENTER_ARRIVAL_MAX_S) return false;
-  const keskus = ["keskusta", "centrum", "centre", String(CONFIG.city || "").toLowerCase()];
-  const solmu = (CONFIG.centerStopNames || []).some(c => nimi === c.toLowerCase() || nimi.startsWith(c.toLowerCase() + " "));
-  return solmu && keskus.includes(paikka);
+  // Kilvestä riippumatta: kierros 2 löysi Oikokatu L:ltä saapuvia vuoroja silmukkakilvillä
+  // ("Lpr-Partala-Soskua-Lpr" päättyy Armadaan 0 min päästä, "Lpr-Nuijamaa-Lpr" 1-4 min).
+  return (CONFIG.centerStopNames || []).some(c => nimi === c.toLowerCase() || nimi.startsWith(c.toLowerCase() + " "));
 }
 // Lähtölistojen kyselyihin: vuoron ensimmäinen ja viimeinen pysähdys (dropArrivals).
 const TRIP_ENDS_FIELDS = "departureStoptime { scheduledDeparture stop { gtfsId } } " +
@@ -8402,13 +8521,27 @@ function heroExtPlannerHtml() {
       </div>`;
 }
 
+// Kaupungin ilmoittama aikataulukausi (CONFIG.season) tulosteisiin, esim. "Talviaikataulu
+// 13.8.2026–6.6.2027". Suunnittelija kysyi ensimmäisenä "mihin asti juliste on voimassa"
+// (Lappeenranta, kierros 2 25.9.2026). Tyhjä, jos kaupungille ei ole kautta määritelty.
+function seasonText() {
+  const s = CONFIG.season;
+  return s ? String(s[lang] || s.fi || "") : "";
+}
+// Vihon, käytävän ja telineen voimassaoloteksti. Kausi ei toistu tässä: se on jo otsikkopalkin
+// metarivillä (printBrandHead), ja kahteen kertaan se näkyi vihon kannessa peräkkäisillä riveillä.
+function periodNote(dateISO) {
+  return t("bookletPeriodNote", { date: fmtDateLong(dateISO) });
+}
+
 // Tulosteiden yhteinen otsikkopalkki (käytävä, vihko, lehtiteline, linjatuloste): sama brändi-ilme
 // kuin tiiviissä pysäkkijulisteessa. Ruudulla tavallinen otsikko, print-mediassa CSS värittää palkin
 // CONFIG.brandColorista (--header-bg). meta: "full" = "Tulostettu pvm · operaattori", "date" = vain pvm
 // (kun operaattori on jo otsikossa), false = ei metariviä (kun tuloste kertoo päivän muualla).
 function printBrandHead({ title, sub = "", meta = "full", extra = "" } = {}) {
-  const metaTxt = meta === "full" ? t("printMeta", { date: fmtDateLong(todayISO()), operator: operatorName() })
+  const metaBase = meta === "full" ? t("printMeta", { date: fmtDateLong(todayISO()), operator: operatorName() })
     : meta === "date" ? t("printMetaDate", { date: fmtDateLong(todayISO()) }) : "";
+  const metaTxt = metaBase && seasonText() ? metaBase + " · " + seasonText() : metaBase;
   return `<div class="print-brandhead"><div class="print-brandhead-text">
       <h2>${title}</h2>${sub ? `<p class="print-brandhead-sub">${sub}</p>` : ""}${metaTxt ? `<p class="print-brandhead-meta">${esc(metaTxt)}</p>` : ""}
     </div>${extra}</div>`;
@@ -8446,7 +8579,7 @@ function compactPosterDom(po) {
       // QR-lause vain kun julisteessa on QR: erätulosteen julisteissa sitä ei ole, ja otsikko
       // lupasi silti "Ajantasaiset lähdöt QR-koodilla" (auditointi 23.9.2026, 0/110 QR:ää).
       printed.textContent = t(st.querySelector(".poster-qr") ? "posterFoot" : "printMeta",
-        { date: fmtDateLong(todayISO()), operator: operatorName() });
+        { date: fmtDateLong(todayISO()), operator: operatorName() }) + (seasonText() ? " · " + seasonText() : "");
       (head.querySelector("h2")?.parentElement || head).appendChild(printed); // otsikkosarake, ei QR-laatikko
     }
   });
@@ -8898,18 +9031,28 @@ function stopMatrixHtml(stops, trips, opts) {
 // Pysäkkijuliste: yhdeltä pysäkiltä lähtevät linjat tuntikaaviona
 // (vasen sarake tunti, oikea minuutit) — kuten katoksen seinällä oleva
 // painettu aikataulu. lines = stopPosterBlocks-blokin linjat ({route, headsign, times}).
-function stopPosterHtml(lines, compact) {
+// legend = [{ code, text }] (canonicalPosterBlocks): rajattujen lähtöjen kirjaimet taulukon alle.
+function posterLegendHtml(legend) {
+  return (legend && legend.length)
+    ? `<p class="poster-legend">${legend.map(l => `<b>${esc(l.code)}</b> = ${esc(l.text)}`).join(" · ")}</p>` : "";
+}
+// Minuutti + rajauksen kirjain (L.codes: sec -> kirjain).
+function posterMin(L, sec) {
+  const c = L.codes && L.codes.get(sec);
+  return String(Math.floor((sec % 3600) / 60)).padStart(2, "0") + (c ? `<sup>${esc(c)}</sup>` : "");
+}
+function stopPosterHtml(lines, compact, legend) {
   const sorted = [...(lines || [])].sort((a, b) =>
     (a.route.shortName || "").localeCompare(b.route.shortName || "", "fi", { numeric: true }));
   if (!sorted.length) return `<p class="muted">${t("bookletNoData")}</p>`;
-  if (compact) return stopPosterMatrixHtml(sorted);
+  if (compact) return stopPosterMatrixHtml(sorted) + posterLegendHtml(legend);
   return `<div class="poster-lines">${sorted.map(L => {
     const times = [...new Set(L.times)].sort((a, b) => a - b);
     const byHour = new Map();
     for (const sec of times) {
       const h = Math.floor(sec / 3600);
       if (!byHour.has(h)) byHour.set(h, []);
-      byHour.get(h).push(String(Math.floor((sec % 3600) / 60)).padStart(2, "0"));
+      byHour.get(h).push(posterMin(L, sec));
     }
     // Minuutit omiin sarakkeisiinsa kymmenluvuittain. Yhteen soluun ladottuna ne eivät
     // osu allekkain: tunnilla jolla on yksi lähtö se alkaa solun alusta, joten :35 päätyi
@@ -8917,7 +9060,7 @@ function stopPosterHtml(lines, compact) {
     // etsii omaa lähtöään silmällään pystysuunnassa, joten sarakkeen on oltava suora.
     // Tyhjät kymmenluvut pudotetaan, joten juliste ei levene turhaan; jos samaan
     // kymmenlukuun osuu tunnilla kaksi lähtöä, ne ovat samassa solussa vierekkäin.
-    const tens = m => Math.floor(+m / 10);
+    const tens = m => Math.floor(parseInt(m, 10) / 10);
     const cols = [...new Set([...byHour.values()].flat().map(tens))].sort((a, b) => a - b);
     const rows = [...byHour.entries()].map(([h, mins]) =>
       `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th>`
@@ -8927,7 +9070,7 @@ function stopPosterHtml(lines, compact) {
         <h4>${badgeHtml(L.route)} <span>${esc(placeName(L.headsign))}</span></h4>
         <table class="hourgrid"><tbody>${rows}</tbody></table>
       </div>`;
-  }).join("")}</div>`;
+  }).join("")}</div>` + posterLegendHtml(legend);
 }
 
 // Yhden arkin juliste: päivätyypin kaikki linjat YHDESSÄ taulukossa, tunnit riveinä ja
@@ -8944,7 +9087,7 @@ function stopPosterMatrixHtml(sorted) {
     for (const sec of [...new Set(L.times)].sort((a, b) => a - b)) {
       const h = Math.floor(sec / 3600);
       if (!byHour.has(h)) byHour.set(h, []);
-      byHour.get(h).push(String(Math.floor((sec % 3600) / 60)).padStart(2, "0"));
+      byHour.get(h).push(posterMin(L, sec));
     }
     return { L, byHour };
   });
@@ -9056,8 +9199,19 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
         // (JOENSUU: 15 "lähtöä" kohteisiin "Joensuu" ja "Joensuu - PKKS"), ks. arrivingHere.
         if (arrivingHere(headsign, st.stop?.name,
           (sts[sts.length - 1].scheduledDeparture ?? 0) - st.scheduledDeparture, i === 0)) continue;
-        const key = (r.shortName || "") + " " + headsign;
-        if (!byLine.has(key)) byLine.set(key, { route: r, headsign, trips: [] });
+        // Kilpi, joka on pelkkä kaupungin nimi tai lyhenne ("Lappeenranta", "Lpr"), ei kerro
+        // kaupungin sisällä mihin bussi menee: 101 "Lpr" ajaa LUT-yliopistolle, 113 "Lappeenranta"
+        // Matkakeskukseen (kierros 2 25.9.2026). Tilalle vuoron päätepysäkki, tai silmukalla
+        // (päättyy keskustan solmupysäkille) linjan pitkä nimi.
+        let kilpi = headsign;
+        const hl = headsign.trim().toLowerCase();
+        if (hl === String(CONFIG.city || "").toLowerCase() || (CONFIG.cityAbbr || []).some(a => hl === a.toLowerCase())) {
+          const loppu = sts[sts.length - 1].stop?.name || "";
+          const solmu = (CONFIG.centerStopNames || []).some(c => loppu.toLowerCase().startsWith(c.toLowerCase()));
+          kilpi = (loppu && !solmu ? cbStopBase(loppu) : "") || r.longName || headsign;
+        }
+        const key = (r.shortName || "") + " " + kilpi;
+        if (!byLine.has(key)) byLine.set(key, { route: r, headsign: kilpi, trips: [] });
         byLine.get(key).trips.push({
           serviceId: tr.serviceId, activeDates: tr.activeDates,
           stoptimes: [{ scheduledDeparture: st.scheduledDeparture }],
@@ -9101,7 +9255,78 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
       : a.school !== b.school ? (a.school ? 1 : 0) - (b.school ? 1 : 0)
       : (a.period?.from || 0) - (b.period?.from || 0);
   });
-  return arr;
+  return canonicalPosterBlocks(arr);
+}
+
+// Julisteen päivätyypit kuten painetussa aikatauluvihkossa: vain Ma–Pe, La ja Su. Todellisten
+// ajopäivien lohkot pirstoivat julisteen (Lappeenranta Oikokatu I: lauantai kolmessa laatikossa
+// Pe–La, La–Su, La; arki Ma–Pe, koulupäivinä, loma-aikoina; kierros 2 25.9.2026). Nyt jokainen
+// lähtö menee niihin perussarakkeisiin, joiden päivinä se ajetaan, ja rajattu lähtö (vain osana
+// päivistä, koulupäivinä, loma-aikoina tai päivätyn jakson ajan) saa kirjaimen ja selitteen:
+// koulupäivä on K kuten vihkossa ja linjasivulla, muut a, b, c... samalla kirjaimella koko
+// julisteessa. Tieto ei katoa: "Pe–La"-yövuoro on Ma–Pe-sarakkeessa kirjaimella "vain Pe" ja
+// lauantaina ilman kirjainta.
+function canonicalPosterBlocks(blocks) {
+  const BUCKETS = [[0, 1, 2, 3, 4], [5], [6]];
+  const letters = "abcdefghijklmnopqrstuvwxyz";
+  const codes = new Map();   // selite -> kirjain
+  const schoolOnly = t("schoolTerm");
+  const codeFor = txt => {
+    if (!codes.has(txt)) {
+      const used = new Set(codes.values());
+      const c = txt === schoolOnly && !used.has(t("depSchoolMark")) ? t("depSchoolMark")
+        : ([...letters].find(l => !used.has(l)) || "*");
+      codes.set(txt, c);
+    }
+    return codes.get(txt);
+  };
+  const out = BUCKETS.map(days => ({ dows: new Set(days), lines: new Map() }));
+  for (const b of blocks) {
+    for (const o of out) {
+      const common = [...b.dows].filter(d => o.dows.has(d));
+      if (!common.length) continue;
+      const parts = [];
+      if (common.length < o.dows.size) parts.push(t("compactOnlyDays", { days: dowLabel(new Set(common)) }));
+      if (b.school) parts.push(t(b.school === "koul" ? "schoolTerm" : "schoolBreak"));
+      if (b.period) parts.push(periodLabel(b.period));
+      const code = parts.length ? codeFor(parts.join(" · ")) : "";
+      for (const L of b.lines) {
+        const lk = (L.route.shortName || "") + "|" + L.headsign;
+        if (!o.lines.has(lk)) o.lines.set(lk, { route: L.route, headsign: L.headsign, times: [], codes: new Map() });
+        const T = o.lines.get(lk);
+        for (const sec of L.times) {
+          if (!T.times.includes(sec)) { T.times.push(sec); if (code) T.codes.set(sec, code); }
+          else if (!code) T.codes.delete(sec);   // ajetaan myös joka päivä -> ei kirjainta
+        }
+      }
+    }
+  }
+  // Kun koulupäivävuorot ovat arkisarakkeen enemmistö (Lahden ja Oulun syötteet koodaavat koko
+  // talven arkiaikataulun koulupäiväpalveluksi), K olisi lähes jokaisessa lähdössä. Silloin
+  // koulupäivä siirtyy sarakkeen otsikkoon ja kirjaimen saavat ne harvat lähdöt, jotka ajetaan
+  // myös loma-aikoina. Lappeenrannassa K-lähdöt ovat vähemmistö, ja ne pysyvät merkittyinä.
+  const K = codes.get(schoolOnly);
+  const blocksOut = out.filter(o => o.lines.size).map(o => {
+    const lines = [...o.lines.values()];
+    let label = dowLabel(o.dows);
+    if (K && o.dows.size === 5) {
+      const all = lines.flatMap(L => L.times.map(s => L.codes.get(s) || ""));
+      if (all.filter(c => c === K).length >= 0.6 * all.length) {
+        label += " · " + schoolOnly;
+        const also = codeFor(t("alsoSchoolBreak"));
+        for (const L of lines) for (const s of L.times) {
+          const c = L.codes.get(s);
+          if (c === K) L.codes.delete(s); else if (!c) L.codes.set(s, also);
+        }
+      }
+    }
+    return { dows: o.dows, school: "", period: null, label, lines };
+  });
+  for (const b of blocksOut) {
+    const used = new Set(b.lines.flatMap(L => [...L.codes.values()]));
+    b.legend = [...codes.entries()].filter(([, c]) => used.has(c)).map(([text, code]) => ({ code, text }));
+  }
+  return blocksOut;
 }
 
 // Aseman junalähdöt reittihaun alle, kun kunnassa on asema mutta ehdotuksissa ei ole junaa.
@@ -9335,6 +9560,12 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     ${crumbHtml()}
     <div class="card no-print">
       <h2>${favButtonHtml(routeId)}${badgeHtml(route)} ${esc(route.longName)}</h2>
+      ${(() => {
+        // Kaupungin linjakohtainen huomautus (CONFIG.lineNotes), esim. palvelulinjan tilausnumero
+        // (Lappeenranta P1/P3, vihko s. 53 ja 55; kierros 2 25.9.2026).
+        const n = CONFIG.lineNotes && CONFIG.lineNotes[route.shortName];
+        return n ? `<div class="notice">${icon("info")} ${esc(n[lang] || n.fi)}</div>` : "";
+      })()}
       <div id="routeAlerts">${routeAlertsHtml}</div>
       <div class="dir-row" role="group" aria-label="${t("directionAria")}">
         <span class="dir-label">${t("directionLabel")}</span>
@@ -9482,7 +9713,9 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     stop(id: $stopId) {
       stoptimesForServiceDate(date: $date, omitNonPickups: true) {
         pattern { code }
-        stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay trip { gtfsId serviceId arrivalStoptime { stop { gtfsId name@L } } } }
+        stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay trip { gtfsId serviceId
+          departureStoptime { scheduledDeparture stop { gtfsId name@L } }
+          arrivalStoptime { scheduledArrival stop { gtfsId name@L } } } }
       }
     }
   }`;
@@ -9537,7 +9770,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     const { pat, trips, allTrips } = await bestPatternForDate(iso);
     const refStop = pickRefStop(pat, allTrips);
     if (!trips.length || !refStop) return { sts: [], pat, refStop, stale: routeCachedAt };
-    const { data: tt, cachedAt } = await cachedGql(`tt3:${routeId}:dir${curDir}:${refStop.gtfsId}:${iso}`, TT_QUERY,
+    const { data: tt, cachedAt } = await cachedGql(`tt4:${routeId}:dir${curDir}:${refStop.gtfsId}:${iso}`, TT_QUERY,
       { stopId: refStop.gtfsId, date: iso.replace(/-/g, "") });
     // Yksi (varhaisin) lähtö per vuoro: jos lähtöpysäkki on reitillä kahdesti (silmukka/
     // palveluliikenne, esim. Salo 31, Kajaani Pali), stoptimesForServiceDate palauttaa
@@ -9545,6 +9778,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     // myös 1. käynnin). Vuorottelematon tapaus säilyy ennallaan.
     const byTrip = new Map();
     const arrOnly = arrivalOnly(refStop.gtfsId);
+    const patStops = new Map(dirPatterns.map(p => [p.code, p.stops || []]));
     let serviceDay = null;
     for (const g of (tt.stop?.stoptimesForServiceDate || [])) {
       if (!dirCodes.has(g.pattern.code) || arrOnly.has(g.pattern.code)) continue;
@@ -9552,7 +9786,17 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
         if (serviceDay == null && s.serviceDay) serviceDay = s.serviceDay;
         const key = s.trip?.gtfsId || ("anon:" + s.scheduledDeparture);
         const prev = byTrip.get(key);
-        if (!prev || s.scheduledDeparture < prev.scheduledDeparture) byTrip.set(key, s);
+        // Vuoro ohittaa lähtöpysäkin vasta paluumatkalla enintään 5 min ennen loppuaan: se on
+        // saapuminen, ja lähtö näytetään vuoron omalta lähtöpysäkiltä (*). Linja 620 näytti
+        // "15:38 K" pysäkiltä Oleksi, vaikka vuoro lähtee Oikokatu L:ltä 14.05 (kierros 2, 25.9.2026).
+        const a = s.trip?.arrivalStoptime, d = s.trip?.departureStoptime;
+        const hanta = a?.scheduledArrival != null && d?.stop && d.stop.gtfsId !== refStop.gtfsId &&
+          a.scheduledArrival - s.scheduledDeparture <= CENTER_ARRIVAL_MAX_S;
+        const rivi = hanta
+          ? { ...s, scheduledDeparture: d.scheduledDeparture, realtimeDeparture: d.scheduledDeparture, realtime: false,
+              _from: d.stop.name || "", _stops: patStops.get(g.pattern.code) }
+          : { ...s, _stops: patStops.get(g.pattern.code) };
+        if (!prev || rivi.scheduledDeparture < prev.scheduledDeparture) byTrip.set(key, rivi);
       }
     }
     // Suunnan vuorot, jotka eivät kulje refStopin kautta lähtönä (esim. 540:n syöttövuoro,
@@ -9567,20 +9811,44 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       const last = stts[stts.length - 1];
       byTrip.set("from:" + (first.stop?.gtfsId || "") + ":" + first.scheduledDeparture, {
         scheduledDeparture: first.scheduledDeparture, realtimeDeparture: first.scheduledDeparture,
-        realtime: false, serviceDay, _from: first.stop?.name || "",
+        realtime: false, serviceDay, _from: first.stop?.name || "", _stops: stts.map(x => x.stop),
         trip: { serviceId: tr.serviceId || "", arrivalStoptime: { stop: last?.stop || null } } });
     }
-    // Aiemmin päättyvä vuoro (_to): päätepysäkki eri kuin hallitsevan patternin (laiturikirjain
-    // ei ratkaise). Linjasivu näytti ne koko reitin vuoroina: 2:n 18.30-22.30 Kivisalmesta ajavat
-    // vain Keskustaan, 100:n 14.11 ja 21.10 päättyvät Joutsenoon; vihko merkitsee ne X:llä
-    // (Lappeenranta, auditointi 25.9.2026).
-    const mainEnd = cbStopBase((pat.stops || [])[(pat.stops || []).length - 1]?.name);
-    for (const s of byTrip.values()) {
-      const end = s.trip?.arrivalStoptime?.stop?.name;
-      if (end && mainEnd && cbStopBase(end) !== mainEnd) s._to = end;
+    // Eri pysäkille päättyvä vuoro (_to): päätepysäkki eri kuin hallitsevan patternin (laiturikirjain
+    // ei ratkaise) EIKÄ vuoro käy pääreitin päätepysäkillä matkalla. Linjasivu näytti ne koko reitin
+    // vuoroina: 2:n 18.30-22.30 Kivisalmesta ajavat vain Keskustaan, 100:n 21.10 päättyy Joutsenoon;
+    // vihko merkitsee ne X:llä (Lappeenranta, auditointi 25.9.2026). Päätepysäkin ohi jatkava vuoro
+    // (1: Kiiskinmäeltä Muukonniemeen, 4: Karhuvuoresta Ajurinkadulle) ei ole lyhyt (kierros 2).
+    let list = [...byTrip.values()], shownRef = refStop, originMode = false;
+    // Harva lähiliikennelinja, jonka vuorot alkavat eri paikoista (Lappeenranta 610: Rikkilä 6.45,
+    // Oikokatu L 7.30, Oleksi 12.05 ja 14.05): yhteinen välipysäkki antoi ajat keskeltä reittiä
+    // (Haikalantie 194: 06:59, 08:23, 12:36, 14:40). Kun vuoroja on enintään 12 ja enintään puolet
+    // alkaa lähtöpysäkiltä, jokainen vuoro näytetään omalta alkupysäkiltään kuten vihkossa:
+    // yleisin alkupysäkki on otsikossa ja muut *-merkillä (kierros 2, 25.9.2026).
+    const trips0 = (allTrips || []).filter(tr => (tr.stoptimes || []).length >= 2);
+    const alkaaTasta = trips0.filter(tr => cbStopBase(tr.stoptimes[0].stop?.name) === cbStopBase(refStop.name)).length;
+    if (trips0.length && trips0.length <= 12 && alkaaTasta <= trips0.length / 2) {
+      const cnt = new Map();
+      for (const tr of trips0) { const k = cbStopBase(tr.stoptimes[0].stop?.name); cnt.set(k, (cnt.get(k) || 0) + 1); }
+      const modeBase = [...cnt.entries()].sort((x, y) => y[1] - x[1])[0][0];
+      shownRef = trips0.find(tr => cbStopBase(tr.stoptimes[0].stop?.name) === modeBase).stoptimes[0].stop;
+      originMode = true;
+      list = trips0.map(tr => {
+        const f = tr.stoptimes[0], l = tr.stoptimes[tr.stoptimes.length - 1];
+        return { scheduledDeparture: f.scheduledDeparture, realtimeDeparture: f.scheduledDeparture, realtime: false,
+          serviceDay, _from: cbStopBase(f.stop?.name) === modeBase ? "" : (f.stop?.name || ""),
+          _stops: tr.stoptimes.map(x => x.stop),
+          trip: { serviceId: tr.serviceId || "", arrivalStoptime: { stop: l.stop || null } } };
+      });
     }
-    const sts = [...byTrip.values()].sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
-    return { sts, pat, refStop, stale: cachedAt || routeCachedAt };
+    const mainEnd = cbStopBase((pat.stops || [])[(pat.stops || []).length - 1]?.name);
+    for (const s of list) {
+      const end = s.trip?.arrivalStoptime?.stop?.name;
+      const kayPaassa = (s._stops || []).some(st => st && cbStopBase(st.name) === mainEnd);
+      if (end && mainEnd && cbStopBase(end) !== mainEnd && !kayPaassa) s._to = end;
+    }
+    const sts = list.sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
+    return { sts, pat, refStop: shownRef, originMode, stale: cachedAt || routeCachedAt };
   };
   // Etsii seuraavan liikennöintipäivän (enintään 14 vrk eteenpäin) jolla on lähtöjä.
   const findNextServiceDate = async (fromISO) => {
@@ -9602,7 +9870,11 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       const stts = tr.stoptimes || [];
       // refStopin käynti lähtönä (ei viimeinen pysäkki); muuten vuoron oma lähtö = sama avain kuin
       // lähtölistan _from-merkityllä vuorolla (fetchDeps)
-      const head = (refStop && stts.slice(0, -1).find(s => s.stop?.gtfsId === refStop.gtfsId)) || stts[0];
+      let head = refStop && stts.slice(0, -1).find(s => s.stop?.gtfsId === refStop.gtfsId);
+      // paluumatkan ohitus <= 5 min ennen loppua = lähtö omalta alkupysäkiltä (sama sääntö kuin fetchDeps)
+      if (head && stts[0].stop?.gtfsId !== refStop.gtfsId &&
+          stts[stts.length - 1].scheduledDeparture - head.scheduledDeparture <= CENTER_ARRIVAL_MAX_S) head = null;
+      head = head || stts[0];
       if (!head) continue;
       if (!idx.has(head.scheduledDeparture)) {
         const byStop = new Map();
@@ -9619,7 +9891,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
 
   const loadTimetable = async (useDate, redirectNote) => {
     useDate = useDate || date;
-    const { sts, stale, refStop } = await fetchDeps(useDate);
+    const { sts, stale, refStop, originMode } = await fetchDeps(useDate);
     const el = document.getElementById("timetable");
     if (!el) return;
     if (!sts.length) {
@@ -9692,7 +9964,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     (async () => {
       const seq = viewSeq;
       let index;
-      try { const { allTrips } = await bestPatternForDate(useDate); index = buildTripIndex(allTrips, refStop); }
+      try { const { allTrips } = await bestPatternForDate(useDate); index = buildTripIndex(allTrips, originMode ? null : refStop); }
       catch (e) { return; }
       const tg = document.getElementById("timegrid");
       const selEl = document.getElementById("timelineSel");
@@ -9845,7 +10117,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
         <div class="rack-head-main print-brandhead-text">
           <h2>${badgeHtml(route)} ${esc(route.longName)}</h2>
           <p class="rack-sub">${esc(primaries.map(patternLabel).join("    "))}</p>
-          <p class="rack-period">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
+          <p class="rack-period">${periodNote(date)}</p>
         </div>
         ${qrHtml}
       </div>
@@ -10177,11 +10449,11 @@ async function viewStop(stopId) {
       ? blocks.map(b =>
           `<section class="card poster-day">
              ${head(b.label)}
-             ${stopPosterHtml(b.lines, compact)}
+             ${stopPosterHtml(b.lines, compact, b.legend)}
            </section>`).join("")
       : `<section class="card poster-day">${head("")}<p class="muted">${t("bookletNoData")}</p></section>`;
     po.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}"><div class="poster-stop">${sections}</div>
-        <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
+        <p class="muted">${periodNote(today)}</p></div>`;
     if (stEl) stEl.textContent = "";
     if (compact) {
       const fit = fitPosterSheet(po);
@@ -11386,7 +11658,7 @@ function bindCorridorTab(routes, today) {
         ${printBrandHead({ title: `${t("corridorTitle")}${preset ? `: ${esc(corridorName(preset))}` : ""}` })}
         <p>${allLines.map(r => badgeHtml(r)).join(" ")}</p>
         ${mapHtml}
-        <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
+        <p class="muted">${periodNote(date)}</p>
         <p class="muted">${t("printDaysNote")}</p>
         ${exNote}
         <p class="no-print buildbar"><button type="button" id="corrPrint">${icon("print")} ${t("printBtn")}</button></p>
@@ -11491,12 +11763,12 @@ async function printPosterBatch(stops, subPrefix, compact, st, out) {
         return blocks.length
           ? blocks.map(b => `<section class="card poster-day">
               ${head((subPrefix ? subPrefix + " · " : "") + b.label)}
-              ${stopPosterHtml(b.lines, compact)}</section>`).join("")
+              ${stopPosterHtml(b.lines, compact, b.legend)}</section>`).join("")
           : `<section class="card poster-day">${head(subPrefix)}
               <p class="muted">${t("bookletNoData")}</p></section>`;
       });
       out.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}">${sections.map(sec => `<div class="poster-stop">${sec}</div>`).join("")}
-        <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
+        <p class="muted">${periodNote(today)}</p></div>`;
       st.textContent = "";
       if (compact) {
         const fit = fitPosterSheet(out);
@@ -12762,8 +13034,8 @@ async function viewServiceDesk() {
          </div>${qrImg}</div>`;
     const compact = posterCompactOn(null);
     po.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}"><div class="poster-stop">${blocks.map(b =>
-        `<section class="card poster-day">${head(b.label)}${stopPosterHtml(b.lines, compact)}</section>`).join("")}</div>
-      <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(today) })}</p></div>`;
+        `<section class="card poster-day">${head(b.label)}${stopPosterHtml(b.lines, compact, b.legend)}</section>`).join("")}</div>
+      <p class="muted">${periodNote(today)}</p></div>`;
     if (stEl) stEl.textContent = "";
     if (compact) {
       const fit = fitPosterSheet(po);
@@ -15796,7 +16068,7 @@ function bindBookletTab(routes, today) {
       <div class="card booklet-head">
         ${printBrandHead({ title: `${esc(operatorName())} · ${t("bookletCoverTitle")}`,
           sub: `${dts.map(d => esc(d.label)).join(" · ")}. ${t(compact ? "bookletCompactNote" : "bookletKeyStopsNote")}`, meta: "date" })}
-        <p class="muted">${t("bookletPeriodNote", { date: fmtDateLong(date) })}</p>
+        <p class="muted">${periodNote(date)}</p>
         <p class="muted">${t("printDaysNote")}</p>
         <p class="no-print buildbar"><button type="button" id="bookletPrint">${icon("print")} ${t("bookletPrintBtn")}</button>
           <button type="button" id="bookletPrintA5">${icon("print")} ${t("bookletPrintA5")}</button></p>
