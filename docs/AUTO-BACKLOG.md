@@ -66,6 +66,16 @@ nämä samoin kuin tapaamisista kirjatut signaalit.
       tuntemattomiksi: "Lahti:2026-2027 La Historic Rally" EI saa luokittua viikonpaivaksi pelkan
       La-sanan takia (rally, fest, lisat, yksittainen paivamaara); (4) WARN muuttuu PASS-riviksi vain
       kun kaikki uudet serviceId:t luokittuvat, muuten WARN kuten ennen.
+  - ⚠️ EHDOTUS/KYSYMYS (2026-09-26): tämän ajoympäristön agentilla ei ole verkko- tai gh-oikeuksia
+    (gh, curl, WebFetch vaativat luvan jota kukaan ei myönnä yöajossa; vain valmiiksi autentikoitu
+    git-etäyhteys toimii), joten kohdan (1) vaatimusta ei voi täyttää: ajon 32812513577 lokia tai
+    artefaktia ei pääse lukemaan täältä. Tarkistin myös suljetun PR #21:n commitin (d3d0f2e): se
+    keksi fixtuurit vastaavalla tavalla, mikä oli juuri hylkäyksen syy, joten saman toistaminen
+    arvaamalla ei ratkaise TARKENNUSta. Voisiko ylläpitäjä joko (a) liittää ajon 32812513577
+    serviceId-uudet-rivit tähän tekstinä, jotta seuraava ajo saa oikeat fixtuurit, tai (b) sallia
+    fixtuurien lähteeksi tests/kausivalidointi-baseline.json:n oikeat, feedeistä kerätyt
+    serviceId-merkkijonot (eivät keksittyjä, mutta eivät juuri sen ajon uusia), jos alkuperäistä
+    lokia ei saa automaatiolla auki?
 
 ## Tehdyt
 
