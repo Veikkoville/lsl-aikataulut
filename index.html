@@ -2129,6 +2129,8 @@
   .st-rt { display: flex; flex-direction: column; min-width: 0; }
   .st-rt span { font-size: 0.88rem; color: var(--ink-muted); }
   .st-go { margin-left: auto; font-weight: 700; color: var(--blue); white-space: nowrap; font-size: 0.9rem; }
+  /* Kaupungin näkymän laatta tilannelaattojen alla: yksi rivi kortissa, ilman listan jakoviivaa. */
+  .st-city .st-row { border-top: 0; padding: 0; }
   /* Linjasivun lähdöt tunneittain (paperin ruudukko): tunti vasemmalla, minuutit napeissa. */
   .timegrid.tg-grouped { display: block; border-top: 2px solid var(--blue); }
   .tg-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.3rem 0; border-bottom: 1px solid var(--line-divider); }
@@ -3959,6 +3961,19 @@ const STRINGS = {
     staffPrintsH: "Tulosta", staffPrintsSub: "Tulosteet syntyvät tulostuspäivän aikataulusta.", staffDeskH: "Asiakaspalvelu",
     staffDeskDesc: "Seuraavat lähdöt, junat ja tulosteet asiakkaalle mukaan.", staffScreensDesc: "Pysäkkinäytöt ja kioskiosoitteet seinänäytöille.",
     staffCorridorDesc: "Saman suunnan linjat yhdessä taulukossa.", staffOpen: "Avaa",
+    cvTitle: "Kaupungin näkymä", cvDesc: "Tilannekuva, uusintapainatuslista ja johtoraportti muutosvahdista.",
+    cvH: "Kaupungin näkymä: {city}", cvSub: "Pysäkkijulisteiden tilanne muutosvahdin viikkoajosta. Viimeisin tarkistus {date}.",
+    cvFiOnly: "Näkymän sisältö on toistaiseksi vain suomeksi.", cvStatesH: "Näin tilat luetaan",
+    cvStValmis: "Valmis: pysäkin juliste on ajan tasalla.",
+    cvStPuute: "Puutteellinen: pysäkillä oleva juliste on vanhentunut. Tulosta uusi nyt.",
+    cvStEraantyy: "Erääntyy: aikataulu muuttuu muutosvahdin katseluikkunan (noin 6 viikkoa) sisällä. Määräpäivä on arvioitu voimaantulopäivä, ja uusi juliste tulostetaan ennen sitä.",
+    cvStMyoh: "Myöhässä: arvioitu voimaantulopäivä on ohi, eikä muutosvahti ole vielä tarkistanut tilannetta uudelleen.",
+    cvStUusi: "Uusi: muutos on tulossa, mutta voimaantulopäivää ei saatu selville.",
+    cvStPoikkeus: "Poikkeusviikko: yhden viikon poikkeama, esimerkiksi syysloma, ei ole pysyvä muutos, eikä julistetta tulosteta uudelleen. Merkintä on pysäkin nimen perässä.",
+    cvToWatch: "Tulosta uusintapainatukset Muutosvahti-välilehdeltä",
+    cvNoData: "Muutosvahtia ei ole ajettu tälle kaupungille, joten kaupungin näkymässä ei ole vielä tietoja.",
+    cvDataError: "Muutosvahdin tulosta ei voitu lukea. Kaupungin näkymässä ei ole tietoja ennen seuraavaa ajoa.",
+    cvLoading: "Ladataan kaupungin näkymää…", cvLoadError: "Kaupungin näkymää ei voitu ladata. Tarkista verkkoyhteys ja yritä uudelleen.",
     deskExit: "← Poistu palvelutiskistä",
     deskRouteTitle: "Reittihaku (A→B)",
     deskKbdHint: "Tai täytä lähtö ja määränpää erikseen ja valitse ehdotus.",
@@ -4577,6 +4592,19 @@ const STRINGS = {
     staffPrintsH: "Print", staffPrintsSub: "Prints use the timetable of the print date.", staffDeskH: "Customer service",
     staffDeskDesc: "Next departures, trains and prints for the customer.", staffScreensDesc: "Stop displays and kiosk addresses for wall screens.",
     staffCorridorDesc: "Lines in the same direction in one table.", staffOpen: "Open",
+    cvTitle: "City view", cvDesc: "Status, reprint list and management report from the change watch.",
+    cvH: "City view: {city}", cvSub: "Status of the stop posters from the weekly change watch run. Latest check {date}.",
+    cvFiOnly: "The content of this view is currently in Finnish only.", cvStatesH: "How to read the statuses",
+    cvStValmis: "Valmis (done): the stop poster is up to date.",
+    cvStPuute: "Puutteellinen (incomplete): the poster at the stop is out of date. Print a new one now.",
+    cvStEraantyy: "Erääntyy (due): the timetable changes within the change watch window (about 6 weeks). The due date is the estimated start date, and the new poster is printed before it.",
+    cvStMyoh: "Myöhässä (overdue): the estimated start date has passed and the change watch has not checked the situation again yet.",
+    cvStUusi: "Uusi (new): a change is coming, but its start date could not be determined.",
+    cvStPoikkeus: "Poikkeusviikko (exception week): a one-week deviation, such as an autumn holiday, is not a lasting change and the poster is not reprinted. It is marked after the stop name.",
+    cvToWatch: "Print the reprints on the Change watch tab",
+    cvNoData: "The change watch has not run for this city, so the city view has no data yet.",
+    cvDataError: "The change watch result could not be read. The city view has no data until the next run.",
+    cvLoading: "Loading the city view…", cvLoadError: "The city view could not be loaded. Check the network connection and try again.",
     deskExit: "← Exit service desk",
     deskRouteTitle: "Journey search (A→B)",
     deskKbdHint: "Or fill in origin and destination separately and pick a suggestion.",
@@ -5183,6 +5211,19 @@ const STRINGS = {
     staffPrintsH: "Skriv ut", staffPrintsSub: "Utskrifterna följer utskriftsdagens tidtabell.", staffDeskH: "Kundservice",
     staffDeskDesc: "Nästa avgångar, tåg och utskrifter åt kunden.", staffScreensDesc: "Hållplatsskärmar och kioskadresser för väggskärmar.",
     staffCorridorDesc: "Linjer i samma riktning i en tabell.", staffOpen: "Öppna",
+    cvTitle: "Stadens vy", cvDesc: "Lägesbild, nytryckslista och ledningsrapport från ändringsvakten.",
+    cvH: "Stadens vy: {city}", cvSub: "Läget för hållplatsaffischerna från ändringsvaktens veckokörning. Senaste kontroll {date}.",
+    cvFiOnly: "Innehållet i vyn finns tills vidare bara på finska.", cvStatesH: "Så läser du statusarna",
+    cvStValmis: "Valmis (klar): hållplatsens affisch är aktuell.",
+    cvStPuute: "Puutteellinen (bristfällig): affischen på hållplatsen är föråldrad. Skriv ut en ny nu.",
+    cvStEraantyy: "Erääntyy (förfaller): tidtabellen ändras inom ändringsvaktens bevakningsfönster (cirka 6 veckor). Förfallodagen är den uppskattade dagen då ändringen träder i kraft, och den nya affischen skrivs ut före den.",
+    cvStMyoh: "Myöhässä (försenad): den uppskattade dagen har passerat och ändringsvakten har ännu inte kontrollerat läget på nytt.",
+    cvStUusi: "Uusi (ny): en ändring är på väg, men dagen då den träder i kraft kunde inte fastställas.",
+    cvStPoikkeus: "Poikkeusviikko (avvikande vecka): en avvikelse under en vecka, till exempel höstlovet, är ingen bestående ändring och affischen skrivs inte ut på nytt. Markeringen står efter hållplatsens namn.",
+    cvToWatch: "Skriv ut nytrycken på fliken Ändringsvakt",
+    cvNoData: "Ändringsvakten har inte körts för den här staden, så stadens vy har inga uppgifter ännu.",
+    cvDataError: "Ändringsvaktens resultat kunde inte läsas. Stadens vy har inga uppgifter före nästa körning.",
+    cvLoading: "Stadens vy laddas…", cvLoadError: "Stadens vy kunde inte laddas. Kontrollera nätverksanslutningen och försök igen.",
     deskExit: "← Avsluta servicedisk",
     deskRouteTitle: "Reseökning (A→B)",
     deskKbdHint: "Eller fyll i startplats och destination var för sig och välj ett förslag.",
@@ -9136,6 +9177,7 @@ async function viewStaff() {
           <b class="st-v">${CONFIG.season ? esc((CONFIG.season[lang] || CONFIG.season.fi).replace(/\s+\d.*$/, "")) : t("staffSeasonAuto")}</b>
           <span class="st-d">${CONFIG.season ? esc((CONFIG.season[lang] || CONFIG.season.fi).replace(/^\D+/, "")) : t("staffSeasonAutoDesc")}</span></a>
       </div>
+      <div class="card st-city" id="stCity">${row("#/kaupunki", ico("doc"), t("cvTitle"), t("cvDesc"))}</div>
       <div class="st-cols">
         <div class="card st-panel"><h2>${t("staffPrintsH")}</h2><p class="muted">${t("staffPrintsSub")}</p>
           ${row("#/tulosteet/julisteet", img("juliste"), t("heroHlPosters"), t("heroHlPostersDesc"))}
@@ -16900,6 +16942,26 @@ function bindBookletTab(routes, today) {
   });
 }
 
+// Kaupungin näkymä (#/kaupunki, 27.9.2026): henkilöstön tilannekuva pysäkkijulisteista muutosvahdin
+// viikkoajosta Savikurki-ytimellä. Koko näkymä on omissa tiedostoissaan (kaupunki.js, kaupunki.css ja
+// vendor/savikurki-ydin/), jotka ladataan vasta tällä reitillä: muut näkymät eivät lataa niitä.
+let cityViewLoad = null;
+async function viewCity() {
+  const nav = navSeq;
+  if (!window.ReittariKaupunki) {
+    setView(`${crumbHtml()}<p class="muted" role="status">${t("cvLoading")}</p>`);
+    cityViewLoad = cityViewLoad || ["vendor/savikurki-ydin/ydin.js", "kaupunki.js"].reduce((p, src) => p.then(() =>
+      new Promise((ok, ko) => {
+        const s = document.createElement("script");
+        s.src = src; s.onload = ok; s.onerror = () => ko(new Error(t("cvLoadError")));
+        document.head.appendChild(s);
+      })), Promise.resolve());
+    try { await cityViewLoad; } catch (e) { cityViewLoad = null; throw e; }
+    if (navStale(nav)) return;
+  }
+  await window.ReittariKaupunki.nayta(nav);
+}
+
 async function route() {
   // Polkuosa "/"-jaettuna + valinnainen ?-kyselyosa (esim. #/tulosteet/vihko tai #/tulosteet?tab=vihko)
   const rawHash = location.hash.replace(/^#\/?/, "");
@@ -16939,6 +17001,7 @@ async function route() {
     else if (parts[0] === "liput") viewFares();
     else if (parts[0] === "junat") await viewTrains();
     else if (parts[0] === "pysakki" && parts[1]) { track("stop", stripFeed(parts[1])); await viewStop(parts[1], query.get("print")); }
+    else if (parts[0] === "kaupunki") await viewCity();
     else await viewRoutes();
   } catch (err) {
     // Vanhentuneen näkymän virhe ei saa korvata näkymää, johon käyttäjä on jo siirtynyt.

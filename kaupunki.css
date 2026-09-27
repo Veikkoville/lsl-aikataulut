@@ -1,0 +1,93 @@
+/* Reittari: Kaupungin näkymä (#/kaupunki). Ladataan vain tällä reitillä yhdessä ytimen ydin.css:n
+   kanssa, ja kaupunki.js kytkee molemmat pois, kun reitiltä poistutaan. Säännöt koskevat vain
+   #knYdin- ja #knTuloste-elementtejä ja uusia kn-luokkia. */
+
+/* 1. Reittarin tokenit ytimelle. ID-valitsin voittaa ytimen .sy-oletukset, joten teema seuraa
+      Reittarin omaa valintaa (html[data-theme], suuri kontrasti) eikä pelkkää käyttöjärjestelmää.
+      Tilavärit (varoitus, vaara, ok) ovat ytimen omat, tummalle teemalle ytimen tummat arvot. */
+#knYdin.sy {
+  --sy-tausta: var(--bg);
+  --sy-pinta: var(--surface);
+  --sy-pinta-2: var(--field-bg);
+  --sy-reuna: var(--border);
+  --sy-reuna-vahva: var(--muted);
+  --sy-teksti: var(--text);
+  --sy-teksti-hento: var(--muted);
+  --sy-korostus: var(--accent);
+  --sy-korostus-vahva: var(--accent);
+  --sy-korostus-pehmea: var(--accent-soft);
+  --sy-korostus-kontrasti: #fff;
+  --sy-nappi: var(--btn-bg);
+  --sy-varoitus: #7a4a00;
+  --sy-varoitus-pehmea: #fcf0d6;
+  --sy-vaara: #a3261e;
+  --sy-vaara-pehmea: #fbe8e5;
+  --sy-ok: #1c6a3a;
+  --sy-ok-pehmea: #e3f1e8;
+  --sy-valmis: #4b5563;
+  --sy-valmis-pehmea: #ececea;
+  --sy-fontti: var(--font-sans);
+  --sy-sade: var(--radius-sm);
+  --sy-varjo: none;
+  color-scheme: light;
+}
+html[data-theme="dark"] #knYdin.sy {
+  --sy-varoitus: #f0c068;
+  --sy-varoitus-pehmea: #3a2f16;
+  --sy-vaara: #ff9d8f;
+  --sy-vaara-pehmea: #3d1d1a;
+  --sy-ok: #82d9a3;
+  --sy-ok-pehmea: #16301f;
+  --sy-valmis: #c3c8d0;
+  --sy-valmis-pehmea: #262a31;
+  color-scheme: dark;
+}
+
+/* 2. Hakemusmallin osat, joita julisteilla ei ole. Reittarissa ei ole rooleja, joten näkymä on aina
+      esihenkilön. Yleiskuvan kortit tulevat adapterin mittareista (pysäkit, ajan tasalla ...), joten
+      ytimen hakemuskortit (saapuneet, käsittelyaika ...) piilotetaan. Ytimen säästökortti tulisi
+      mittareiden eteen, joten sama luku on adapterin viimeisenä korttina. Työjonosta piilotetaan
+      Yksikkö-, Käsittelijä- ja Saapui-sarakkeet ja -suodattimet (sarakkeet 4-6, yksi kunta). */
+#knYdin .sy-roolit { display: none; }
+#knYdin .sy-kortti:is([data-mittari="saapuneet"], [data-mittari="ratkaistut"], [data-mittari="maaraajassa"],
+  [data-mittari="kasittelyaika"], [data-mittari="myohassa"], [data-mittari="estetyt"], [data-mittari="saasto"]) { display: none; }
+#knYdin .sy-jono tr > :is(:nth-child(4), :nth-child(5), :nth-child(6)) { display: none; }
+#knYdin .sy-suodattimet .sy-kentta:has(#sy-s-yksikko, #sy-s-kasittelija) { display: none; }
+
+/* 3. Reittarin yleiset elementtisäännöt ytimen sisällä. Sovelluksen header-säännöt (tahmea
+      yläpalkki, pieni teksti, kapealla näytöllä piilotetut kappaleet) osuisivat ytimen
+      näkymäotsikkoon ja raportin otsikkoon; th-säännön pieni harmaa teksti rivien otsikoihin;
+      button:hover-tausta ytimen laskurinappeihin. */
+#knYdin header { position: static; z-index: auto; background: none; color: inherit; border-top: 0; }
+#knYdin header.sy-nakymapaa { border-bottom: 0; padding: 0; }
+#knYdin header p { display: block; opacity: 1; }
+#knYdin .sy-nakymapaa .sy-johdanto { font-size: 1rem; }
+#knYdin header.sy-r-paa { padding: 0 0 .6rem; border-bottom: 2px solid var(--sy-teksti); }
+#knYdin .sy-r-paa > div > p:not(.sy-r-yla) { font-size: inherit; color: inherit; }
+#knYdin :is(.sy-taulu, .sy-r-taulu) tbody th { font-size: inherit; color: inherit; }
+#knYdin .sy-laskuri:hover { background: var(--sy-pinta); }
+#knYdin .sy-laskuri[aria-pressed="true"]:hover { background: var(--sy-korostus-pehmea); }
+#knYdin .sy-taulu tbody tr:last-child :is(th, td) { border-bottom: 1px solid var(--sy-reuna); }
+/* Sovelluksen footer-sääntö (sivupehmuste, tausta) osuisi raportin alatunnisteeseen ruudulla ja paperilla. */
+:is(#knYdin, #knTuloste) footer.sy-r-ala { padding-left: 0; padding-right: 0; padding-bottom: 0; background: none; }
+
+/* 4. Reittarin kehys näkymän ympärillä */
+.kn-paa { margin: 0 0 1.25rem; }
+.kn-paa h1 { margin: 0 0 .35rem; font-size: 1.5rem; line-height: 1.2; }
+.kn-paa p { margin: 0 0 .5rem; }
+.kn-kieli { font-weight: 600; }
+.kn-tilat { margin: .5rem 0; max-width: 70ch; }
+.kn-tilat summary { cursor: pointer; font-weight: 600; padding: .35rem 0; }
+.kn-tilat ul { margin: .25rem 0 .5rem; padding-left: 1.2rem; }
+.kn-tilat li { margin: 0 0 .3rem; }
+.kn-tyhja { padding: 1rem; background: var(--field-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+
+/* 5. Tuloste: Reittarin print-tyyli piilottaa kaikki header-elementit, ja johtoraportin otsikko on
+      header. Säiliö #knTuloste on bodyn suora lapsi, joten ytimen tulostussääntö näyttää vain sen. */
+@media print {
+  html.sy-tulostaa #knTuloste header.sy-r-paa { display: flex !important; position: static; z-index: auto; background: none;
+    color: #000; border-top: 0; padding: 0 0 2mm; border-bottom: 1.2pt solid #000; }
+  html.sy-tulostaa #knTuloste .sy-r-paa p { display: block; font-size: inherit; color: inherit; opacity: 1; }
+  html.sy-tulostaa #knTuloste .sy-r-paa p.sy-r-yla { font-size: 7pt; color: #333; }
+  html.sy-tulostaa #knTuloste .sy-r-taulu tbody th { font-size: inherit; color: #000; }
+}

@@ -2725,6 +2725,238 @@ async function minuuttiLinjaus(page, rootSel, media) {
     : fail("jaettu reittilinkki: kaupunki väärin tai jakolinkki ilman ?city: " + JSON.stringify(jako));
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
 
+  // --- Kaupungin näkymä (#/kaupunki, 27.9.2026) ---
+  // Henkilöstön tilannekuva muutosvahdin viikkoajosta Savikurki-ytimellä (kaupunki.js, vendor/savikurki-ydin/).
+  // Odotusarvot lasketaan tässä suoraan docs/muutosvahti/<city>.json:n pysäkkiriveistä, ei sovelluksen
+  // koodilla. Rakenne ja data-attribuutit, ei käyttöliittymätekstiä: smoke voi olla tässä kohtaa muulla
+  // kielellä (ytimen oma sisältö on aina suomeksi). Näkymän tyylit (ydin.css:n @page) ja ytimen
+  // beforeprint eivät saa jäädä päälle muihin näkymiin, joten tulostusturva tarkistetaan erikseen.
+  // Viewport ja kaupunki palautetaan lopuksi.
+  {
+    const vp = page.viewport();
+    await page.setViewport({ width: 1280, height: 900 });
+    await page.goto(BASE + "/?city=lappeenranta#/tilanne", { waitUntil: "networkidle2" });
+    const ix = await page.evaluate(async () => {
+      try { const r = await fetch("docs/muutosvahti/index.json", { cache: "no-cache" }); return r.ok ? await r.json() : null; }
+      catch (e) { return null; }
+    });
+    const ajetut = ix && ix.kaupungit ? Object.keys(ix.kaupungit) : [];
+    const lataa = city => page.evaluate(async c => {
+      const r = await fetch("docs/muutosvahti/" + c + ".json", { cache: "no-cache" });
+      return r.ok ? r.json() : null;
+    }, city);
+    const pvm = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    // Tilat: vanhentunut voittaa; tulossa + voimaantulo tänään tai myöhemmin = Erääntyy, ohi = Myöhässä,
+    // ilman päivää = Uusi; muut ajan tasalla. Tarkastelupäivä = tämä päivä (tai ajopäivä, jos kello jätättää).
+    const odotus = j => {
+      const ajo = pvm(new Date(j.ajettu)), nyt = pvm(new Date()), T = nyt < ajo ? ajo : nyt;
+      const v = (j.yhteenveto || {}).voimaan || null, ps = j.pysakit, n = ps.length;
+      const vain = ps.filter(p => p.tulossa && !p.muuttunut).length;
+      const valmis = ps.filter(p => !p.muuttunut && !p.tulossa).length;
+      return { n, valmis, mu: ps.filter(p => p.muuttunut).length, tu: ps.filter(p => p.tulossa).length,
+        poik: ps.filter(p => p.poikkeus).length, avoimet: n - valmis, esti: vain,
+        eraantyy: v && v >= T ? vain : 0, myohassa: v && v < T ? vain : 0, uusi: v ? 0 : vain,
+        pros: n ? Math.round(valmis / n * 100) : null };
+    };
+
+    // 1. Henkilöstön Tilanne-sivun yläosan laatta kolmella kielellä: tilannelaattojen alla ennen Tulosta-
+    //    ja Asiakaspalvelu-paneeleja, linkki vie #/kaupunki, linkki on sivulla vain kerran, ja otsikko ja
+    //    kuvaus ovat sivun kielen käännökset. Kieli palautetaan ennalleen (smoke on tilallinen).
+    const kieliEnnen = await page.evaluate(() => localStorage.getItem("lang"));
+    const laatat = [];
+    for (const kieli of ["fi", "sv", "en"]) {
+      await page.evaluate(l => localStorage.setItem("lang", l), kieli);
+      await page.reload({ waitUntil: "networkidle2" });
+      await page.waitForSelector("#stCity", { timeout: 15000 }).catch(() => {});
+      laatat.push(await page.evaluate(k => {
+        const laatta = document.getElementById("stCity"), tiles = document.querySelector(".staff .st-tiles");
+        return { kieli: k, lang: document.documentElement.lang, kpl: document.querySelectorAll('.staff a[href="#/kaupunki"]').length,
+          paikka: !!laatta && laatta.previousElementSibling === tiles && !!laatta.nextElementSibling && laatta.nextElementSibling.classList.contains("st-cols"),
+          href: laatta && laatta.querySelector("a") ? laatta.querySelector("a").getAttribute("href") : null,
+          otsikko: laatta && laatta.querySelector(".st-rt b") ? laatta.querySelector(".st-rt b").textContent.trim() : "",
+          kuvaus: laatta && laatta.querySelector(".st-rt span") ? laatta.querySelector(".st-rt span").textContent.trim() : "",
+          odOtsikko: t("cvTitle"), odKuvaus: t("cvDesc") };
+      }, kieli));
+    }
+    await page.evaluate(l => { if (l == null) localStorage.removeItem("lang"); else localStorage.setItem("lang", l); }, kieliEnnen);
+    await page.reload({ waitUntil: "networkidle2" });
+    (laatat.every(l => l.lang === l.kieli && l.kpl === 1 && l.paikka && l.href === "#/kaupunki" && l.otsikko && l.otsikko === l.odOtsikko
+      && l.kuvaus === l.odKuvaus) && new Set(laatat.map(l => l.otsikko)).size === 3)
+      ? ok(`kaupungin näkymä: laatta Tilanne-sivun yläosassa tilannelaattojen alla (fi/sv/en: ${laatat.map(l => l.otsikko).join(" / ")}), linkki kerran`)
+      : fail("kaupungin näkymä: Tilanne-sivun laatta pielessä: " + JSON.stringify(laatat));
+    const linkki = await page.waitForSelector('#stCity a[href="#/kaupunki"]', { timeout: 15000 }).catch(() => null);
+    if (linkki) await linkki.click();
+    const auki = await page.waitForSelector('#knYdin #sy-nakyma[data-nakyma="yleiskuva"]', { timeout: 20000 }).then(() => true).catch(() => false);
+    (linkki && auki)
+      ? ok("kaupungin näkymä: Tilanne-sivun laatta avaa näkymän sovelluksen sisällä (Lappeenranta)")
+      : fail("kaupungin näkymä: linkki tai näkymä puuttuu: " + JSON.stringify({ linkki: !!linkki, auki }));
+
+    // 2. Yleiskuva (Lappeenranta): jonon laskurit ja kortit riippumattomasti pysäkkiriveistä; hakemusmallin kortit piilossa.
+    if (ajetut.includes("lappeenranta") && auki) {
+      const e = odotus(await lataa("lappeenranta"));
+      const y = await page.evaluate(() => {
+        const m = id => { const el = document.querySelector(`#knYdin .sy-kortti[data-mittari="${id}"]`);
+          return el ? { arvo: el.dataset.arvo, naytto: el.querySelector(".sy-kortti__arvo").textContent.replace(/\s/g, ""), nakyy: getComputedStyle(el).display !== "none" } : null; };
+        return {
+          jono: Object.fromEntries([...document.querySelectorAll("#knYdin a.sy-tilanne__linkki")].map(a => [a.dataset.syTila, +a.dataset.syMaara])),
+          n: m("pysakkeja"), ajan: m("ajan-tasalla"), mu: m("vanhentuneita"), tu: m("tulossa"), poik: m("poikkeusviikko"), uus: m("uusintapainatus"),
+          piilossa: ["saapuneet", "ratkaistut", "maaraajassa", "kasittelyaika", "estetyt", "saasto"].map(m).filter(x => x && x.nakyy).length,
+          roolit: getComputedStyle(document.querySelector("#knYdin .sy-roolit")).display,
+        };
+      });
+      const hyva = y.jono.puutteellinen === e.mu && y.jono.eraantyy === e.eraantyy && y.jono.myohassa === e.myohassa
+        && y.jono.uusi === e.uusi && y.jono.avoimet === e.avoimet && y.n && +y.n.arvo === e.n && +y.mu.arvo === e.mu
+        && +y.tu.arvo === e.tu && +y.poik.arvo === e.poik && +y.uus.arvo === e.avoimet && y.ajan.naytto === `${e.pros}%`
+        && y.piilossa === 0 && y.roolit === "none";
+      hyva ? ok(`kaupungin näkymä (Lappeenranta): ${e.n} pysäkkiä, ajan tasalla ${e.pros} %, vanhentuneita ${e.mu}, tulossa ${e.tu}, poikkeusviikko ${e.poik} (laskettu JSONista)`)
+        : fail("kaupungin näkymä (Lappeenranta): luvut eri kuin JSONista laskettu: " + JSON.stringify({ odotus: e, sivu: y }));
+    } else info("kaupungin näkymä: Lappeenrannan muutosvahtia ei ole ajettu, yleiskuvan luvut jäivät tarkistamatta");
+
+    // 3-6. Kaupunki, jolla on eniten uusittavia julisteita: työjono, CSV, Mitä palvelu esti, 390 px.
+    const tk = ajetut.slice().sort((a, b) => (ix.kaupungit[b].muuttunut + ix.kaupungit[b].tulossa)
+      - (ix.kaupungit[a].muuttunut + ix.kaupungit[a].tulossa))[0];
+    if (tk) {
+      const e = odotus(await lataa(tk));
+      await page.goto(BASE + `/?city=${tk}#/kaupunki/tyojono`, { waitUntil: "networkidle2" });
+      await page.waitForSelector("#knYdin #sy-jono-maara", { timeout: 20000 }).catch(() => {});
+      const tj = await page.evaluate(() => ({
+        laskurit: Object.fromEntries([...document.querySelectorAll("#knYdin [data-sy-laskuri]")].map(el => [el.dataset.syLaskuri, +el.textContent.replace(/\D/g, "")])),
+        rivit: +(document.getElementById("sy-jono-maara") || { dataset: {} }).dataset.maara,
+        trt: document.querySelectorAll("#knYdin tr[data-sy-kohde]").length,
+        tilat: [...new Set([...document.querySelectorAll("#knYdin tr[data-sy-kohde]")].map(tr => tr.dataset.tila))],
+        linkit: [...document.querySelectorAll("#knYdin tr[data-sy-kohde] a")].slice(0, 5).map(a => a.getAttribute("href")),
+        sarakkeet: [...document.querySelectorAll("#knYdin .sy-jono thead th")].map(th => getComputedStyle(th).display === "none"),
+      }));
+      const L = tj.laskurit;
+      const tilatOk = tj.tilat.every(t => ["puutteellinen", "eraantyy", "myohassa", "uusi"].includes(t));
+      const rivitOk = e.avoimet ? tj.trt === e.avoimet && tilatOk && tj.linkit.length && tj.linkit.every(h => h.startsWith("#/pysakki/"))
+        && JSON.stringify(tj.sarakkeet) === JSON.stringify([false, false, false, true, true, true, false]) : tj.trt === 0;
+      (L.valmis === e.valmis && L.puutteellinen === e.mu && L.eraantyy === e.eraantyy && L.myohassa === e.myohassa && L.uusi === e.uusi
+        && L.kasittelyssa === 0 && tj.rivit === e.avoimet && rivitOk)
+        ? ok(`kaupungin näkymä (${tk}): työjonossa ${e.avoimet} uusittavaa (vanhentunut ${e.mu}, erääntyy ${e.eraantyy}, myöhässä ${e.myohassa}), ajan tasalla ${e.valmis}; rivit linkittävät pysäkkiin`)
+        : fail(`kaupungin näkymä (${tk}): työjono eri kuin JSONista laskettu: ` + JSON.stringify({ odotus: e, sivu: tj }));
+
+      // CSV: ladattu tiedosto siepataan sivulla (ei levylle): BOM, 12 saraketta, rivi per näkyvä juliste.
+      const csv = await page.evaluate(async () => {
+        const oCreate = URL.createObjectURL, oClick = HTMLAnchorElement.prototype.click;
+        let blob = null, nimi = "";
+        URL.createObjectURL = b => { blob = b; return "blob:kn-testi"; };
+        HTMLAnchorElement.prototype.click = function () { nimi = this.download; };
+        try { document.querySelector('#knYdin [data-sy-vie="csv"]').click(); }
+        finally { URL.createObjectURL = oCreate; HTMLAnchorElement.prototype.click = oClick; }
+        if (!blob) return null;
+        const tavut = new Uint8Array(await blob.arrayBuffer());
+        const teksti = new TextDecoder().decode(tavut);
+        const rivit = teksti.split("\r\n").filter(Boolean);
+        return { nimi, bom: tavut[0] === 0xEF && tavut[1] === 0xBB && tavut[2] === 0xBF, rivit: rivit.length, sarakkeet: rivit[0].split(";").length };
+      });
+      (csv && csv.bom && csv.sarakkeet === 12 && csv.rivit === e.avoimet + 1 && new RegExp(`^uusintapainatukset-${tk}-\\d{4}-\\d{2}-\\d{2}\\.csv$`).test(csv.nimi))
+        ? ok(`kaupungin näkymä (${tk}): uusintapainatuslistan CSV ${csv.rivit - 1} riviä, 12 saraketta, UTF-8 BOM (${csv.nimi})`)
+        : fail(`kaupungin näkymä (${tk}): CSV pielessä: ` + JSON.stringify({ odotus: e.avoimet, csv }));
+
+      // Mitä palvelu esti = tulossa-pysäkit, joita ei ole jo merkitty vanhentuneiksi (ajojakso on oletusjakso).
+      await page.goto(BASE + `/?city=${tk}#/kaupunki/estetyt`, { waitUntil: "networkidle2" });
+      await page.waitForSelector("#knYdin #sy-estetyt-yht", { timeout: 20000 }).catch(() => {});
+      const esti = await page.evaluate(() => { const el = document.getElementById("sy-estetyt-yht");
+        return el ? { arvo: +el.dataset.arvo, teksti: el.textContent } : null; });
+      (esti && esti.arvo === e.esti && !/virhe/i.test(esti.teksti))
+        ? ok(`kaupungin näkymä (${tk}): Mitä palvelu esti = ${e.esti} julistetta nostettu ennen muutosta (ei hakemusmallin "virheitä")`)
+        : fail(`kaupungin näkymä (${tk}): Mitä palvelu esti pielessä: ` + JSON.stringify({ odotus: e.esti, sivu: esti }));
+
+      // 390 px: ei vaakavieritystä yleiskuvassa, työjonossa ja raportissa.
+      await page.setViewport({ width: 390, height: 800 });
+      const leveys = [];
+      for (const nak of ["yleiskuva", "tyojono", "raportti"]) {
+        await page.goto(BASE + `/?city=${tk}#/kaupunki/${nak}`, { waitUntil: "networkidle2" });
+        await page.waitForSelector(`#knYdin #sy-nakyma[data-nakyma="${nak}"]`, { timeout: 20000 }).catch(() => {});
+        leveys.push(await page.evaluate(n => ({ n, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,
+          nakyma: document.querySelector("#knYdin #sy-nakyma")?.dataset.nakyma }), nak));
+      }
+      await page.setViewport({ width: 1280, height: 900 });
+      leveys.every(l => l.nakyma === l.n && l.sw <= l.cw)
+        ? ok(`kaupungin näkymä (${tk}): 390 px ilman vaakavieritystä (yleiskuva, työjono, raportti)`)
+        : fail("kaupungin näkymä: vaakavieritys 390 px:llä: " + JSON.stringify(leveys));
+    } else info("kaupungin näkymä: muutosvahtia ei ole ajettu millekään kaupungille");
+
+    // 7-9. Johtoraportti (Lappeenranta): luvut, tulostettava sisältö print-medialla ja yksi A4-sivu.
+    if (ajetut.includes("lappeenranta")) {
+      const e = odotus(await lataa("lappeenranta"));
+      await page.goto(BASE + "/?city=lappeenranta#/kaupunki/raportti", { waitUntil: "networkidle2" });
+      await page.waitForSelector('#sy-raportti-esikatselu [data-sy-r="kn-pysakkeja"]', { timeout: 20000 }).catch(() => {});
+      const r = await page.evaluate(() => {
+        const v = id => { const el = document.querySelector(`#sy-raportti-esikatselu [data-sy-r="${id}"]`); return el ? el.dataset.arvo.replace(/\s/g, "") : null; };
+        const esti = document.querySelector('#sy-raportti-esikatselu [data-kn="esti"]');
+        return { n: v("kn-pysakkeja"), ajan: v("kn-ajan-tasalla"), mu: v("kn-vanhentuneita"), tu: v("kn-tulossa"), poik: v("kn-poikkeus"),
+          saasto: !!document.querySelector('#sy-raportti-esikatselu [data-sy-r="saasto"]'), esti: esti ? +esti.dataset.arvo : null,
+          lista: !!document.querySelector('#sy-raportti-esikatselu [data-kn="uusinnat"]') };
+      });
+      (r.n === String(e.n) && r.ajan === `${e.pros}%` && r.mu === String(e.mu) && r.tu === String(e.tu) && r.poik === String(e.poik)
+        && r.esti === e.esti && r.saasto && r.lista)
+        ? ok(`johtoraportti (Lappeenranta): luvut ja uusintapainatuslista vastaavat JSONia (${e.n} / ${e.pros} % / ${e.mu} / ${e.tu})`)
+        : fail("johtoraportti (Lappeenranta): luvut pielessä: " + JSON.stringify({ odotus: e, sivu: r }));
+      // Tulostettaessa paperille menee vain raportti, ja sen otsikko näkyy (sovelluksen print-tyyli piilottaa headerit).
+      await page.evaluate(() => window.dispatchEvent(new Event("beforeprint")));
+      await page.emulateMediaType("print");
+      const pr = await page.evaluate(() => {
+        const vis = el => !!el && getComputedStyle(el).display !== "none" && el.getBoundingClientRect().height > 0;
+        return { sovellus: vis(document.getElementById("app")), otsikko: vis(document.querySelector("#knTuloste header.sy-r-paa")),
+          luvut: vis(document.querySelector('#knTuloste [data-sy-r="kn-pysakkeja"]')) };
+      });
+      await page.emulateMediaType(null);
+      await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+      (!pr.sovellus && pr.otsikko && pr.luvut)
+        ? ok("johtoraportti: tulosteessa vain raportti, otsikko ja julisteiden luvut näkyvät")
+        : fail("johtoraportti: print-näkymä pielessä: " + JSON.stringify(pr) + " (odotus: sovellus=false, otsikko=true, luvut=true)");
+      const buf = await page.pdf({ format: "A4", preferCSSPageSize: true });
+      const sivuja = (Buffer.from(buf).toString("latin1").match(/\/Type\s*\/Page(?!s)/g) || []).length;
+      sivuja === 1 ? ok("johtoraportti: yksi A4-sivu (PDF)") : fail(`johtoraportti: ${sivuja} sivua, odotus 1 A4`);
+
+      // 10. Tulostusturva: kun näkymästä poistutaan raportilta, ytimen tyylit ovat pois päältä eikä ydin
+      //     valmistele raporttia muiden näkymien tulosteisiin (julisteet, vihot).
+      await page.evaluate(() => { location.hash = "#/tulosteet/muutokset"; });
+      await page.waitForSelector("#chgSummary", { timeout: 20000 }).catch(() => {});
+      const turva = await page.evaluate(() => {
+        window.dispatchEvent(new Event("beforeprint"));
+        const tulos = { luokka: document.documentElement.classList.contains("sy-tulostaa"),
+          tyylitPois: [...document.querySelectorAll("link[data-kaupunki]")].every(l => l.disabled),
+          tyyleja: document.querySelectorAll("link[data-kaupunki]").length,
+          tuloste: (document.getElementById("knTuloste") || { innerHTML: "" }).innerHTML.length };
+        window.dispatchEvent(new Event("afterprint"));
+        return tulos;
+      });
+      (!turva.luokka && turva.tyylitPois && turva.tyyleja === 2 && turva.tuloste === 0)
+        ? ok("kaupungin näkymä: muissa näkymissä ytimen tyylit pois ja raportti ei tulostu julisteiden mukana")
+        : fail("kaupungin näkymä: tulostusturva pielessä: " + JSON.stringify(turva));
+    }
+
+    // 11. Säännöt: muutosvahdin säännöt lähteineen (tests/muutosvahti.js ja Digitransit).
+    if (tk) {
+      await page.goto(BASE + `/?city=${tk}#/kaupunki/saannot`, { waitUntil: "networkidle2" });
+      await page.waitForSelector("#knYdin tr[data-sy-saanto]", { timeout: 20000 }).catch(() => {});
+      const s = await page.evaluate(() => [...document.querySelectorAll("#knYdin tr[data-sy-saanto]")].map(tr =>
+        ({ t: tr.dataset.sySaanto, lahde: (tr.querySelector('a[href^="https://"]') || {}).href || "" })));
+      (s.length === 9 && s.every(x => /muutosvahti\.js$|digitransit\.fi/.test(x.lahde)))
+        ? ok(`kaupungin näkymä: ${s.length} muutosvahdin sääntöä lähdelinkkeineen`)
+        : fail("kaupungin näkymä: säännöt tai lähteet puuttuvat: " + JSON.stringify(s));
+    }
+
+    // 12. Kaupunki ilman muutosvahdin ajoa: selkeä tila, ei ydintä eikä taulukkoa, joka näyttäisi onnistumiselta.
+    const ilman = (await page.evaluate(() => Object.keys(CONFIGS))).find(k => !ajetut.includes(k));
+    if (ilman) {
+      await page.goto(BASE + `/?city=${ilman}#/kaupunki`, { waitUntil: "networkidle2" });
+      await page.waitForSelector("#knWrap", { timeout: 20000 }).catch(() => {});
+      const t0 = await page.evaluate(() => ({ tila: document.getElementById("knWrap")?.dataset.knTila,
+        ydin: !!document.getElementById("knYdin"), taulukoita: document.querySelectorAll("#app table").length,
+        teksti: (document.querySelector("#knWrap .kn-tyhja")?.textContent || "").length }));
+      (t0.tila === "ei-dataa" && !t0.ydin && t0.taulukoita === 0 && t0.teksti > 20)
+        ? ok(`kaupungin näkymä (${ilman}): ei muutosvahdin ajoa, näytetään selkeä tila ilman taulukoita`)
+        : fail(`kaupungin näkymä (${ilman}): tyhjä tila pielessä: ` + JSON.stringify(t0));
+    }
+
+    await page.setViewport(vp || { width: 800, height: 600 });
+    await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  }
+
   // --- Konsolivirheet ---
   // Nimeä verkkovirheet: jokainen "Failed to load resource: net::X" kuluttaa ensimmäisen
   // vielä käyttämättömän requestfailed-tapahtuman jolla on sama virheteksti. Osoitteesta
