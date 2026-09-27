@@ -2751,12 +2751,15 @@ async function minuuttiLinjaus(page, rootSel, media) {
     const odotus = j => {
       const ajo = pvm(new Date(j.ajettu)), nyt = pvm(new Date()), T = nyt < ajo ? ajo : nyt;
       const v = (j.yhteenveto || {}).voimaan || null, ps = j.pysakit, n = ps.length;
-      const vain = ps.filter(p => p.tulossa && !p.muuttunut).length;
+      const vp = p => p.voimaan || v; // pysäkkikohtainen päivä, vanhassa datassa kaupungin päivä
+      const vainR = ps.filter(p => p.tulossa && !p.muuttunut), vain = vainR.length;
       const valmis = ps.filter(p => !p.muuttunut && !p.tulossa).length;
-      return { n, valmis, mu: ps.filter(p => p.muuttunut).length, tu: ps.filter(p => p.tulossa).length,
+      // Ajan tasalla tänään: tuleva muutos ei tee julisteesta väärää ennen voimaantulopäivää.
+      const tanaan = ps.filter(p => !p.muuttunut && !(p.tulossa && vp(p) && vp(p) <= T)).length;
+      return { n, valmis, tanaan, v, tarkka: !!(j.yhteenveto || {}).voimaanTarkka, mu: ps.filter(p => p.muuttunut).length, tu: ps.filter(p => p.tulossa).length,
         poik: ps.filter(p => p.poikkeus).length, avoimet: n - valmis, esti: vain,
-        eraantyy: v && v >= T ? vain : 0, myohassa: v && v < T ? vain : 0, uusi: v ? 0 : vain,
-        pros: n ? Math.round(valmis / n * 100) : null };
+        eraantyy: vainR.filter(p => vp(p) && vp(p) >= T).length, myohassa: vainR.filter(p => vp(p) && vp(p) < T).length, uusi: vainR.filter(p => !vp(p)).length,
+        pros: n ? Math.round(tanaan / n * 100) : null };
     };
 
     // 1. Henkilöstön Tilanne-sivun yläosan laatta kolmella kielellä: tilannelaattojen alla ennen Tulosta-
@@ -2862,6 +2865,17 @@ async function minuuttiLinjaus(page, rootSel, media) {
       (esti && esti.arvo === e.esti && !/virhe/i.test(esti.teksti))
         ? ok(`kaupungin näkymä (${tk}): Mitä palvelu esti = ${e.esti} julistetta nostettu ennen muutosta (ei hakemusmallin "virheitä")`)
         : fail(`kaupungin näkymä (${tk}): Mitä palvelu esti pielessä: ` + JSON.stringify({ odotus: e.esti, sivu: esti }));
+
+      // Voimaantulopäivä: "noin" vain, kun muutosvahti ei saanut tarkkaa päivää (yhteenveto.voimaanTarkka).
+      if (e.tu && e.v) {
+        await page.goto(BASE + `/?city=${tk}#/kaupunki/yleiskuva`, { waitUntil: "networkidle2" });
+        await page.waitForSelector('#knYdin .sy-kortti[data-mittari="tulossa"]', { timeout: 20000 }).catch(() => {});
+        const tuTeksti = await page.evaluate(() => document.querySelector('#knYdin .sy-kortti[data-mittari="tulossa"]')?.textContent || "");
+        const [vv, kk, pp] = e.v.split("-").map(Number);
+        (tuTeksti.includes(`${pp}.${kk}.${vv}`) && /noin/.test(tuTeksti) === !e.tarkka)
+          ? ok(`kaupungin näkymä (${tk}): voimaantulopäivä ${pp}.${kk}.${vv} ${e.tarkka ? "tarkka (ei noin)" : "arvio (noin)"}`)
+          : fail(`kaupungin näkymä (${tk}): voimaantulopäivän teksti pielessä: ` + JSON.stringify({ v: e.v, tarkka: e.tarkka, teksti: tuTeksti }));
+      }
 
       // 390 px: ei vaakavieritystä yleiskuvassa, työjonossa ja raportissa.
       await page.setViewport({ width: 390, height: 800 });

@@ -25,6 +25,8 @@
   'use strict';
   const Y = window.SavikurkiYdin;
   const fi = Y.pvm.fi, fiVk = Y.pvm.fiVk, fiLyhyt = Y.pvm.fiLyhyt;
+  // Voimaantulopäivä: muutosvahti tarkentaa päivän (yhteenveto.voimaanTarkka); muuten päivä on viikon otospäivä ja arvio.
+  const voimaanTeksti = (v, tarkka, muoto = fiVk) => (tarkka ? muoto(v) : `noin ${muoto(v)}`);
   const LAHDE = { otsikko: 'Reittari, muutosvahti (tests/muutosvahti.js)', url: 'https://github.com/Veikkoville/lsl-aikataulut/blob/master/tests/muutosvahti.js' };
   const LAHDE_GTFS = { otsikko: 'Digitransit, avoin rajapinta', url: 'https://digitransit.fi/en/developers/' };
   const REITTI = /^#\/kaupunki(?:[/?]|$)/;
@@ -81,24 +83,27 @@
 
   function kohteet(d) {
     const ajo = ajoPvm(d.ajettu), y = d.yhteenveto || {}, pv = y.poikkeusviikot || {};
-    const voimaan = Y.pvm.onPvm(y.voimaan) ? y.voimaan : null;
+    const voimaan = Y.pvm.onPvm(y.voimaan) ? y.voimaan : null, tarkka = !!y.voimaanTarkka;
     const etuliitteet = new Set(d.pysakit.map(p => String(p.id).split(':')[0]));
     const lyhyt = id => (etuliitteet.size === 1 ? String(id).replace(/^[^:]*:/, '') : String(id));
     return d.pysakit.map(p => {
       const linjat = linjaJarjestys(p.lines);
       const poikkeusPvm = p.poikkeus && pv[p.poikkeus] && Y.pvm.onPvm(pv[p.poikkeus].pvm) ? pv[p.poikkeus].pvm : null;
       const l = linjat.length ? `, ${linjat.length === 1 ? 'linja' : 'linjat'} ${linjat.slice(0, 8).join(', ')}${linjat.length > 8 ? ` ja ${linjat.length - 8} muuta` : ''}` : '';
+      // Pysäkkikohtainen voimaantulopäivä (muutosvahti 27.9. alkaen); vanhassa datassa kaupungin yhteinen päivä.
+      const oma = p.tulossa && Y.pvm.onPvm(p.voimaan);
+      const kv = p.tulossa ? (oma ? p.voimaan : voimaan) : null, kt = oma ? !!p.voimaanTarkka : tarkka;
       const k = {
         id: lyhyt(p.id), gtfsId: String(p.id), nimi: p.name || '', tunnus: p.code || '', linjat,
         otsikko: `${p.name || ''}${p.code && p.code !== lyhyt(p.id) ? ` (${p.code})` : ''}${l}${poikkeusPvm ? `; poikkeusviikko ${fiLyhyt(poikkeusPvm)}` : ''}`,
         saapui: ajo, kasittelija: '', muuttunut: !!p.muuttunut, tulossa: !!p.tulossa, poikkeus: p.poikkeus || '', poikkeusPvm,
-        voimaan: p.tulossa ? voimaan : null, depsNear: Number(p.depsNear) || 0, depsFar: Number(p.depsFar) || 0,
+        voimaan: kv, voimaanTarkka: kt, depsNear: Number(p.depsNear) || 0, depsFar: Number(p.depsFar) || 0,
         maarapaiva: null, valmistui: null, keskeytetty: false, huomautus: '',
       };
       if (k.muuttunut) {
         k.tila = 'puutteellinen';
-        k.huomautus = `Juliste vanhentunut, tulosta uusi nyt${k.tulossa && voimaan ? `. Muuttuu uudelleen noin ${fi(voimaan)}` : ''}`;
-      } else if (k.tulossa && voimaan) { k.tila = 'kasittelyssa'; k.maarapaiva = voimaan; }
+        k.huomautus = `Juliste vanhentunut, tulosta uusi nyt${k.tulossa && kv ? `. Muuttuu uudelleen ${voimaanTeksti(kv, kt, fi)}` : ''}`;
+      } else if (k.tulossa && kv) { k.tila = 'kasittelyssa'; k.maarapaiva = kv; }
       else if (k.tulossa) { k.tila = 'uusi'; k.huomautus = 'Muutos tulossa, voimaantulopäivä ei tiedossa'; }
       else { k.tila = 'valmis'; k.valmistui = ajo; }
       return k;
@@ -116,8 +121,12 @@
     const rik = Y.laskenta.rikasta(K, T, N, cityKey);
     const n = K.length, muuttunut = K.filter(k => k.muuttunut).length, tulossa = K.filter(k => k.tulossa).length;
     const valmis = K.filter(k => !k.muuttunut && !k.tulossa).length;
+    // Ajan tasalla tänään: juliste vastaa tänään voimassa olevaa aikataulua. Tuleva muutos ei tee julisteesta
+    // väärää ennen muutospäivää (muutosvahti takaa, että kaksi lähiviikkoa ovat vielä nykytilaa).
+    const ajanTasalla = K.filter(k => !k.muuttunut && !(k.tulossa && k.voimaan && k.voimaan <= T)).length;
     return {
-      ajo, T, N, far2, voimaan, pv: pvKaikki, rik,
+      ajo, T, N, far2, voimaan, voimaanTarkka: !!y.voimaanTarkka, pv: pvKaikki, rik, ajanTasalla,
+      voimaanPaivia: new Set(K.filter(k => k.tulossa && k.voimaan).map(k => k.voimaan)).size,
       edellinen: ajoPvm(d.edellinen), ajettu: d.ajettu,
       n, muuttunut, tulossa, valmis, molemmat: K.filter(k => k.muuttunut && k.tulossa).length,
       ennakko: K.filter(k => k.tulossa && !k.muuttunut).length,
@@ -132,6 +141,7 @@
     const jaksolla = c => ajo >= c.jakso.alku && ajo <= c.jakso.loppu;
     const lkm = (c, f) => c.kohteet.filter(f).length;
     const uusittavat = c => (jaksolla(c) ? lkm(c, k => k.muuttunut || k.tulossa) : 0);
+    const tanaan = k => !k.muuttunut && !(k.tulossa && k.voimaan && k.voimaan <= L.T);
     const viikot = L.pv.map(w => `${fiVk(w.pvm)}: ${luku(w.n)}`).join(', ');
     return {
       juuri: S.juuri, tanaan: T, jakso: ajo.slice(0, 7), otsikkotaso: 2, teema: 'vaalea',
@@ -143,7 +153,7 @@
       kohdeUrl: k => '#/pysakki/' + encodeURIComponent(k.gtfsId),
       estetyt: K.filter(k => k.tulossa && !k.muuttunut).map(() => ({ pvm: ajo, syy: 'ennakko' })),
       estoSyyt: { ennakko: {
-        nimi: L.voimaan ? `Aikataulu muuttuu noin ${fiVk(L.voimaan)}` : 'Aikataulu muuttuu, päivä ei tiedossa',
+        nimi: L.voimaan ? `Aikataulu muuttuu ${voimaanTeksti(L.voimaan, L.voimaanTarkka)}` : 'Aikataulu muuttuu, päivä ei tiedossa',
         selite: 'nostettiin uusintapainatukseen ennen kuin vanha aikataulu jäi pysäkille' } },
       oletukset: [
         { id: 'selvitys-ennen', nimi: 'Muuttuvan pysäkin selvitys käsin', arvo: 10, yksikko: 'min/pysäkki', selite: 'Uuden aikataulun vertailu pysäkillä olevaan julisteeseen.', lahde: 'esimerkkioletus, korvaa kaupungin omalla luvulla' },
@@ -160,16 +170,16 @@
         { id: 'pysakkeja', nimi: 'Pysäkkejä', muoto: 'luku', arvo: c => c.kohteet.length,
           selite: `tarkistettu ${fiVk(ajo)}`,
           kaava: c => `Pysäkit, joilla on lähtöjä ensi viikolla tai 5-6 viikon päästä. Pysäkki ilman lähtöjä ei tarvitse julistetta, eikä se ole mukana. Muutosvahdin ajo ${fi(ajo)}: ${c.kohteet.length}.` },
-        { id: 'ajan-tasalla', nimi: 'Ajan tasalla', muoto: 'prosentti',
-          arvo: c => (c.kohteet.length ? lkm(c, k => !k.muuttunut && !k.tulossa) / c.kohteet.length : null),
-          selite: c => `${luku(lkm(c, k => !k.muuttunut && !k.tulossa))}/${luku(c.kohteet.length)} julistetta`,
-          kaava: c => `Pysäkit, joiden juliste ei ole vanhentunut eikä muutu muutosvahdin katseluikkunassa (${lkm(c, k => !k.muuttunut && !k.tulossa)}), jaettuna kaikilla pysäkeillä (${c.kohteet.length}). Poikkeusviikko ei tee julisteesta vanhentunutta.` },
+        { id: 'ajan-tasalla', nimi: 'Ajan tasalla tänään', muoto: 'prosentti',
+          arvo: c => (c.kohteet.length ? lkm(c, tanaan) / c.kohteet.length : null),
+          selite: c => `${luku(lkm(c, tanaan))}/${luku(c.kohteet.length)} julistetta`,
+          kaava: c => `Pysäkit, joiden juliste vastaa tänään voimassa olevaa aikataulua (${lkm(c, tanaan)}), jaettuna kaikilla pysäkeillä (${c.kohteet.length}). Juliste, jonka aikataulu muuttuu myöhemmin, on ajan tasalla muutospäivään asti ja näkyy luvussa Muutos tulossa. Poikkeusviikko ei tee julisteesta vanhentunutta.` },
         { id: 'vanhentuneita', nimi: 'Vanhentuneita', muoto: 'luku', arvo: c => lkm(c, k => k.muuttunut),
           selite: c => (lkm(c, k => k.muuttunut) ? 'tulosta uusi juliste nyt' : 'ei vanhentuneita julisteita'),
           kaava: c => `Pysäkit, joiden julisteen sisältö (lähdöt tiistaina, lauantaina ja sunnuntaina) on muuttunut edellisen viikkoajon${L.edellinen ? ` (${fi(L.edellinen)})` : ''} jälkeen. Pysäkillä oleva juliste ei enää vastaa aikataulua: ${lkm(c, k => k.muuttunut)}.` },
         { id: 'tulossa', nimi: 'Muutos tulossa', muoto: 'luku', arvo: c => lkm(c, k => k.tulossa),
-          selite: c => (lkm(c, k => k.tulossa) ? (L.voimaan ? `voimaan noin ${fiVk(L.voimaan)}` : 'voimaantulopäivä ei tiedossa') : 'ei tulevia muutoksia'),
-          kaava: c => `Pysäkit, joiden vakaa aikataulu 5-6 viikon päästä eroaa nykyisestä: ${lkm(c, k => k.tulossa)}. ${L.voimaan ? `Voimaantulopäivä ${fi(L.voimaan)} on arvio: ensimmäinen viikko, jolla yli puolet otospysäkeistä näyttää uuden aikataulun.` : 'Voimaantulopäivää ei ole arvioitu.'}${lkm(c, k => k.tulossa && k.muuttunut) ? ` Näistä ${lkm(c, k => k.tulossa && k.muuttunut)} on myös vanhentuneita.` : ''}` },
+          selite: c => (lkm(c, k => k.tulossa) ? (L.voimaan ? (L.voimaanPaivia > 1 ? `ensimmäinen ${voimaanTeksti(L.voimaan, L.voimaanTarkka)}, pysäkeittäin ${L.voimaanPaivia} eri päivää` : `voimaan ${voimaanTeksti(L.voimaan, L.voimaanTarkka)}, uusi juliste ennen sitä`) : 'voimaantulopäivä ei tiedossa') : 'ei tulevia muutoksia'),
+          kaava: c => `Pysäkit, joiden vakaa aikataulu 5-6 viikon päästä eroaa nykyisestä: ${lkm(c, k => k.tulossa)}. ${L.voimaan ? (L.voimaanTarkka ? `Voimaantulopäivä lasketaan pysäkeittäin: ensimmäinen päivä, jonka lähdöt eroavat viikkoa aiemmasta ja ovat samat kuin viikkoa myöhemmin. Aikaisin ${fi(L.voimaan)}${L.voimaanPaivia > 1 ? `; eri päiviä ${L.voimaanPaivia}, ja kunkin pysäkin oma päivä on Työjonon määräpäivä` : ''}.` : `Voimaantulopäivä ${fi(L.voimaan)} on arvio: ensimmäinen viikko, jolla yli puolet otospysäkeistä näyttää uuden aikataulun. Tarkkaa päivää ei saatu selville.`) : 'Voimaantulopäivää ei ole arvioitu.'}${lkm(c, k => k.tulossa && k.muuttunut) ? ` Näistä ${lkm(c, k => k.tulossa && k.muuttunut)} on myös vanhentuneita.` : ''}` },
         { id: 'poikkeusviikko', nimi: 'Poikkeusviikon pysäkit', muoto: 'luku', arvo: c => lkm(c, k => k.poikkeus),
           selite: viikot || 'ei poikkeusviikkoja',
           kaava: c => `Pysäkit, joilla yksi viikko poikkeaa muista, esimerkiksi syysloman takia: ${lkm(c, k => k.poikkeus)}. Yhden viikon poikkeama ei ole pysyvä muutos, eikä julistetta tulosteta uudelleen.${viikot ? ` Viikot: ${viikot}.` : ''}` },
@@ -184,11 +194,11 @@
       saannot: [
         ['MV-1', 'Julisteen sisältö on pysäkin lähdöt (linja, määränpää ja lähtöaika) edustavana tiistaina, lauantaina ja sunnuntaina. Tiistai valitaan, koska maanantai ja perjantai poikkeavat useimmin muista arkipäivistä.'],
         ['MV-2', 'Lähdöksi ei lasketa pysähdystä, jossa vain jätetään matkustajia, eikä vuoron viimeistä pysäkkiä, samoin kuin julisteessa.'],
-        ['MV-3', 'Nykytila mitataan kahdelta peräkkäiseltä viikolta (ensi viikko ja sitä seuraava). Tila on vakaa, kun viikot ovat samat.'],
+        ['MV-3', 'Nykytila mitataan kahdelta peräkkäiseltä viikolta (ensi viikko ja sitä seuraava). Tila on vakaa, kun viikot ovat samat. Jos viikot eroavat, nykytila on se viikko, joka vastaa edellisen viikkoajon nykytilaa; toinen on poikkeusviikko tai muutoksen alku.'],
         ['MV-4', 'Yhden viikon poikkeama, esimerkiksi syysloma, on poikkeusviikko eikä muutos: juliste säilyy, eikä sitä tulosteta uudelleen. Poikkeusviikoksi nimetään se viikko, joka eroaa nykytilasta.'],
         ['MV-5', 'Muutos on tulossa, kun vakaa tila 5-6 viikon päästä eroaa vakaasta nykytilasta.'],
         ['MV-6', 'Juliste on vanhentunut, kun vakaa nykytila eroaa edellisen viikkoajon nykytilasta.'],
-        ['MV-7', 'Voimaantulopäivä on arvio: ensimmäinen tiistaiviikko, jolla yli puolet otospysäkeistä (enintään viisi) näyttää uuden aikataulun.'],
+        ['MV-7', 'Voimaantulopäivä lasketaan jokaiselle muuttuvalle pysäkille: ensin viikko (ensimmäinen tiistaiviikko, jonka aikataulu on sama kuin vakaa uusi tila) ja sitten päivä (ensimmäinen päivä, jonka lähdöt eroavat samasta viikonpäivästä viikkoa aiemmin ja ovat samat kuin viikkoa myöhemmin). Jos päivää ei saada, näytetään viikon tiistai arviona. Kaupungin päivä on aikaisin pysäkkikohtainen päivä.'],
         ['MV-8', 'Pysäkki, jolla ei ole lähtöjä kummallakaan tarkastelujaksolla, ei tarvitse julistetta, eikä se ole mukana luvuissa.'],
       ].map(([tunnus, kuvaus]) => ({ tunnus, kuvaus, lahde: LAHDE, haettu: '2026-09-27', voimassaAlkaen: '2026-09-02' }))
         .concat([{ tunnus: 'MV-9', kuvaus: 'Aikataulut luetaan joka ajolla liikennöitsijän avoimesta aikatauluaineistosta (GTFS) Digitransitin rajapinnan kautta. Käsin ylläpidettyä aikataulua ei ole.',
@@ -196,6 +206,8 @@
       saantoHistoria: [
         { pvm: '2026-09-02', tunnus: 'MV-3', teksti: 'Kaksi viikkoa kummallekin tarkastelujaksolle: ensimmäisessä koeajossa (Vaasa) 274 pysäkkiä 545:stä näytti muuttuvan syyslomaviikon takia.' },
         { pvm: '2026-09-02', tunnus: 'MV-4', teksti: 'Poikkeusviikoksi nimetään se viikko, joka eroaa nykytilasta (Lahti: syysloma 20.10., ei 13.10.).' },
+        { pvm: '2026-09-27', tunnus: 'MV-3', teksti: 'Edellisen viikkoajon nykytila ratkaisee, kumpi lähiviikko on voimassa (Joensuu: 10 pysäkkiä, ensi viikko nykytila, 13.10. syysloma, uusi aikataulu 19.10.; vanha sääntö käski tulostaa heti).' },
+        { pvm: '2026-09-27', tunnus: 'MV-7', teksti: 'Voimaantulopäivä päivän tarkkuudella ja pysäkeittäin (Lahti: uusi linja 28 alkaa ma 2.11., viikkotaso näytti ti 3.11.; Kuopio: muutokset 12.10. ja 19.10., viiden pysäkin otos antoi 14.10.).' },
       ],
       vienti: {
         tiedostonimi: `uusintapainatukset-${cityKey}`, pvmMuoto: 'fi',
@@ -207,7 +219,7 @@
           { otsikko: 'Tila', arvo: k => k.laskettu.tilaNimi },
           { otsikko: 'Vanhentunut', arvo: k => (k.muuttunut ? 'kyllä' : '') },
           { otsikko: 'Muutos tulossa', arvo: k => (k.tulossa ? 'kyllä' : '') },
-          { otsikko: 'Voimaan noin', arvo: k => k.voimaan, tyyppi: 'pvm' },
+          { otsikko: 'Voimaan', arvo: k => k.voimaan, tyyppi: 'pvm' },
           { otsikko: 'Poikkeusviikko', arvo: k => k.poikkeusPvm, tyyppi: 'pvm' },
           { otsikko: 'Lähtöjä nyt (ti, la, su)', arvo: k => k.depsNear, tyyppi: 'luku' },
           { otsikko: 'Lähtöjä 5 viikon päästä (ti, la, su)', arvo: k => k.depsFar, tyyppi: 'luku' },
@@ -267,9 +279,9 @@
     if (luvut) {
       const saasto = luvut.querySelector('[data-sy-r="saasto"]');
       luvut.innerHTML = lk('kn-pysakkeja', 'Pysäkkejä', luku(L.n), `tarkistettu ${fiLyhyt(L.ajo)}`)
-        + lk('kn-ajan-tasalla', 'Ajan tasalla', pros(L.n ? L.valmis / L.n : null), `${luku(L.valmis)}/${luku(L.n)} julistetta`)
+        + lk('kn-ajan-tasalla', 'Ajan tasalla tänään', pros(L.n ? L.ajanTasalla / L.n : null), `${luku(L.ajanTasalla)}/${luku(L.n)} julistetta`)
         + lk('kn-vanhentuneita', 'Vanhentuneita', luku(L.muuttunut), L.muuttunut ? 'tulosta nyt' : 'ei yhtään')
-        + lk('kn-tulossa', 'Muutos tulossa', luku(L.tulossa), L.tulossa ? (L.voimaan ? `voimaan noin ${fiLyhyt(L.voimaan)}` : 'päivä ei tiedossa') : 'ei muutoksia')
+        + lk('kn-tulossa', 'Muutos tulossa', luku(L.tulossa), L.tulossa ? (L.voimaan ? `voimaan ${voimaanTeksti(L.voimaan, L.voimaanTarkka, fiLyhyt)}` : 'päivä ei tiedossa') : 'ei muutoksia')
         + lk('kn-poikkeus', 'Poikkeusviikko', luku(L.poikkeus), L.pv.length ? L.pv.map(w => fiLyhyt(w.pvm)).join(', ') : 'ei poikkeusviikkoja');
       if (saasto) luvut.appendChild(saasto);
     }
@@ -279,9 +291,9 @@
         .sort((a, b) => (TILA_JARJ[a.laskettu.tila] - TILA_JARJ[b.laskettu.tila]) || a.nimi.localeCompare(b.nimi, 'fi') || a.id.localeCompare(b.id, 'fi', { numeric: true }));
       const poikkeus = L.pv.length ? ` Poikkeusviikko ${L.pv.map(w => `${fiLyhyt(w.pvm)}: ${luku(w.n)} pysäkkiä`).join(', ')}. Yhden viikon poikkeama ei muuta julistetta, eikä sitä tulosteta uudelleen.` : '';
       sar.innerHTML = `<section data-kn="tila"><${ot}>Julisteiden tila</${ot}>
-          <p>Muutosvahti tarkisti ${luku(L.n)} pysäkkiä ${h(fiVk(L.ajo))}${L.edellinen ? ` (edellinen ${h(fi(L.edellinen))})` : ''}. Ajan tasalla ${kpl(L.valmis)} (${pros(L.n ? L.valmis / L.n : null)}). Vanhentuneita ${luku(L.muuttunut)}${L.muuttunut ? ': uusi juliste tarvitaan nyt' : ''}. Muutos tulossa ${luku(L.tulossa)}${L.tulossa && L.voimaan ? `, voimaan noin ${h(fiVk(L.voimaan))}` : ''}.${h(poikkeus)}</p>
+          <p>Muutosvahti tarkisti ${luku(L.n)} pysäkkiä ${h(fiVk(L.ajo))}${L.edellinen ? ` (edellinen ${h(fi(L.edellinen))})` : ''}. Ajan tasalla tänään ${kpl(L.ajanTasalla)} (${pros(L.n ? L.ajanTasalla / L.n : null)}). Vanhentuneita ${luku(L.muuttunut)}${L.muuttunut ? ': uusi juliste tarvitaan nyt' : ''}. Muutos tulossa ${luku(L.tulossa)}${L.tulossa && L.voimaan ? `, voimaan ${h(voimaanTeksti(L.voimaan, L.voimaanTarkka))}` : ''}.${h(poikkeus)}</p>
           <${ot}>Mitä palvelu esti</${ot}>
-          <p data-kn="esti" data-arvo="${ennakko}">${ennakko ? `${kpl(ennakko)} nostettiin uusintapainatukseen ennen kuin vanha aikataulu jäi pysäkille${L.voimaan ? ` (muutos noin ${h(fi(L.voimaan))})` : ''}.` : 'Jaksolla ei ollut tulevia muutoksia, jotka muutosvahti olisi nostanut etukäteen.'}</p></section>
+          <p data-kn="esti" data-arvo="${ennakko}">${ennakko ? `${kpl(ennakko)} nostettiin uusintapainatukseen ennen kuin vanha aikataulu jäi pysäkille${L.voimaan ? ` (muutos ${h(voimaanTeksti(L.voimaan, L.voimaanTarkka, fi))})` : ''}.` : 'Jaksolla ei ollut tulevia muutoksia, jotka muutosvahti olisi nostanut etukäteen.'}</p></section>
         <section data-kn="uusinnat"><${ot}>Uusintapainatuslista ${h(fi(L.ajo))}</${ot}>
           ${lista.length ? `<table class="sy-r-taulu"><thead><tr><th scope="col">Pysäkki</th><th scope="col">Linjat</th><th scope="col">Tila</th></tr></thead>
             <tbody>${lista.slice(0, 8).map(k => `<tr><th scope="row">${h(k.nimi)}${k.tunnus ? ` ${h(k.tunnus)}` : ''}</th><td>${h(k.linjat.slice(0, 4).join(', '))}${k.linjat.length > 4 ? ' ...' : ''}</td><td>${h(tilaTeksti(k))}</td></tr>`).join('')}</tbody></table>
