@@ -202,6 +202,45 @@ async function asetteluTarkistus(page, cityKey, tuote, rootSel, tyyppi) {
         const v = [...new Set(lefts.map(a => a[i]).filter(x => x != null))];
         if (!frag && v.length > 1 && viat.length < 4) viat.push(`sarake ${i} eri linjassa riveittäin (${v.slice(0, 4).join("/")})`);
       }
+      // Minuutit kymmenluvuittain allekkain (27.9.2026): tuntiruudukossa saman sarakeryhmän
+      // (otsikkosolu colspaneineen) saman kymmenluvun minuutin on alettava samasta kohdasta
+      // kaikilla riveillä. Sarakkeen vasen reuna voi olla linjassa ja luvut silti vinossa, jos
+      // minuutit on ladottu yhteen soluun (Lappeenrannan Oikokatu L -juliste 27.9.).
+      if (!frag && t.matches("table.hourgrid, table.cb-grid")) {
+        const hr = t.tHead && t.tHead.rows[0];
+        const grp = [];
+        if (hr) [...hr.cells].forEach((c, gi) => { for (let k = 0; k < (c.colSpan || 1); k++) grp.push(gi); });
+        const xs = new Map();
+        for (const r2 of body.rows) {
+          let col = 0;
+          for (const cell of r2.cells) {
+            const g = hr ? grp[col] : col;
+            col += cell.colSpan || 1;
+            if (cell.tagName !== "TD") continue;
+            const seen = new Set();
+            const w = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+            for (let tn; (tn = w.nextNode());) {
+              if (tn.parentElement.closest("sup")) continue;
+              for (const m of tn.data.matchAll(/(?<![\d:.])(\d{2})(?![\d:.])/g)) {
+                if (seen.has(m[1][0])) continue;
+                seen.add(m[1][0]);
+                const rg = document.createRange();
+                rg.setStart(tn, m.index); rg.setEnd(tn, m.index + 2);
+                const b = rg.getBoundingClientRect();
+                if (!b.width) continue;
+                const key = `${g}|${m[1][0]}`;
+                if (!xs.has(key)) xs.set(key, []);
+                xs.get(key).push({ x: b.left, m: m[1], h: r2.cells[0].textContent.trim() });
+              }
+            }
+          }
+        }
+        for (const [key, a] of xs) {
+          const lo = a.reduce((p, q) => q.x < p.x ? q : p), hi = a.reduce((p, q) => q.x > p.x ? q : p);
+          if (hi.x - lo.x > 0.5 && viat.length < 4)
+            viat.push(`minuutit eivät ole allekkain (sarake ${key.split("|")[0]}: :${lo.m} klo ${lo.h} / :${hi.m} klo ${hi.h}, ${(hi.x - lo.x).toFixed(1)} px)`);
+        }
+      }
       const hs = [...new Set(rows.map(r2 => Math.round(r2.getBoundingClientRect().height)))];
       if (!frag && hs.length > 1 && viat.length < 4) viat.push(`rivikorkeudet ${JSON.stringify(hs.slice(0, 4))} — teksti rivittyy osalla riveistä`);
       const yli = Math.round(t.getBoundingClientRect().right - lim);
@@ -214,7 +253,7 @@ async function asetteluTarkistus(page, cityKey, tuote, rootSel, tyyppi) {
   if (r.puuttuu || !r.n) { info(cityKey, `asettelu: ${tuote}`, "ei taulukoita mitattavaksi"); return; }
   r.viat.length
     ? fail(cityKey, `asettelu: ${tuote}`, r.viat.join(" · "))
-    : pass(cityKey, `asettelu: ${tuote}`, `${r.n} taulukkoa, sarakkeet linjassa, rivikorkeus tasainen, ei ylivuotoa`);
+    : pass(cityKey, `asettelu: ${tuote}`, `${r.n} taulukkoa, sarakkeet linjassa, minuutit allekkain, rivikorkeus tasainen, ei ylivuotoa`);
 }
 
 // Reittihaun hakuaika: seuraava arkipäivä klo 09.00 Suomen aikaa. Kiinnitetty aika

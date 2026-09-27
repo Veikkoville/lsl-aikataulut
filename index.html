@@ -900,6 +900,10 @@
   .vihko-page-content table.cb-grid tbody th { color: #000; }
   .vihko-page-content table.cb-grid tbody tr:nth-child(odd) > * { background: #ececec;
     -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Kymmenluvuittaiset minuuttisolut (minuteTensCells): välistys vain solun oikealla puolella, ja
+     vain päivätyypin viimeinen solu (tz) venyy taulukon leveyteen, jotta luvut pysyvät lähekkäin. */
+  table.cb-grid tbody td:not(.t0) { padding-left: 0; }
+  table.cb-grid tbody td:not(.tz) { width: 1px; }
   /* Tulosteen valmistelu-indikaattori (UX): ei estä tulostusta, .no-print → ei näy printissä */
   #printPrep { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     background: rgba(0,0,0,0.3); z-index: 2000; }
@@ -988,8 +992,12 @@
     background: var(--header-bg, #333); color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .poster-compact table.poster-matrix th[scope="row"] { text-align: right; padding: 0 1.5mm 0 0.5mm;
     font-size: 1em; color: #000; font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: top; }
-  .poster-compact table.poster-matrix td { padding: 0 2mm 0 1.5mm; border-left: 0.25mm solid #999;
+  /* Linjan minuutit kymmenluvuittain alasarakkeissa (minuteTensCells): välistys sanavälin verran,
+     reunaviiva ja linjojen väli vain ryhmän reunoilla (t0 = ensimmäinen, tz = viimeinen). */
+  .poster-compact table.poster-matrix td { padding: 0 0.35em 0 0; border-left: none;
     white-space: nowrap; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; vertical-align: top; }
+  .poster-compact table.poster-matrix td.t0 { padding-left: 1.5mm; border-left: 0.25mm solid #999; }
+  .poster-compact table.poster-matrix td.tz { padding-right: 2mm; }
   .poster-compact table.poster-matrix tbody tr:nth-child(even) th,
   .poster-compact table.poster-matrix tbody tr:nth-child(even) td { background: #e9ebef;
     -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -8884,6 +8892,10 @@ function splitWideMatrices(st, box) {
     const ot = originals[i];
     const headCells = [...ot.tHead.rows[0].cells];
     const bodyRows = [...ot.tBodies[0].rows];
+    // Linjan otsikko kattaa kymmenluvuittaiset minuuttisolut (colspan): otsikon j solut ovat
+    // rivillä kohdissa start[j] .. start[j] + span[j] - 1.
+    const span = headCells.map(c => c.colSpan || 1);
+    const start = span.map((_, j) => span.slice(0, j).reduce((a, b) => a + b, 0));
     const parts = groups.map(g => {
       const tbl = document.createElement("table");
       tbl.className = ot.className;
@@ -8892,7 +8904,7 @@ function splitWideMatrices(st, box) {
       g.forEach(j => th.appendChild(headCells[j + 1].cloneNode(true)));
       const tb = tbl.createTBody();
       for (const r of bodyRows) {
-        const cells = g.map(j => r.cells[j + 1]);
+        const cells = g.flatMap(j => Array.from({ length: span[j + 1] }, (_, k) => r.cells[start[j + 1] + k]));
         if (!cells.some(c => c && c.textContent.trim())) continue;
         const nr = tb.insertRow();
         nr.appendChild(r.cells[0].cloneNode(true));
@@ -9425,6 +9437,25 @@ function posterMin(L, sec) {
   const c = L.codes && L.codes.get(sec);
   return String(Math.floor((sec % 3600) / 60)).padStart(2, "0") + (c ? `<sup>${esc(c)}</sup>` : "");
 }
+// Minuutit kymmenluvuittain omiin soluihinsa: sama sääntö kuin linjakohtaisessa julisteessa
+// (b9b4a15, 25.8.2026). Yhteen soluun välilyönnein ladottuna ne eivät osu allekkain: tunnilla
+// jolla on vähemmän lähtöjä luvut alkavat solun alusta, joten :39 osui Lappeenrannan Oikokatu L
+// -julisteessa neljään eri vaakakohtaan ja luvut kulkivat vinosti alaspäin (Ville 27.9.2026).
+// Tiivis juliste (3.9.) ja tiivis vihko (23.9.) latoivat minuutit taas yhteen soluun, eikä
+// solumäärää laskeva vartija nähnyt sitä. Kymmenluvut kerätään koko sarakkeesta (linja tai
+// päivätyyppi), tyhjiä ei tehdä. Saman kymmenluvun kaksi lähtöä ovat samassa solussa vierekkäin.
+// Luokat: t0 = sarakeryhmän ensimmäinen solu (reunaviiva), tz = viimeinen.
+const minTens = sec => Math.floor((((sec % 3600) + 3600) % 3600) / 600);
+function minuteTens(secs) {
+  const tens = [...new Set(secs.map(minTens))].sort((a, b) => a - b);
+  return tens.length ? tens : [0];
+}
+function minuteTensCells(tens, items, fmt, secOf = s => s) {
+  return tens.map((d, i) => {
+    const cls = [i === 0 ? "t0" : "", i === tens.length - 1 ? "tz" : ""].filter(Boolean).join(" ");
+    return `<td class="${cls || "tm"}">${items.filter(x => minTens(secOf(x)) === d).map(fmt).join(" ")}</td>`;
+  }).join("");
+}
 function stopPosterHtml(lines, compact, legend) {
   const sorted = [...(lines || [])].sort((a, b) =>
     (a.route.shortName || "").localeCompare(b.route.shortName || "", "fi", { numeric: true }));
@@ -9463,7 +9494,8 @@ function stopPosterHtml(lines, compact, legend) {
 // 8 linjan pysäkki (Vaasa, matkakeskus P) ei mahtunut arkille edes 7,5 pt:llä. Jaettu
 // tuntisarake vie yhden rivin per tunti riippumatta linjamäärästä, jolloin sama sisältö
 // mahtuu 10–12 pt:llä: pysäkillä seisova etsii tunnin kerran ja lukee rivin poikki.
-// Minuutit ovat solussa nousevasti; useampi lähtö samalla tunnilla on samassa solussa.
+// Linjan minuutit ovat kymmenluvuittain omissa alasarakkeissaan (ks. minuteTensCells), ja
+// linjan otsikko kattaa ne colspanilla.
 // Vuorokauden ylittävät ajat (25:10 = 01:10 seuraavana yönä) tulevat taulukon loppuun.
 function stopPosterMatrixHtml(sorted) {
   const cols = sorted.map(L => {
@@ -9471,17 +9503,17 @@ function stopPosterMatrixHtml(sorted) {
     for (const sec of [...new Set(L.times)].sort((a, b) => a - b)) {
       const h = Math.floor(sec / 3600);
       if (!byHour.has(h)) byHour.set(h, []);
-      byHour.get(h).push(posterMin(L, sec));
+      byHour.get(h).push(sec);
     }
-    return { L, byHour };
+    return { L, byHour, tens: minuteTens([...byHour.values()].flat()) };
   });
   const hours = [...new Set(cols.flatMap(c => [...c.byHour.keys()]))].sort((a, b) => a - b);
   const head = cols.map(c =>
-    `<th scope="col" class="poster-line"><h4>${badgeHtml(c.L.route)}` +
+    `<th scope="col" class="poster-line"${c.tens.length > 1 ? ` colspan="${c.tens.length}"` : ""}><h4>${badgeHtml(c.L.route)}` +
     `<span>${esc(placeName(c.L.headsign))}</span></h4></th>`).join("");
   const rows = hours.map(h =>
     `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th>`
-    + cols.map(c => `<td>${(c.byHour.get(h) || []).join(" ")}</td>`).join("")
+    + cols.map(c => minuteTensCells(c.tens, c.byHour.get(h) || [], sec => posterMin(c.L, sec))).join("")
     + `</tr>`).join("");
   return `<table class="hourgrid poster-matrix"><thead><tr><th scope="col" class="hcol"></th>${head}</tr></thead>
     <tbody>${rows}</tbody></table>`;
@@ -15363,12 +15395,14 @@ function cbGridHtml(d, codeFor) {
     }
   }
   const hours = [...new Set([...entries.values()].flat().map(e => Math.floor(e.sec / 3600)))].sort((x, y) => x - y);
-  const cell = (c, h) => entries.get(c).filter(e => Math.floor(e.sec / 3600) === h).sort((x, y) => x.sec - y.sec)
-    .map(e => String(Math.floor((e.sec % 3600) / 60)).padStart(2, "0") + (e.marks.length ? `<sup>${e.marks.join("")}</sup>` : ""))
-    .join(" ");
-  const head = cols.map(c => `<th scope="col">${esc(c.label)}</th>`).join("");
+  // Päivätyypin minuutit kymmenluvuittain alasarakkeissa (minuteTensCells), otsikko colspanilla.
+  const tensOf = new Map(cols.map(c => [c, minuteTens(entries.get(c).map(e => e.sec))]));
+  const fmt = e => String(Math.floor((e.sec % 3600) / 60)).padStart(2, "0") + (e.marks.length ? `<sup>${e.marks.join("")}</sup>` : "");
+  const inHour = (c, h) => entries.get(c).filter(e => Math.floor(e.sec / 3600) === h).sort((x, y) => x.sec - y.sec);
+  const head = cols.map(c => { const n = tensOf.get(c).length;
+    return `<th scope="col"${n > 1 ? ` colspan="${n}"` : ""}>${esc(c.label)}</th>`; }).join("");
   const body = hours.map(h => `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th>`
-    + cols.map(c => `<td>${cell(c, h)}</td>`).join("") + `</tr>`).join("");
+    + cols.map(c => minuteTensCells(tensOf.get(c), inHour(c, h), fmt, e => e.sec)).join("") + `</tr>`).join("");
   return `<div class="cb-dir"><h3>${esc(d.label)}</h3><table class="cb-grid">`
     + `<thead><tr><th scope="col" class="cb-hcol">${t("compactHour")}</th>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
