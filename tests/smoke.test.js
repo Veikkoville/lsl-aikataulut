@@ -1977,6 +1977,13 @@ async function minuuttiLinjaus(page, rootSel, media) {
       (rb.length >= 2 && rb[0] !== "page" && rb.slice(1).every(b => b === "page"))
         ? ok(`lehtiteline: 1. suunta otsikon alla, muut suunnat uuden arkin yläreunasta (${rb.join(", ")})`)
         : fail("lehtiteline: suunta voi alkaa kesken arkin: " + JSON.stringify(rb));
+      // Päivätyyppi taulukon toistuvassa otsikkorivissä (täysauditointi 27.9.2026): palstasta toiseen jatkuva
+      // lauantaitaulukko näytti ilman otsikkoa arkiaikojen jatkolta.
+      const dr = await page.evaluate(() => [...document.querySelectorAll("#linePrintOut .rack-day")].map(d => ({
+        h4: d.querySelector("h4.daytype")?.textContent.trim(), rivi: d.querySelector("thead tr.rack-dayrow th")?.textContent.trim() })));
+      (dr.length && dr.every(x => x.rivi && x.rivi === x.h4))
+        ? ok(`lehtiteline: päivätyyppi toistuvassa otsikkorivissä (${dr.length} päivälohkoa)`)
+        : fail("lehtiteline: päivätyyppi puuttuu taulukon otsikkoriviltä: " + JSON.stringify(dr.slice(0, 3)));
     }
   }
 

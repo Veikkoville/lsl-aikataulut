@@ -1171,6 +1171,25 @@ function writeReport() {
             } else {
               pass(city.key, "julisteiden erätulostus", detail + ", 0 kpl 429");
             }
+            // Erätulosteen otsikot (täysauditointi 27.9.2026): (1) päivätyypin edessä ei linjan tunnusta
+            // ("1 · Ma–Pe" luettiin linjan 1 aikatauluksi), (2) jokaisella julisteella yksilöllinen otsikko
+            // (Lappeenrannan "Utrasaarentie 174" kahdesti), (3) monen arkin julisteen jatkolohkossa pysäkin nimi.
+            if (state === "done") {
+              const eo = await page.evaluate(short => {
+                const subs = [...document.querySelectorAll("#batchOut .poster-sub")].map(x => x.textContent.trim());
+                const heads = [...document.querySelectorAll("#batchOut .poster-stop")].map(st =>
+                  (st.querySelector(".poster-head h2")?.textContent || "").replace(/\s+/g, " ").trim());
+                const sheetsNote = /\d/.test(document.getElementById("batchStatus")?.textContent || "");
+                return {
+                  etuliite: subs.filter(x => x.startsWith(short + " · ")).length,
+                  julisteita: heads.length, yksilollisia: new Set(heads).size,
+                  jatkot: document.querySelectorAll("#batchOut .poster-cont, #batchOut tr.pm-cont").length, sheetsNote,
+                };
+              }, city.batchPosterLine);
+              (eo.etuliite === 0 && eo.yksilollisia === eo.julisteita && (!eo.sheetsNote || eo.jatkot > 0))
+                ? pass(city.key, "erätulosteen otsikot", `${eo.julisteita} julistetta, otsikot yksilöllisiä, ei linjaetuliitettä, jatkotunnisteita ${eo.jatkot}`)
+                : fail(city.key, "erätulosteen otsikot", JSON.stringify(eo));
+            }
           }
         }
       }

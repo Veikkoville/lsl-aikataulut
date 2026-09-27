@@ -1011,6 +1011,10 @@
   .poster-compact .poster-head p.poster-printed { color: rgba(255,255,255,0.85); font-size: 7.5pt;
     margin: 1mm 0 0; }
   .poster-compact > p.muted { display: none; }
+  .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix th.poster-line h4 { max-width: 17mm; }
+  .poster-compact p.poster-cont { font-size: 7.5pt; font-weight: 700; margin: 0 0 0.8mm; color: #000; }
+  .poster-compact table.poster-matrix tr.pm-cont th { font-size: 7pt; font-weight: 700; text-align: left;
+    padding: 0 0 0.6mm; border: none; background: none; color: #000; }
   .poster-compact .poster-stop[data-fit="1"] { font-size: 11pt; }
   .poster-compact .poster-stop[data-fit="2"] { font-size: 10pt; }
   .poster-compact .poster-stop[data-fit="3"] { font-size: 9pt; }
@@ -1022,6 +1026,12 @@
   .poster-compact .poster-stop[data-fit="3"] img.poster-qr,
   .poster-compact .poster-stop[data-fit="4"] img.poster-qr { width: 17mm; height: 17mm; }
   .poster-compact .poster-stop[data-fit="4"] { gap: 1.5mm 5mm; line-height: 1.2; }
+  /* Kapea tila (fitPosterSheet): myös solujen reunavälit ja lohkojen väli pienemmiksi. La- ja Su-taulukko
+     jäivät 3 mm liian leveiksi rinnakkain (2 x 96 mm + 7 mm, arkilla 196 mm), ja sunnuntai valui toiselle arkille. */
+  .poster-compact .poster-stop[data-narrow="1"] { column-gap: 4mm; }
+  .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix th.poster-line { padding: 0 1mm 1.2mm 1mm; }
+  .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix td.t0 { padding-left: 1mm; }
+  .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix td.tz { padding-right: 1mm; }
   /* Mittauslaatikko: arkin levyinen, näkymätön, ruudun ulkopuolella. Sama CSS kuin paperilla. */
   .poster-measure { position: absolute; left: -9999px; top: 0; width: 196mm; visibility: hidden;
     display: block; font-size: 16px; }
@@ -1994,6 +2004,9 @@
     .rackprint .rack-day { margin: 0 0 3mm; }
     .rackprint table.booklet thead { display: table-header-group; } /* pysäkkinimet toistuvat fragmenteissa */
     .rackprint .rack-day h4.daytype { font-size: 10pt; margin: 0 0 0.6mm; break-after: avoid; page-break-after: avoid; }
+    .rackprint .rack-day:has(tr.rack-dayrow) > h4.daytype { display: none; }
+    .rackprint table.booklet tr.rack-dayrow th { font-size: 10pt; font-weight: 700; text-align: left; color: #000;
+      padding: 0.4mm 0 0.6mm; border: none; background: none; white-space: nowrap; }
     .rackprint .matrix-wrap { overflow: visible; }
     .rackprint table.booklet { font-size: 10pt; width: 100%; table-layout: fixed; line-height: 1.12; }
     /* Pysäkkinimet (th) rivittyvät → kapeat sarakkeet mahtuvat palstaan; kellonajat (td)
@@ -4103,6 +4116,8 @@ const STRINGS = {
     printBtn: "Tulosta", printTitle: "Tulosta tai tallenna PDF:nä",
     printStopPoster: "Tulosta pysäkkijuliste",
     posterAllLinesNote: "Kaikki pysäkiltä lähtevät linjat. Lue: vasemmalla tunti, oikealla minuutit.",
+    posterTowards: "suuntaan {dest}",
+    posterContinued: "jatkuu",
     posterCompactOpt: "Yksi arkki (kaikki päivätyypit samalla A4:llä)",
     posterSheets: "Ei mahdu yhdelle arkille: {n} arkkia",
     posterMatrixNote: "Kaikki pysäkiltä lähtevät linjat. Tunti vasemmalla, lähtöminuutit linjan sarakkeessa.",
@@ -4712,6 +4727,8 @@ const STRINGS = {
     printBtn: "Print", printTitle: "Print or save as PDF",
     printStopPoster: "Print stop poster",
     posterAllLinesNote: "All lines departing from this stop. Read: hour on the left, minutes on the right.",
+    posterTowards: "towards {dest}",
+    posterContinued: "continued",
     posterCompactOpt: "One sheet (all day types on one A4)",
     posterSheets: "Does not fit on one sheet: {n} sheets",
     posterMatrixNote: "All lines departing from this stop. Hour on the left, departure minutes in the line's column.",
@@ -5315,6 +5332,8 @@ const STRINGS = {
     printBtn: "Skriv ut", printTitle: "Skriv ut eller spara som PDF",
     printStopPoster: "Skriv ut hållplatsaffisch",
     posterAllLinesNote: "Alla linjer som avgår från hållplatsen. Läs: timme till vänster, minuter till höger.",
+    posterTowards: "mot {dest}",
+    posterContinued: "fortsätter",
     posterCompactOpt: "Ett ark (alla dagtyper på samma A4)",
     posterSheets: "Ryms inte på ett ark: {n} ark",
     posterMatrixNote: "Alla linjer som avgår från hållplatsen. Timme till vänster, avgångsminuter i linjens kolumn.",
@@ -8949,20 +8968,66 @@ function fitPosterSheet(po) {
   try {
     for (const st of stops) {
       splitWideMatrices(st, box);
-      let fit = 0, h = 0;
-      for (fit = 0; fit <= POSTER_FIT_MAX; fit++) {
+      let fit = 0, h = 0, narrow = "0";
+      const measure = () => { box.innerHTML = ""; box.appendChild(st.cloneNode(true)); return box.firstChild.getBoundingClientRect().height; };
+      // Kapeat linjasarakkeet ennen pienempää fonttia (täysauditointi 27.9.2026): La- ja Su-taulukon
+      // sarakkeet levenivät määränpäätekstin mukaan, jolloin ne eivät mahtuneet rinnakkain ja Lahden
+      // erätulosteessa 44 julistetta valui toiselle arkille pelkän sunnuntain takia.
+      outer: for (fit = 0; fit <= POSTER_FIT_MAX; fit++) {
         st.dataset.fit = String(fit);
-        box.innerHTML = "";
-        box.appendChild(st.cloneNode(true));
-        h = box.firstChild.getBoundingClientRect().height;
-        if (h <= POSTER_SHEET_PX) break;
+        for (narrow of ["0", "1"]) {
+          st.dataset.narrow = narrow;
+          h = measure();
+          if (h <= POSTER_SHEET_PX) break outer;
+        }
       }
-      if (fit > POSTER_FIT_MAX) { fit = POSTER_FIT_MAX; st.dataset.fit = String(POSTER_FIT_MAX); }
+      if (fit > POSTER_FIT_MAX) { fit = POSTER_FIT_MAX; st.dataset.fit = String(POSTER_FIT_MAX); st.dataset.narrow = "1"; h = measure(); }
+      if (h > POSTER_SHEET_PX) markPosterContinuations(st, box);
       sheets += Math.max(1, Math.ceil(h / POSTER_SHEET_PX));
       maxFit = Math.max(maxFit, fit);
     }
   } finally { box.remove(); }
   return { sheets, fit: maxFit };
+}
+
+// Jatkoarkin tunniste (täysauditointi 27.9.2026): monen arkin julisteen jatkoarkki alkoi pelkällä
+// päivätyypillä ("4 · Su") tai kesken taulukon ilman pysäkin nimeä, ja 197 arkin erätulosteessa arkin
+// sai kohdistettua pysäkkiin vain järjestyksen perusteella. Sivunvaihdot simuloidaan mittauslaatikossa
+// flex-riveittäin (päivälohko ei katkea, ks. break-inside), ja uudelle arkille alkavaan lohkoon lisätään
+// pysäkin nimi ja "jatkuu". Jaettuun lohkoon (poster-day-split) sama tieto taulukon toistuvaan otsikkoriviin.
+function markPosterContinuations(st, box) {
+  const name = (st.querySelector(".poster-head h2")?.textContent || "").replace(/\s+/g, " ").trim();
+  if (!name) return;
+  const cont = `${name} · ${t("posterContinued")}`;
+  const cl = box.firstChild;
+  const top0 = cl.getBoundingClientRect().top;
+  const secs = [...cl.children].filter(c => c.classList.contains("poster-day"));
+  const orig = [...st.children].filter(c => c.classList.contains("poster-day"));
+  const rows = [];
+  secs.forEach((sec, i) => {
+    const r = sec.getBoundingClientRect();
+    const row = rows.find(x => Math.abs(x.top - (r.top - top0)) < 2);
+    if (row) { row.bottom = Math.max(row.bottom, r.bottom - top0); row.idx.push(i); }
+    else rows.push({ top: r.top - top0, bottom: r.bottom - top0, idx: [i] });
+  });
+  let pageStart = 0;
+  for (const row of rows) {
+    if (row.bottom - pageStart > POSTER_SHEET_PX && row.top > pageStart) {
+      pageStart = row.top;
+      for (const i of row.idx) {
+        if (!orig[i] || orig[i].querySelector(".poster-cont")) continue;
+        orig[i].insertAdjacentHTML("afterbegin", `<p class="poster-cont">${esc(cont)}</p>`);
+      }
+    }
+  }
+  for (const sec of orig.filter(x => x.classList.contains("poster-day-split"))) {
+    const day = sec.querySelector(".poster-sub")?.textContent.trim() || "";
+    for (const tbl of sec.querySelectorAll("table.poster-matrix")) {
+      if (!tbl.tHead || tbl.tHead.querySelector("tr.pm-cont")) continue;
+      const cols = [...tbl.tHead.rows[0].cells].reduce((n, c) => n + (c.colSpan || 1), 0);
+      tbl.tHead.insertAdjacentHTML("afterbegin", `<tr class="pm-cont"><th colspan="${cols}">${esc(name + (day ? " · " + day : ""))}</th></tr>`);
+    }
+  }
 }
 
 // Journey-hero (greenfield: A->B ensisijaisena). REILA F5: ilmava soft-accent-hero-kaista
@@ -10574,6 +10639,14 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   // yhdelle pystyarkille (tavoite 1–2 s). Ero printLine("key"):iin: tämä kattaa molemmat
   // suunnat ja latoo päivätyypit sarakkeisiin (rack-CSS), avainpysäkit rajattu (≤~4) ettei
   // mikään kellonaika leikkaudu. Aina livedataa (sama tripsForDate kuin muuallakin).
+  // Lehtitelineen päivätaulukko: päivätyyppi myös taulukon toistuvaan otsikkoriviin. Taulukko jatkuu
+  // palstasta toiseen, ja jatko-osa näytti pelkät pysäkkinimet, jolloin lauantain ajat näyttivät
+  // arkiaikojen jatkolta (täysauditointi 27.9.2026). Tulosteessa h4 piilotetaan ja otsikkorivi kertoo päivän.
+  const rackDayTable = g => {
+    const html = bookletTableHtml(g.trips, { target: 4, limit: 5 });
+    const cols = (html.match(/<th scope="col">/g) || []).length;
+    return cols ? html.replace("<thead><tr>", `<thead><tr class="rack-dayrow"><th colspan="${cols}">${esc(g.label)}</th></tr><tr>`) : html;
+  };
   const printRack = async () => {
     await ensureHubStops();
     const st = document.getElementById("linePrintStatus");
@@ -10589,7 +10662,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       catch (e) { groups = []; }
       const days = groups.length
         ? groups.map(g =>
-            `<div class="rack-day"><h4 class="daytype">${esc(g.label)}</h4>${bookletTableHtml(g.trips, { target: 4, limit: 5 })}</div>`).join("")
+            `<div class="rack-day"><h4 class="daytype">${esc(g.label)}</h4>${rackDayTable(g)}</div>`).join("")
         : `<p class="muted">${t("bookletNoData")}</p>`;
       return `<section class="rack-dir"><h3>${esc(patternLabel(p))}</h3>
         <div class="rack-days">${days}</div></section>`;
@@ -12274,8 +12347,8 @@ function bindPostersTab(routes) {
 }
 
 // Pysäkkijulisteiden erätulostus annetulle pysäkkilistalle. Käyttäjät: linjan kaikki pysäkit
-// (bindPostersTab) ja muutosvahdin valitsemat pysäkit (bindChangesTab). subPrefix = julisteen
-// alaotsikon etuliite (linjan tunnus), tyhjä kun pysäkit eivät ole yhden linjan.
+// (bindPostersTab) ja muutosvahdin valitsemat pysäkit (bindChangesTab). subPrefix (linjan tunnus) ei enää
+// näy julisteessa: "1 · Ma–Pe" luettiin linjan 1 aikatauluksi, vaikka juliste näyttää kaikki pysäkin linjat.
 // Julisteen QR pysäkin live-sivulle (sama kuin pysäkkisivun julisteessa). Ei pakollinen:
 // virhe jättää QR:n pois eikä kaada tulostetta.
 async function posterQrHtml(stopId) {
@@ -12296,6 +12369,10 @@ async function printPosterBatch(stops, subPrefix, compact, st, out) {
       // yhden kutsun jokaisesta eri patternista, mikä oli 13.8.2026 vian pääerä.
       await patternTripsMany([...patsByStop.values()].flat().map(p => p.code), ptdMemo);
       let done = 0;
+      // Samannimiset pysäkit (kadun eri puolilla) ilman tunnusta saivat saman otsikon, esim. Lappeenrannan
+      // "Utrasaarentie 174" kahdesti (täysauditointi 27.9.2026). Niille otsikkoon yleisin määränpää.
+      const nameCount = new Map();
+      for (const x of stops) nameCount.set(x.name, (nameCount.get(x.name) || 0) + 1);
       const sections = await mapLimit(stops, 2, async (s) => {
         // Virhe heittää → koko erä keskeytyy ulompaan catchiin (status näyttää syyn).
         // Vajaa/tyhjä pysäkkijuliste virhetilassa olisi pahempi kuin uusi yritys.
@@ -12306,16 +12383,23 @@ async function printPosterBatch(stops, subPrefix, compact, st, out) {
         // katoksiin, ja niistä puuttui QR (Villen havainto Turun muutosvahdista 23.9.2026).
         const qrImg = await posterQrHtml(s.gtfsId);
         st.textContent = t("batchProgress", { done: ++done, total: stops.length });
+        let tunnus = s.code || "";
+        if (!tunnus && nameCount.get(s.name) > 1) {
+          const n = new Map();
+          for (const b of blocks) for (const L of b.lines) n.set(L.headsign, (n.get(L.headsign) || 0) + (L.times || []).length);
+          const dest = [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+          if (dest) tunnus = t("posterTowards", { dest: placeName(dest) });
+        }
         const head = (sub) => `<div class="poster-head"><div>
-            <h2>${esc(s.name)} <span class="muted">${esc(s.code || "")}</span></h2>
+            <h2>${esc(s.name)} <span class="muted">${esc(tunnus)}</span></h2>
             <p class="poster-sub">${esc(sub)}</p>
             <p class="muted">${t("posterAllLinesNote")}</p>
           </div>${qrImg}</div>`;
         return blocks.length
           ? blocks.map(b => `<section class="card poster-day">
-              ${head((subPrefix ? subPrefix + " · " : "") + b.label)}
+              ${head(b.label)}
               ${stopPosterHtml(b.lines, compact, b.legend)}</section>`).join("")
-          : `<section class="card poster-day">${head(subPrefix)}
+          : `<section class="card poster-day">${head("")}
               <p class="muted">${t("bookletNoData")}</p></section>`;
       });
       out.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}">${sections.map(sec => `<div class="poster-stop">${sec}</div>`).join("")}
