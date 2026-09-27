@@ -16305,7 +16305,12 @@ async function viewPrintCenter(tab, query) {
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   tab = PRINT_TABS.includes(tab) ? tab : "vihko";
   setView(`<p class="muted">${t("loadingRoutes")}</p>`);
-  const routes = await loadRoutes();
+  // Tapahtumalinjat (CONFIG.eventLines, SaiPan ottelubussit) ajavat vain tapahtumapäivinä ilman
+  // kiinteää aikataulua. Julisteesta ne poistettiin 25.9., mutta kaikkien linjojen vihkossa ne
+  // näkyivät sarakkeilla "To" ja "La" kuin viikoittaiset vuorot, vaikka ne ajetaan vain
+  // ottelupäivinä (täysauditointi 27.9.2026). Siksi niitä ei tarjota millekään tulosteelle.
+  const eventLines = CONFIG.eventLines || [];
+  const routes = (await loadRoutes()).filter(r => !eventLines.includes(r.shortName));
   if (navStale(nav)) return;
   const today = todayISO();
   setView(`
@@ -16670,6 +16675,17 @@ function bindBookletTab(routes, today) {
           groups = groups.filter(g => bucketMatch(g.dows));
           return { label, stops, groups, trips };
         }));
+        // Silmukkalinja: lähtö ja pääte ovat sama pysäkki, jolloin molemmat suunnat saivat saman
+        // otsikon "Joutseno linja-autoasema → Joutseno linja-autoasema" eikä lukija erottanut niitä
+        // (linja 120, täysauditointi 27.9.2026). Otsikkoon lisätään pysäkki neljänneksen matkan
+        // kohdalta: silmukan eri kiertosuunnat kulkevat siinä eri pysäkkien kautta.
+        const sameLabel = l => dirs.filter(x => x.label === l).length > 1;
+        const loopFix = dirs.map(d => {
+          const st = d.stops || [];
+          return st.length > 3 && (st[0].name === st[st.length - 1].name || sameLabel(d.label))
+            ? `${st[0].name} → ${st[Math.floor(st.length / 4)].name} → ${st[st.length - 1].name}` : d.label;
+        });
+        dirs.forEach((d, i) => { d.label = loopFix[i]; });
         // Reittikaavio (kuten Kotkan vihossa): tulostettavien suuntien pisin geometria.
         // Taustakarttana MML:n selkokartta ja reitti kunnan värillä (23.9.2026, JOJO:n malli).
         const mapDirs = primaries.map(p => printMapDir(byDir.get(dirKey(p)) || [p])).filter(Boolean);

@@ -2615,6 +2615,32 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (staff.ruudut === 4 && staff.arvot.every(v => v && v !== "…") && staff.rivit >= 5 && staff.valikko === "tilanne")
     ? ok(`henkilöstö (Lappeenranta): ${staff.ruudut} tilaruutua täynnä (${staff.arvot.join(" / ")}), ${staff.rivit} toimintoa`)
     : fail("henkilöstö: tilanne-näkymä vajaa: " + JSON.stringify(staff));
+  // Kaikkien linjojen vihko (täysauditointi 27.9.2026): (1) SaiPan ottelubussit (CONFIG.eventLines) näkyivät
+  // viikoittaisina "To"/"La"-vuoroina, vaikka ne ajetaan vain ottelupäivinä: niitä ei tarjota tulosteille.
+  // (2) Silmukkalinjan 120 molemmat suunnat saivat saman otsikon "Joutseno linja-autoasema → Joutseno
+  // linja-autoasema": otsikoiden on erotuttava. Linja 120 on kausidataa, joten sen puuttuminen on INFO.
+  await page.goto(BASE + "/?city=lappeenranta#/tulosteet/vihko", { waitUntil: "networkidle2" });
+  const vk = await page.waitForSelector(".lineCb", { timeout: 30000 }).then(() => page.evaluate(() => {
+    const no = cb => (cb.closest("label")?.textContent || "").trim().split(/\s+/)[0];
+    const cbs = [...document.querySelectorAll(".lineCb")];
+    const ev = CONFIG.eventLines || [];
+    const c120 = cbs.find(cb => no(cb) === "120");
+    if (c120) { c120.checked = true; c120.dispatchEvent(new Event("change", { bubbles: true })); document.getElementById("buildBtn").click(); }
+    return { linjoja: cbs.length, tapahtuma: ev, mukana: cbs.map(no).filter(n => ev.includes(n)), l120: !!c120 };
+  })).catch(() => null);
+  (vk && vk.linjoja > 10 && vk.tapahtuma.length && !vk.mukana.length)
+    ? ok(`tulosteet: tapahtumalinjat (${vk.tapahtuma.join(", ")}) eivät ole vihkon linjalistassa (${vk.linjoja} linjaa)`)
+    : fail("tulosteet: tapahtumalinjat vihkon linjalistassa: " + JSON.stringify(vk));
+  if (vk && vk.l120) {
+    const otsikot = await page.waitForFunction(() => {
+      const h = [...document.querySelectorAll("#bookletOut .cb-dir h3")].map(x => x.textContent.trim());
+      return h.length >= 2 ? h : null;
+    }, { timeout: 90000 }).then(h => h.jsonValue()).catch(() => null);
+    (otsikot && new Set(otsikot).size === otsikot.length)
+      ? ok(`vihko: silmukkalinjan 120 suunnat erottuvat otsikossa (${otsikot.join(" | ")})`)
+      : fail("vihko: silmukkalinjan 120 suuntaotsikot samat tai puuttuvat: " + JSON.stringify(otsikot));
+  } else info("vihko: linjaa 120 ei ole Lappeenrannan linjalistassa (kausi?), silmukkaotsikko jäi tarkistamatta");
+  await page.goto(BASE + "/?city=lappeenranta#/tilanne", { waitUntil: "networkidle2" });
   // Suuri kontrasti kaupungin värillä (25.9.2026): vaaleassa nappi/teksti ≥ 7:1 valkoista vasten ja kaupungin
   // sävyinen (Lappeenranta magenta, R > B), tummassa tekstisävy ≥ 7:1 mustaa vasten. Tila nollataan lopuksi.
   const hcCheck = async theme => {
