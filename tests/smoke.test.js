@@ -1180,6 +1180,32 @@ async function minuuttiLinjaus(page, rootSel, media) {
         mlPoster.n >= 5 && !mlPoster.viat.length
           ? ok(`pysäkkijuliste (yksi arkki): minuutit kymmenluvuittain allekkain (${mlPoster.n} mitattua)`)
           : fail(`pysäkkijuliste (yksi arkki): minuutit eivät ole allekkain (${mlPoster.n} mitattua): ${mlPoster.viat.join(" · ")}`);
+        // Täysauditointi 27.9.2026, kaksi julisteen sisältövikaa, vahdit ajavat korjatut funktiot suoraan:
+        // (1) sama lähtöaika kahdesta lohkosta (Ma–To ja Pe) sai ensimmäisen lohkon kirjaimen "vain Ma–To",
+        //     vaikka se ajetaan myös perjantaina (Lahden yölinja 97). Oikein: ei kirjainta.
+        // (2) keskustaan saapuva vuoro tunnistetaan myös, kun pysäkin nimi on käännetty (ruotsinkielinen
+        //     Vaasan juliste näytti 33 saapuvaa vuoroa lähtöinä): syötekielinen nimi ratkaisee.
+        const sisalto = await page.evaluate(() => {
+          const L = times => ({ route: { shortName: "97" }, headsign: "Testi", times });
+          const out = canonicalPosterBlocks([
+            { dows: new Set([0, 1, 2, 3]), school: "", period: null, lines: [L([83940, 87540])] },
+            { dows: new Set([4]), school: "", period: null, lines: [L([83940, 87540, 91140])] },
+          ]);
+          const arki = out.find(b => b.dows.size === 5), T = arki && arki.lines[0];
+          const c = (CONFIG.centerStopNames || [])[0] || "";
+          return {
+            yhteinen: T ? (T.codes.get(83940) || "") : "?", vainPe: T ? (T.codes.get(91140) || "") : "",
+            selitteita: arki ? arki.legend.length : -1, keskusta: c,
+            saapuu: c ? arrivingHere("Muualle", "Käännetty nimi", 120, false, c) : null,
+            eiNatiivia: c ? arrivingHere("Muualle", "Käännetty nimi", 120, false) : null,
+          };
+        });
+        (sisalto.yhteinen === "" && sisalto.vainPe && sisalto.selitteita === 1)
+          ? ok(`julisteen kirjaimet: Ma–To + Pe -lähtö ilman kirjainta, vain Pe -lähtö kirjaimella "${sisalto.vainPe}"`)
+          : fail("julisteen kirjaimet: saman lähtöajan lohkot eivät yhdisty: " + JSON.stringify(sisalto));
+        (sisalto.saapuu === true && sisalto.eiNatiivia === false)
+          ? ok(`julisteen saapuvat vuorot: keskustapysäkki "${sisalto.keskusta}" tunnistetaan syötekielisestä nimestä`)
+          : fail("julisteen saapuvat vuorot: käännetty pysäkkinimi ohittaa keskustasäännön: " + JSON.stringify(sisalto));
         await printHygiene(page, "Lahti, yksi arkki");
         // palauta CONFIG-oletus, ettei valinta vuoda seuraaviin tarkistuksiin
         await page.evaluate(() => { document.getElementById("posterCompactCb").checked = CONFIG.posterCompact !== false; });

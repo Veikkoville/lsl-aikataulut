@@ -8423,7 +8423,10 @@ function bindFavButton(item) {
 //     keskustan läpi ajava linja jatkaa usein pitkään.
 const ARRIVAL_TAIL_MAX_S = 15 * 60;
 const CENTER_ARRIVAL_MAX_S = 5 * 60;
-function arrivingHere(headsign, stopName, secsLeft, isFirst) {
+// nativeName: pysäkin nimi syötteen omalla kielellä. centerStopNames on kirjoitettu sillä, mutta
+// kyselyn name@L on valitulla kielellä: ruotsiksi Vaasan matkakeskus ei täsmännyt, ja ruotsin-
+// kieliseen julisteeseen tuli arkisin 33 saapuvaa vuoroa lähtöinä (täysauditointi 27.9.2026).
+function arrivingHere(headsign, stopName, secsLeft, isFirst, nativeName) {
   if (isFirst || !(secsLeft >= 0 && secsLeft <= ARRIVAL_TAIL_MAX_S)) return false;
   const paikka = String(headsign || "").split(/\s+[-–]\s+/)[0].trim().toLowerCase();
   const nimi = String(stopName || "").trim().toLowerCase();
@@ -8432,8 +8435,12 @@ function arrivingHere(headsign, stopName, secsLeft, isFirst) {
   if (secsLeft > CENTER_ARRIVAL_MAX_S) return false;
   // Kilvestä riippumatta: kierros 2 löysi Oikokatu L:ltä saapuvia vuoroja silmukkakilvillä
   // ("Lpr-Partala-Soskua-Lpr" päättyy Armadaan 0 min päästä, "Lpr-Nuijamaa-Lpr" 1-4 min).
-  return (CONFIG.centerStopNames || []).some(c => nimi === c.toLowerCase() || nimi.startsWith(c.toLowerCase() + " "));
+  const nimet = [nimi, String(nativeName || "").trim().toLowerCase()].filter(Boolean);
+  return (CONFIG.centerStopNames || []).some(c => nimet.some(n => n === c.toLowerCase() || n.startsWith(c.toLowerCase() + " ")));
 }
+// Pysäkin syötekielinen nimi (gtfsId -> nimi) julisteen saapuvien vuorojen tunnistukseen, ks. arrivingHere.
+// Täytetään julisteen omasta pysäkkikyselystä ja erätulostuksen stops(ids:)-kyselystä.
+const STOP_NATIVE = new Map();
 // Lähtölistojen kyselyihin: vuoron ensimmäinen ja viimeinen pysähdys (dropArrivals).
 const TRIP_ENDS_FIELDS = "departureStoptime { scheduledDeparture stop { gtfsId } } " +
   "arrivalStoptime { scheduledArrival stop { gtfsId } }";
@@ -9536,11 +9543,14 @@ async function loadPosterPatterns(stopIds) {
     const data = await gql(
       `query ($ids: [String]) {
          stops(ids: $ids) {
-           gtfsId
+           gtfsId nativeName: name
            patterns { code headsign route { shortName longName@L color textColor } }
          }
        }`, { ids });
-    for (const s of (data.stops || [])) if (s) byStop.set(s.gtfsId, s.patterns || []);
+    for (const s of (data.stops || [])) if (s) {
+      byStop.set(s.gtfsId, s.patterns || []);
+      if (s.nativeName) STOP_NATIVE.set(s.gtfsId, s.nativeName);
+    }
   }
   return byStop;
 }
@@ -9561,10 +9571,12 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
     const { data } = await cachedGql(`posterpat:${stopId}`,
       `query ($id: String!) {
          stop(id: $id) {
+           nativeName: name
            patterns { code headsign route { shortName longName@L color textColor } }
          }
        }`, { id: stopId });
     pats = data.stop?.patterns || [];
+    if (data.stop?.nativeName) STOP_NATIVE.set(stopId, data.stop.nativeName);
   }
   // Tapahtumalinjat (CONFIG.eventLines, esim. SaiPan ottelubussit) ajavat vain tapahtumapäivinä
   // ilman kiinteää aikataulua. Kaksi ottelutorstaita 42 päivässä riitti "To"-lohkoon, ja
@@ -9614,7 +9626,7 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
         // Saapuva vuoro, jonka kilpi on tämän pysäkin paikka ja joka jatkaa enää lyhyen matkan
         // (JOENSUU: 15 "lähtöä" kohteisiin "Joensuu" ja "Joensuu - PKKS"), ks. arrivingHere.
         if (arrivingHere(headsign, st.stop?.name,
-          (sts[sts.length - 1].scheduledDeparture ?? 0) - st.scheduledDeparture, i === 0)) continue;
+          (sts[sts.length - 1].scheduledDeparture ?? 0) - st.scheduledDeparture, i === 0, STOP_NATIVE.get(stopId))) continue;
         // Kilpi, joka on pelkkä kaupungin nimi tai lyhenne ("Lappeenranta", "Lpr"), ei kerro
         // kaupungin sisällä mihin bussi menee: 101 "Lpr" ajaa LUT-yliopistolle, 113 "Lappeenranta"
         // Matkakeskukseen (kierros 2 25.9.2026). Tilalle vuoron päätepysäkki, tai silmukalla
@@ -9696,26 +9708,62 @@ function canonicalPosterBlocks(blocks) {
     }
     return codes.get(txt);
   };
+  // Lähdön ehdot (päivät, koulu/loma, jakso) -> kirjain(et). Ehdot kerätään ensin kaikista lohkoista
+  // ja kirjain lasketaan vasta lopuksi: sama lähtöaika voi tulla kahdesta lohkosta (Lahden yölinja 97:
+  // Ma–To ja Pe), ja ensimmäisen lohkon kirjain "vain Ma–To" jäi voimaan, vaikka lähtö ajetaan myös
+  // perjantaina (täysauditointi 27.9.2026). Saman jakson koulu- ja lomapäivät yhdessä = ajetaan aina;
+  // päivät yhteensä koko sarake = ei päivärajausta; eri ehdot rinnakkain = kirjaimet peräkkäin.
+  const condCode = (conds, dows) => {
+    const groups = new Map();
+    for (const c of conds) {
+      const k = periodKey(c.period) + "|" + c.school;
+      if (!groups.has(k)) groups.set(k, { period: c.period, school: c.school, days: new Set() });
+      for (const d of c.days) groups.get(k).days.add(d);
+    }
+    for (const g of [...groups.values()]) {
+      if (g.school !== "koul") continue;
+      const pk = periodKey(g.period);
+      const loma = groups.get(pk + "|loma");
+      if (!loma) continue;
+      const both = [...g.days].filter(d => loma.days.has(d));
+      if (!both.length) continue;
+      const k = pk + "|";
+      if (!groups.has(k)) groups.set(k, { period: g.period, school: "", days: new Set() });
+      for (const d of both) { groups.get(k).days.add(d); g.days.delete(d); loma.days.delete(d); }
+    }
+    const live = [...groups.values()].filter(g => g.days.size);
+    if (live.some(g => !g.school && !g.period && g.days.size === dows.size)) return "";
+    const letters = live.map(g => {
+      const parts = [];
+      if (g.days.size < dows.size) parts.push(t("compactOnlyDays", { days: dowLabel(g.days) }));
+      if (g.school) parts.push(t(g.school === "koul" ? "schoolTerm" : "schoolBreak"));
+      if (g.period) parts.push(periodLabel(g.period));
+      return parts.length ? codeFor(parts.join(" · ")) : "";
+    });
+    return letters.includes("") ? "" : [...new Set(letters)].sort().join("");
+  };
   const out = BUCKETS.map(days => ({ dows: new Set(days), lines: new Map() }));
   for (const b of blocks) {
     for (const o of out) {
       const common = [...b.dows].filter(d => o.dows.has(d));
       if (!common.length) continue;
-      const parts = [];
-      if (common.length < o.dows.size) parts.push(t("compactOnlyDays", { days: dowLabel(new Set(common)) }));
-      if (b.school) parts.push(t(b.school === "koul" ? "schoolTerm" : "schoolBreak"));
-      if (b.period) parts.push(periodLabel(b.period));
-      const code = parts.length ? codeFor(parts.join(" · ")) : "";
       for (const L of b.lines) {
         const lk = (L.route.shortName || "") + "|" + L.headsign;
-        if (!o.lines.has(lk)) o.lines.set(lk, { route: L.route, headsign: L.headsign, times: [], codes: new Map() });
+        if (!o.lines.has(lk)) o.lines.set(lk, { route: L.route, headsign: L.headsign, times: [], codes: new Map(), conds: new Map() });
         const T = o.lines.get(lk);
         for (const sec of L.times) {
-          if (!T.times.includes(sec)) { T.times.push(sec); if (code) T.codes.set(sec, code); }
-          else if (!code) T.codes.delete(sec);   // ajetaan myös joka päivä -> ei kirjainta
+          if (!T.conds.has(sec)) { T.times.push(sec); T.conds.set(sec, []); }
+          T.conds.get(sec).push({ days: common, school: b.school || "", period: b.period || null });
         }
       }
     }
+  }
+  for (const o of out) for (const T of o.lines.values()) {
+    for (const [sec, conds] of T.conds) {
+      const code = condCode(conds, o.dows);
+      if (code) T.codes.set(sec, code);
+    }
+    delete T.conds;
   }
   // Kun koulupäivävuorot ovat arkisarakkeen enemmistö (Lahden ja Oulun syötteet koodaavat koko
   // talven arkiaikataulun koulupäiväpalveluksi), K olisi lähes jokaisessa lähdössä. Silloin
@@ -9739,7 +9787,7 @@ function canonicalPosterBlocks(blocks) {
     return { dows: o.dows, school: "", period: null, label, lines };
   });
   for (const b of blocksOut) {
-    const used = new Set(b.lines.flatMap(L => [...L.codes.values()]));
+    const used = new Set(b.lines.flatMap(L => [...L.codes.values()].flatMap(c => [...c])));
     b.legend = [...codes.entries()].filter(([, c]) => used.has(c)).map(([text, code]) => ({ code, text }));
   }
   return blocksOut;
