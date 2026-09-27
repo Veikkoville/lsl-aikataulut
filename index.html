@@ -6990,7 +6990,7 @@ function printMapSvg(lines, opts = {}) {
     add(st[0], 3); add(st[st.length - 1], 3);
     for (const s of st) {
       if (keyNames.has(normHubName(s.name)) || keyNames.has(normHubName(baseName(s.name)))) add(s, 2);
-      else if (hubTokens.length && stopMatchesHub(s.name, hubTokens)) add(s, 2);
+      else if (hubTokens.length && (HUB_STOPS.has(s.gtfsId) || stopMatchesHub(s.name, hubTokens))) add(s, 2);
     }
     const even = opts.evenLabels ?? 3;
     for (let k = 1; k <= even; k++) add(st[Math.round(k * (st.length - 1) / (even + 1))], 1);
@@ -10544,6 +10544,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   // Tulostus viikonpäivätyypeittäin (ma–pe/la/su). mode "key" = isot pysäkit
   // pystyarkille, "all" = kaikki pysäkit vaaka-arkille (mahtuu leveytensä takia).
   const printLine = async (mode) => {
+    await ensureHubStops();
     const st = document.getElementById("linePrintStatus");
     const po = document.getElementById("linePrintOut");
     if (!po) return;
@@ -10574,6 +10575,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   // suunnat ja latoo päivätyypit sarakkeisiin (rack-CSS), avainpysäkit rajattu (≤~4) ettei
   // mikään kellonaika leikkaudu. Aina livedataa (sama tripsForDate kuin muuallakin).
   const printRack = async () => {
+    await ensureHubStops();
     const st = document.getElementById("linePrintStatus");
     const po = document.getElementById("linePrintOut");
     if (!po) return;
@@ -12110,6 +12112,7 @@ function bindCorridorTab(routes, today) {
     });
   });
   document.getElementById("corrGo")?.addEventListener("click", async () => {
+    await ensureHubStops();
     const mySeq = viewSeq;
     const status = document.getElementById("corrStatus");
     const out = document.getElementById("corridorOut");
@@ -15378,13 +15381,49 @@ function stopMatchesHub(stopName, hubTokenLists) {
   return hubTokenLists.some(hs =>
     hs.length && tokens.some((_, i) => i + hs.length <= tokens.length && hs.every((w, j) => tokens[i + j] === w)));
 }
+// Solmupysäkit tunnuksina (täysauditointi 27.9.2026): CONFIG.hubs-nimet on kirjoitettu syötteen
+// kielellä, mutta tulosteiden pysäkkinimet ovat valitulla kielellä (name@L). Ruotsiksi Vaasan
+// "Raastuvankatu" ei osunut "Rådhusgatan"-pysäkkeihin: lehtitelineestä puuttuivat keskustan sarakkeet
+// ja käytävän keskisarake osui väärälle pysäkille. Solmun pysäkit haetaan kerran syötekielisellä
+// nimellä (kysely ilman @L:ää), ja vertailu tehdään tunnuksella. Nimivertailu jää varalle.
+const HUB_STOPS = new Map();   // gtfsId -> hub.key
+let hubStopsLoad = null;
+function ensureHubStops() {
+  if (hubStopsLoad) return hubStopsLoad;
+  const pref = feedId ? feedId + ":" : "";
+  const hubs = (CONFIG.hubs || []).filter(h => typeof h.name === "string" && h.name.trim());
+  hubStopsLoad = Promise.all(hubs.map(async h => {
+    const tokens = normHubName(h.name).split(" ").filter(Boolean);
+    try {
+      const { data } = await cachedGql(`hubstops:${h.key}`,
+        `query ($n: String) { stops(name: $n) { gtfsId name } }`, { n: h.name });
+      for (const st of data.stops || [])
+        if ((!pref || String(st.gtfsId).startsWith(pref)) && stopMatchesHub(st.name, [tokens])) HUB_STOPS.set(st.gtfsId, h.key);
+    } catch (e) { /* nimivertailu jää varalle */ }
+  })).then(() => HUB_STOPS);
+  return hubStopsLoad;
+}
+// Pysäkin solmu (hub.key) tai null: tunnus ensin, sitten nimi.
+function hubKeyOf(stop) {
+  if (stop?.gtfsId && HUB_STOPS.has(stop.gtfsId)) return HUB_STOPS.get(stop.gtfsId);
+  if (!stop?.name) return null;
+  const h = (CONFIG.hubs || []).find(x => typeof x.name === "string"
+    && stopMatchesHub(stop.name, [normHubName(x.name).split(" ").filter(Boolean)]));
+  return h ? h.key : null;
+}
 function pickKeyStops(cand, target = KEY_STOP_TARGET, limit = KEY_STOP_LIMIT) {
   if (cand.length <= limit) return cand.map(c => c.stop);
   const chosen = new Set([cand[0].idx, cand[cand.length - 1].idx]);          // aina lähtö + pää
   for (let i = 0; i < target; i++)                                           // tasaväli (sis. päätepisteet)
     chosen.add(cand[Math.round(i * (cand.length - 1) / (target - 1))].idx);
-  const hubTokens = (CONFIG.hubs || []).map(h => normHubName(h.name).split(" ").filter(Boolean)).filter(a => a.length);
-  if (hubTokens.length) for (const c of cand) if (stopMatchesHub(c.stop.name, hubTokens)) chosen.add(c.idx);
+  // Yksi pysäkki per solmu: Vaasan linjalla 1 kaikki neljä Raastuvankadun pysäkkiä osuivat solmuun,
+  // jolloin linjatulosteessa oli 12 saraketta ja nimet katkesivat kesken sanan.
+  const hubOf = new Map(cand.map(c => [c.idx, hubKeyOf(c.stop)]));
+  const covered = new Set([...chosen].map(i => hubOf.get(i)).filter(Boolean));
+  for (const c of cand) {
+    const hk = hubOf.get(c.idx);
+    if (hk && !covered.has(hk)) { covered.add(hk); chosen.add(c.idx); }
+  }
   return cand.filter(c => chosen.has(c.idx)).map(c => c.stop);               // sekvenssijärjestyksessä
 }
 
@@ -15611,7 +15650,7 @@ function cbStripSvg(dirs) {
   if (!t0.length) return "";
   const main = mostCommonStops(t0);
   const mainTrips = main ? t0.filter(tr => tr._stops === main) : t0;
-  const ks = bookletKeyStops(mainTrips.length ? mainTrips : t0, { target: 6, limit: 7 }).slice(0, 8);
+  const ks = stripStops(bookletKeyStops(mainTrips.length ? mainTrips : t0, { target: 6, limit: 7 }), 8);
   if (ks.length < 2) return "";
   const med = arr => { const s = arr.filter(x => x > 0).sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
   const timesById = tr => { const m = {}; for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture; return m; };
@@ -15641,6 +15680,20 @@ function cbStripSvg(dirs) {
   return `<figure class="cb-strip"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 84" role="img" aria-label="${aria}" font-family="system-ui, Arial, sans-serif">`
     + `<title>${aria}</title><path d="M${xs[0].toFixed(1)} ${yL}H${xs[n - 1].toFixed(1)}" stroke="#000" stroke-width="3.5"/>`
     + `${segs}${dots}${names}</svg></figure>`;
+}
+
+// Reittijanan solmut: enintään max, lähtö- ja päätepysäkki aina mukana. Ennen .slice(0, 8) pudotti
+// päätepysäkin, kun solmupysäkkejä oli monta (Vaasan linja 1 päättyi janassa Palosaareen, vaikka
+// taulukko ja kartta jatkuivat Gerbyyn; täysauditointi 27.9.2026). Ylimäärä karsitaan keskeltä
+// tasavälein, solmupysäkit viimeisinä.
+function stripStops(ks, max) {
+  if (ks.length <= max) return ks;
+  const mid = ks.slice(1, -1).map((s, i) => ({ s, i, hub: !!hubKeyOf(s) }));
+  const keep = new Set(mid.filter(m => m.hub).slice(0, max - 2).map(m => m.i));
+  const rest = mid.filter(m => !keep.has(m.i));
+  const need = max - 2 - keep.size;
+  for (let k = 0; k < need && rest.length; k++) keep.add(rest[Math.round(k * (rest.length - 1) / Math.max(1, need - 1))].i);
+  return [ks[0], ...mid.filter(m => keep.has(m.i)).map(m => m.s), ks[ks.length - 1]];
 }
 
 // Tiiviin vihkon linja-aukeama. dirs = [{ label, stops, groups, trips }], mapHtml valmiina.
@@ -15753,7 +15806,7 @@ function corridorKeyStops(shared) {
   if (shared.length <= 3) return shared;
   const hubTokens = (CONFIG.hubs || []).map(h => normHubName(h.name).split(" ").filter(Boolean)).filter(a => a.length);
   let mid = null;
-  if (hubTokens.length) mid = shared.slice(1, -1).find(s => stopMatchesHub(s.name, hubTokens)) || null;
+  if (hubTokens.length) mid = shared.slice(1, -1).find(s => hubKeyOf(s)) || null;
   if (!mid) mid = shared[Math.floor(shared.length / 2)];
   return [shared[0], mid, shared[shared.length - 1]];
 }
@@ -16604,6 +16657,7 @@ function bindBookletTab(routes, today) {
   });
 
   document.getElementById("buildBtn").addEventListener("click", async () => {
+    await ensureHubStops();
     const mySeq = viewSeq;
     const status = document.getElementById("buildStatus");
     const selected = cbs().filter(c => c.checked).map(c => c.value);
