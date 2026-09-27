@@ -1,7 +1,7 @@
 {
  "kaupungit": {
   "vaasa": {
-   "ajettu": "2026-09-27T09:00:35.147Z",
+   "ajettu": "2026-09-27T20:05:32.357Z",
    "pysakkeja": 545,
    "tulossa": 0,
    "muuttunut": 189,
@@ -9,31 +9,31 @@
    "voimaan": null
   },
   "lahti": {
-   "ajettu": "2026-09-27T08:49:03.391Z",
+   "ajettu": "2026-09-27T21:40:06.349Z",
    "pysakkeja": 2268,
    "tulossa": 43,
    "muuttunut": 0,
    "poikkeus": 0,
-   "voimaan": "2026-11-03"
+   "voimaan": "2026-11-02"
   },
   "kuopio": {
-   "ajettu": "2026-09-27T08:54:19.733Z",
-   "pysakkeja": 1878,
-   "tulossa": 168,
-   "muuttunut": 192,
-   "poikkeus": 1104,
-   "voimaan": "2026-10-20"
+   "ajettu": "2026-09-27T21:46:45.388Z",
+   "pysakkeja": 1879,
+   "tulossa": 238,
+   "muuttunut": 0,
+   "poikkeus": 1035,
+   "voimaan": "2026-10-12"
   },
   "salo": {
-   "ajettu": "2026-09-27T08:56:37.170Z",
+   "ajettu": "2026-09-27T21:49:10.587Z",
    "pysakkeja": 860,
-   "tulossa": 28,
-   "muuttunut": 36,
-   "poikkeus": 284,
-   "voimaan": "2026-10-20"
+   "tulossa": 36,
+   "muuttunut": 18,
+   "poikkeus": 276,
+   "voimaan": "2026-10-12"
   },
   "kajaani": {
-   "ajettu": "2026-09-27T08:58:59.213Z",
+   "ajettu": "2026-09-27T20:04:05.429Z",
    "pysakkeja": 890,
    "tulossa": 0,
    "muuttunut": 26,
@@ -41,7 +41,7 @@
    "voimaan": null
   },
   "kotka": {
-   "ajettu": "2026-09-27T09:03:25.818Z",
+   "ajettu": "2026-09-27T20:08:08.034Z",
    "pysakkeja": 969,
    "tulossa": 0,
    "muuttunut": 179,
@@ -49,7 +49,7 @@
    "voimaan": null
   },
   "raasepori": {
-   "ajettu": "2026-09-27T09:04:41.992Z",
+   "ajettu": "2026-09-27T20:09:17.596Z",
    "pysakkeja": 426,
    "tulossa": 0,
    "muuttunut": 67,
@@ -57,15 +57,15 @@
    "voimaan": null
   },
   "kouvola": {
-   "ajettu": "2026-09-27T09:07:47.707Z",
+   "ajettu": "2026-09-27T21:52:47.403Z",
    "pysakkeja": 1123,
    "tulossa": 103,
    "muuttunut": 30,
    "poikkeus": 0,
-   "voimaan": "2026-11-03"
+   "voimaan": "2026-10-31"
   },
   "mikkeli": {
-   "ajettu": "2026-09-27T09:10:38.969Z",
+   "ajettu": "2026-09-27T20:15:27.396Z",
    "pysakkeja": 1049,
    "tulossa": 0,
    "muuttunut": 0,
@@ -73,7 +73,7 @@
    "voimaan": null
   },
   "hameenlinna": {
-   "ajettu": "2026-09-27T09:14:31.166Z",
+   "ajettu": "2026-09-27T20:18:57.912Z",
    "pysakkeja": 1352,
    "tulossa": 0,
    "muuttunut": 2,
@@ -81,15 +81,15 @@
    "voimaan": null
   },
   "joensuu": {
-   "ajettu": "2026-09-27T09:18:59.253Z",
+   "ajettu": "2026-09-27T21:56:49.698Z",
    "pysakkeja": 1598,
    "tulossa": 10,
-   "muuttunut": 10,
+   "muuttunut": 0,
    "poikkeus": 1139,
-   "voimaan": "2026-10-20"
+   "voimaan": "2026-10-25"
   },
   "jyvaskyla": {
-   "ajettu": "2026-09-27T09:25:13.225Z",
+   "ajettu": "2026-09-27T20:28:33.429Z",
    "pysakkeja": 2190,
    "tulossa": 0,
    "muuttunut": 0,
@@ -97,7 +97,7 @@
    "voimaan": null
   },
   "lappeenranta": {
-   "ajettu": "2026-09-27T09:28:11.548Z",
+   "ajettu": "2026-09-27T20:31:13.818Z",
    "pysakkeja": 1074,
    "tulossa": 0,
    "muuttunut": 0,
@@ -105,7 +105,7 @@
    "voimaan": null
   },
   "pori": {
-   "ajettu": "2026-09-27T09:36:41.583Z",
+   "ajettu": "2026-09-27T20:39:12.428Z",
    "pysakkeja": 1076,
    "tulossa": 0,
    "muuttunut": 0,
@@ -113,29 +113,29 @@
    "voimaan": null
   },
   "rovaniemi": {
-   "ajettu": "2026-09-27T09:37:58.079Z",
+   "ajettu": "2026-09-27T22:05:02.456Z",
    "pysakkeja": 431,
    "tulossa": 240,
    "muuttunut": 0,
    "poikkeus": 0,
-   "voimaan": "2026-10-20"
+   "voimaan": "2026-10-19"
   },
   "turku": {
-   "ajettu": "2026-09-27T09:48:01.480Z",
+   "ajettu": "2026-09-27T22:13:58.665Z",
    "pysakkeja": 3552,
    "tulossa": 48,
-   "muuttunut": 116,
+   "muuttunut": 59,
    "poikkeus": 1570,
-   "voimaan": "2026-11-03"
+   "voimaan": "2026-11-02"
   },
   "oulu": {
-   "ajettu": "2026-09-27T09:33:41.383Z",
+   "ajettu": "2026-09-27T22:01:58.695Z",
    "pysakkeja": 1968,
    "tulossa": 37,
    "muuttunut": 46,
    "poikkeus": 22,
-   "voimaan": "2026-11-03"
+   "voimaan": "2026-11-02"
   }
  },
- "ajettu": "2026-09-27T09:48:09.486Z"
+ "ajettu": "2026-09-27T22:14:06.676Z"
 }

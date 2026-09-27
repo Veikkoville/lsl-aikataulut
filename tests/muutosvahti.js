@@ -147,19 +147,91 @@ async function signaturesFor(stopIds, days, router) {
   return sigs;
 }
 
-// Ensimmäinen viikko jolla muutos näkyy: tiistaiviikot near→far, otanta muuttuneista pysäkeistä.
-async function firstChangeWeek(sampleIds, near2, far, farSig, router) {
-  const weeks = [];
-  for (let d = new Date(near2.tue); d < far.tue; d.setDate(d.getDate() + 7)) weeks.push(new Date(d));
-  weeks.shift(); // near2 itse on vielä nykytilaa
-  for (const tue of weeks) {
-    const days = { tue, sat: new Date(tue), sun: new Date(tue) };
-    days.sat.setDate(days.sat.getDate() + 4); days.sun.setDate(days.sun.getDate() + 5);
-    const s = await signaturesFor(sampleIds, days, router);
-    const agree = sampleIds.filter(id => s.get(id)?.hash === farSig.get(id)?.hash).length;
-    if (agree * 2 > sampleIds.length) return iso(tue);
+const addDays = (isoPvm, n) => { const d = new Date(isoPvm + "T12:00:00"); d.setDate(d.getDate() + n); return iso(d); };
+
+// Pysäkin ensimmäinen muutospäivä viikonpäivittäin. Jokaiselle viikonpäivälle: vanha arvo = nykytilan viikko,
+// uusi arvo = kaukoviikko (vahvistettu seuraavalta viikolta). Muutospäivä = ensimmäinen saman viikonpäivän päivä,
+// jonka lähdöt ovat uusi arvo ja jonka jälkeen vanha arvo ei enää palaa. Päivä, joka ei ole kumpikaan (syysloma,
+// pyhäpäivä, poikkeuslauantai), ei ratkaise mitään. Todennetut tapaukset 27.9.2026: Lahti linja 28 alkaa ma 2.11.;
+// Kuopio ma 12.10. (lähdöt minuutin aiemmin); Joensuu syysloma 12.-18.10. ja muutos 19.10.; Oulu syysloma 19.-23.10.
+// näytti uudelta tilalta, mutta 26.10. palasi vanhaan (muutos 2.11.); pyhäinpäivä la 31.10. ei ole muutos.
+// Palauttaa aikaisimman muutospäivän (iso) tai null, jos yhtäkään viikonpäivää ei voitu todentaa.
+function firstChangeDay(lahdot, vanhaMa, uusiMa, uusi2Ma) {
+  let paras = null;
+  for (let i = 0; i < 7; i++) {
+    const vanha = lahdot.get(addDays(vanhaMa, i)), uusi = lahdot.get(addDays(uusiMa, i)), uusi2 = lahdot.get(addDays(uusi2Ma, i));
+    if (vanha === undefined || uusi === undefined || uusi !== uusi2 || uusi === vanha) continue;
+    const paivat = [];
+    for (let d = addDays(vanhaMa, i + 7); d <= addDays(uusiMa, i); d = addDays(d, 7)) paivat.push(d);
+    for (let k = 0; k < paivat.length; k++) {
+      if (lahdot.get(paivat[k]) !== uusi) continue;
+      if (paivat.slice(k + 1).some(d => lahdot.get(d) === vanha)) continue;
+      if (!paras || paivat[k] < paras) paras = paivat[k];
+      break;
+    }
   }
-  return iso(far.tue);
+  return paras;
+}
+
+// Lähdöt päivittäin (sama poimintasääntö kuin julisteessa), aliasniputettuna: enintään CHUNK pysäkkiä ja
+// noin 3 x CHUNK aliasta kyselyä kohden, kuten signaturesFor.
+async function dailyDepartures(stopIds, dates, router) {
+  const out = new Map(stopIds.map(id => [id, new Map()]));
+  for (let a = 0; a < stopIds.length; a += CHUNK) {
+    const ids = stopIds.slice(a, a + CHUNK);
+    const PER = Math.max(1, Math.floor((CHUNK * 3) / ids.length));
+    for (let i = 0; i < dates.length; i += PER) {
+      const ds = dates.slice(i, i + PER);
+      const vars = {};
+      const parts = ids.map((id, k) => {
+        vars["i" + k] = id;
+        return ds.map((d, j) => `s${k}_${j}: stop(id: $i${k}) { stoptimesForServiceDate(date: "${d.replace(/-/g, "")}") {
+             pattern { stops { gtfsId } }
+             stoptimes { scheduledDeparture pickupType stopPositionInPattern headsign trip { tripHeadsign route { shortName } } } } }`).join("\n");
+      }).join("\n");
+      const varDefs = ids.map((_, k) => `$i${k}: String!`).join(", ");
+      const data = await gql(`query (${varDefs}) { ${parts} }`, vars, router);
+      ids.forEach((id, k) => ds.forEach((d, j) => out.get(id).set(d, departuresOf(data[`s${k}_${j}`]).join(","))));
+      await sleep(QUERY_GAP_MS);
+    }
+  }
+  return out;
+}
+
+// Voimaantulopäivä jokaiselle muuttuvalle pysäkille (otanta ei riitä: Kuopiossa 27.9. osa pysäkeistä muuttui ma 12.10.
+// ja osa 19.10.). Lähdöt haetaan päivittäin nykytilan viikon maanantaista kaukoviikkoa seuraavan viikon sunnuntaihin.
+// Nykytilan viikko on W2, jos W1 on poikkeusviikko (poikkeus "near"), muuten W1.
+async function changeDates(changed, near, near2, far, router) {
+  const ma = tue => addDays(iso(tue), -1);
+  const nearMa = ma(near.tue), near2Ma = ma(near2.tue), farMa = ma(far.tue), far2Ma = addDays(farMa, 7);
+  const dates = [];
+  for (let d = nearMa; d <= addDays(far2Ma, 6); d = addDays(d, 1)) dates.push(d);
+  const lahdot = await dailyDepartures(changed.map(r => r.id), dates, router);
+  for (const r of changed) {
+    const d = firstChangeDay(lahdot.get(r.id), r.poikkeus === "near" ? near2Ma : nearMa, farMa, far2Ma);
+    if (d) { r.voimaan = d; r.voimaanTarkka = true; }
+    else { r.voimaan = iso(far.tue); r.voimaanTarkka = false; }
+  }
+}
+
+// Vakaa nykytila ja poikkeusviikko lähiviikoista W1 (n1) ja W2 (n2), kaukoviikoista W5 (f1) ja W6 (f2)
+// sekä edellisen ajon nykytilasta (prev = tunniste). Palauttaa { base, poikkeus }.
+function classifyNear(n1, n2, f1, f2, prev) {
+  const same = (a, b) => !!(a && b && a.hash === b.hash);
+  if (same(n1, n2)) return { base: n1, poikkeus: "" };
+  // W1 ja W2 eroavat. Edellisen ajon nykytila ratkaisee ensin, kumpi on voimassa: viime viikon ajon
+  // W2 on tämän ajon W1. Todennettu 27.9.2026 Joensuussa: W1 = nykytila, W2 13.10. = syysloma,
+  // uusi aikataulu 19.10. alkaen; vanha sääntö oletti W1:n poikkeukseksi ja käski tulostaa heti.
+  if (prev && n1 && n1.hash === prev) {
+    // W2 on joko pysyvän muutoksen alku (W2 = vakaa kaukotila) tai poikkeusviikko.
+    return { base: n1, poikkeus: same(f1, f2) && same(n2, f1) ? "" : "near2" };
+  }
+  if (prev && n2 && n2.hash === prev) return { base: n2, poikkeus: "near" };
+  // Ilman edellistä ajoa: nykytila on se joka toistuu kaukopäässä; toinen on poikkeusviikko.
+  // Ilman kaukopään tukea oletetaan W1 poikkeavaksi (kuten ennen).
+  if (same(n2, f1) || same(n2, f2)) return { base: n2, poikkeus: "near" };
+  if (same(n1, f1) || same(n1, f2)) return { base: n1, poikkeus: "near2" };
+  return { base: n2, poikkeus: "near" };
 }
 
 async function runCity(key, cfg, feedsByRouter) {
@@ -195,15 +267,8 @@ async function runCity(key, cfg, feedsByRouter) {
   const same = (a, b) => !!(a && b && a.hash === b.hash);
   const rows = ids.map(id => {
     const n1 = sigNear.get(id), n2 = sigNear2.get(id), f1 = sigFar.get(id), f2 = sigFar2.get(id);
-    const nearStable = same(n1, n2);
     const farStable = same(f1, f2);
-    // Vakaa nykytila: jos W1 ja W2 eroavat, nykytila on se joka toistuu kaukopäässä; toinen on
-    // poikkeusviikko. Ilman kaukopään tukea oletetaan W1 poikkeavaksi (kuten ennen).
-    let base, poikkeus = "";
-    if (nearStable) base = n1;
-    else if (same(n2, f1) || same(n2, f2)) { base = n2; poikkeus = "near"; }
-    else if (same(n1, f1) || same(n1, f2)) { base = n1; poikkeus = "near2"; }
-    else { base = n2; poikkeus = "near"; }
+    let { base, poikkeus } = classifyNear(n1, n2, f1, f2, prevHash.get(id));
     if (base) baseSig.set(id, base);
     const tulossa = !!(base && farStable && f1.hash !== base.hash);
     // Kaukopään poikkeusviikko: kumpi W5/W6 eroaa nykytilasta. Todennettu 2.9.2026 Lahdessa: vahti
@@ -219,10 +284,18 @@ async function runCity(key, cfg, feedsByRouter) {
   }).filter(r => r.depsNear || r.depsFar); // pysäkit joilla ei ole lähtöjä kummallakaan → ei julistetta
 
   const changedIds = rows.filter(r => r.tulossa).map(r => r.id);
-  let voimaan = null;
+  let voimaan = null, voimaanTarkka = false;
   if (changedIds.length) {
-    const sample = changedIds.filter((_, i) => i % Math.max(1, Math.floor(changedIds.length / 5)) === 0).slice(0, 5);
-    try { voimaan = await firstChangeWeek(sample, near2, far, sigFar, router); } catch (e) { voimaan = null; }
+    const changed = rows.filter(r => r.tulossa);
+    try {
+      await changeDates(changed, near, near2, far, router);
+      // Kaupungin päivä = aikaisin pysäkkikohtainen päivä (sitä ennen ensimmäinen juliste on uusittava).
+      const ens = changed.filter(r => r.voimaan).sort((a, b) => a.voimaan.localeCompare(b.voimaan))[0];
+      if (ens) { voimaan = ens.voimaan; voimaanTarkka = !!ens.voimaanTarkka; }
+    } catch (e) {
+      console.log(`WARN [${key}] voimaantulopäivää ei saatu: ${e.message}`);
+      for (const r of changed) { delete r.voimaan; delete r.voimaanTarkka; }
+    }
   }
 
   const hashes = {};
@@ -237,7 +310,7 @@ async function runCity(key, cfg, feedsByRouter) {
                         near2: { pvm: iso(near2.tue), n: rows.filter(r => r.poikkeus === "near2").length },
                         far: { pvm: iso(far.tue), n: rows.filter(r => r.poikkeus === "far").length },
                         far2: { pvm: iso(far2.tue), n: rows.filter(r => r.poikkeus === "far2").length } },
-      voimaan },
+      voimaan, voimaanTarkka },
     pysakit: rows,
     hashes,
   };
@@ -246,7 +319,9 @@ async function runCity(key, cfg, feedsByRouter) {
   return { key, ...report.yhteenveto };
 }
 
-(async () => {
+module.exports = { classifyNear, firstChangeDay, addDays };
+
+if (require.main === module) (async () => {
   const configs = extractConfigs();
   const filter = process.argv.slice(2);
   const cities = Object.keys(configs).filter(k => !filter.length || filter.includes(k));
