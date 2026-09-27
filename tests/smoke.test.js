@@ -1585,6 +1585,30 @@ async function minuuttiLinjaus(page, rootSel, media) {
     (cap.big === 10 && cap.small === 8 && cap.edge12 === 12 && cap.firstLast && cap.hub === true && cap.wb === false)
       ? ok(`isot pysäkit -rajaus: 60→${cap.big} (lähtö+pää aina), ≤12 ennallaan, hub pakotettu, sananraja ei false-match`)
       : fail("isot pysäkit -rajaus pielessä: " + JSON.stringify(cap));
+    // Solmupysäkit tunnuksella (täysauditointi 27.9.2026): ruotsiksi Vaasan "Raastuvankatu" ei osunut
+    // "Rådhusgatan"-pysäkkeihin, ja lehtitelineestä puuttuivat keskustan sarakkeet. Käännetty nimi, joka ei
+    // muistuta solmun nimeä, tunnistetaan tunnuksesta; solmusta otetaan yksi pysäkki; reittijana säilyttää
+    // lähdön ja päätteen (Vaasan jana päättyi Palosaareen, kun .slice(0, 8) pudotti päätepysäkin).
+    const solmu = await page.evaluate(() => {
+      const h = (CONFIG.hubs || []).find(x => typeof x.name === "string");
+      if (!h) return { eiSolmua: true };
+      const tunnus = "TESTI:solmu-1";
+      HUB_STOPS.set(tunnus, h.key);
+      const kaannetty = { gtfsId: tunnus, name: "Käännetty nimi 57" };
+      const mk = n => Array.from({ length: n }, (_, i) => ({ stop: i === 30 ? kaannetty : i === 31 ? { gtfsId: "TESTI:solmu-2", name: h.name + " 41" } : { gtfsId: "s" + i, name: "P" + i }, idx: i }));
+      const valitut = pickKeyStops(mk(60));
+      const jana = stripStops(Array.from({ length: 12 }, (_, i) => ({ gtfsId: "j" + i, name: "J" + i })), 8);
+      HUB_STOPS.delete(tunnus);
+      return {
+        kaannettyMukana: valitut.some(s => s.gtfsId === tunnus),
+        yksiSolmusta: valitut.filter(s => s.gtfsId === tunnus || s.gtfsId === "TESTI:solmu-2").length,
+        janaPituus: jana.length, janaPaat: jana[0].gtfsId === "j0" && jana[jana.length - 1].gtfsId === "j11",
+      };
+    }).catch(e => ({ virhe: String(e.message).slice(0, 120) }));
+    (solmu.eiSolmua || (solmu.kaannettyMukana && solmu.yksiSolmusta === 1 && solmu.janaPituus === 8 && solmu.janaPaat))
+      ? ok(solmu.eiSolmua ? "solmupysäkit: kaupungilla ei solmuja, tarkistus ohitettu"
+          : "solmupysäkit: käännetty nimi tunnistetaan tunnuksesta, yksi pysäkki per solmu, reittijanassa lähtö ja pääte")
+      : fail("solmupysäkit tai reittijana pielessä: " + JSON.stringify(solmu));
     // A4-vihko: suunta alkaa sivun yläreunasta (Villen linjaus 23.9.2026). Reittikaavion jälkeen
     // 1. suuntakin vaihtaa sivua; suoraan linjaotsikon alla (ei kaaviota) se saa jatkaa.
     await page.emulateMediaType("print");
