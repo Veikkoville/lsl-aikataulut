@@ -49,6 +49,62 @@ async function printHygiene(page, label) {
            "(odotus: lahtolista=false, ruutukortti=false, juliste=true)");
 }
 
+// Minuuttisarakevartija (27.9.2026): tuntiruudukossa saman sarakeryhmän (linja tai päivätyyppi)
+// saman kymmenluvun minuuttien on alettava samasta vaakakohdasta kaikilla riveillä. Tiivis
+// juliste ja tiivis vihko latoivat minuutit yhteen soluun välilyönnein, jolloin :39 osui
+// Lappeenrannan julisteessa neljään eri kohtaan ja luvut kulkivat vinosti. Aiempi vartija laski
+// vain solut riviltä, ja se meni läpi koska solumäärä oli tasainen. Tämä mittaa jokaisen
+// minuutin paikan Rangella: solun kunkin kymmenluvun ensimmäinen minuutti ryhmitellään
+// (taulukko, otsikkosolu jonka colspan kattaa sarakkeen, kymmenluku), ja hajonta saa olla 0,5 px.
+// Juliste ja tiskin tuloste ovat ruudulla piilossa, joten ne mitataan print-medialla (kuten
+// printHygiene); media palautetaan heti, ettei se vuoda seuraaviin tarkistuksiin.
+async function minuuttiLinjaus(page, rootSel, media) {
+  if (media) await page.emulateMediaType(media);
+  const r = await page.evaluate(sel => {
+    const viat = [];
+    let n = 0;
+    document.querySelectorAll(`${sel} table.hourgrid, ${sel} table.cb-grid`).forEach((t, ti) => {
+      const hr = t.tHead && t.tHead.rows[0];
+      const grp = [];
+      if (hr) [...hr.cells].forEach((c, gi) => { for (let k = 0; k < (c.colSpan || 1); k++) grp.push(gi); });
+      const xs = new Map();
+      for (const tr of (t.tBodies[0] || { rows: [] }).rows) {
+        let col = 0;
+        for (const cell of tr.cells) {
+          const g = hr ? grp[col] : col;
+          col += cell.colSpan || 1;
+          if (cell.tagName !== "TD") continue;
+          const seen = new Set();
+          const w = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+          for (let tn; (tn = w.nextNode());) {
+            if (tn.parentElement.closest("sup")) continue;
+            for (const m of tn.data.matchAll(/(?<![\d:.])(\d{2})(?![\d:.])/g)) {
+              if (seen.has(m[1][0])) continue;
+              seen.add(m[1][0]);
+              const r = document.createRange();
+              r.setStart(tn, m.index); r.setEnd(tn, m.index + 2);
+              const b = r.getBoundingClientRect();
+              if (!b.width) continue;
+              const key = `${g}|${m[1][0]}`;
+              if (!xs.has(key)) xs.set(key, []);
+              xs.get(key).push({ x: b.left, m: m[1], h: tr.cells[0].textContent.trim() });
+              n++;
+            }
+          }
+        }
+      }
+      for (const [key, a] of xs) {
+        const lo = a.reduce((p, q) => q.x < p.x ? q : p), hi = a.reduce((p, q) => q.x > p.x ? q : p);
+        if (hi.x - lo.x > 0.5 && viat.length < 4)
+          viat.push(`taulukko ${ti} sarake ${key.split("|")[0]}: :${lo.m} klo ${lo.h} x=${lo.x.toFixed(1)} mutta :${hi.m} klo ${hi.h} x=${hi.x.toFixed(1)}`);
+      }
+    });
+    return { n, viat };
+  }, rootSel);
+  if (media) await page.emulateMediaType(null);
+  return r;
+}
+
 (async () => {
   // Lähdekoodi-tarkistus: em dash (—, U+2014) ei saa esiintyä UI-stringeissä eikä muissa
   // koodiliteraaleissa. Sallitaan vain kommenteissa (kehittäjähuomiot) — ne riisutaan ennen
@@ -559,6 +615,10 @@ async function printHygiene(page, label) {
         /portrait/.test(dp.orient) && (dp.compact ? /7mm/ : /8mm/).test(dp.orient)
           ? ok(`palvelutiski: tuloste on ${dp.compact ? "tiiviin julisteen (A4 pysty 7 mm)" : "lehtitelineen (A4 pysty 8 mm)"} mitoituksessa`)
           : fail(`palvelutiski: väärä sivumitoitus: ${JSON.stringify({ orient: dp.orient, compact: dp.compact })}`);
+        const mlDesk = await minuuttiLinjaus(page, "#deskPrintOut", "print");
+        mlDesk.n >= 5 && !mlDesk.viat.length
+          ? ok(`palvelutiski: minuutit kymmenluvuittain allekkain (${mlDesk.n} mitattua)`)
+          : fail(`palvelutiski: minuutit eivät ole allekkain (${mlDesk.n} mitattua): ${mlDesk.viat.join(" · ")}`);
         // Printtihygienia: paperille ei saa mennä hakukenttiä eikä live-listaa
         await page.emulateMediaType("print");
         const hy = await page.evaluate(() => {
@@ -1060,7 +1120,7 @@ async function printHygiene(page, label) {
       const grid = await page.evaluate(() => {
         const bad = [];
         document.querySelectorAll("#stopPrintOut .hourgrid").forEach((g, i) => {
-          const counts = [...new Set([...g.querySelectorAll("tr")].map(tr => tr.children.length))];
+          const counts = [...new Set([...g.querySelectorAll("tr")].map(tr => [...tr.children].reduce((s, c) => s + (c.colSpan || 1), 0)))];
           if (counts.length > 1) bad.push({ i, counts });
         });
         return { grids: document.querySelectorAll("#stopPrintOut .hourgrid").length, bad };
@@ -1101,7 +1161,7 @@ async function printHygiene(page, label) {
         const cp = await page.evaluate(() => {
           const bad = [];
           document.querySelectorAll("#stopPrintOut .hourgrid").forEach((g, i) => {
-            const counts = [...new Set([...g.querySelectorAll("tr")].map(tr => tr.children.length))];
+            const counts = [...new Set([...g.querySelectorAll("tr")].map(tr => [...tr.children].reduce((s, c) => s + (c.colSpan || 1), 0)))];
             if (counts.length > 1) bad.push({ i, counts });
           });
           return {
@@ -1116,6 +1176,10 @@ async function printHygiene(page, label) {
         (compactOk && cp.fit != null && /margin: 7mm/.test(cp.pageStyle) && !cp.bad.length && compactPages >= 1 && shorter)
           ? ok(`pysäkkijuliste (yksi arkki): ${loosePages} → ${compactPages} sivua, ${cp.days} päivätyyppiä, tiukennus ${cp.fit}, rivit samanmittaisia`)
           : fail(`pysäkkijuliste (yksi arkki): ${JSON.stringify({ compactOk, loosePages, compactPages, ...cp })}`);
+        const mlPoster = await minuuttiLinjaus(page, "#stopPrintOut", "print");
+        mlPoster.n >= 5 && !mlPoster.viat.length
+          ? ok(`pysäkkijuliste (yksi arkki): minuutit kymmenluvuittain allekkain (${mlPoster.n} mitattua)`)
+          : fail(`pysäkkijuliste (yksi arkki): minuutit eivät ole allekkain (${mlPoster.n} mitattua): ${mlPoster.viat.join(" · ")}`);
         await printHygiene(page, "Lahti, yksi arkki");
         // palauta CONFIG-oletus, ettei valinta vuoda seuraaviin tarkistuksiin
         await page.evaluate(() => { document.getElementById("posterCompactCb").checked = CONFIG.posterCompact !== false; });
@@ -1577,6 +1641,10 @@ async function printHygiene(page, label) {
       (cb.dirs >= 1 && cb.lahtoja >= 5 && cb.muoto && cb.tunnit && cb.jana >= 2 && cb.janaMin >= 1 && cb.kartta && cb.kansi)
         ? ok(`tiivis vihko: ${cb.dirs} suuntaa, ${cb.lahtoja} lähtöminuuttia, reittijanassa ${cb.jana} pysäkkiä ja ${cb.janaMin} matka-aikaa, taustakartta`)
         : fail("tiivis vihko: sisältö pielessä: " + JSON.stringify(cb));
+      const mlVihko = await minuuttiLinjaus(page, "#bookletOut");
+      mlVihko.n >= 5 && !mlVihko.viat.length
+        ? ok(`tiivis vihko: minuutit kymmenluvuittain allekkain (${mlVihko.n} mitattua)`)
+        : fail(`tiivis vihko: minuutit eivät ole allekkain (${mlVihko.n} mitattua): ${mlVihko.viat.join(" · ")}`);
       await page.emulateMediaType("print");
       const cbA4 = await page.evaluate(() => [...document.querySelectorAll("#bookletOut .booklet-line.compact")].map(l => getComputedStyle(l).breakBefore));
       await page.emulateMediaType("screen");
