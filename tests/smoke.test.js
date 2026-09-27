@@ -1719,6 +1719,27 @@ async function minuuttiLinjaus(page, rootSel, media) {
       (cb5.lineP.length && cb5.lineP.every(n => n % 2 === 0) && cb5.gridP.length && cb5.gridP[0] === cb5.lineP[0] + 1 && !cb5.yli.length)
         ? ok(`tiivis vihko A5: aukeama (linja sivulla ${cb5.lineP.join(",")}, ruudukot sivulla ${cb5.gridP.join(",")}), ei ylivuotoa`)
         : fail("tiivis vihko A5: aukeama tai ylivuoto pielessä: " + JSON.stringify(cb5));
+      // Lukujärjestys (27.9.2026): ruudulle ja yksipuoliseen tulostukseen arkit [tyhjä | kansi], [2 | 3] ...,
+      // jolloin linjan kartta ja aikataulu ovat samalla arkilla. Taitettu vihko näytti PDF:nä linjan 1 kartan
+      // vieressä viimeisen linjan aikataulun, ja Ville luuli aikatauluja vääriksi.
+      if (await page.$("#bookletPrintA5Read")) {
+        await page.evaluate(() => { window.__rp2 = window.print; window.__printed2 = false; window.print = () => { window.__printed2 = true; }; });
+        await page.$eval("#bookletPrintA5Read", el => el.click());
+        await page.waitForFunction(() => window.__printed2, { timeout: 20000 }).catch(() => {});
+        const lj = await page.evaluate(() => {
+          const sh = [...document.querySelectorAll("#vihkoPrint .vihko-sheet")];
+          const side = (s, i) => s.querySelectorAll(".vihko-a5")[i];
+          return {
+            arkkeja: sh.length,
+            kansi: !!sh[0] && side(sh[0], 0)?.classList.contains("vihko-blank") && !!side(sh[0], 1)?.querySelector(".vk-cover"),
+            aukeama: sh.slice(1).some(s => side(s, 0)?.querySelector(".vk-h2") && side(s, 1)?.querySelector(".cb-grids")),
+          };
+        });
+        await page.evaluate(() => { document.getElementById("vihkoPrint")?.remove(); document.body.classList.remove("vihko-printing"); window.print = window.__rp2; });
+        (lj.arkkeja >= 2 && lj.kansi && lj.aukeama)
+          ? ok(`vihko lukujärjestyksessä: ${lj.arkkeja} arkkia, kansi ensin, linjan kartta ja aikataulu samalla arkilla`)
+          : fail("vihko lukujärjestyksessä pielessä: " + JSON.stringify(lj));
+      } else fail("vihko: lukujärjestyksen nappi #bookletPrintA5Read puuttuu");
     }
   }
   // --- Yhdistetyt suunnat (käytävä): presetti → kokoa → monen linjan yhteinen taulukko ---

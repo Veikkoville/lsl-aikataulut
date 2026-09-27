@@ -4136,7 +4136,8 @@ const STRINGS = {
     vihkoPreparing: "Kootaan vihkoa…",
     bookletPrintBtn: "Tulosta tai tallenna PDF (A4)",
     bookletPrintA5: "Vihkona (A5, taitettava)",
-    vihkoDuplexNote: "Tulosta kaksipuolisena (käännä lyhyeltä reunalta), taita keskeltä.",
+    vihkoDuplexNote: "Tulosta kaksipuolisena (käännä lyhyeltä reunalta), taita keskeltä. Lukujärjestys on ruudulle ja yksipuoliseen tulostukseen: jokaisella arkilla linjan kartta ja aikataulu vierekkäin.",
+    bookletPrintA5Read: "A5 lukujärjestyksessä (ruudulle, yksipuolinen)",
     vihkoContinued: "(jatkoa)",
     bookletLayoutLabel: "Vihkon muoto",
     bookletLayoutCompact: "Tiivis: lähtöminuutit ja reittijana, yksi aukeama linjaa kohden",
@@ -4743,7 +4744,8 @@ const STRINGS = {
     vihkoPreparing: "Building booklet…",
     bookletPrintBtn: "Print or save as PDF (A4)",
     bookletPrintA5: "As booklet (A5, foldable)",
-    vihkoDuplexNote: "Print double-sided (flip on short edge), fold in the middle.",
+    vihkoDuplexNote: "Print double-sided (flip on short edge), fold in the middle. Reading order is for the screen and one-sided printing: each sheet shows a line's map and timetable side by side.",
+    bookletPrintA5Read: "A5 in reading order (screen, one-sided)",
     vihkoContinued: "(cont.)",
     bookletLayoutLabel: "Booklet layout",
     bookletLayoutCompact: "Compact: departure minutes and route strip, one spread per line",
@@ -5346,7 +5348,8 @@ const STRINGS = {
     vihkoPreparing: "Sammanställer häfte…",
     bookletPrintBtn: "Skriv ut eller spara som PDF (A4)",
     bookletPrintA5: "Som häfte (A5, vikbar)",
-    vihkoDuplexNote: "Skriv ut dubbelsidigt (vänd på kortsidan), vik på mitten.",
+    vihkoDuplexNote: "Skriv ut dubbelsidigt (vänd på kortsidan), vik på mitten. Läsordningen är för skärmen och enkelsidig utskrift: varje ark visar linjens karta och tidtabell bredvid varandra.",
+    bookletPrintA5Read: "A5 i läsordning (skärm, enkelsidig)",
     vihkoContinued: "(forts.)",
     bookletLayoutLabel: "Häftets format",
     bookletLayoutCompact: "Kompakt: avgångsminuter och linjeschema, ett uppslag per linje",
@@ -15277,6 +15280,18 @@ function vkPaginate(atoms) {
   return pages;
 }
 
+// Lukujärjestys: arkki 1 = [tyhjä | kansi], sitten [2 | 3], [4 | 5] ... Tiivis vihko aloittaa linjan
+// parilliselta sivulta, joten linjan kartta ja aikataulu ovat samalla arkilla vierekkäin.
+function vkReadingOrder(pageHtmls) {
+  const N = pageHtmls.length;
+  const pg = k => (k >= 1 && k <= N)
+    ? `<div class="vihko-a5"><div class="vihko-page-content">${pageHtmls[k - 1]}</div></div>`
+    : `<div class="vihko-a5 vihko-blank"></div>`;
+  let html = `<div class="vihko-sheet">${pg(0)}${pg(1)}</div>`;
+  for (let k = 2; k <= N; k += 2) html += `<div class="vihko-sheet">${pg(k)}${pg(k + 1)}</div>`;
+  return html;
+}
+
 // Saddle-stitch imposition (VAIHE 1:ssä todennettu): N→4:n monikerta, tyhjät loppuun;
 // arkki i ETU [N−2i | 1+2i], TAKA [2+2i | N−1−2i]. PDF-järjestys: ETU, TAKA per arkki.
 function vkImpose(pageHtmls) {
@@ -15333,7 +15348,10 @@ function imagesReady(root, ms = 8000) {
     .then(() => new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res))));
 }
 
-function printVihko() {
+// readingOrder: sivut lukujärjestyksessä kaksi A5:tä arkille ([tyhjä | kansi], [2 | 3], [4 | 5] ...) ruudulle ja
+// yksipuoliseen tulostukseen. Taitettu vihko (vkImpose) sijoittaa arkille vihkon eri kohtien sivut, ja PDF:nä
+// kaikkien linjojen vihko näytti siksi linjan 1 kartan vieressä viimeisen linjan aikataulun (Ville 27.9.2026).
+function printVihko(readingOrder) {
   const out = document.getElementById("bookletOut");
   if (!out || !out.querySelector(".booklet-line")) return;
   runPrintJob(t("vihkoPreparing"), async () => {
@@ -15342,7 +15360,7 @@ function printVihko() {
     document.getElementById("vihkoPrint")?.remove();
     const wrap = document.createElement("div");
     wrap.id = "vihkoPrint";
-    wrap.innerHTML = vkImpose(pages);
+    wrap.innerHTML = readingOrder === true ? vkReadingOrder(pages) : vkImpose(pages);
     document.body.appendChild(wrap);
     document.body.classList.add("vihko-printing");
     setPageOrientation("vihko");
@@ -16776,13 +16794,15 @@ function bindBookletTab(routes, today) {
         <p class="muted">${periodNote(date)}</p>
         <p class="muted">${t("printDaysNote")}</p>
         <p class="no-print buildbar"><button type="button" id="bookletPrint">${icon("print")} ${t("bookletPrintBtn")}</button>
-          <button type="button" id="bookletPrintA5">${icon("print")} ${t("bookletPrintA5")}</button></p>
+          <button type="button" id="bookletPrintA5">${icon("print")} ${t("bookletPrintA5")}</button>
+          <button type="button" id="bookletPrintA5Read" class="secondary">${icon("print")} ${t("bookletPrintA5Read")}</button></p>
         <p class="no-print muted vihko-note">${t("vihkoDuplexNote")}</p>
         ${toc ? `<nav class="booklet-toc"><h3>${t("bookletToc")}</h3><ul>${toc}</ul></nav>` : ""}
       </div>
       ${ok.map(s => s.html).join("")}`;
     status.textContent = "";
-    document.getElementById("bookletPrintA5")?.addEventListener("click", printVihko);
+    document.getElementById("bookletPrintA5")?.addEventListener("click", () => printVihko(false));
+    document.getElementById("bookletPrintA5Read")?.addEventListener("click", () => printVihko(true));
     document.getElementById("bookletPrint")?.addEventListener("click", () => {
       runPrintJob(t("printPreparing"), async () => {
         setPageOrientation("portrait");
