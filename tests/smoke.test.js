@@ -1930,6 +1930,30 @@ async function minuuttiLinjaus(page, rootSel, media) {
     }
   }
 
+  // Yhden pysäkin juliste Tulosteet-sivulta (27.9.2026): haku, valinta ja nappi vievät pysäkin
+  // sivulle ?print=poster, joka kokoaa saman julisteen kuin pysäkin oma nappi. Ennen tätä
+  // yksittäistä pysäkkiä ei voinut tulostaa Tulosteet-sivulta lainkaan (Villen havainto).
+  await page.goto(BASE + "/#/tulosteet/julisteet", { waitUntil: "networkidle2" });
+  if (!await page.waitForSelector("#posterStopQ", { timeout: 20000 }).then(() => true).catch(() => false)) {
+    fail("tulosteet: pysäkin juliste, hakukenttä #posterStopQ puuttuu");
+  } else {
+    await page.evaluate(() => { window.__psPrinted = false; window.print = () => { window.__psPrinted = true; }; });
+    await page.type("#posterStopQ", "Matkakeskus", { delay: 30 });
+    if (!await page.waitForSelector("#posterStopList button[data-s]", { timeout: 20000 }).then(() => true).catch(() => false)) {
+      fail("tulosteet: pysäkin juliste, haku ei antanut pysäkkiehdotuksia");
+    } else {
+      await page.$eval("#posterStopList button[data-s]", b => b.click());
+      await page.$eval("#posterStopGo", b => b.click());
+      const ps = await page.waitForFunction(() =>
+        window.__psPrinted && document.querySelector("#stopPrintOut .poster-day .hourgrid tr")
+          ? { hash: location.hash, rivit: document.querySelectorAll("#stopPrintOut .hourgrid tbody tr").length } : null,
+        { timeout: 60000 }).then(h => h.jsonValue()).catch(() => null);
+      (ps && /^#\/pysakki\/[^?]+$/.test(ps.hash) && ps.rivit >= 3)
+        ? ok(`tulosteet: pysäkin juliste haulla, pysäkin sivu kokosi ja tulosti julisteen (${ps.rivit} tuntiriviä, kysely poistettu osoitteesta)`)
+        : fail("tulosteet: pysäkin juliste ei koostunut haun kautta: " + JSON.stringify(ps));
+    }
+  }
+
   // URL-osoitteistettu välilehti (?tab=) ja yksi etusivun nappi (ei enää kahta tulostenappia)
   await page.goto(BASE + "/#/tulosteet?tab=naytot", { waitUntil: "networkidle2" });
   await sleep(400);
