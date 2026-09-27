@@ -904,6 +904,11 @@
      vain päivätyypin viimeinen solu (tz) venyy taulukon leveyteen, jotta luvut pysyvät lähekkäin. */
   table.cb-grid tbody td:not(.t0) { padding-left: 0; }
   table.cb-grid tbody td:not(.tz) { width: 1px; }
+  /* Tiivistys A5:lle, kun suuntakaan ei mahdu leveyssuunnassa (vkPaginate): pienempi fontti ja välit. */
+  .vihko-page-content .cb-tight table.cb-grid { font-size: 7.6pt; }
+  .vihko-page-content .cb-tight table.cb-grid th, .vihko-page-content .cb-tight table.cb-grid td { padding: 0.4mm 0.55mm; letter-spacing: 0; }
+  .vihko-page-content .cb-tight table.cb-grid tbody td:not(.t0) { padding-left: 0; }
+  .vihko-page-content .cb-tight2 table.cb-grid { font-size: 6.8pt; }
   /* Tulosteen valmistelu-indikaattori (UX): ei estä tulostusta, .no-print → ei näy printissä */
   #printPrep { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     background: rgba(0,0,0,0.3); z-index: 2000; }
@@ -15131,7 +15136,17 @@ function vkPaginate(atoms) {
         // muuten suunta kerrallaan (vierekkäin liian leveä taulu leikkautuisi paperin reunaan).
         flush();
         if (!a.alt || (fits(a.html) && fitsW(a.html))) cur = a.html;
-        else for (const piece of a.alt) { if (cur && !fits(cur + piece)) flush(); cur += piece; }
+        else for (const base of a.alt) {
+          // Tiheä linja (Turku 1, 586 lähtöä, 27.9.2026): kymmenluvuittaiset minuuttisarakkeet eivät
+          // mahdu 128 mm:iin edes suunta kerrallaan, joten ruudukkoa tiivistetään kahdessa portaassa.
+          let piece = base;
+          for (const tight of ["", " cb-tight", " cb-tight cb-tight2"]) {
+            piece = base.replace('class="cb-grids cb-stack"', `class="cb-grids cb-stack${tight}"`);
+            if (fitsW(piece)) break;
+          }
+          if (cur && !fits(cur + piece)) flush();
+          cur += piece;
+        }
         curOnlyLineHead = false;
       } else {
         if (cur && a.newPage && !(a.newPage === "dir" && curOnlyLineHead)) flush();
