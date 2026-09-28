@@ -207,7 +207,9 @@ async function asetteluTarkistus(page, cityKey, tuote, rootSel, tyyppi) {
       // kaikilla riveillä. Sarakkeen vasen reuna voi olla linjassa ja luvut silti vinossa, jos
       // minuutit on ladottu yhteen soluun (Lappeenrannan Oikokatu L -juliste 27.9.).
       if (!frag && t.matches("table.hourgrid, table.cb-grid")) {
-        const hr = t.tHead && t.tHead.rows[0];
+        // Sarakeryhmät otsikon VIIMEISESTÄ rivistä: linjasarakkeisen julisteen (poster-matrix) ensimmäinen rivi on koko
+        // levyinen otsikko, ja rows[0] niputti kaikki linjat yhdeksi ryhmäksi (väärä hälytys 8 kaupungissa 28.9.2026, issue #40).
+        const hr = t.tHead && t.tHead.rows[t.tHead.rows.length - 1];
         const grp = [];
         if (hr) [...hr.cells].forEach((c, gi) => { for (let k = 0; k < (c.colSpan || 1); k++) grp.push(gi); });
         const xs = new Map();
