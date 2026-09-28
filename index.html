@@ -909,6 +909,49 @@
   .vihko-page-content .cb-tight table.cb-grid th, .vihko-page-content .cb-tight table.cb-grid td { padding: 0.4mm 0.55mm; letter-spacing: 0; }
   .vihko-page-content .cb-tight table.cb-grid tbody td:not(.t0) { padding-left: 0; }
   .vihko-page-content .cb-tight2 table.cb-grid { font-size: 6.8pt; }
+  /* Kaupungin vihkon malli, kapea sivu (CONFIG.vihko.size, Lappeenranta 100 x 200 mm, 28.9.2026). Kiinteät
+     pt/mm-koot kuten A5:ssä, jotta mittaus (vkPaginate) vastaa tulostetta. */
+  .vihko-page-content.vk-narrow { font-size: 8pt; color: #000; }
+  .vihko-page-content.vk-narrow .vk-h2 { font-size: 10.5pt; color: var(--header-bg, #0a3d7a); margin: 0 0 1.5mm; }
+  .vihko-page-content.vk-narrow .vk-h3 { font-size: 8.5pt; }
+  .vihko-page-content.vk-narrow .vk-tbl th, .vihko-page-content.vk-narrow .vk-tbl td { font-size: 7.2pt; padding: 0.45mm 0.7mm; }
+  .vihko-page-content.vk-narrow .vk-tbl th { font-size: 6.3pt; }
+  .vihko-page-content.vk-narrow table.cb-grid { font-size: 8pt; }
+  .vihko-page-content.vk-narrow .cb-mapwrap .print-map svg { max-height: 118mm !important; }
+  .vihko-page-content.vk-narrow .vk-netmap .print-map svg { max-height: 172mm !important; }
+  .vihko-page-content.vk-narrow .vk-fh { font-size: 8pt; font-weight: 700; margin: 2.5mm 0 0.6mm; color: var(--header-bg, #0a3d7a); }
+  .vihko-page-content.vk-narrow table.vk-fare th[scope="row"] { font-size: 7.2pt; color: #000; font-weight: 600; }
+  .vihko-page-content.vk-narrow table.vk-fare td { text-align: right; }
+  .vihko-page-content.vk-narrow .vk-fnote { font-size: 7pt; color: #333; margin: 1.5mm 0 0; }
+  .vihko-page-content.vk-narrow .vk-ex { font-size: 8pt; margin: 0 0 1.6mm; line-height: 1.3; }
+  .vihko-page-content.vk-narrow .vk-feedback { background: var(--header-bg, #0a3d7a); color: #fff; padding: 3mm; border-radius: 1.5mm;
+    margin: 0 0 4mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .vihko-page-content.vk-narrow .vk-feedback p { margin: 0 0 1mm; font-size: 8pt; }
+  .vihko-page-content.vk-narrow table.vk-toc { width: 100%; border-collapse: collapse; margin: 0 0 3mm; }
+  .vihko-page-content.vk-narrow table.vk-toc td { font-size: 7.3pt; padding: 0.7mm 0.5mm; border-bottom: 0.2mm solid #ccc; vertical-align: top; }
+  .vihko-page-content.vk-narrow table.vk-toc td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .vihko-page-content.vk-narrow .vk-notice { font-size: 7.3pt; margin: 3mm 0 0; }
+  .vihko-page-content.vk-narrow .vk-notice p { margin: 0 0 1mm; }
+  .vihko-page-content.vk-narrow .vk-in-title { font-size: 20pt; font-weight: 800; line-height: 1.05; color: var(--header-bg, #0a3d7a); margin: 2mm 0 3mm; }
+  .vihko-page-content.vk-narrow .vk-in-lead { font-size: 9.5pt; font-weight: 600; margin: 0 0 4mm; }
+  .vihko-page-content.vk-narrow .vk-in-p { font-size: 8pt; margin: 0 0 2mm; }
+  .vihko-page-content.vk-narrow .vk-in-foot { font-size: 9pt; font-weight: 700; color: var(--header-bg, #0a3d7a); margin: 5mm 0 0; }
+  .vihko-page-content .vk-rot { position: relative; width: 100%; overflow: hidden; margin: 1mm 0; }
+  .vihko-page-content .vk-zonemap .print-map svg { max-height: 60mm !important; }
+  .vihko-page-content .vk-zlegend { font-size: 6.8pt; margin: 0.5mm 0 1.5mm; display: flex; flex-wrap: wrap; gap: 0.6mm 3mm; }
+  .vihko-page-content .vk-zl i { display: inline-block; width: 2.4mm; height: 2.4mm; border-radius: 50%; margin-right: 0.8mm;
+    vertical-align: -0.3mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .vihko-page-content .vk-evtext { font-size: 7.6pt; margin: 0 0 1.4mm; line-height: 1.3; }
+  .vihko-page-content .vk-rot-in { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
+  .vihko-page-content .vk-rot-in .print-map { margin: 0; }
+  table.cb-grid sub { font-size: 0.6em; font-weight: 700; color: #333; margin-left: 0.03em; vertical-align: -0.2em; letter-spacing: 0; }
+  .cb-route, .vk-route { font-size: 0.78em; line-height: 1.25; margin: 0.4rem 0 0; }
+  .vihko-page-content .cb-route, .vihko-page-content .vk-route { font-size: 6.6pt; margin: 0.8mm 0 0; color: #222; }
+  .vihko-page-content .cb-dir .cb-notes { margin: 0.8mm 0 0; }
+  .vihko-page-content.vk-narrow .vk-rot .print-map svg, .vihko-page-content.vk-narrow .vk-netmap .vk-rot .print-map svg { max-height: none !important; }
+  .vihko-page-content .pm-legend-strip { margin: 0.6mm 0 0; }
+  .pm-legend-strip svg { display: block; width: 100%; height: auto; }
+  .vihko-page-content .cb-dir h3 .badge, .vihko-page-content .vk-h3 .badge { font-size: 0.85em; padding: 0 0.35em; vertical-align: 0.05em; }
   /* Tulosteen valmistelu-indikaattori (UX): ei estä tulostusta, .no-print → ei näy printissä */
   #printPrep { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     background: rgba(0,0,0,0.3); z-index: 2000; }
@@ -1026,6 +1069,14 @@
   .poster-compact .poster-stop[data-fit="3"] img.poster-qr,
   .poster-compact .poster-stop[data-fit="4"] img.poster-qr { width: 17mm; height: 17mm; }
   .poster-compact .poster-stop[data-fit="4"] { gap: 1.5mm 5mm; line-height: 1.2; }
+  .poster-compact .poster-stop[data-fit="5"] { font-size: 7pt; gap: 1.2mm 4mm; line-height: 1.15; }
+  .poster-compact .poster-stop[data-fit="6"] { font-size: 6.2pt; gap: 1mm 3.5mm; line-height: 1.12; }
+  .poster-compact .poster-stop[data-fit="5"] .poster-head p.muted,
+  .poster-compact .poster-stop[data-fit="6"] .poster-head p.muted { display: none; }
+  .poster-compact .poster-stop[data-fit="5"] .poster-head h2,
+  .poster-compact .poster-stop[data-fit="6"] .poster-head h2 { font-size: 15pt; }
+  .poster-compact .poster-stop[data-fit="5"] img.poster-qr,
+  .poster-compact .poster-stop[data-fit="6"] img.poster-qr { width: 15mm; height: 15mm; }
   /* Kapea tila (fitPosterSheet): myös solujen reunavälit ja lohkojen väli pienemmiksi. La- ja Su-taulukko
      jäivät 3 mm liian leveiksi rinnakkain (2 x 96 mm + 7 mm, arkilla 196 mm), ja sunnuntai valui toiselle arkille. */
   .poster-compact .poster-stop[data-narrow="1"] { column-gap: 4mm; }
@@ -1946,6 +1997,23 @@
     .print-brandhead p { margin: 1mm 0 0; color: rgba(255,255,255,0.9); font-size: 9.5pt; }
     .print-brandhead .print-brandhead-meta { font-size: 7.5pt; color: rgba(255,255,255,0.8); }
     .print-brandhead img.rack-qr { background: #fff; padding: 1mm; border-radius: 1.5mm; }
+    /* Lähipysäkkipaketti (28.9.2026): kansisivu omalle arkilleen, sitten pysäkkien tiiviit julisteet. */
+    .nearpack .near-cover { break-after: page; page-break-after: always; }
+    .nearpack .near-cover .print-map svg { max-height: 112mm; }
+    .nearpack table.near-table .badge { font-size: 8pt; padding: 0.1mm 1.3mm; min-width: 0; line-height: 1.3; }
+    .nearpack .near-cover h3 { font-size: 12pt; margin: 3.5mm 0 1.5mm; break-after: avoid; page-break-after: avoid; }
+    .nearpack table.near-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+    .nearpack table.near-table th, .nearpack table.near-table td { text-align: left; padding: 0.6mm 2mm; vertical-align: middle;
+      border-bottom: 0.25mm solid #bbb; }
+    .nearpack table.near-table thead th { font-size: 8pt; color: #333; border-bottom: 0.5mm solid #000; }
+    .nearpack table.near-table tr { break-inside: avoid; page-break-inside: avoid; }
+    .nearpack table.near-table td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .nearpack td.near-badges .badge { margin: 0.3mm 0; }
+    .nearpack .near-foot { font-size: 8pt; color: #333; margin-top: 2.5mm; }
+    .nearpack .near-tag { display: inline-flex; align-items: center; justify-content: center; width: 1.45em; height: 1.45em;
+      border-radius: 50%; background: var(--header-bg, #000); color: #fff; font-weight: 700; font-size: 0.95em;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .nearpack .poster-head .near-tag { background: #fff; color: var(--header-bg, #000); vertical-align: 0.1em; }
     .rackprint .rack-head.print-brandhead { border-bottom: 0; padding: 2.5mm 4mm; margin-bottom: 3mm; }
     .rackprint .rack-head.print-brandhead h2 { color: #fff; }
     .rackprint .rack-head.print-brandhead .rack-sub { color: #fff; }
@@ -1981,6 +2049,41 @@
     .vihko-a5 { width: 148.5mm; height: 210mm; padding: 10mm; box-sizing: border-box;
                 overflow: hidden; border-right: 0.2mm dashed #ccc; }
     .vihko-a5:last-child { border-right: 0; }
+    /* Kapea vihko (CONFIG.vihko.size): sivu kerrallaan painotalolle, koko inline-tyylinä. */
+    .vk-np { position: relative; overflow: hidden; box-sizing: border-box; background: #fff;
+      break-after: page; page-break-after: always; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .vk-np:last-child { break-after: auto; page-break-after: auto; }
+    .vk-np > .vihko-page-content { position: absolute; overflow: hidden; }
+    .vk-foot { position: absolute; bottom: 5mm; font-size: 6.5pt; color: #333; }
+    .vk-foot.l { left: 7mm; } .vk-foot.r { right: 7mm; }
+    .vk-foot b { font-size: 7.5pt; margin: 0 1mm; color: #000; }
+    .vk-cover-n, .vk-divider, .vk-back { position: absolute; inset: 0; background: var(--header-bg, #0a3d7a); color: #fff;
+      padding: 12mm 9mm; display: flex; flex-direction: column; }
+    .vk-cv-kicker { font-size: 10pt; font-weight: 700; margin: 0 0 1.5mm; }
+    .vk-cv-title { font-size: 12pt; font-weight: 700; line-height: 1.2; margin: 0 0 10mm; }
+    .vk-cv-season { font-size: 44pt; font-weight: 800; line-height: 1; margin: 0; letter-spacing: -0.02em; }
+    .vk-cv-years { font-size: 24pt; font-weight: 800; margin: 1mm 0 0; }
+    .vk-cv-op { margin: auto 0 0; font-size: 9pt; line-height: 1.2; }
+    .vk-cv-op b { display: block; font-size: 30pt; font-weight: 800; letter-spacing: -0.01em; margin-top: 1mm; }
+    .vk-divider { justify-content: center; }
+    .vk-divider p { font-size: 22pt; font-weight: 800; line-height: 1.1; margin: 0; }
+    .vk-back .vk-bk-title { font-size: 14pt; font-weight: 800; margin: 0 0 3mm; }
+    .vk-back ul { list-style: none; padding: 0; margin: 0; font-size: 8.5pt; line-height: 1.35; }
+    .vk-back li { margin: 0 0 3mm; }
+    .vk-back .vk-bk-url { font-size: 11pt; font-weight: 700; margin: 4mm 0 0; }
+    .vk-citypage { position: absolute; inset: 0; background: #f1f1f1; padding: 8mm; display: flex; }
+    .vk-cp-box { border: 0.5mm dashed #888; border-radius: 2mm; flex: 1; display: flex; flex-direction: column;
+      justify-content: center; padding: 6mm; color: #333; }
+    .vk-cp-kicker { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 2mm; color: #555; }
+    .vk-cp-title { font-size: 13pt; font-weight: 800; margin: 0 0 3mm; color: #000; }
+    .vk-cp-body { font-size: 8.5pt; margin: 0 0 3mm; }
+    .vk-cp-slot { font-size: 7.5pt; font-family: ui-monospace, Consolas, monospace; margin: 0; color: #555; }
+    /* Leikkuuvarallinen arkki ja A4-arkitus: arkki kerrallaan, leikkuumerkit ohuina viivoina. */
+    .vk-sheet { position: relative; overflow: hidden; background: #fff; break-after: page; page-break-after: always;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .vk-sheet:last-child { break-after: auto; page-break-after: auto; }
+    .vk-sheet .vk-np { break-after: auto; page-break-after: auto; }
+    i.vk-crop { position: absolute; background: #000; display: block; }
     /* Lehtiteline-tuloste: molemmat suunnat + 3 päivätyyppiä tiiviisti pystyarkille.
        Päivätyyppitaulut sarakkeisiin (multicol); avainpysäkit rajattu (≤~4) + tabular-nums
        → kapeat sarakkeet mahtuvat palstaan, mikään kellonaika ei leikkaudu. */
@@ -3210,6 +3313,106 @@ const CONFIGS = {
     // SaiPan ottelubussit ajavat vain ottelupäivinä (vihko s. 48 ja 50: lähtö 50/40 min ennen
     // ottelun alkua). Pois julisteista: kaksi ottelutorstaita 42 päivässä tulostui "To"-lohkona
     // viikoittaisena lähtönä (auditointi 25.9.2026).
+    // Kaupungin vihkon malli (Lappeenrannan palaveri 28.9.2026: "täsmälleen sama sisältö nykyisessä koossa").
+    // Joukon talvivihko 2026-2027 on 100 x 200 mm (mitattu PDF:stä), 116 sivua: osiot, osioiden väliotsikko-
+    // ja sisällysluettelosivut, linjakartat, aikataulut sekä kaupungin omat sivut (esittely, ryhmät,
+    // ilmoitukset, kauppataksi, kutsutaksit, koulukuljetukset, kuvasivu). Omat sivut kaupunki toimittaa
+    // PDF-sivuina samassa koossa; tulosteessa niiden paikalla on nimetty paikkamerkki. Tekstit vihkosta.
+    vihko: {
+      size: { w: 100, h: 200 },
+      cover: { kicker: "13.8.2026 – 6.6.2027", title: "Lappeenrannan seudun joukkoliikenteen aikataulut",
+        season: "Talvi", years: "2026 – 2027" },
+      intro: {
+        title: "Joukolla eteenpäin!",
+        lead: "Liiku Joukolla Lappeenrannassa ja Imatralla kätevästi ja edullisesti!",
+        body: ["Lappeenrannan seudun joukkoliikenne vastaa Lappeenrannan ja Imatran sisäisestä joukkoliikenteestä sekä kaupunkien välisestä joukkoliikenteestä.",
+          "Lappeenrannan seudun joukkoliikenteen alueella on käytössä Waltti-lippu- ja maksujärjestelmä.",
+          "Lippu- ja maksujärjestelmiin kuuluvat kertaliput ja Jouko-matkakortille ladattava arvolippu ja kausiliput."],
+        foot: "Ajantasaiset tiedot löydät nettisivuillamme lappeenranta.fi/jouko",
+      },
+      // Sisällysluettelosivun huomautus jokaisessa osiossa (vihko s. 8, 58, 78, 106).
+      notice: ["NOSTA KÄTTÄSI, KUN HALUAT ASTUA BUSSIIN!",
+        "Pidätämme oikeuden toimivaltaisen viranomaisen luvalla tapahtuviin aikataulumuutoksiin.",
+        "Ajantasaiset aikataulut löytyvät Jouko-reittioppaasta, Jouko-sovelluksesta sekä verkkosivuilta lappeenranta.fi/jouko."],
+      feedback: { title: "Kysymykset ja palautteet, ota yhteyttä!", body: "Jätä asiakaspalautteesi osoitteessa:",
+        url: "epalvelu.lappeenranta.fi/eFeedback" },
+      backUrl: "lappeenranta.fi/jouko",
+      // Rinnakkaislinjat päälinjan taulukkoon kirjaimella kuten Joukon vihkossa ("Linja 1 ja 1X", 2H = "H").
+      // 3K on vihkossakin oma linjansa. Vain kaupungin vihkon mallissa.
+      merge: { "1": { "1X": "X" }, "2": { "2H": "H" } },
+      // Keskustan ohitusajat omana ruudukkonaan (Joukon vihkossa linjoilla 1, 2, 4 ja 5, esim. "Keskusta - Kanavansuu -
+      // Kiiskinmäki"). Pysäkki perusnimellä (Keskusta I/L).
+      timingStops: ["Keskusta"], timingLines: ["1", "2", "4", "5"],
+      // Pääpysäkit kapean taulukon sarakkeiksi aina, kun vuoro kulkee niiden kautta (vkPickCols). Imatran keskusliikenneasema
+      // putosi linjan 24 taulukosta, kun sarakkeet valittiin aukkojen ja tasavälin mukaan (kolmas tarkastus 28.9.2026).
+      mainStops: ["Keskusasema"],
+      // Reittikuvaukset ("Reitti: katu-katu") eivät ole aineistossa: vihkon tekstit sellaisinaan, kohdistettu suuntiin.
+      dataUrl: "docs/vihko/lappeenranta.json",
+      // Vyöhykkeet pysäkkien zoneId:stä (mitattu 28.9.2026: Oleksi 1, Joutseno 2, Imatran keskusliikenneasema 3).
+      zones: { "1": { label: "A", color: "#a50060", name: "Lappeenrannan paikallisliikennealue" },
+        "2": { label: "B", color: "#1d5fa8", name: "muu joukkoliikennealue" },
+        "3": { label: "C", color: "#2b7a3d", name: "Imatran paikallisliikennealue" } },
+      // Yhdistelmätaulukot kuten vihkossa: listattujen linjojen lähdöt lähtöpysäkiltä kohti määränpäätä (pysäkkien
+      // perusnimet). "matrix" = pysäkkisarakkeet (lähiliikenne), muuten tuntiruudukko linjanumeroin.
+      // lineFrom/lineTo: linjan oma lähtö- tai määräpysäkki, kun linja ei käy suunnan yhteisellä pysäkillä (tarkastus
+      // 28.9.2026: linja 1 ajaa Lauritsalassa Hallituskatua, linja 101 keskustassa Armadan ja Oleksin kautta, joten
+      // kumpikin puuttui yhdistelmästä). Joukon vihkon alaviite: "Linja 1 Lauritsalasta Hallituskadulta".
+      combos: [
+        { key: "lauritsala", lines: ["1", "2", "7", "12", "14"], after: "2",
+          dirs: [{ from: ["Keskusta"], to: ["Lauritsala"], lineTo: { "1": ["Hallituskatu 35 keskustasta"] } },
+            { from: ["Lauritsala"], to: ["Keskusta"], lineFrom: { "1": ["Hallituskatu 24 keskustaan"] } }] },
+        { key: "sairaala", lines: ["1", "2", "7"], after: "2", dirs: [{ from: ["Keskussairaala"], to: ["Keskusta"] }] },
+        { key: "kivisalmi", lines: ["2", "3", "3K", "12"], after: "3",
+          // Linja 3 ei aja Kivisalmen päätepysäkille vaan päättyy Kivistönkadulle (toinen tarkastus 28.9.2026): huomautus suuntiin.
+          dirs: [{ from: ["Keskusta"], to: ["Kivisalmi", "Kivistönkatu"], lineTo: { "3": ["Kivistönkatu"] } },
+            { from: ["Kivisalmi", "Kivistönkatu"], to: ["Keskusta"], lineFrom: { "3": ["Kivistönkatu"] } }] },
+        { key: "yliopisto", lines: ["1", "1X", "5", "12", "101"], after: "5",
+          dirs: [{ from: ["Keskusta"], to: ["LUT-Yliopisto"], lineFrom: { "101": ["Armada"] } },
+            { from: ["LUT-Yliopisto"], to: ["Keskusta"], lineTo: { "101": ["Oleksi"] } }] },
+        { key: "joutseno", lines: ["110", "111", "112", "113"], after: "113", format: "matrix",
+          dirs: [{ from: ["Oleksi"], to: ["Joutseno linja-autoasema", "Imatran keskusliikenneasema"] },
+            { from: ["Imatran keskusliikenneasema", "Joutseno linja-autoasema"], to: ["Armada", "Matkakeskus"] }] },
+      ],
+      // Ottelubussit: ajavat vain ottelupäivinä, joten sivulla teksti ja reitti ilman aikataulua (vihko s. 48 ja 50).
+      eventPages: [{ line: "1011", after: "14" }, { line: "1012", after: "14" }],
+      // Linjat vihkon järjestyksessä. layout: "compact" = tuntiruudukko (paikallisliikenne), "full" = pysäkki-
+      // sarakkeinen taulukko (Imatra, lähi- ja seutuliikenne), kuten Joukon vihkossa.
+      sections: [
+        // netLines: linjastokartan linjat kuten Joukon vihkon s. 9 (ei 12, 14, P1, P3 eikä 1X/2H).
+        { key: "lpr", title: "Lappeenrannan paikallisliikenne", layout: "compact", network: true,
+          lines: ["1", "1X", "2", "2H", "3K", "3", "4", "5", "7", "8", "12", "14", "1001", "1003"],
+          netLines: ["1", "2", "3K", "3", "4", "5", "7", "8"] },
+        { key: "imatra", title: "Imatran paikallisliikenne", layout: "full", network: true,
+          lines: ["21", "22", "23", "24", "25"],
+          note: ["KOSKINÄYTÖKSET:", "Imatrankosken silta on suljettu liikenteeltä koskinäytösten aikana. Silta suljetaan noin 15 min ennen näytöksen alkua ja sulku kestää noin 45 minuuttia.",
+            "Mikäli koskinäytös osuu samaan aikaan paikallisliikenteen bussivuorojen kanssa, bussit lähtevät Imatrankoskelta tai niiden pääteasema on Imatrankoski."] },
+        // Lähiliikenteellä ei linjakohtaisia karttoja, vaan osion linjastokartta (kuten vihkon s. 79).
+        { key: "lahi", title: "Lappeenrannan lähiliikenne", layout: "full", network: true, lineMaps: false,
+          lines: ["110", "111", "112", "113", "114", "120", "121", "130", "200", "201", "300", "301", "500",
+            "601", "602", "603", "604", "610", "620"] },
+        { key: "seutu", title: "Seutuliikenne", layout: "full", network: false, lines: ["100", "101"] },
+      ],
+      // Sivujärjestys. Merkkijono = datasta koottu sivu, section = osio, city = kaupungin oma sivu (n sivua).
+      pages: [
+        "cover", "intro",
+        { city: "reittiopas", title: "Jouko-reittiopas ja Jouko-sovellus" },
+        "fares",
+        { city: "ryhmat", title: "Maksuttomaan matkustamiseen oikeutetut ryhmät ja matkustusohjeet" },
+        { section: "lpr" },
+        { city: "ilmoitus-1", title: "Ilmoitussivu" },
+        { section: "imatra" },
+        { city: "kauppataksi", title: "Imatran kauppataksi" },
+        { city: "ilmoitus-2", title: "Ilmoitussivu" },
+        { section: "lahi" },
+        { city: "joutseno", title: "Joutsenon alueen reittikartat", n: 2 },
+        { city: "kutsutaksit", title: "Ylämaan kutsutaksit ja kutsutaksireitit koulujen lomien aikana", n: 4 },
+        { city: "koulukuljetukset", title: "Avoimet koulukuljetukset" },
+        { section: "seutu" },
+        "exceptions",
+        { city: "kuvasivu", title: "Kuvasivu" },
+        "back",
+      ],
+    },
     eventLines: ["1011", "1012"],
     // Yleissanat, joilla Pelias antaa sivuosuman (auditointi 25.9.2026): "asema" -> Asemakatu
     // Lauritsalassa, "tori" -> Imatran Torikatu, "matkakeskus" -> pyöräparkit, "Eksote" ei löydy.
@@ -4055,6 +4258,61 @@ const STRINGS = {
     batchProgress: "Kootaan pysäkkejä {done}/{total}…",
     batchNoLine: "Valitse linja ensin.",
     batchNoStops: "Linjalla ei löytynyt pysäkkejä.",
+    tabNearby: "Lähipysäkit",
+    nearTitle: "Koulun tai paikan lähipysäkit",
+    nearIntro: "Hae koulu, päiväkoti, palvelutalo tai osoite → tietopaketti lähimmistä pysäkeistä: kartta, pysäkeiltä lähtevät linjat ja määränpäät sekä jokaisen pysäkin aikataulu. Sopii koulun tiedotteeseen tai ilmoitustaululle.",
+    nearPlaceLabel: "Koulu, paikka tai osoite",
+    nearPlacePlaceholder: "esim. koulun nimi tai katuosoite",
+    nearRadiusLabel: "Kävelymatka enintään",
+    nearGenerate: "Kokoa ja tulosta",
+    nearDefaultPlace: "Valittu paikka",
+    nearNoPlace: "Valitse paikka listasta ensin.",
+    nearNoDays: "Valitse vähintään yksi päivätyyppi.",
+    nearNoStops: "Alle {r} m kävelymatkan päässä ei ole pysäkkejä, joilta lähtee linjoja. Kasvata matkaa.",
+    nearNoDeps: "Lähipysäkeiltä ei löytynyt lähtöjä valituille päiville.",
+    nearHeadTitle: "{place}: lähipysäkit ja bussit",
+    nearHeadSub: "Pysäkit enintään {r} m kävelymatkan päässä · {days}",
+    nearStopsTitle: "Pysäkit",
+    nearColStop: "Pysäkki",
+    nearColWalk: "Kävely",
+    nearColLines: "Linjat",
+    nearLinesTitle: "Linjat ja määränpäät · {day}",
+    nearColLine: "Linja",
+    nearColDest: "Määränpää",
+    nearColFrom: "Pysäkiltä",
+    nearColFirst: "Ensimmäinen",
+    nearColLast: "Viimeinen",
+    nearColCount: "Lähtöjä",
+    nearFoot: "Kävelymatka on laskettu reittioppaan kävelyverkolla paikan sijainnista. Ensimmäinen ja viimeinen lähtö on luettu lihavoidulta eli lähimmältä pysäkiltä. Pysäkkien aikataulut ovat seuraavilla sivuilla, ja ajantasaiset lähdöt saa pysäkin QR-koodista.",
+    nearMapAria: "Kartta: paikka ja lähipysäkit",
+    nearProgress: "Kootaan pysäkkejä {done}/{total}…",
+    bookletLayoutCity: "Kaupungin vihkon malli (osiot)",
+    bookletPrintNarrow: "Vihko {w} × {h} mm sivuina",
+    bookletPrintNarrowBleed: "Painovalmis vihko {w} × {h} mm (leikkuuvarat)",
+    bookletPrintNarrowA4: "Vihko A4-arkeille (tulosta itse, taitettava)",
+    vkZoneMapAria: "Vyöhykekartta: pysäkit vyöhykkeittäin",
+    vkCityKicker: "Kaupungin oma sivu",
+    vkCityBody: "Kaupunki toimittaa tämän sivun PDF-tiedostona kokoa {w} × {h} mm. Se liitetään tähän kohtaan jokaiseen painokseen.",
+    vkCitySlot: "Paikka: {slot}",
+    vkSalesTitle: "Lipunmyynti",
+    vkFaresTitle: "Liput ja hinnat",
+    vkDayTicket: "Päivälippu",
+    vkExTitle: "Juhlapyhä- ja poikkeusliikennöinti",
+    vkNetTitle: "{sec}: linjastokartta",
+    vkToc: "Sisällysluettelo",
+    vkTocMap: "Linjastokartta",
+    vkPageShort: "s.",
+    vkOtherLines: "Muut linjat",
+    vkMergedLine: "linja {line} ({name})",
+    vkComboTitle: "Linjat {lines} yhdistelmä",
+    vkAnd: "ja",
+    vkComboNote: "Pieni numero minuutin perässä on linja.",
+    vkComboFailed: "Yhdistelmätaulukko jäi pois: {keys}. Linjojen omat sivut ovat vihkossa.",
+    vkComboFrom: "Linja {line} lähtee pysäkiltä {stop}.",
+    vkComboVia: "Linja {line} ajaa pysäkin {stop} kautta.",
+    vkComboEnds: "Linja {line} päättyy pysäkille {stop}.",
+    vkRowFrom: "lähtee pysäkiltä {stop} klo {time}",
+    vkRowOrder: "vuoro kulkee tämän pysäkin kautta muussa järjestyksessä kuin sarakkeet",
     // pysäkkihaku ja paikannus
     noStopsFor: 'Ei pysäkkejä haulla "{q}".',
     noPlacesFor: 'Ei osumia haulla "{q}".',
@@ -4130,6 +4388,7 @@ const STRINGS = {
     day: "Päivä",
     printBtn: "Tulosta", printTitle: "Tulosta tai tallenna PDF:nä",
     printStopPoster: "Tulosta pysäkkijuliste",
+    posterSizeLabel: "Koko",
     posterAllLinesNote: "Kaikki pysäkiltä lähtevät linjat. Lue: vasemmalla tunti, oikealla minuutit.",
     posterTowards: "suuntaan {dest}",
     posterContinued: "jatkuu",
@@ -4685,6 +4944,61 @@ const STRINGS = {
     batchProgress: "Collecting stops {done}/{total}…",
     batchNoLine: "Choose a line first.",
     batchNoStops: "No stops found on the line.",
+    tabNearby: "Nearby stops",
+    nearTitle: "Stops near a school or place",
+    nearIntro: "Search for a school, day-care centre, care home or address → an information pack on the nearest stops: a map, the lines and destinations departing from them, and each stop's timetable. Suitable for a school newsletter or notice board.",
+    nearPlaceLabel: "School, place or address",
+    nearPlacePlaceholder: "e.g. a school name or street address",
+    nearRadiusLabel: "Walking distance at most",
+    nearGenerate: "Build and print",
+    nearDefaultPlace: "Selected place",
+    nearNoPlace: "Choose a place from the list first.",
+    nearNoDays: "Choose at least one day type.",
+    nearNoStops: "No stops with departing lines within {r} m walking distance. Increase the distance.",
+    nearNoDeps: "No departures found at the nearby stops on the selected days.",
+    nearHeadTitle: "{place}: nearby stops and buses",
+    nearHeadSub: "Stops within {r} m walking distance · {days}",
+    nearStopsTitle: "Stops",
+    nearColStop: "Stop",
+    nearColWalk: "Walk",
+    nearColLines: "Lines",
+    nearLinesTitle: "Lines and destinations · {day}",
+    nearColLine: "Line",
+    nearColDest: "Destination",
+    nearColFrom: "From stop",
+    nearColFirst: "First",
+    nearColLast: "Last",
+    nearColCount: "Departures",
+    nearFoot: "Walking distance is calculated along the journey planner's walking network from the place. The first and last departures are read at the stop in bold, i.e. the nearest one. The stops' timetables are on the following pages, and live departures are available from each stop's QR code.",
+    nearMapAria: "Map: the place and nearby stops",
+    nearProgress: "Building stops {done}/{total}…",
+    bookletLayoutCity: "The city's booklet format (sections)",
+    bookletPrintNarrow: "Booklet {w} × {h} mm as pages",
+    bookletPrintNarrowBleed: "Print-ready booklet {w} × {h} mm (bleed)",
+    bookletPrintNarrowA4: "Booklet on A4 sheets (print yourself, fold)",
+    vkZoneMapAria: "Zone map: stops by zone",
+    vkCityKicker: "The city's own page",
+    vkCityBody: "The city supplies this page as a PDF file of {w} × {h} mm. It is inserted here in every edition.",
+    vkCitySlot: "Slot: {slot}",
+    vkSalesTitle: "Ticket sales",
+    vkFaresTitle: "Tickets and fares",
+    vkDayTicket: "Day ticket",
+    vkExTitle: "Public holidays and exceptions",
+    vkNetTitle: "{sec}: network map",
+    vkToc: "Contents",
+    vkTocMap: "Network map",
+    vkPageShort: "p.",
+    vkOtherLines: "Other lines",
+    vkMergedLine: "line {line} ({name})",
+    vkComboTitle: "Lines {lines} combined",
+    vkAnd: "and",
+    vkComboNote: "The small number after the minute is the line.",
+    vkComboFailed: "Combined table left out: {keys}. The lines' own pages are in the booklet.",
+    vkComboFrom: "Line {line} departs from {stop}.",
+    vkComboVia: "Line {line} runs via {stop}.",
+    vkComboEnds: "Line {line} ends at {stop}.",
+    vkRowFrom: "departs from {stop} at {time}",
+    vkRowOrder: "the trip serves this stop in a different order than the columns",
     noStopsFor: 'No stops found for "{q}".',
     noPlacesFor: 'No results for "{q}".',
     noMatchesArea: "No matches. The search is limited to {city}.",
@@ -4755,6 +5069,7 @@ const STRINGS = {
     day: "Date",
     printBtn: "Print", printTitle: "Print or save as PDF",
     printStopPoster: "Print stop poster",
+    posterSizeLabel: "Size",
     posterAllLinesNote: "All lines departing from this stop. Read: hour on the left, minutes on the right.",
     posterTowards: "towards {dest}",
     posterContinued: "continued",
@@ -5304,6 +5619,61 @@ const STRINGS = {
     batchProgress: "Samlar hållplatser {done}/{total}…",
     batchNoLine: "Välj en linje först.",
     batchNoStops: "Inga hållplatser hittades på linjen.",
+    tabNearby: "Närliggande hållplatser",
+    nearTitle: "Hållplatser nära en skola eller plats",
+    nearIntro: "Sök en skola, ett daghem, ett servicehus eller en adress → ett informationspaket om de närmaste hållplatserna: en karta, linjerna och destinationerna som avgår därifrån samt varje hållplats tidtabell. Passar för skolans meddelanden eller anslagstavla.",
+    nearPlaceLabel: "Skola, plats eller adress",
+    nearPlacePlaceholder: "t.ex. skolans namn eller gatuadress",
+    nearRadiusLabel: "Gångavstånd högst",
+    nearGenerate: "Sammanställ och skriv ut",
+    nearDefaultPlace: "Vald plats",
+    nearNoPlace: "Välj en plats i listan först.",
+    nearNoDays: "Välj minst en dagtyp.",
+    nearNoStops: "Inga hållplatser med avgående linjer inom {r} m gångavstånd. Öka avståndet.",
+    nearNoDeps: "Inga avgångar hittades vid de närliggande hållplatserna för de valda dagarna.",
+    nearHeadTitle: "{place}: närliggande hållplatser och bussar",
+    nearHeadSub: "Hållplatser inom {r} m gångavstånd · {days}",
+    nearStopsTitle: "Hållplatser",
+    nearColStop: "Hållplats",
+    nearColWalk: "Gång",
+    nearColLines: "Linjer",
+    nearLinesTitle: "Linjer och destinationer · {day}",
+    nearColLine: "Linje",
+    nearColDest: "Destination",
+    nearColFrom: "Från hållplats",
+    nearColFirst: "Första",
+    nearColLast: "Sista",
+    nearColCount: "Avgångar",
+    nearFoot: "Gångavståndet är beräknat längs reseplanerarens gångnät från platsen. Första och sista avgång är avlästa vid den fetstilta, dvs. närmaste hållplatsen. Hållplatsernas tidtabeller finns på följande sidor, och aktuella avgångar fås via hållplatsens QR-kod.",
+    nearMapAria: "Karta: platsen och närliggande hållplatser",
+    nearProgress: "Sammanställer hållplatser {done}/{total}…",
+    bookletLayoutCity: "Stadens häftesformat (avsnitt)",
+    bookletPrintNarrow: "Häfte {w} × {h} mm som sidor",
+    bookletPrintNarrowBleed: "Tryckfärdigt häfte {w} × {h} mm (utfall)",
+    bookletPrintNarrowA4: "Häfte på A4-ark (skriv ut själv, vik)",
+    vkZoneMapAria: "Zonkarta: hållplatser per zon",
+    vkCityKicker: "Stadens egen sida",
+    vkCityBody: "Staden levererar denna sida som en PDF-fil i storleken {w} × {h} mm. Den fogas in här i varje upplaga.",
+    vkCitySlot: "Plats: {slot}",
+    vkSalesTitle: "Biljettförsäljning",
+    vkFaresTitle: "Biljetter och priser",
+    vkDayTicket: "Dagsbiljett",
+    vkExTitle: "Helgdagar och undantag",
+    vkNetTitle: "{sec}: linjekarta",
+    vkToc: "Innehåll",
+    vkTocMap: "Linjekarta",
+    vkPageShort: "s.",
+    vkOtherLines: "Övriga linjer",
+    vkMergedLine: "linje {line} ({name})",
+    vkComboTitle: "Linjerna {lines} sammanslagna",
+    vkAnd: "och",
+    vkComboNote: "Den lilla siffran efter minuten är linjen.",
+    vkComboFailed: "Sammanslagen tabell utelämnades: {keys}. Linjernas egna sidor finns i häftet.",
+    vkComboFrom: "Linje {line} avgår från {stop}.",
+    vkComboVia: "Linje {line} kör via {stop}.",
+    vkComboEnds: "Linje {line} slutar vid {stop}.",
+    vkRowFrom: "avgår från {stop} kl. {time}",
+    vkRowOrder: "turen trafikerar hållplatsen i annan ordning än kolumnerna",
     noStopsFor: 'Inga hållplatser hittades för "{q}".',
     noPlacesFor: 'Inga resultat för "{q}".',
     noMatchesArea: "Inga träffar. Sökningen är begränsad till {city} område.",
@@ -5374,6 +5744,7 @@ const STRINGS = {
     day: "Datum",
     printBtn: "Skriv ut", printTitle: "Skriv ut eller spara som PDF",
     printStopPoster: "Skriv ut hållplatsaffisch",
+    posterSizeLabel: "Storlek",
     posterAllLinesNote: "Alla linjer som avgår från hållplatsen. Läs: timme till vänster, minuter till höger.",
     posterTowards: "mot {dest}",
     posterContinued: "fortsätter",
@@ -6914,11 +7285,15 @@ function netStyleFor(key, mode) {
 }
 function printMapSvg(lines, opts = {}) {
   // lines: [{ shortName, dirs: [{ points: [[lat,lon]…], stops: [{gtfsId,name,lat,lon}] }] }]
+  // opts.marks: [{ lat, lon, kind: "place" | "stop", tag, name }] = paikka (tähti + nimilappu) ja
+  // kirjaimin merkityt pysäkit ilman reittiviivoja (lähipysäkkipaketti, 28.9.2026).
+  const marks = (opts.marks || []).filter(m => m.lat != null && m.lon != null);
   const allPts = [];
   for (const l of lines) for (const d of l.dirs || []) {
     for (const p of d.points || []) allPts.push(p);
     for (const s of d.stops || []) if (s.lat != null && s.lon != null) allPts.push([s.lat, s.lon]);
   }
+  for (const m of marks) allPts.push([m.lat, m.lon]);
   if (allPts.length < 2) return "";
   let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
   for (const [la, lo] of allPts) {
@@ -6926,12 +7301,17 @@ function printMapSvg(lines, opts = {}) {
     if (lo < minLon) minLon = lo; if (lo > maxLon) maxLon = lo;
   }
   const M = 111320, kx = M * Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
-  const wM = Math.max(300, (maxLon - minLon) * kx), hM = Math.max(300, (maxLat - minLat) * M);
-  const W = 640, PAD = 30;
+  const minSpan = opts.minSpan || 300;
+  const wM = Math.max(minSpan, (maxLon - minLon) * kx), hM = Math.max(minSpan, (maxLat - minLat) * M);
+  const W = 640, PAD = opts.pad || 30;
   // korkeus seuraa alueen muotoa: vaaka-alue matalana, pystyalue ei liian pitkänä
-  const H = Math.round(Math.min(W * 1.1, Math.max(W * 0.5, W * hM / wM)));
+  // opts.aspect: kiinteä korkeus/leveys, kun kartan tulostelaatikko on tiedossa (lähipysäkkipaketti), jottei
+  // max-height kavenna kuvaa ja viewBoxin ulkopuolinen tiilialue näy kehyksen molemmin puolin.
+  const H = opts.aspect ? Math.round(W * opts.aspect) : Math.round(Math.min(W * (opts.maxAspect || 1.1), Math.max(W * 0.5, W * hM / wM)));
   const sc = Math.min((W - 2 * PAD) / wM, (H - 2 * PAD) / hM);
-  const ox = (W - wM * sc) / 2, oy = (H - hM * sc) / 2;
+  // minSpan: pieni alue (kävelysäde) keskitetään todellisten ääripisteiden mukaan; reittikartat ennallaan.
+  const ox = opts.minSpan ? (W - (maxLon - minLon) * kx * sc) / 2 : (W - wM * sc) / 2;
+  const oy = opts.minSpan ? (H - (maxLat - minLat) * M * sc) / 2 : (H - hM * sc) / 2;
   const X = lo => ox + (lo - minLon) * kx * sc, Y = la => oy + (maxLat - la) * M * sc;
   const f = n => (Math.round(n * 10) / 10).toString();
   // Korkea kartta (pystyalue) tulostuu max-height-rajan takia kapeampana → kasvata
@@ -6980,9 +7360,12 @@ function printMapSvg(lines, opts = {}) {
     // Suorakulmiot kattavat koko tiilialueen, koska kirjelaatikkoalue näyttää tiilet viewBoxin ulkopuolelta.
     const bx = f(X(lonOf(x0, z))), by = f(Y(latOf(y0, z)));
     const bw = f(X(lonOf(x1 + 1, z)) - X(lonOf(x0, z)) + 1), bh = f(Y(latOf(y1 + 1, z)) - Y(latOf(y0, z)) + 1);
-    out.push(`<g class="pm-base">${imgs.join("")}`
+    // Pohjakartta rajataan kehykseen sisäkkäisellä svg:llä (oma näkymä leikkaa sisältönsä, ei id-viitettä, joka voisi
+    // osua piilotettuun kopioon). Ennen kirjelaatikko näytti tiilet kehyksen ulkopuolella: vihkon vyöhykekartassa tiet ja
+    // rajantakainen alue valuivat sivun marginaaliin (tarkastus 28.9.2026), A4-vihkoissa sama 23.9. alkaen.
+    out.push(`<svg x="0" y="0" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" overflow="hidden"><g class="pm-base">${imgs.join("")}`
       + `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="#808080" opacity="0.6" style="mix-blend-mode:saturation"/>`
-      + `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="#fff" fill-opacity="0.3"/></g>`);
+      + `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="#fff" fill-opacity="0.3"/></g></svg>`);
   }
 
   // 1) reittiviivat + suuntanuolet
@@ -6991,22 +7374,72 @@ function printMapSvg(lines, opts = {}) {
   // koska CSS-muuttuja ei toimi SVG:n presentaatioattribuutissa.
   const rcStyle = opts.routeColor ? ` style="stroke:${opts.routeColor}"` : "";
   const arrows = [];
-  lines.forEach((l, li) => {
-    const dash = PM_DASHES[li % PM_DASHES.length];
-    for (const d of l.dirs || []) {
+  // opts.colorLines (vihkon linjastokartta 28.9.2026): jokainen linja omalla värillään ja viivatyylillään
+  // (netStyleFor, Lappeenrannassa Joukon linjakartan paletti) eikä mustana, eikä suuntanuolia.
+  const lineInk = (l, li) => opts.colorLines ? netStyleFor(l.shortName || "") : { color: "#000", dash: PM_DASHES[li % PM_DASHES.length] };
+  // Linjastokartan rinnakkaisviivat (tarkastus 28.9.2026: linjat 1 ja 2 jäivät muiden alle, Imatran 21 kokonaan 22:n alle).
+  // Viiva tihennetään, ja jokainen piste siirtyy oman normaalinsa suuntaan sen mukaan, monesko se on lähistön (3 x 3
+  // ruutua) linjoista globaalissa järjestyksessä: (järjestys + 0,5) x väli. Suunnan 1 etumerkki on käänteinen, jolloin
+  // linjan kaksi suuntaa osuvat päällekkäin, ja vastakkaisiin suuntiin piirretyt eri linjat menevät eri puolille. Yksin
+  // kulkeva linja ei siirry. Siirtymä tasoitetaan liukuvalla keskiarvolla, ja valkoiset reunukset piirretään ensin.
+  const par = opts.colorLines ? (() => {
+    const STEP = 2.5, CELL = 6, gap = 3.2 * k;
+    const tracks = [];
+    lines.forEach((l, li) => (l.dirs || []).forEach((d, di) => {
+      const src = (d.points || []).filter(p => p && p.length === 2).map(p => [X(p[1]), Y(p[0])]);
+      const s = [];
+      for (let i = 0; i < src.length; i++) {
+        if (!i) { s.push(src[0]); continue; }
+        const [ax, ay] = src[i - 1], [bx, by] = src[i], L = Math.hypot(bx - ax, by - ay), m = Math.max(1, Math.ceil(L / STEP));
+        for (let q = 1; q <= m; q++) s.push([ax + (bx - ax) * q / m, ay + (by - ay) * q / m]);
+      }
+      if (s.length > 1) tracks.push({ li, di, s });
+    }));
+    const grid = new Map(), ck = (x, y) => Math.floor(x / CELL) + ":" + Math.floor(y / CELL);
+    for (const tr of tracks) for (const [x, y] of tr.s) { const key = ck(x, y); if (!grid.has(key)) grid.set(key, new Set()); grid.get(key).add(tr.li); }
+    return tracks.map(tr => {
+      const off = tr.s.map(([x, y]) => {
+        const here = new Set(), cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
+        for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const li of grid.get((cx + a) + ":" + (cy + b)) || []) here.add(li);
+        if (here.size < 2) return 0;
+        return ([...here].sort((a, b) => a - b).indexOf(tr.li) + 0.5) * gap * (tr.di === 1 ? -1 : 1);
+      });
+      const W6 = 6, sm = off.map((_, i) => { let a = 0, c = 0; for (let j = Math.max(0, i - W6); j <= Math.min(off.length - 1, i + W6); j++) { a += off[j]; c++; } return a / c; });
+      const pts = tr.s.map(([x, y], i) => {
+        const [px, py] = tr.s[Math.max(0, i - 2)], [nx2, ny2] = tr.s[Math.min(tr.s.length - 1, i + 2)];
+        const L = Math.hypot(nx2 - px, ny2 - py) || 1;
+        return [x + (py - ny2) / L * sm[i], y + (nx2 - px) / L * sm[i]];
+      });
+      return { li: tr.li, d: pts.map((p, i) => (i ? "L" : "M") + f(p[0]) + " " + f(p[1])).join("") };
+    });
+  })() : null;
+  if (par) {
+    const wLine = 3.2 * k;
+    for (const p of par) out.push(`<path d="${p.d}" fill="none" stroke="#fff" stroke-opacity="0.9" stroke-width="${f(wLine + 2.6 * k)}" stroke-linejoin="round" stroke-linecap="round"/>`);
+    for (const p of par) {
+      const { color: ink, dash } = lineInk(lines[p.li], p.li);
+      // Katkoviivan kuvio viivan paksuuden mukaan: skaalaamattomana paksulla viivalla kuvio näytti pisteriviltä eikä erottunut.
+      // Katkoviiva suorin päin: pyöreät päät sulattivat lyhyet katkot yhteen (121 ja 620 näyttivät samalta, toinen tarkastus).
+      out.push(`<path d="${p.d}" fill="none" stroke="${ink}" stroke-width="${f(wLine)}" stroke-linejoin="round" stroke-linecap="${dash ? "butt" : "round"}"${dash ? ` stroke-dasharray="${dash.split(/\s+/).map(v => f(v * k * 1.5)).join(" ")}"` : ""}/>`);
+    }
+  }
+  if (!par) lines.forEach((l, li) => {
+    const { color: ink, dash } = lineInk(l, li);
+    (l.dirs || []).forEach((d, di) => {
       const pts = (d.points || []).filter(p => p && p.length === 2);
-      if (pts.length < 2) continue;
+      if (pts.length < 2) return;
       const path = pts.map((p, i) => (i ? "L" : "M") + f(X(p[1])) + " " + f(Y(p[0]))).join("");
       if (useBase) out.push(`<path d="${path}" fill="none" stroke="#fff" stroke-opacity="0.9" stroke-width="${f(9 * k)}" stroke-linejoin="round" stroke-linecap="round"/>`);
-      out.push(`<path d="${path}" fill="none" stroke="#000"${lines.length === 1 ? rcStyle : ""} stroke-width="${f((useBase ? 4.6 : 3.2) * k)}" stroke-linejoin="round" stroke-linecap="round"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`);
+      out.push(`<path d="${path}" fill="none" stroke="${ink}"${lines.length === 1 ? rcStyle : ""} stroke-width="${f((useBase ? 4.6 : 3.2) * k)}" stroke-linejoin="round" stroke-linecap="round"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`);
       // Käytävässä (monta linjaa) nuolet vain 1. linjalle: yhteisellä rungolla nuolet kasautuisivat.
-      if (lines.length > 1 && li > 0) continue;
+      // opts.arrowDirs: nuolet vain suuntien pääreiteille, kun kartalla on lisäksi variantteja (kaupungin vihko).
+      if ((lines.length > 1 && li > 0) || di >= (opts.arrowDirs ?? Infinity)) return;
       // nuolet ~30 % ja ~70 % matkasta (kulma viivan suunnasta)
       const seg = [0];
       for (let i = 1; i < pts.length; i++)
         seg.push(seg[i - 1] + Math.hypot(X(pts[i][1]) - X(pts[i - 1][1]), Y(pts[i][0]) - Y(pts[i - 1][0])));
       const total = seg[seg.length - 1];
-      if (total < 60) continue;
+      if (total < 60) return;
       for (const fr of [0.3, 0.7]) {
         const target = total * fr;
         let i = 1; while (i < seg.length - 1 && seg[i] < target) i++;
@@ -7017,14 +7450,16 @@ function printMapSvg(lines, opts = {}) {
         const ang = Math.atan2(by - ay, bx - ax) * 180 / Math.PI;
         arrows.push(`<polygon points="-7,-6 9,0 -7,6" fill="#000" stroke="#fff" stroke-width="1.5" transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)}) scale(${f(k)})"/>`);
       }
-    }
+    });
   });
 
-  // 2) pysäkkipisteet (sama paikka vain kerran)
+  // 2) pysäkkipisteet (sama paikka vain kerran). Linjastokartalla (colorLines) vain päätepysäkit: välipysäkkien
+  // pisteet peittivät rinnakkaiset viivat.
   const seenPos = new Set();
   const dots = [];
-  for (const l of lines) for (const d of l.dirs || []) for (const s of d.stops || []) {
+  for (const l of lines) for (const d of l.dirs || []) for (const [si, s] of (d.stops || []).entries()) {
     if (s.lat == null || s.lon == null) continue;
+    if (opts.colorLines && si > 0 && si < d.stops.length - 1) continue;
     const x = X(s.lon), y = Y(s.lat);
     const pk = Math.round(x / 4) + ":" + Math.round(y / 4);
     if (seenPos.has(pk)) continue;
@@ -7040,9 +7475,11 @@ function printMapSvg(lines, opts = {}) {
   // painetussa vihossa (KOIVULA, KARHULA), ei kahtena laiturina.
   const baseName = n => (n || "").replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+(?:[A-ZÅÄÖ]|\d{1,2})$/u, "").trim() || n;
   const cand = new Map();  // normalisoitu perusnimi → {name,x,y,pri}
+  // opts.labelName: kaupungin vihkon näyttönimi (vkStopName): "Puhakankatu 3-7 keskustaan" ja "... keskustasta" yhtenä
+  // lappuna "Puhakankatu 3-7" (tarkastus 28.9.2026).
   const add = (s, pri) => {
     if (!s || s.lat == null || s.lon == null || !s.name) return;
-    const name = baseName(s.name);
+    const name = (opts.labelName || baseName)(s.name);
     const key = normHubName(name);
     const prev = cand.get(key);
     if (!prev || prev.pri < pri) cand.set(key, { name, x: X(s.lon), y: Y(s.lat), pri });
@@ -7058,20 +7495,112 @@ function printMapSvg(lines, opts = {}) {
     const even = opts.evenLabels ?? 3;
     for (let k = 1; k <= even; k++) add(st[Math.round(k * (st.length - 1) / (even + 1))], 1);
   }
+  // Paikan nimilappu ensimmäisenä ja kauempana pisteestä, koska tähti vie tilaa (off).
+  for (const m of marks) if (m.kind === "place" && m.name)
+    cand.set("\u0001place", { name: m.name, x: X(m.lon), y: Y(m.lat), pri: 9, off: 18 * k });   // tähti 12k + väli 3 + ilmaa
   const FS = Math.round(11 * k), LH = Math.round(16 * k);
   const placed = [];  // {x,y,w,h}: varatut alueet (selite, pohjoisnuoli, mittakaava, laput)
   const scaleM = [100, 200, 500, 1000, 2000, 5000, 10000].filter(m => m * sc <= W * 0.22).pop() || 100;
   const sx = 14, sy = H - 14, sw = scaleM * sc;
-  placed.push({ x: sx - 6, y: sy - 20 - 8 * k, w: sw + 12, h: 27 + 8 * k });
   const nx = W - 22;
-  placed.push({ x: nx - 12, y: 6, w: 24, h: 46 + 10 * k });
-  const legendW = lines.length > 1 ? Math.max(...lines.map(l => (l.shortName || "").length)) * 7 * k + 56 * k : 0;
-  const legendH = lines.length > 1 ? lines.length * 16 * k + 8 * k : 0;
-  if (lines.length > 1) placed.push({ x: 6, y: 6, w: legendW, h: legendH });
-  // Taustakartan lähdemerkintä (CC BY 4.0 vaatii) oikeaan alakulmaan; varataan paikka ennen nimilappuja.
+  const showLegend = lines.length > 1 && !opts.noLegend;   // noLegend: selite omana kaistanaan (pmLegendSvg)
+  const legendW = showLegend ? Math.max(...lines.map(l => (l.shortName || "").length)) * 7 * k + 56 * k : 0;
+  const legendH = showLegend ? lines.length * 16 * k + 8 * k : 0;
+  // Taustakartan lähdemerkintä (CC BY 4.0 vaatii); varataan paikka ennen nimilappuja.
   const attr = useBase ? t("mapAttributionMml") : "";
   const attrFS = f(8 * k), attrW = Math.round(attr.length * 8 * k * 0.55 + 8), attrH = Math.round(12 * k);
-  if (attr) placed.push({ x: W - attrW - 4, y: H - attrH - 3, w: attrW + 4, h: attrH + 3 });
+  // Selite, pohjoisnuoli, mittakaava ja lähdemerkintä kulmiin permutaatiolla, jonka laatikoiden alle jää vähiten reittiä
+  // ja pysäkkejä (tarkastus 28.9.2026: kiinteä mittakaava vasemmassa alakulmassa peitti linjojen 4, 14, 100 ja 101
+  // päät, eikä päätepysäkki saanut nimilappua). Tasapelissä oletus: selite TL, pohjoinen TR, mittakaava BL, lähde BR.
+  // Laatikko piirretään oletuspaikkaansa ja siirretään translate-muunnoksella (deco[].dx/dy).
+  const deco = [];
+  if (showLegend) deco.push({ key: "legend", box: { x: 6, y: 6, w: legendW, h: legendH }, c: 0 });
+  deco.push({ key: "north", box: { x: nx - 12, y: 6, w: 24, h: 46 + 10 * k }, c: 1 });
+  deco.push({ key: "scale", box: { x: sx - 6, y: sy - 20 - 8 * k, w: sw + 12, h: 27 + 8 * k }, c: 2 });
+  if (attr) deco.push({ key: "attr", box: { x: W - attrW - 4, y: H - attrH - 3, w: attrW + 4, h: attrH + 3 }, c: 3 });
+  {
+    const samples = [];
+    for (const l of lines) for (const d of l.dirs || []) {
+      const pts = (d.points || []).filter(p => p && p.length === 2).map(p => [X(p[1]), Y(p[0])]);
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, ay] = pts[i - 1], [bx, by] = pts[i], m = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 4));
+        for (let q = 0; q < m; q++) samples.push([ax + (bx - ax) * q / m, ay + (by - ay) * q / m, 1]);
+      }
+      for (const s of d.stops || []) if (s.lat != null && s.lon != null) samples.push([X(s.lon), Y(s.lat), 3]);
+    }
+    for (const m of marks) samples.push([X(m.lon), Y(m.lat), m.kind === "dot" ? 1 : 3]);
+    // Oletuskulman reunaetäisyys säilyy, joten siirtämätön laatikko on täsmälleen entisellä paikallaan.
+    const at = (dc, c) => {
+      const b = dc.box, L0 = dc.c % 2 === 0, T0 = dc.c < 2, L1 = c % 2 === 0, T1 = c < 2;
+      const mx = L0 ? b.x : W - b.x - b.w, my = T0 ? b.y : H - b.y - b.h;
+      return { x: L1 ? mx : W - mx - b.w, y: T1 ? my : H - my - b.h, w: b.w, h: b.h };
+    };
+    const cost = bx => samples.reduce((n, [x, y, w]) => n + (x >= bx.x - 3 && x <= bx.x + bx.w + 3 && y >= bx.y - 3 && y <= bx.y + bx.h + 3 ? w : 0), 0);
+    const perms = [];
+    const rec = (i, used, acc) => {
+      if (i === deco.length) { perms.push(acc); return; }
+      for (let c = 0; c < 4; c++) if (!used.has(c)) rec(i + 1, new Set([...used, c]), acc.concat(c));
+    };
+    rec(0, new Set(), []);
+    let best = null, bestCost = Infinity;
+    for (const p of perms) {
+      const cst = p.reduce((n, c, i) => n + cost(at(deco[i], c)), 0) + (p.every((c, i) => c === deco[i].c) ? -0.5 : 0);
+      if (cst < bestCost) { bestCost = cst; best = p; }
+    }
+    deco.forEach((dc, i) => { const b = at(dc, best[i]); dc.dx = b.x - dc.box.x; dc.dy = b.y - dc.box.y; placed.push(b); });
+  }
+  const decoT = key => { const dc = deco.find(x => x.key === key); return dc && (dc.dx || dc.dy) ? ` transform="translate(${f(dc.dx)} ${f(dc.dy)})"` : ""; };
+  // Merkit (opts.marks). Kadun eri puolten pysäkit ovat 20-40 m päässä toisistaan, joten kirjainympyrät
+  // menisivät päällekkäin: ne työnnetään erilleen ja todelliseen paikkaan jää piste ja ohut viiva.
+  const markEls = [];
+  const MR = 8.5 * k;
+  const sm = marks.filter(m => m.kind === "stop").map(m => ({ m, x0: X(m.lon), y0: Y(m.lat), x: X(m.lon), y: Y(m.lat) }));
+  // kind "dot": pelkkä värillinen piste ilman kirjainta ja törmäystarkistusta (vyöhykekartan pysäkit).
+  for (const m of marks.filter(m => m.kind === "dot"))
+    markEls.push(`<circle cx="${f(X(m.lon))}" cy="${f(Y(m.lat))}" r="${f(2.4 * k)}" fill="${m.color || "#000"}" stroke="#fff" stroke-width="${f(0.5 * k)}"/>`);
+  const pm = marks.filter(m => m.kind === "place").map(m => ({ x: X(m.lon), y: Y(m.lat) }));
+  for (let it = 0; it < 60; it++) {
+    let moved = false;
+    for (let i = 0; i < sm.length; i++) {
+      for (let j = i + 1; j < sm.length; j++) {
+        const a = sm[i], b = sm[j];
+        let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+        if (d >= 2 * MR + 2) continue;
+        if (d < 0.01) { dx = 1; dy = 0; d = 1; }
+        const push = (2 * MR + 2 - d) / 2;
+        a.x -= dx / d * push; a.y -= dy / d * push; b.x += dx / d * push; b.y += dy / d * push;
+        moved = true;
+      }
+      for (const p of pm) {   // ympyrä ei peitä paikan tähteä
+        const a = sm[i];
+        let dx = a.x - p.x, dy = a.y - p.y, d = Math.hypot(dx, dy);
+        if (d >= MR + 13 * k) continue;
+        if (d < 0.01) { dx = 0; dy = 1; d = 1; }
+        a.x += dx / d * (MR + 13 * k - d); a.y += dy / d * (MR + 13 * k - d);
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  for (const s of sm) {
+    if (Math.hypot(s.x - s.x0, s.y - s.y0) > 3)
+      markEls.push(`<path d="M${f(s.x0)} ${f(s.y0)}L${f(s.x)} ${f(s.y)}" stroke="#000" stroke-width="${f(1.2 * k)}"/>`
+        + `<circle cx="${f(s.x0)}" cy="${f(s.y0)}" r="${f(2.2 * k)}" fill="#000"/>`);
+  }
+  for (const s of sm) {
+    markEls.push(`<g class="pm-stopmark"><circle cx="${f(s.x)}" cy="${f(s.y)}" r="${f(MR)}" fill="${opts.markColor || "#000"}" stroke="#fff" stroke-width="${f(1.8 * k)}"/>`
+      + `<text x="${f(s.x)}" y="${f(s.y + 4 * k)}" font-size="${f(11 * k)}" font-weight="700" text-anchor="middle" fill="#fff">${esc(s.m.tag || "")}</text></g>`);
+    placed.push({ x: s.x - MR, y: s.y - MR, w: 2 * MR, h: 2 * MR });
+  }
+  for (const p of pm) {
+    const r = 12 * k, pts = [];
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r;
+      pts.push(f(p.x + rr * Math.cos(a)) + "," + f(p.y + rr * Math.sin(a)));
+    }
+    markEls.push(`<polygon class="pm-place" points="${pts.join(" ")}" fill="#000" stroke="#fff" stroke-width="${f(2 * k)}" stroke-linejoin="round"/>`);
+    placed.push({ x: p.x - r, y: p.y - r, w: 2 * r, h: 2 * r });
+  }
   const overlaps = (b) => b.x < 2 || b.y < 2 || b.x + b.w > W - 2 || b.y + b.h > H - 2
     || placed.some(p => !(b.x + b.w + 3 < p.x || p.x + p.w + 3 < b.x || b.y + b.h + 3 < p.y || p.y + p.h + 3 < b.y));
   const labels = [];
@@ -7087,7 +7616,8 @@ function printMapSvg(lines, opts = {}) {
     let rows = cbFitLines(c.name, LW * 13 / FS, true, 2);
     if (rows[rows.length - 1].endsWith("…")) rows = cbFitLines(c.name, LW * 13 / FS, true, 3);
     const w = Math.round(Math.max(...rows.map(fsWidth)) + 10), hgt = LH + (rows.length - 1) * LS;
-    const tries = [[7, -hgt / 2], [-w - 7, -hgt / 2], [-w / 2, -hgt - 6], [-w / 2, 7]];
+    const o = c.off || 7;
+    const tries = [[o, -hgt / 2], [-w - o, -hgt / 2], [-w / 2, -hgt - o + 1], [-w / 2, o]];
     for (const [dx, dy] of tries) {
       const b = { x: c.x + dx, y: c.y + dy, w, h: hgt };
       if (overlaps(b)) continue;
@@ -7100,25 +7630,25 @@ function printMapSvg(lines, opts = {}) {
 
   // 4) mittakaava (vasen ala), pohjoisnuoli (oikea ylä), linjaselite (vasen ylä) jos linjoja > 1
   const extras = [];
-  extras.push(`<g class="pm-scale"><rect x="${sx - 6}" y="${f(sy - 20 - 8 * k)}" width="${f(sw + 12)}" height="${f(27 + 8 * k)}" fill="#fff" fill-opacity="0.85"/>`
+  extras.push(`<g class="pm-scale"${decoT("scale")}><rect x="${sx - 6}" y="${f(sy - 20 - 8 * k)}" width="${f(sw + 12)}" height="${f(27 + 8 * k)}" fill="#fff" fill-opacity="0.85"/>`
     + `<path d="M${sx} ${sy - 4}V${sy}H${f(sx + sw)}V${sy - 4}" fill="none" stroke="#000" stroke-width="${f(1.5 * k)}"/>`
     + `<text x="${f(sx + sw / 2)}" y="${f(sy - 7)}" font-size="${f(10 * k)}" text-anchor="middle" fill="#000">${scaleM >= 1000 ? (scaleM / 1000) + " km" : scaleM + " m"}</text></g>`);
-  extras.push(`<g class="pm-north"><path d="M${nx} 42V20" stroke="#000" stroke-width="${f(1.5 * k)}"/><polygon points="${nx - 5},22 ${nx},12 ${nx + 5},22" fill="#000"/>`
+  extras.push(`<g class="pm-north"${decoT("north")}><path d="M${nx} 42V20" stroke="#000" stroke-width="${f(1.5 * k)}"/><polygon points="${nx - 5},22 ${nx},12 ${nx + 5},22" fill="#000"/>`
     + `<text x="${nx}" y="${f(46 + 10 * k)}" font-size="${f(11 * k)}" font-weight="700" text-anchor="middle" fill="#000">${esc(t("mapNorth"))}</text></g>`);
-  if (lines.length > 1) {
+  if (showLegend) {
     const rh = 16 * k;
-    const rows = lines.map((l, i) => `<path d="M12 ${f(18 * k + i * rh)}H${f(40 * k)}" stroke="#000" stroke-width="${f(3.2 * k)}" stroke-linecap="round"${PM_DASHES[i % PM_DASHES.length] ? ` stroke-dasharray="${PM_DASHES[i % PM_DASHES.length]}"` : ""}/>`
+    const rows = lines.map((l, i) => `<path d="M12 ${f(18 * k + i * rh)}H${f(40 * k)}" stroke="${lineInk(l, i).color}" stroke-width="${f(3.2 * k)}" stroke-linecap="round"${lineInk(l, i).dash ? ` stroke-dasharray="${lineInk(l, i).dash}"` : ""}/>`
       + `<text x="${f(46 * k)}" y="${f(22 * k + i * rh)}" font-size="${FS}" font-weight="700" fill="#000">${esc(l.shortName || "")}</text>`).join("");
-    extras.push(`<g class="pm-legend"><rect x="6" y="6" width="${f(legendW)}" height="${f(legendH)}" fill="#fff" stroke="#000" stroke-width="0.8"/>${rows}</g>`);
+    extras.push(`<g class="pm-legend"${decoT("legend")}><rect x="6" y="6" width="${f(legendW)}" height="${f(legendH)}" fill="#fff" stroke="#000" stroke-width="0.8"/>${rows}</g>`);
   }
-  if (attr) extras.push(`<g class="pm-attr"><rect x="${W - attrW - 3}" y="${H - attrH - 2}" width="${attrW}" height="${attrH}" fill="#fff" fill-opacity="0.85"/>`
+  if (attr) extras.push(`<g class="pm-attr"${decoT("attr")}><rect x="${W - attrW - 3}" y="${H - attrH - 2}" width="${attrW}" height="${attrH}" fill="#fff" fill-opacity="0.85"/>`
     + `<text x="${W - 7}" y="${f(H - 2 - attrH * 0.28)}" font-size="${attrFS}" text-anchor="end" fill="#333">${esc(attr)}</text></g>`);
   // tiilet peittävät alkuperäisen reunaviivan → kehys päällimmäiseksi
   if (useBase) extras.push(`<rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" fill="none" stroke="#999" stroke-width="1"/>`);
 
   const aria = esc(opts.aria || t("printMapAria"));
   return `<figure class="print-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${aria}" font-family="system-ui, Arial, sans-serif">`
-    + `<title>${aria}</title>${out.join("")}${dots.join("")}${arrows.join("")}${labels.join("")}${extras.join("")}</svg></figure>`;
+    + `<title>${aria}</title>${out.join("")}${dots.join("")}${arrows.join("")}${markEls.join("")}${labels.join("")}${extras.join("")}</svg></figure>`;
 }
 
 // Suunnan eniten liikennöivä geometria patterneista → { points, stops }. Vuoromäärä luetaan
@@ -8940,6 +9470,12 @@ function compactPosterDom(po) {
 // kolmannelle arkille 2.9.2026, ja position:fixed ei asemoidu luotettavasti sivun alareunaan PDF:ssä.
 const POSTER_SHEET_PX = Math.round((297 - 14) * 96 / 25.4) - 8;
 const POSTER_FIT_MAX = 4;
+// Isommat arkit (28.9.2026): A-sarjan arkeilla on sama kuvasuhde, joten juliste ladotaan A4-mittaan ja
+// skaalataan tulosteessa (zoom): A3 x1,41, A2 x2, A1 x2,83. Isolla arkilla sallitaan kaksi tiukempaa
+// porrasta (7 ja 6,2 pt), jotta isokin pysäkki mahtuu yhdelle arkille; A1:llä se on silti noin 17 pt.
+const POSTER_SIZES = { A4: 1, A3: Math.SQRT2, A2: 2, A1: 2 * Math.SQRT2 };
+const POSTER_FIT_MAX_BIG = 6;
+const POSTER_MM = { A3: "297mm 420mm", A2: "420mm 594mm", A1: "594mm 841mm" };
 // Sovittaa jokaisen .poster-stop-lohkon yhdelle arkille: mittaa arkin levyisessä
 // piilolaatikossa ja tiukentaa asteittain (data-fit 0..4, ks. CSS: 12 → 11 → 10 → 9 → 8 pt).
 // Lähtöjä ei pudoteta: jos 8 pt ei riitä, lohko jatkuu toiselle arkille ja paluuarvo kertoo
@@ -9001,7 +9537,7 @@ function splitWideMatrices(st, box) {
     day?.classList.add("poster-day-split");
   });
 }
-function fitPosterSheet(po) {
+function fitPosterSheet(po, fitCap = POSTER_FIT_MAX) {
   compactPosterDom(po);
   const stops = [...po.querySelectorAll(".poster-compact .poster-stop")];
   if (!stops.length) return { sheets: 1, fit: 0 };
@@ -9017,7 +9553,7 @@ function fitPosterSheet(po) {
       // Kapeat linjasarakkeet ennen pienempää fonttia (täysauditointi 27.9.2026): La- ja Su-taulukon
       // sarakkeet levenivät määränpäätekstin mukaan, jolloin ne eivät mahtuneet rinnakkain ja Lahden
       // erätulosteessa 44 julistetta valui toiselle arkille pelkän sunnuntain takia.
-      outer: for (fit = 0; fit <= POSTER_FIT_MAX; fit++) {
+      outer: for (fit = 0; fit <= fitCap; fit++) {
         st.dataset.fit = String(fit);
         for (narrow of ["0", "1"]) {
           st.dataset.narrow = narrow;
@@ -9025,7 +9561,7 @@ function fitPosterSheet(po) {
           if (h <= POSTER_SHEET_PX) break outer;
         }
       }
-      if (fit > POSTER_FIT_MAX) { fit = POSTER_FIT_MAX; st.dataset.fit = String(POSTER_FIT_MAX); st.dataset.narrow = "1"; h = measure(); }
+      if (fit > fitCap) { fit = fitCap; st.dataset.fit = String(fitCap); st.dataset.narrow = "1"; h = measure(); }
       if (h > POSTER_SHEET_PX) markPosterContinuations(st, box);
       sheets += Math.max(1, Math.ceil(h / POSTER_SHEET_PX));
       maxFit = Math.max(maxFit, fit);
@@ -10934,6 +11470,7 @@ async function viewStop(stopId, autoPrint) {
       <p class="no-print" style="margin:0.6rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center">
         <button type="button" id="stopPosterBtn">${icon("print")} ${t("printStopPoster")}</button>
         <label class="dtopt"><input type="checkbox" id="posterCompactCb"${CONFIG.posterCompact !== false ? " checked" : ""}> ${t("posterCompactOpt")}</label>
+        <label class="dtopt">${t("posterSizeLabel")} <select id="posterSize">${Object.keys(POSTER_SIZES).map(k => `<option value="${k}">${k}</option>`).join("")}</select></label>
         <a class="btnlink secondary" href="#/monitori/${encodeURIComponent(stopId)}">${icon("monitor")} ${t("monitorLink")}</a>
         ${("speechSynthesis" in window) ? `<button type="button" id="speakBtn" class="secondary">${icon("speaker")} ${t("speakAloud")}</button>` : ""}
         <button type="button" id="stopQrBtn" class="secondary">${icon("qr")} ${t("qrButton")}</button>
@@ -11054,7 +11591,9 @@ async function viewStop(stopId, autoPrint) {
            </div>
            ${qrImg}
          </div>`;
-    const compact = posterCompactOn("posterCompactCb");
+    // A3-A1 (Lappeenrannan palaveri 28.9.2026: katosjulisteet ovat A1): yksi arkki aina, ks. POSTER_SIZES.
+    const size = POSTER_SIZES[document.getElementById("posterSize")?.value] ? document.getElementById("posterSize").value : "A4";
+    const compact = size !== "A4" || posterCompactOn("posterCompactCb");
     const sections = blocks.length
       ? blocks.map(b =>
           `<section class="card poster-day">
@@ -11066,9 +11605,11 @@ async function viewStop(stopId, autoPrint) {
         <p class="muted">${periodNote(today)}</p></div>`;
     if (stEl) stEl.textContent = "";
     if (compact) {
-      const fit = fitPosterSheet(po);
+      const fit = fitPosterSheet(po, size === "A4" ? POSTER_FIT_MAX : POSTER_FIT_MAX_BIG);
       if (stEl && fit.sheets > 1) stEl.textContent = t("posterSheets", { n: fit.sheets });
-      setPageOrientation("compact");
+      const wrap = po.querySelector(".print-only");
+      if (wrap) { wrap.style.zoom = size === "A4" ? "" : String(POSTER_SIZES[size]); wrap.dataset.size = size; }
+      setPageOrientation(size === "A4" ? "compact" : "poster-" + size);
     } else {
       setPageOrientation("portrait");
     }
@@ -11076,6 +11617,9 @@ async function viewStop(stopId, autoPrint) {
   });
   // Suoratulostus kuten viewRoute: kysely pois hashista ensin, ettei uudelleenlataus tulosta uudestaan.
   if (autoPrint === "poster") {
+    const reqSize = new URLSearchParams(location.hash.split("?")[1] || "").get("size");
+    const sizeSel = document.getElementById("posterSize");
+    if (reqSize && sizeSel && POSTER_SIZES[reqSize]) sizeSel.value = reqSize;
     try { history.replaceState(null, "", location.pathname + location.search + location.hash.split("?")[0]); }
     catch (e) { /* ei kriittinen */ }
     document.getElementById("stopPosterBtn")?.click();
@@ -12348,7 +12892,8 @@ function bindPosterStopSearch() {
   const sw = q.closest(".suggest");
   sw.addEventListener("focusout", e => { if (!sw.contains(e.relatedTarget)) setTimeout(() => { list.hidden = true; }, 150); });
   go.addEventListener("click", () => {
-    if (picked) location.hash = "#/pysakki/" + encodeURIComponent(picked.gtfsId) + "?print=poster";
+    const size = document.getElementById("posterStopSize")?.value || "A4";
+    if (picked) location.hash = "#/pysakki/" + encodeURIComponent(picked.gtfsId) + "?print=poster" + (size !== "A4" ? "&size=" + size : "");
   });
 }
 
@@ -12458,6 +13003,212 @@ async function printPosterBatch(stops, subPrefix, compact, st, out) {
         setPageOrientation("portrait");
       }
       window.print();
+}
+
+/* ---------- Lähipysäkkipaketti ("rehtoripaketti", Lappeenrannan palaveri 28.9.2026) ----------
+   Koulun, päiväkodin tai palvelutalon lähipysäkit yhteen tulosteeseen: kartta (paikka tähtenä, pysäkit
+   kirjaimin), pysäkit kävelymatkoineen, pysäkeiltä lähtevät linjat ja määränpäät sekä jokaisen pysäkin
+   tiivis juliste. Lähdöt tulevat samasta moottorista kuin pysäkkijulisteessa (stopPosterBlocks), joten
+   päivätyypit, K-kirjaimet ja tapahtumalinjojen pois jättäminen toimivat samoin kuin julisteessa.
+   stopsByRadius rajaa ja mittaa kävelymatkan katuverkolla (OTP2), ei linnuntietä. */
+const NEAR_MAX_STOPS = 10;
+const NEAR_DAYS = { weekday: [0, 1, 2, 3, 4], sat: [5], sun: [6] };
+let nearPlace = null;
+function nearPick(p) {
+  nearPlace = p;
+  const q = document.getElementById("nearQ"), list = document.getElementById("nearList");
+  const go = document.getElementById("nearGo");
+  if (q) q.value = p.name;
+  if (list) list.hidden = true;
+  if (go) go.disabled = false;
+}
+function bindNearbyTab() {
+  const q = document.getElementById("nearQ"), list = document.getElementById("nearList");
+  const go = document.getElementById("nearGo"), st = document.getElementById("nearStatus");
+  if (!q || !list || !go) return;
+  let timer = null, seq = 0, matches = [];
+  q.addEventListener("input", () => {
+    clearTimeout(timer);
+    nearPlace = null; go.disabled = true;
+    const text = q.value.trim();
+    if (text.length < 2) { list.hidden = true; list.innerHTML = ""; return; }
+    timer = setTimeout(async () => {
+      const my = ++seq;
+      let hits;
+      try { hits = await searchPlaces(text); } catch (e) { return; }
+      if (my !== seq) return;
+      matches = (hits || []).slice(0, 8);
+      list.innerHTML = matches.length
+        ? matches.map((h, i) => `<li><button type="button" class="item" data-h="${i}">
+            ${icon("pin")}<span>${esc(h.name)}</span></button></li>`).join("")
+        : `<li><p class="muted" style="padding:0.4rem">${esc(t("noPlacesFor", { q: text }))}</p></li>`;
+      list.hidden = false;
+      list.querySelectorAll("button[data-h]").forEach(btn =>
+        btn.addEventListener("click", () => nearPick(matches[Number(btn.dataset.h)])));
+    }, 250);
+  });
+  q.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); if (nearPlace) go.click(); else if (matches.length) nearPick(matches[0]); }
+    else if (e.key === "Escape") { list.hidden = true; }
+  });
+  const sw = q.closest(".suggest");
+  sw.addEventListener("focusout", e => { if (!sw.contains(e.relatedTarget)) setTimeout(() => { list.hidden = true; }, 150); });
+  go.addEventListener("click", async () => {
+    if (!nearPlace) { st.textContent = t("nearNoPlace"); return; }
+    const days = [...document.querySelectorAll(".nearDt")].filter(c => c.checked).map(c => c.value);
+    if (!days.length) { st.textContent = t("nearNoDays"); return; }
+    const radius = Number(document.getElementById("nearRadius")?.value) || 500;
+    st.textContent = t("preparingPrint");
+    go.disabled = true;
+    try { await printNearbyPack(nearPlace, radius, days, st, document.getElementById("nearOut")); }
+    catch (e) { st.textContent = e.message; }
+    finally { go.disabled = !nearPlace; }
+  });
+}
+
+// Paikan nimi otsikkoon ja osoite alaotsikkoon: Pelias antaa "Kimpisen koulu, Pohjolankatu 23, Lappeenranta".
+function nearPlaceParts(name) {
+  const parts = String(name || "").split(",").map(x => x.trim()).filter(Boolean);
+  const city = (cityName() || "").toLowerCase();
+  const rest = parts.slice(1).filter(x => x.toLowerCase() !== city);
+  return { title: parts[0] || name || "", addr: rest.join(", ") };
+}
+
+async function printNearbyPack(place, radius, days, st, out) {
+  await findFeed();
+  const data = await gql(
+    `query ($lat: Float!, $lon: Float!, $radius: Int!) {
+       stopsByRadius(lat: $lat, lon: $lon, radius: $radius, first: 60) {
+         edges { node { distance stop { gtfsId name@L code lat lon } } }
+       }
+     }`, { lat: place.lat, lon: place.lon, radius });
+  const cand = ((data.stopsByRadius && data.stopsByRadius.edges) || [])
+    .map(e => e.node && e.node.stop ? { ...e.node.stop, distance: e.node.distance } : null)
+    .filter(s => s && inCityFeed(s.gtfsId) && s.lat != null && s.lon != null)
+    .sort((a, b) => a.distance - b.distance);
+  if (!cand.length) throw new Error(t("nearNoStops", { r: radius }));
+  // Lähtöjä etsitään useammalta kuin tulostetaan: pelkän jättöpysäkin tai tapahtumalinjan pysäkki
+  // putoaa pois, ja silloin seuraava ehdokas nousee listalle.
+  const pool = cand.slice(0, NEAR_MAX_STOPS + 6);
+  const today = todayISO();
+  const ptdMemo = new Map();
+  const patsByStop = await loadPosterPatterns(pool.map(s => s.gtfsId));
+  await patternTripsMany([...patsByStop.values()].flat().map(p => p.code), ptdMemo);
+  const want = new Set(days.flatMap(d => NEAR_DAYS[d] || []));
+  let done = 0;
+  const per = await mapLimit(pool, 2, async s => {
+    // Virhe heittää (ks. printPosterBatch): vajaa paketti virhetilassa näyttäisi valmiilta.
+    const blocks = (await stopPosterBlocks(s.gtfsId, today, ptdMemo, 2, patsByStop.get(s.gtfsId)))
+      .filter(b => [...b.dows].some(d => want.has(d)));
+    st.textContent = t("nearProgress", { done: ++done, total: pool.length });
+    return { s, blocks };
+  });
+  const stops = per.filter(x => x.blocks.some(b => b.lines.length)).slice(0, NEAR_MAX_STOPS);
+  if (!stops.length) throw new Error(t("nearNoDeps"));
+  const TAGS = "ABCDEFGHIJKLMNOP";
+  stops.forEach((x, i) => { x.tag = TAGS[i]; });
+  for (const x of stops) x.qr = await posterQrHtml(x.s.gtfsId);
+
+  const { title, addr } = nearPlaceParts(place.name);
+  const dayNames = days.map(d => t(d === "weekday" ? "dayWeekday" : d === "sat" ? "daySat" : "daySun")).join(", ");
+  const byNum = (a, b) => (a.route.shortName || "").localeCompare(b.route.shortName || "", "fi", { numeric: true })
+    || String(a.headsign).localeCompare(String(b.headsign), "fi");
+  const hm = sec => fmtSec(sec).replace(":", ".");
+
+  // Pysäkkitaulukko: linjat, joilla on lähtöjä valittuina päivinä.
+  const stopRows = stops.map(x => {
+    const routes = new Map();
+    for (const b of x.blocks) for (const L of b.lines) {
+      const k = L.route.shortName || L.route.longName || "";
+      if (!routes.has(k)) routes.set(k, L.route);
+    }
+    const badges = [...routes.values()].sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }))
+      .map(r => badgeHtml(r)).join(" ");
+    return `<tr><td><span class="near-tag">${x.tag}</span></td>
+      <td><b>${esc(x.s.name)}</b>${x.s.code ? ` <span class="muted">${esc(x.s.code)}</span>` : ""}</td>
+      <td class="num">${Math.round(x.s.distance)} m</td><td class="near-badges">${badges}</td></tr>`;
+  }).join("");
+
+  // Linjat ja määränpäät ensimmäiseltä valitulta päivätyypiltä (koulun tulosteessa Ma–Pe). Sama linja
+  // ja määränpää kahdelta pysäkiltä on sama vuoro, joten ajat luetaan lähimmältä pysäkiltä (lihavoitu).
+  const sumDow = Math.min(...want);
+  const lineRows = new Map();
+  for (const x of stops) {
+    const b = x.blocks.find(bb => bb.dows.has(sumDow));
+    if (!b) continue;
+    for (const L of b.lines) {
+      const times = [...new Set(L.times)].sort((p, q) => p - q);
+      if (!times.length) continue;
+      const k = (L.route.shortName || "") + "|" + L.headsign;
+      if (!lineRows.has(k)) lineRows.set(k, { route: L.route, headsign: L.headsign, tags: [], L, times,
+        leg: new Map((b.legend || []).map(l => [l.code, l.text])) });
+      lineRows.get(k).tags.push(x.tag);
+    }
+  }
+  const sumLabel = stops.map(x => x.blocks.find(bb => bb.dows.has(sumDow))).find(Boolean)?.label || dowLabel(new Set([sumDow]));
+  // Julisteen kirjaimet ovat pysäkkikohtaisia (pysäkillä A "a" = loma-aikoina, pysäkillä C "a" = vain Pe),
+  // joten kansisivu kääntää ne selitteen tekstin kautta omaan yhteiseen kirjaimistoonsa (K = koulupäivinä).
+  const gCodes = new Map();
+  const gCode = txt => {
+    if (!gCodes.has(txt)) {
+      const used = new Set(gCodes.values());
+      gCodes.set(txt, txt === t("schoolTerm") && !used.has(t("depSchoolMark")) ? t("depSchoolMark")
+        : ([..."abcdefghijklmnopqrstuvwxyz"].find(l => !used.has(l)) || "*"));
+    }
+    return gCodes.get(txt);
+  };
+  const supFor = (r, sec) => {
+    const c = r.L.codes && r.L.codes.get(sec);
+    if (!c) return "";
+    const g = [...new Set([...c].map(ch => r.leg.get(ch)).filter(Boolean).map(gCode))].sort().join("");
+    return g ? `<sup>${esc(g)}</sup>` : "";
+  };
+  const lineHtml = [...lineRows.values()].sort(byNum).map(r => {
+    const first = r.times[0], last = r.times[r.times.length - 1];
+    return `<tr><td>${badgeHtml(r.route)}</td><td>${esc(placeName(r.headsign))}</td>
+      <td>${r.tags.map((g, i) => i ? g : `<b>${g}</b>`).join(", ")}</td>
+      <td class="num">${hm(first)}${supFor(r, first)}</td>
+      <td class="num">${hm(last)}${supFor(r, last)}</td>
+      <td class="num">${r.times.length}</td></tr>`;
+  }).join("");
+  const legend = [...gCodes.entries()].map(([text, code]) => ({ code, text }));
+
+  const mapSvg = printMapSvg([], {
+    basemap: true, minSpan: 450, aspect: 0.56, pad: 58, maxLabels: 1, markColor: headerBgColor(), aria: t("nearMapAria"),
+    marks: [{ kind: "place", lat: place.lat, lon: place.lon, name: title },
+      ...stops.map(x => ({ kind: "stop", lat: x.s.lat, lon: x.s.lon, tag: x.tag }))],
+  });
+  const cover = `<section class="near-cover">
+      ${printBrandHead({ title: esc(t("nearHeadTitle", { place: title })),
+        sub: esc(t("nearHeadSub", { r: radius, days: dayNames }) + (addr ? " · " + addr : "")) })}
+      ${mapSvg}
+      <h3>${t("nearStopsTitle")}</h3>
+      <table class="near-table near-stops"><thead><tr><th scope="col"></th><th scope="col">${t("nearColStop")}</th>
+        <th scope="col">${t("nearColWalk")}</th><th scope="col">${t("nearColLines")}</th></tr></thead>
+        <tbody>${stopRows}</tbody></table>
+      ${lineHtml ? `<h3>${esc(t("nearLinesTitle", { day: sumLabel }))}</h3>
+      <table class="near-table near-lines"><thead><tr><th scope="col">${t("nearColLine")}</th><th scope="col">${t("nearColDest")}</th>
+        <th scope="col">${t("nearColFrom")}</th><th scope="col">${t("nearColFirst")}</th><th scope="col">${t("nearColLast")}</th>
+        <th scope="col">${t("nearColCount")}</th></tr></thead><tbody>${lineHtml}</tbody></table>
+      ${posterLegendHtml(legend)}` : ""}
+      <p class="near-foot">${t("nearFoot")}</p>
+    </section>`;
+  const sections = stops.map(x => {
+    const head = sub => `<div class="poster-head"><div>
+        <h2><span class="near-tag">${x.tag}</span> ${esc(x.s.name)} <span class="muted">${esc(x.s.code || "")} ${Math.round(x.s.distance)} m</span></h2>
+        <p class="poster-sub">${esc(sub)}</p>
+        <p class="muted">${t("posterAllLinesNote")}</p>
+      </div>${x.qr}</div>`;
+    return x.blocks.map(b => `<section class="card poster-day">${head(b.label)}
+        ${stopPosterHtml(b.lines, true, b.legend)}</section>`).join("");
+  });
+  out.innerHTML = `<div class="print-only nearpack">${cover}
+      <div class="poster-compact">${sections.map(sec => `<div class="poster-stop">${sec}</div>`).join("")}</div>
+      <p class="muted">${periodNote(today)}</p></div>`;
+  st.textContent = "";
+  fitPosterSheet(out);
+  setPageOrientation("compact");
+  window.print();
 }
 
 // Muutosvahti-välilehti: lukee viikkoajon tuloksen (docs/muutosvahti/<city>.json, sama origin)
@@ -15239,10 +15990,16 @@ function setPageOrientation(orient) {
     ? "@page { size: A4 landscape; margin: 8mm; }"
     : orient === "vihko"
     ? "@page { size: A4 landscape; margin: 0; }"   // vihko: 2× A5/arkki, reunaan asti
+    : orient.startsWith("size:")                    // kapea vihko: sivu, leikkuuvarallinen arkki tai A4 (printVihkoNarrow)
+    ? `@page { size: ${orient.slice(5)}; margin: 0; }`
+    : orient === "vihko-narrow"                     // kaupungin vihkon koko (CONFIG.vihko.size), sivu kerrallaan
+    ? `@page { size: ${CONFIG.vihko?.size?.w || 100}mm ${CONFIG.vihko?.size?.h || 200}mm; margin: 0; }`
     : orient === "rack"
     ? "@page { size: A4 portrait; margin: 8mm; }"  // lehtiteline: tiukat marginaalit, max tila
     : orient === "compact"
     ? "@page { size: A4 portrait; margin: 7mm; }"  // yhden arkin juliste: max tietotiheys
+    : /^poster-A[123]$/.test(orient)                // iso juliste: A4-asettelu skaalattuna, marginaalit samassa suhteessa
+    ? `@page { size: ${POSTER_MM[orient.slice(7)]}; margin: ${(7 * POSTER_SIZES[orient.slice(7)]).toFixed(1)}mm; }`   // Chrome ei tunne A1/A2-avainsanoja
     : "@page { size: A4 portrait; margin: 12mm; }";
 }
 
@@ -15269,12 +16026,12 @@ const VK_CONTENT_W = VK_A5_W - 2 * VK_PAD;          // 128mm
 // Karsinta tehdään VIHKOA VARTEN kloonista samalla säännöllä kuin pickKeyStops (lähtö ja
 // pääte aina, väliltä tasavälein), joten A4-vihko ja ruudun esikatselu pysyvät ennallaan.
 const VK_MAX_COLS = 6;
-function vkNarrowTable(table) {
+function vkNarrowTable(table, maxCols = VK_MAX_COLS) {
   const clone = table.cloneNode(true);
   const n = clone.querySelector("tr")?.children.length || 0;
-  if (n <= VK_MAX_COLS) return clone;
+  if (n <= maxCols) return clone;
   const keep = new Set([0, n - 1]);
-  for (let i = 0; i < VK_MAX_COLS; i++) keep.add(Math.round(i * (n - 1) / (VK_MAX_COLS - 1)));
+  for (let i = 0; i < maxCols; i++) keep.add(Math.round(i * (n - 1) / (maxCols - 1)));
   for (const tr of clone.querySelectorAll("tr"))
     [...tr.children].forEach((cell, i) => { if (!keep.has(i)) cell.remove(); });
   return clone;
@@ -15289,43 +16046,163 @@ function vkCollectAtoms(out) {
     c.querySelectorAll(".no-print").forEach(n => n.remove());
     atoms.push({ html: `<div class="vk-cover">${c.innerHTML}</div>` });
   }
-  for (const line of out.querySelectorAll(".booklet-line")) {
-    // Tiivis linja (23.9.2026): aukeama. Otsikko aloittaa parillisen (vasemman) sivun, jolloin
-    // kartta ja reittijana ovat vasemmalla ja ruudukot vastakkaisella oikealla sivulla.
-    // Ruudukot vierekkäin jos mahtuvat, muuten suunta kerrallaan (alt).
-    if (line.classList.contains("compact")) {
-      for (const node of line.children) {
-        if (node.tagName === "H2")
-          atoms.push({ html: `<div class="vk-h2">${node.innerHTML}</div>`, keepWithNext: true, newPage: "line", spread: true });
-        else if (node.classList.contains("cb-grids"))
-          atoms.push({ html: node.outerHTML, newPage: "grids",
-            alt: [...node.children].map(c => `<div class="cb-grids cb-stack">${c.outerHTML}</div>`) });
-        else if (node.tagName === "FIGURE" && node.classList.contains("print-map"))
-          atoms.push({ html: `<div class="cb-mapwrap">${node.outerHTML}</div>` });
-        else atoms.push({ html: node.outerHTML });
+  for (const line of out.querySelectorAll(".booklet-line")) atoms.push(...vkLineAtoms(line));
+  return atoms;
+}
+
+// Kapean vihkon kartta (28.9.2026): vaakamuotoinen kartta käännetään 90 astetta sivun pituiseksi kuten
+// Joukon vihkon reittikartoissa, muuten se jäisi 86 mm leveällä sivulla postimerkiksi. rot = { w, h }
+// = käytettävissä oleva leveys ja korkeus millimetreinä. Kääre saa kiinteän korkeuden, joten mittaus
+// (vkPaginate) ja tuloste vastaavat toisiaan.
+// stripHtml (Villen toive 28.9.2026): reittijana käännetään kartan mukana samaan kehykseen, jolloin jana on
+// kartan alla samassa suunnassa kuin kartta. Pystyssä olevan kartan alle vaakaan jäänyt jana luettiin eri suuntaan.
+const vkAspect = html => {
+  const vb = ((html.match(/viewBox="([^"]+)"/) || [])[1] || "").split(/\s+/).map(Number);
+  return vb.length === 4 && vb[2] ? vb[3] / vb[2] : 1;
+};
+function vkMapHtml(figHtml, rot, stripHtml = "") {
+  const ar = vkAspect(figHtml);
+  if (!rot || ar >= 0.8) return `<div class="cb-mapwrap">${figHtml}</div>${stripHtml}`;
+  const arAll = ar + (stripHtml ? vkAspect(stripHtml) : 0);
+  const L = Math.min(rot.h, (rot.w - 4) / arAll);   // 4 mm: kuvien marginaalit kääntyneen kehyksen leveydessä
+  return `<div class="cb-mapwrap vk-rot" style="height:${L.toFixed(1)}mm"><div class="vk-rot-in" style="width:${L.toFixed(1)}mm">${figHtml}${stripHtml}</div></div>`;
+}
+
+// Yhden linjan atomit. o.maxCols = pysäkkisarakkeiden yläraja (kapea vihko), o.sec = osio (sivun
+// alatunniste ja sisällysluettelo). Linjaotsikko kantaa lineKey:n (linjan tunnus), josta sivutus
+// kirjaa linjan alkusivun sisällysluetteloon.
+function vkLineAtoms(line, o = {}) {
+  const atoms = [];
+  const lineKey = line.dataset.short || "";
+  // o.dirBadge (kapea vihko, tarkastus 28.9.2026): linjamerkki jokaisen suunnan otsikkoon. Sama "Keskusta → LUT-Yliopisto"
+  // oli linjan 1, linjan 5 ja yhdistelmän sivuilla, eikä sivua tunnistanut selaamatta taaksepäin.
+  const h2 = [...line.children].find(n => n.tagName === "H2");
+  const badges = o.dirBadge && h2 ? [...h2.querySelectorAll(".badge")].map(b => b.outerHTML).join(" ") : "";
+  const withBadge = html => badges ? html.replace(/<h3>/g, `<h3>${badges} `) : html;
+  // Tiivis linja (23.9.2026): aukeama. Otsikko aloittaa parillisen (vasemman) sivun, jolloin
+  // kartta ja reittijana ovat vasemmalla ja ruudukot vastakkaisella oikealla sivulla.
+  // Ruudukot vierekkäin jos mahtuvat, muuten suunta kerrallaan (alt).
+  if (line.classList.contains("compact")) {
+    // Kapea vihko: kääntyvän kartan reittijana kulkee kartan mukana (vkMapHtml), joten sitä ei lisätä erikseen.
+    const kids = [...line.children];
+    const mapFig = kids.find(n => n.tagName === "FIGURE" && n.classList.contains("print-map"));
+    const strip = kids.find(n => n.tagName === "FIGURE" && n.classList.contains("cb-strip"));
+    const stripWithMap = !!(o.rot && mapFig && strip && !o.noMap && vkAspect(mapFig.outerHTML) < 0.8);
+    for (const node of kids) {
+      if (stripWithMap && node === strip) continue;
+      if (node.tagName === "H2")
+        atoms.push({ html: `<div class="vk-h2">${node.innerHTML}</div>`, keepWithNext: true, newPage: "line", spread: true, lineKey });
+      else if (node.classList.contains("cb-grids"))
+        atoms.push({ html: withBadge(node.outerHTML), newPage: "grids",
+          alt: [...node.children].map(c => withBadge(`<div class="cb-grids cb-stack">${c.outerHTML}</div>`)) });
+      else if (node.tagName === "FIGURE" && node.classList.contains("print-map")) {
+        if (!o.noMap) atoms.push({ html: vkMapHtml(node.outerHTML, o.rot, stripWithMap ? strip.outerHTML : "") });
       }
-      continue;
+      else atoms.push({ html: node.outerHTML });
     }
-    let lineLabel = "", dirLabel = "";
+  } else {
+    let lineLabel = "", dirLabel = "", dayLabel = "";
     for (const node of line.children) {
       const tag = node.tagName;
+      const prev = atoms[atoms.length - 1];
       // newPage: linja ja suunta alkavat aina A5-sivun yläreunasta (ks. vkPaginate)
-      if (tag === "H2") { lineLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h2">${node.innerHTML}</div>`, keepWithNext: true, newPage: "line" }); }
-      else if (tag === "H3") { dirLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h3">${node.innerHTML}</div>`, keepWithNext: true, newPage: "dir" }); }
-      else if (tag === "H4") atoms.push({ html: `<div class="vk-h4">${node.innerHTML}</div>`, keepWithNext: true });
-      else if (tag === "FIGURE") atoms.push({ html: node.outerHTML });   // reittikaavio (SVG) sellaisenaan
+      if (tag === "H2") { lineLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h2">${node.innerHTML}</div>`, keepWithNext: true, newPage: "line", lineKey }); }
+      else if (tag === "H3") { dirLabel = node.textContent.trim(); dayLabel = ""; atoms.push({ html: `<div class="vk-h3">${badges ? badges + " " : ""}${node.innerHTML}</div>`, keepWithNext: true, newPage: "dir" }); }
+      // Päivätyyppi myös jatkotaulukon otsikkoon (tarkastus 28.9.2026: lauantain jatko näkyi ilman "La"-merkintää).
+      else if (tag === "H4") { dayLabel = node.textContent.trim(); atoms.push({ html: `<div class="vk-h4">${node.innerHTML}</div>`, keepWithNext: true }); }
+      else if (tag === "FIGURE") { if (!o.noMap) atoms.push({ html: o.rot ? vkMapHtml(node.outerHTML, { w: o.rot.w, h: o.rot.h + 12 }) : node.outerHTML }); }   // reittikaavio (SVG)
+      // o.chunkLegends (kapea vihko): taulukon kirjain- ja "·"-selite kulkevat taulukon rivipalojen mukana (vkPaginate),
+      // jottei selite jää eri sivulle kuin kirjaimet. Reittiteksti samalla typografialla kuin tiiviissä osiossa.
+      else if (o.chunkLegends && tag === "P" && prev?.table && node.classList.contains("vk-marks")) prev.legend = vkLegendItems(node);
+      else if (o.chunkLegends && tag === "P" && prev?.table && node.classList.contains("matrix-legend")) prev.dotLegend = node.textContent.trim();
+      else if (o.chunkLegends && tag === "P" && node.classList.contains("vk-route")) atoms.push({ html: node.outerHTML });
       else {
         const src = tag === "TABLE" ? node : node.querySelector("table");
-        const table = src ? vkNarrowTable(src) : null;
+        const table = src ? vkNarrowTable(src, o.maxCols) : null;
         const rows = table ? [...table.querySelectorAll("tbody tr")].map(tr => tr.outerHTML) : [];
         if (table && rows.length)
           atoms.push({ table: true, thead: table.querySelector("thead")?.outerHTML || "", rows,
-                       cont: [lineLabel, dirLabel].filter(Boolean).join(" · ") });
+                       cont: [lineLabel, dirLabel, dayLabel].filter(Boolean).join(" · ") });
         else atoms.push({ html: `<div class="vk-note">${esc(node.textContent.trim())}</div>` });
       }
     }
   }
+  if (o.sec !== undefined) atoms.forEach(a => { a.sec = o.sec; });
   return atoms;
+}
+// Selitteen kohdat DOMista: "<b>x</b> = teksti · <b>y</b> = …" tai span-kääreinä (compactLineHtml). -> [{ letter, html }]
+function vkLegendItems(p) {
+  const items = [];
+  for (const b of p.querySelectorAll("b")) {
+    let html = b.outerHTML, n = b.nextSibling;
+    while (n && !(n.nodeType === 1 && (n.tagName === "B" || n.querySelector?.("b")))) {
+      html += n.nodeType === 1 ? n.outerHTML : esc(n.textContent);
+      n = n.nextSibling;
+    }
+    items.push({ letter: b.textContent.trim(), html: html.replace(/\s*·\s*$/, "").trim() });
+  }
+  return items;
+}
+const vkLegendFor = (items, html) => {
+  const used = new Set([...String(html).matchAll(/<sup>([^<]*)<\/sup>/g)].flatMap(m => [...m[1]]));
+  const its = (items || []).filter(x => used.has(x.letter));
+  return its.length ? `<p class="cb-notes cb-legend">${its.map(x => x.html).join(" · ")}</p>` : "";
+};
+
+// Kapea vihko: suunnan ruudukko, joka ei mahdu leveyteen edes tiiviimmällä fontilla, jaetaan
+// päivätyypeittäin (Ma–Pe yhteen, La ja Su toiseen), kuten Joukon vihkossa. Tunti ilman lähtöjä
+// kyseisinä päivinä jää pois. Jokainen osa toistaa suunnan otsikon.
+function vkSplitDays(html, fitsW) {
+  const box = document.createElement("div");
+  box.innerHTML = html;
+  const wrap = box.firstElementChild;
+  const dir = wrap?.querySelector(".cb-dir");
+  const tbl = dir?.querySelector("table.cb-grid");
+  if (!tbl || !tbl.tHead || !tbl.tBodies[0]) return [html];
+  const heads = [...tbl.tHead.rows[0].cells];
+  const groups = [];
+  let ci = 1;
+  for (const th of heads.slice(1)) { const n = th.colSpan || 1; groups.push({ th, from: ci, to: ci + n }); ci += n; }
+  if (groups.length < 2) return [html];
+  const build = gs => {
+    const t2 = tbl.cloneNode(false);
+    const hr = document.createElement("tr");
+    hr.appendChild(heads[0].cloneNode(true));
+    gs.forEach(g => hr.appendChild(g.th.cloneNode(true)));
+    t2.appendChild(document.createElement("thead")).appendChild(hr);
+    const tb = t2.appendChild(document.createElement("tbody"));
+    for (const r of tbl.tBodies[0].rows) {
+      const cells = [...r.cells];
+      const keep = gs.flatMap(g => cells.slice(g.from, g.to));
+      if (!keep.some(c => c.textContent.trim())) continue;
+      const tr = tb.appendChild(document.createElement("tr"));
+      tr.appendChild(cells[0].cloneNode(true));
+      keep.forEach(c => tr.appendChild(c.cloneNode(true)));
+    }
+    const d2 = dir.cloneNode(false);
+    const h3 = dir.querySelector("h3");
+    if (h3) d2.appendChild(h3.cloneNode(true));
+    d2.appendChild(t2);
+    const w2 = wrap.cloneNode(false);
+    w2.appendChild(d2);
+    return w2.outerHTML;
+  };
+  const out = [];
+  let cur = [];
+  for (const g of groups) {
+    if (cur.length && !fitsW(build(cur.concat(g)))) { out.push(build(cur)); cur = []; }
+    cur.push(g);
+  }
+  if (cur.length) out.push(build(cur));
+  // Jokainen osa saa kirjainselitteen rajattuna omiin kirjaimiinsa (tarkastus 28.9.2026: "a = vain Pe" oli vain
+  // viimeisen osan alla, eri aukeamalla kuin kirjain), cb-keep-huomautus toistuu jokaisessa osassa ja reittikuvaus
+  // (cb-route) sekä muut kappaleet tulevat viimeisen osan alle.
+  const ps = [...dir.children].filter(n => n.tagName === "P");
+  const legendP = ps.find(n => n.classList.contains("cb-legend") || (n.classList.contains("cb-notes") && !n.classList.contains("cb-keep") && n.querySelector("b")));
+  const items = legendP ? vkLegendItems(legendP) : [];
+  const keep = ps.filter(n => n.classList.contains("cb-keep")).map(n => n.outerHTML).join("");
+  const rest = ps.filter(n => n !== legendP && !n.classList.contains("cb-keep")).map(n => n.outerHTML).join("");
+  return out.map((h, i) => h.replace(/<\/div><\/div>$/, vkLegendFor(items, h) + keep + (i === out.length - 1 ? rest : "") + "</div></div>"));
 }
 
 // Pakkaa atomit A5-korkuisiksi sivuiksi mittaamalla SIVUN TODELLINEN kumulatiivinen korkeus joka
@@ -15334,25 +16211,53 @@ function vkCollectAtoms(out) {
 // Linja (newPage "line") ja suunta (newPage "dir") alkavat aina uuden A5:n yläreunasta (23.9.2026:
 // suunta ei saa alkaa sivun alaosasta ja katketa heti). Poikkeus: suunta saa jatkaa suoraan
 // linjaotsikon alla, jos sivulla ei ole muuta (ei reittikaaviota välissä).
-function vkPaginate(atoms) {
+// geom (kapea vihko 28.9.2026): sisältöalueen leveys ja korkeus millimetreinä, mittausluokka ja
+// splitDays. Oletus on A5. meta: { secs: [], kinds: [], lineStart: {} } = sivun osio ja laji sekä
+// linjan alkusivu (0-pohjainen). Atomi { page } on valmis kokonainen sivu (kansi, väliotsikko, kaupungin sivu).
+function vkPaginate(atoms, geom, meta) {
+  const G = geom || { w: VK_CONTENT_W, h: VK_CONTENT_H, cls: "" };
   const m = document.createElement("div");
-  m.className = "vihko-page-content";
-  m.style.cssText = `position:fixed;left:-9999px;top:0;width:${VK_CONTENT_W}mm;visibility:hidden`;
+  m.className = "vihko-page-content" + (G.cls ? " " + G.cls : "");
+  m.style.cssText = `position:fixed;left:-9999px;top:0;width:${G.w}mm;visibility:hidden`;
   document.body.appendChild(m);
-  const maxH = vkMm(VK_CONTENT_H) - vkMm(6);        // 6mm varmuusvara (ruutu- vs. print-media-ero)
+  const maxH = vkMm(G.h) - vkMm(6);                 // 6mm varmuusvara (ruutu- vs. print-media-ero)
   const heightOf = html => { m.innerHTML = html; return m.getBoundingClientRect().height; };
   const fits = html => heightOf(html) <= maxH;
   const fitsW = html => { m.innerHTML = html; return m.scrollWidth <= m.clientWidth + 1; };
   const pages = [];
   let cur = "";
+  let curSec = null;                                 // nykyisen sivun osio (meta.secs)
   let curOnlyLineHead = false;                       // sivulla on vain linjaotsikko
-  const flush = () => { if (cur) { pages.push(cur); cur = ""; } curOnlyLineHead = false; };
+  const push = (html, sec, kind) => {
+    pages.push(html);
+    if (meta) { meta.secs.push(sec); meta.kinds.push(kind || "flow"); }
+  };
+  const flush = () => { if (cur) { push(cur, curSec); cur = ""; } curOnlyLineHead = false; };
+  const mark = a => { if (a.sec !== undefined) curSec = a.sec; if (meta && a.lineKey && !(a.lineKey in meta.lineStart)) meta.lineStart[a.lineKey] = pages.length; };
+  // Kapea vihko: palan alle sen omien kirjainten selite ja "·"-selite, jos palassa on piste (vkLineAtoms chunkLegends).
   const tableHtml = (a, rows, cont) =>
     (cont ? `<div class="vk-cont">${esc(a.cont)} ${t("vihkoContinued")}</div>` : "")
-    + `<table class="vk-tbl">${a.thead}<tbody>${rows.join("")}</tbody></table>`;  // EI booklet/stoptable-luokkaa: @media print -säännöt eivät saa muuttaa mitattua kokoa
+    + `<table class="vk-tbl">${a.thead}<tbody>${rows.join("")}</tbody></table>`  // EI booklet/stoptable-luokkaa: @media print -säännöt eivät saa muuttaa mitattua kokoa
+    + (a.legend ? vkLegendFor(a.legend, rows.join("")) : "")
+    + (a.dotLegend && rows.some(r => r.includes("<td>·</td>")) ? `<p class="cb-notes">${esc(a.dotLegend)}</p>` : "");
+  // Kapea vihko (dirFlow): suunta saa jatkaa samalla sivulla, jos koko suunta (otsikko ja taulukot)
+  // mahtuu siihen. Muuten suunta alkaa uuden sivun yläreunasta kuten A5:ssä (23.9.2026 linjaus).
+  const dirHtml = from => {
+    let h = "";
+    for (let j = from; j < atoms.length; j++) {
+      const b = atoms[j];
+      if (j > from && (b.newPage || b.page !== undefined || b.spread)) break;
+      h += b.table ? tableHtml(b, b.rows, false) : (b.html || "");
+    }
+    return h;
+  };
   try {
-    for (const a of atoms) {
-      if (a.table) {
+    for (let ai = 0; ai < atoms.length; ai++) {
+      const a = atoms[ai];
+      if (a.page !== undefined) {
+        flush();
+        push(a.page, a.sec === undefined ? curSec : a.sec, a.kind || "page");
+      } else if (a.table) {
         let i = 0, first = true;
         while (i < a.rows.length) {
           let chunk = [];
@@ -15362,6 +16267,7 @@ function vkPaginate(atoms) {
           }
           if (!chunk.length) { flush(); continue; }   // ei mahtunut edes 1 riviä → uusi sivu, yritä uudelleen
           cur += tableHtml(a, chunk, !first);
+          mark(a);
           curOnlyLineHead = false;
           first = false;
           if (i < a.rows.length) flush();              // rivejä jäljellä → jatko seuraavalle A5:lle
@@ -15370,31 +16276,45 @@ function vkPaginate(atoms) {
         // Tiivis linja: aukeaman vasen sivu on parillinen. Seuraava sivunumero on pages.length + 1,
         // joten parillisella määrällä valmiita sivuja väliin tulee tyhjä sivu.
         flush();
-        if (pages.length % 2 === 0) pages.push("");
+        // Kapea vihko (spreads: false): ei tyhjiä täytesivuja kesken osion, kartta ja ruudukot peräkkäin.
+        if (G.spreads !== false && pages.length % 2 === 0) push("", a.sec === undefined ? curSec : a.sec, "blank");
+        mark(a);
         cur = a.html;
         curOnlyLineHead = true;
       } else if (a.newPage === "grids") {
         // Ruudukot omalle sivulleen. Vierekkäin jos mahtuvat sekä korkeus- että leveyssuunnassa,
         // muuten suunta kerrallaan (vierekkäin liian leveä taulu leikkautuisi paperin reunaan).
-        flush();
-        if (!a.alt || (fits(a.html) && fitsW(a.html))) cur = a.html;
+        // Kapea vihko (spreads: false): ruudukko jatkaa samalla sivulla, jos se mahtuu (yhdistelmän otsikon ja
+        // harvavuoroisen linjan kartan alle), muuten uusi sivu.
+        if (G.spreads !== false) flush();
+        mark(a);
+        if (!a.alt || (fits(a.html) && fitsW(a.html))) {
+          if (cur && !fits(cur + a.html)) { flush(); mark(a); }
+          cur += a.html;
+        }
         else for (const base of a.alt) {
           // Tiheä linja (Turku 1, 586 lähtöä, 27.9.2026): kymmenluvuittaiset minuuttisarakkeet eivät
           // mahdu 128 mm:iin edes suunta kerrallaan, joten ruudukkoa tiivistetään kahdessa portaassa.
-          let piece = base;
+          let piece = base, wide = true;
           for (const tight of ["", " cb-tight", " cb-tight cb-tight2"]) {
             piece = base.replace('class="cb-grids cb-stack"', `class="cb-grids cb-stack${tight}"`);
-            if (fitsW(piece)) break;
+            if (fitsW(piece)) { wide = false; break; }
           }
-          if (cur && !fits(cur + piece)) flush();
-          cur += piece;
+          // Kapea vihko: vielä liian leveä suunta päivätyypeittäin osiin (ks. vkSplitDays).
+          const parts = wide && G.splitDays ? vkSplitDays(base, fitsW) : [piece];
+          for (const pc of parts) {
+            if (cur && !fits(cur + pc)) { flush(); mark(a); }
+            cur += pc;
+          }
         }
         curOnlyLineHead = false;
       } else {
-        if (cur && a.newPage && !(a.newPage === "dir" && curOnlyLineHead)) flush();
+        const dirFits = a.newPage === "dir" && G.dirFlow && cur && fits(cur + dirHtml(ai));
+        if (cur && a.newPage && !(a.newPage === "dir" && curOnlyLineHead) && !dirFits) flush();
         else if (cur && !fits(cur + a.html)) flush();
         // orpouden esto: jos otsikolle ei jää sivulle tilaa ~12mm vertaa → uudelle sivulle
         else if (a.keepWithNext && cur && !fits(cur + a.html + `<div style="height:${vkMm(12)}px"></div>`)) flush();
+        mark(a);
         cur += a.html;
         curOnlyLineHead = a.newPage === "line";
       }
@@ -15503,6 +16423,405 @@ function printVihko(readingOrder) {
   });
 }
 
+/* ---------- Kaupungin vihkon malli, painovalmis kapea vihko (28.9.2026) ----------
+   CONFIG.vihko kuvaa kaupungin painetun vihkon: koko (Lappeenranta 100 x 200 mm), osiot linjoineen,
+   sivujärjestys ja kaupungin omat sivut. Tuloste on painotalolle menevä PDF: yksittäiset sivut
+   lukujärjestyksessä, sivumäärä neljällä jaollinen (satulanidonta), sivunumerot ja osion nimi
+   alareunassa. Aikataulusivut tulevat samasta kootusta vihosta (#bookletOut) kuin A5, joten
+   päivätyypit, kirjaimet ja poikkeukset ovat samat. Datasta kootaan lisäksi kansi, esittely
+   osioiden sivunumeroineen, liput ja hinnat (CONFIG.fares), osioiden väliotsikot ja sisällys-
+   luettelot, linjastokartta, poikkeuspäivät (CONFIG.exceptions) ja lipunmyynti. Kaupungin omien
+   sivujen (ilmoitukset, esittelytekstit, kutsutaksit) paikalla on nimetty paikkamerkki: kaupunki
+   toimittaa ne PDF-sivuina samassa koossa. */
+const VK_N_M = { t: 8, b: 12, s: 7 };   // kapean vihkon sivun reunat, mm
+function vkNarrowGeom() {
+  const sz = CONFIG.vihko?.size || { w: 100, h: 200 };
+  return { pw: sz.w, ph: sz.h, w: sz.w - 2 * VK_N_M.s, h: sz.h - VK_N_M.t - VK_N_M.b,
+    cls: "vk-narrow", maxCols: 6, splitDays: true, spreads: false, dirFlow: true };
+}
+function vkSectionOf(short) {
+  return (CONFIG.vihko?.sections || []).find(s => s.lines.includes(short)) || null;
+}
+const vkDmy = iso => { const [y, m, d] = String(iso).split("-"); return `${+d}.${+m}.${y}`; };
+
+function vkCoverHtml(V) {
+  const c = V.cover || {};
+  return `<div class="vk-cover-n">
+      <p class="vk-cv-kicker">${esc(c.kicker || seasonText())}</p>
+      <p class="vk-cv-title">${esc(c.title || operatorName())}</p>
+      ${c.season ? `<p class="vk-cv-season">${esc(c.season)}</p>` : ""}
+      ${c.years ? `<p class="vk-cv-years">${esc(c.years)}</p>` : ""}
+      <p class="vk-cv-op">${esc(operatorName())}${CONFIG.operatorShort ? `<b>${esc(CONFIG.operatorShort)}</b>` : ""}</p>
+    </div>`;
+}
+function vkDividerHtml(title) {
+  return `<div class="vk-divider"><p>${esc(title)}</p></div>`;
+}
+function vkCityPageHtml(item, i, n, G) {
+  return `<div class="vk-citypage"><div class="vk-cp-box">
+      <p class="vk-cp-kicker">${t("vkCityKicker")}</p>
+      <p class="vk-cp-title">${esc(item.title || item.city)}${n > 1 ? ` (${i + 1}/${n})` : ""}</p>
+      <p class="vk-cp-body">${esc(t("vkCityBody", { w: G.pw, h: G.ph }))}</p>
+      <p class="vk-cp-slot">${esc(t("vkCitySlot", { slot: item.city + (n > 1 ? "-" + (i + 1) : "") }))}</p>
+    </div></div>`;
+}
+function vkBackHtml(V) {
+  const f = CONFIG.fares;
+  const where = f ? faresWhereItems(f) : [];
+  return `<div class="vk-back">
+      ${where.length ? `<p class="vk-bk-title">${t("vkSalesTitle")}</p><ul>${where.map(w => `<li>${w}</li>`).join("")}</ul>` : ""}
+      ${V.backUrl ? `<p class="vk-bk-url">${esc(V.backUrl)}</p>` : ""}
+      <p class="vk-cv-op">${esc(operatorName())}${CONFIG.operatorShort ? `<b>${esc(CONFIG.operatorShort)}</b>` : ""}</p>
+    </div>`;
+}
+// Liput ja hinnat: vyöhykkeet sarakkeina (kuten Joukon vihkon s. 4-5), lipputyypit riveinä.
+function vkFaresAtoms(zoneHtml = "") {
+  const f = CONFIG.fares;
+  if (!f) return [];
+  const has = v => v != null && String(v).trim() !== "";
+  const eur = v => (has(v) ? `${v} €` : "–");
+  const zones = (Array.isArray(f.zones) && f.zones.length) ? f.zones : [f];
+  const zl = z => (z.label ? String(z.label[lang] ?? z.label.fi) : "");
+  const ftx = (k, fb) => faresText(f, k, null, fb);
+  const grp = [["adult", ftx("colAdult", "faresColAdult")], ["child", ftx("colChild", "faresColChild")],
+    ["reduced", ftx("colReduced", "faresColReduced")]];
+  const table = (title, rows) => {
+    const live = rows.filter(r => r.vals.some(has));
+    if (!live.length) return "";
+    return `<p class="vk-fh">${esc(title)}</p><table class="vk-tbl vk-fare"><thead><tr><th></th>`
+      + zones.map(z => `<th>${esc(zl(z))}</th>`).join("") + `</tr></thead><tbody>`
+      + live.map(r => `<tr><th scope="row">${esc(r.label)}</th>${r.vals.map(v => `<td>${eur(v)}</td>`).join("")}</tr>`).join("")
+      + `</tbody></table>`;
+  };
+  const byGroup = pick => grp.map(([k, label]) => ({ label, vals: zones.map(z => pick(z)?.[k]) }));
+  const atoms = [{ html: `<div class="vk-h2">${t("vkFaresTitle")}</div>`, newPage: "line", keepWithNext: true, sec: null, lineKey: "vk:fares" }];
+  const add = html => { if (html) atoms.push({ html, sec: null }); };
+  add(zoneHtml);   // vyöhykekartta pysäkkien vyöhyketunnuksista (vihkon s. 4 kartan vastine)
+  add(table(ftx("methodCardApp", "faresMethodCardApp"), byGroup(z => z.single?.cardApp)));
+  add(table(ftx("methodCash", "faresMethodCash"), byGroup(z => z.single?.cash)));
+  for (let i = 0; i < Math.max(...zones.map(z => (z.season || []).length)); i++)
+    add(table(`${t("faresSeasonTitle")} · ${t("faresDays", { n: zones.find(z => z.season?.[i])?.season[i].d })}`,
+      byGroup(z => z.season?.[i])));
+  add(table(ftx("methodContactless", "faresMethodContactless"), [
+    { label: t("faresSingleTitle"), vals: zones.map(z => z.single?.contactless) },
+    { label: t("vkDayTicket"), vals: zones.map(z => z.capDay) }]));
+  add(table(ftx("methodSalespoint", "faresMethodSalespoint"), byGroup(z => z.single?.salespoint)));
+  const notes = [ftx("flatBody"), ftx("transfer"), has(f.cardFee) ? faresText(f, "cardFee", { n: f.cardFee }) : ""].filter(Boolean);
+  for (const n of notes) add(`<p class="vk-fnote">${esc(n)}</p>`);
+  return atoms;
+}
+function vkExceptionsAtoms(V) {
+  const ex = CONFIG.exceptions;
+  const atoms = [];
+  if (V.feedback) atoms.push({ html: `<div class="vk-feedback"><p><b>${esc(V.feedback.title)}</b></p>
+      <p>${esc(V.feedback.body || "")} <b>${esc(V.feedback.url || "")}</b></p></div>`, newPage: "line", sec: null, lineKey: "vk:exceptions" });
+  if (ex && (ex.days || []).length) {
+    atoms.push({ html: `<div class="vk-h2">${t("vkExTitle")}</div>`, newPage: V.feedback ? undefined : "line", keepWithNext: true, sec: null,
+      lineKey: V.feedback ? undefined : "vk:exceptions" });
+    for (const d of ex.days)
+      atoms.push({ html: `<p class="vk-ex"><b>${esc(d.name)} ${vkDmy(d.from)}${d.to ? "–" + vkDmy(d.to) : ""}</b><br>${esc(d[lang] || d.fi || "")}</p>`, sec: null });
+  }
+  return atoms;
+}
+// Linjastokartan selite omana kaistanaan kartan alla (tarkastus 28.9.2026: kartan päällä oleva selitelaatikko peitti
+// Imatran 21/22-lenkin ja lähiliikenteen länsiosan). Viivanäyte, linjanumero ja nimi sarakkeittain kuten Joukon
+// linjakartassa; kaista kääntyy kartan mukana (vkMapHtml). fs = fontin koko viewBox-yksikköinä (leveys 640).
+function pmLegendSvg(lines, fs = 13, cols = 2) {
+  // Näyteviiva vähintään yhden kuviojakson mittainen, jotta katkoviivat erottuvat (121 ja 620 näyttivät yhtenäisiltä).
+  const W = 640, PAD = 6, colW = (W - 2 * PAD) / cols, sw = fs * 3.2, rh = fs * 1.3;
+  const k = fs / 13;
+  const items = lines.map(l => {
+    const st = netStyleFor(l.shortName || "");
+    const numW = cbTextWidth(l.shortName || "", true) * k;
+    const avail = colW - sw - numW - fs * 1.4;
+    return { l, st, numW, name: l.longName ? cbFitLines(l.longName, avail / k, false, 3) : [] };
+  });
+  const per = Math.ceil(items.length / cols), colH = new Array(cols).fill(PAD);
+  const out = [];
+  items.forEach((it, i) => {
+    const c = Math.floor(i / per), x = PAD + c * colW, y = colH[c], cy = y + rh * 0.5;
+    out.push(`<path d="M${(x + 2).toFixed(1)} ${cy.toFixed(1)}H${(x + sw).toFixed(1)}" stroke="#fff" stroke-width="${(fs * 0.55).toFixed(1)}" stroke-linecap="round"/>`
+      + `<path d="M${(x + 2).toFixed(1)} ${cy.toFixed(1)}H${(x + sw).toFixed(1)}" stroke="${it.st.color}" stroke-width="${(fs * 0.34).toFixed(1)}" stroke-linecap="${it.st.dash ? "butt" : "round"}"${it.st.dash ? ` stroke-dasharray="${it.st.dash.split(" ").map(v => (v * fs * 0.34 / 3.2).toFixed(1)).join(" ")}"` : ""}/>`
+      + `<text x="${(x + sw + fs * 0.4).toFixed(1)}" y="${(cy + fs * 0.36).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="700" fill="#000">${esc(it.l.shortName || "")}</text>`
+      + it.name.map((ln, j) => `<text x="${(x + sw + fs * 0.9 + it.numW).toFixed(1)}" y="${(cy + fs * 0.36 + j * rh).toFixed(1)}" font-size="${fs.toFixed(1)}" fill="#000">${esc(ln)}</text>`).join(""));
+    colH[c] = y + Math.max(1, it.name.length) * rh + fs * 0.25;
+  });
+  const H = Math.ceil(Math.max(...colH) + PAD);
+  return `<figure class="pm-legend-strip"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t("vkTocMap"))}" font-family="system-ui, Arial, sans-serif">${out.join("")}</svg></figure>`;
+}
+function vkNetworkPage(sec, net, G) {
+  // netLines: kartan linjat, jos kaikkia osion linjoja ei piirretä (Joukon s. 9: 1, 2, 3K, 4, 5, 7, 8).
+  const lines = (sec.netLines || sec.lines).map(s => net.get(s)).filter(l => l && l.dirs.length);
+  if (lines.length < 2) return "";
+  const aria = t("vkNetTitle", { sec: sec.title });
+  const map = maxAspect => printMapSvg(lines.map(l => ({ shortName: l.shortName, dirs: l.dirs })), {
+    basemap: true, colorLines: true, noLegend: true, evenLabels: 0, maxLabels: 18, maxAspect, aria, labelName: vkStopName });
+  const H2 = 12, avail = G.h - H2;
+  let svg = map(G.h / G.w - 0.12);
+  let ar = vkAspect(svg);
+  // Selitteen fontti noin 2,5 mm paperilla: kääntyvässä kartassa kaista on sivun pituinen, pystykartassa sivun levyinen.
+  const strip = rotW => pmLegendSvg(lines, 2.5 / (rotW / 640), lines.length <= 6 ? 1 : rotW > 120 ? 3 : 2);
+  let leg;
+  if (ar < 0.8) leg = strip(Math.min(avail, (G.w - 4) / ar));
+  else {
+    // Pystykartta: kartta ja kaista allekkain sivun levyisinä, joten kartta madalletaan kaistan verran.
+    leg = strip(G.w);
+    svg = map(Math.max(0.8, avail / G.w - vkAspect(leg) - 0.06));
+    ar = vkAspect(svg);
+    if (ar < 0.8) leg = strip(Math.min(avail, (G.w - 4) / ar));
+  }
+  return `<div class="vk-h2">${esc(aria)}</div><div class="vk-netmap">${vkMapHtml(svg, { w: G.w, h: avail }, leg)}</div>`;
+}
+function vkTocHtml(sec, meta, lineLabels, mapIdx, order) {
+  const starts = (order || sec.lines).map(s => [s, meta.lineStart[s]]).filter(x => x[1] != null).sort((a, b) => a[1] - b[1]);
+  const secEnd = meta.secs.lastIndexOf(sec.key);
+  const rows = starts.map(([s, p], i) => {
+    const end = (i + 1 < starts.length ? starts[i + 1][1] : secEnd + 1) - 1;
+    const pages = end > p ? `${p + 1}–${end + 1}` : `${p + 1}`;
+    return `<tr><td>${esc(lineLabels.get(s) || s)}</td><td class="num">${pages}</td></tr>`;
+  }).join("");
+  const V = CONFIG.vihko;
+  return `<div class="vk-h2">${t("vkToc")}</div>
+    <table class="vk-toc"><tbody>${mapIdx >= 0 ? `<tr><td>${t("vkTocMap")}</td><td class="num">${mapIdx + 1}</td></tr>` : ""}${rows}</tbody></table>
+    ${(V.notice || []).length ? `<div class="vk-notice">${V.notice.map((p, i) => i ? `<p>${esc(p)}</p>` : `<p><b>${esc(p)}</b></p>`).join("")}</div>` : ""}
+    ${(sec.note || []).length ? `<div class="vk-notice">${sec.note.map((p, i) => i ? `<p>${esc(p)}</p>` : `<p><b>${esc(p)}</b></p>`).join("")}</div>` : ""}`;
+}
+function vkIntroHtml(V, meta) {
+  const it = V.intro || {};
+  const span = (a, b) => `${t("vkPageShort")} ${a + 1}${b > a ? `–${b + 1}` : ""}`;
+  const items = (V.sections || []).map(s => {
+    const a = meta.secs.indexOf(s.key), b = meta.secs.lastIndexOf(s.key);
+    return a < 0 ? null : { a, html: `<tr><td>${esc(s.title)}</td><td class="num">${span(a, b)}</td></tr>` };
+  }).filter(Boolean);
+  // Liput ja hinnat sekä poikkeusliikennöinti osioluetteloon (tarkastus 28.9.2026). Sivut osiottomasta tekstivirrasta
+  // alkusivulta (lineStart) eteenpäin.
+  for (const [key, title] of [["vk:fares", t("vkFaresTitle")], ["vk:exceptions", t("vkExTitle")]]) {
+    const a = meta.lineStart[key];
+    if (a == null) continue;
+    let b = a;
+    while (b + 1 < meta.kinds.length && meta.kinds[b + 1] === "flow" && meta.secs[b + 1] == null) b++;
+    items.push({ a, html: `<tr><td>${esc(title)}</td><td class="num">${span(a, b)}</td></tr>` });
+  }
+  const rows = items.sort((x, y) => x.a - y.a).map(x => x.html).join("");
+  return `<p class="vk-in-title">${esc(it.title || operatorName())}</p>
+    ${it.lead ? `<p class="vk-in-lead">${esc(it.lead)}</p>` : ""}
+    <table class="vk-toc"><tbody>${rows}</tbody></table>
+    ${(it.body || []).map(p => `<p class="vk-in-p">${esc(p)}</p>`).join("")}
+    ${it.foot ? `<p class="vk-in-foot">${esc(it.foot)}</p>` : ""}`;
+}
+
+// Kokoaa kapean vihkon #bookletOut-sisällöstä ja tulostaa sen. mode (28.9.2026, Villen kysymys "miten tällaisen
+// vihkon voi tulostaa"): "pages" = sivut sellaisinaan (katselu, näyte), "bleed" = painotalolle 3 mm leikkuuvaroin ja
+// leikkuumerkein (arkki = sivu + 2 x 8 mm), "a4" = itse tulostettava: kaksi sivua A4-vaaka-arkille vihkojärjestyksessä
+// (kaksipuolinen tulostus lyhyen reunan ympäri, taitto, nidonta, leikkaus merkeistä).
+const VK_BLEED = 3, VK_SLUG = 8;
+function vkZoneMapHtml(stops) {
+  const Z = CONFIG.vihko?.zones;
+  if (!Z || !stops.length) return "";
+  // aspect = kehyksen muoto (CSS max-height 60 mm, sivun leveys), jottei kirjelaatikko jää kartan viereen.
+  const svg = printMapSvg([], { basemap: true, minSpan: 2000, maxLabels: 0, aria: t("vkZoneMapAria"), aspect: 60 / vkNarrowGeom().w,
+    marks: stops.map(s => ({ kind: "dot", lat: s.lat, lon: s.lon, color: Z[s.zoneId].color })) });
+  const legend = Object.values(Z).map(z => `<span class="vk-zl"><i style="background:${z.color}"></i><b>${esc(z.label)}</b> ${esc(z.name)}</span>`).join("");
+  return `<div class="vk-zonemap">${svg}<p class="vk-zlegend">${legend}</p></div>`;
+}
+async function vkZoneStops() {
+  const Z = CONFIG.vihko?.zones;
+  if (!Z) return [];
+  const data = await gql(`query ($a: Float!, $b: Float!, $c: Float!, $d: Float!) {
+      stopsByBbox(minLat: $a, minLon: $b, maxLat: $c, maxLon: $d) { gtfsId lat lon zoneId } }`,
+    { a: AREA.rect.minLat, b: AREA.rect.minLon, c: AREA.rect.maxLat, d: AREA.rect.maxLon });
+  return (data.stopsByBbox || []).filter(s => inCityFeed(s.gtfsId) && Z[s.zoneId] && s.lat != null);
+}
+async function vkEventAtoms(V, vkData, G) {
+  const ev = V.eventPages || [];
+  if (!ev.length) return new Map();
+  const feed = await findFeed();
+  const data = await gql(`query ($feeds: [String]) { routes(feeds: $feeds) { shortName longName@L color textColor
+      patterns { directionId stops { gtfsId name@L lat lon } patternGeometry { points } } } }`, { feeds: [feed] });
+  const res = new Map();
+  for (const e of ev) {
+    const r = (data.routes || []).find(x => x.shortName === e.line);
+    if (!r) continue;
+    const dirs = [];
+    for (const d of [0, 1]) {
+      const p = (r.patterns || []).filter(q => q.directionId === d && q.patternGeometry?.points)
+        .sort((a, b) => (b.stops || []).length - (a.stops || []).length)[0];
+      if (p) dirs.push({ points: decodePolyline(p.patternGeometry.points), stops: p.stops || [] });
+    }
+    const texts = vkData?.tapahtuma?.[e.line]?.tekstit || [];
+    // Vihkon omat tekstit (lähtö, reitti, paluu); pysäkkiluettelo vain jos tekstejä ei ole.
+    const stopsTxt = texts.length ? "" : dirs.map(d => `<p class="vk-route">${esc((d.stops || []).map(s => cbStopBase(s.name))
+      .filter((n, i, a) => n !== a[i - 1]).join(" – "))}</p>`).join("");
+    const map = dirs.length ? vkMapHtml(printMapSvg([{ shortName: r.shortName, dirs }], { basemap: true, routeColor: headerBgColor(), labelName: vkStopName }), { w: G.w, h: G.h - 70 }) : "";
+    const key = "event:" + e.line;
+    res.set(e.after, (res.get(e.after) || []).concat([
+      { html: `<div class="vk-h2">${badgeHtml(r)} ${esc(r.longName || "")}</div>`, newPage: "line", keepWithNext: true, lineKey: key },
+      ...texts.map(tx => ({ html: `<p class="vk-evtext">${esc(tx)}</p>` })),
+      { html: map }, { html: stopsTxt }]));
+    res.labels = res.labels || new Map();
+    res.labels.set(key, `${r.shortName} ${r.longName || ""}`.trim());
+  }
+  return res;
+}
+function printVihkoNarrow(mode = "pages") {
+  const V = CONFIG.vihko;
+  const out = document.getElementById("bookletOut");
+  if (!V || !out || !out.querySelector(".booklet-line")) return;
+  runPrintJob(t("vihkoPreparing"), async () => {
+    const G = vkNarrowGeom();
+    const lineEls = [...out.querySelectorAll(".booklet-line")];
+    const byShort = new Map(lineEls.map(l => [l.dataset.short, l]));
+    const lineLabels = new Map(lineEls.map(l => [l.dataset.short, l.dataset.toc || (l.querySelector("h2")?.textContent || "").replace(/\s+/g, " ").trim()]));
+    const net = new Map((out.vkNet || []).map(n => [n.shortName, n]));
+    const secs = V.sections || [];
+    const inSec = new Set(secs.flatMap(s => s.lines));
+    const combos = (V.combos || []).filter(c => byShort.has("combo:" + c.key));
+    const others = lineEls.filter(l => !inSec.has(l.dataset.short) && !String(l.dataset.short).startsWith("combo:"));
+    const lastSec = V.pages.map(p => !!(p && p.section)).lastIndexOf(true);
+    const [zoneStops, events] = await Promise.all([vkZoneStops().catch(() => []), vkEventAtoms(V, out.vkData, G).catch(() => new Map())]);
+    for (const [k, v] of (events.labels || new Map())) lineLabels.set(k, v);
+    const atoms = [];
+    const order = {};   // osio -> linja-, yhdistelmä- ja tapahtumasivujen avaimet sijoitusjärjestyksessä (sisällysluettelo)
+    const pageAtom = (html, kind, sec = null) => atoms.push({ page: html, kind, sec });
+    const sectionAtoms = (key, title, lines, network, lineMaps = true, netLines = null) => {
+      const els = lines.map(s => byShort.get(s)).filter(Boolean);
+      if (!els.length) return;
+      order[key] = [];
+      pageAtom(vkDividerHtml(title), "divider", key);
+      pageAtom(`<!--vk:toc:${key}-->`, "toc", key);
+      const nm = network ? vkNetworkPage({ key, title, lines, netLines }, net, G) : "";
+      if (nm) pageAtom(nm, "map", key);
+      const placed = new Set();
+      const after = short => {
+        for (const c of combos.filter(c => c.after === short && !placed.has(c.key))) {
+          placed.add(c.key); order[key].push("combo:" + c.key);
+          atoms.push(...vkLineAtoms(byShort.get("combo:" + c.key), { maxCols: G.maxCols, sec: key, dirBadge: true, chunkLegends: true }));
+        }
+        for (const a of events.get(short) || []) {
+          if (a.lineKey) order[key].push(a.lineKey);
+          atoms.push({ ...a, sec: key });
+        }
+      };
+      for (const el of els) {
+        order[key].push(el.dataset.short);
+        atoms.push(...vkLineAtoms(el, { maxCols: G.maxCols, sec: key, rot: { w: G.w, h: G.h - 26 }, noMap: !lineMaps, dirBadge: true, chunkLegends: true }));
+        after(el.dataset.short);
+      }
+      // Yhdistelmä, jonka "after"-linjaa ei koottu, osion loppuun (jos sen linjat kuuluvat tähän osioon).
+      for (const c of combos.filter(c => !placed.has(c.key) && lines.includes(c.after))) {
+        placed.add(c.key); order[key].push("combo:" + c.key);
+        atoms.push(...vkLineAtoms(byShort.get("combo:" + c.key), { maxCols: G.maxCols, sec: key, dirBadge: true, chunkLegends: true }));
+      }
+    };
+    V.pages.forEach((p, idx) => {
+      if (p === "cover") pageAtom(vkCoverHtml(V), "cover");
+      else if (p === "intro") pageAtom("<!--vk:intro-->", "intro");
+      else if (p === "fares") atoms.push(...vkFaresAtoms(vkZoneMapHtml(zoneStops)));
+      else if (p === "exceptions") atoms.push(...vkExceptionsAtoms(V));
+      else if (p === "back") pageAtom(vkBackHtml(V), "back");
+      else if (p && p.city) for (let i = 0; i < (p.n || 1); i++) pageAtom(vkCityPageHtml(p, i, p.n || 1, G), "city");
+      else if (p && p.section) {
+        const s = secs.find(x => x.key === p.section);
+        if (s) sectionAtoms(s.key, s.title, s.lines, s.network, s.lineMaps !== false, s.netLines);
+      }
+      // Kaupungin osioihin kuulumattomat valitut linjat viimeisen osion perään omana osionaan.
+      if (idx === lastSec && others.length)
+        sectionAtoms("muut", t("vkOtherLines"), others.map(l => l.dataset.short), false);
+    });
+    const meta = { secs: [], kinds: [], lineStart: {} };
+    const pages = vkPaginate(atoms, G, meta);
+    if (!pages.length) return false;
+    // Satulanidonta: sivumäärä neljällä jaolliseksi tyhjillä sivuilla ennen takakantta.
+    while (pages.length % 4) {
+      const back = meta.kinds.lastIndexOf("back");
+      const at = back >= 0 ? back : pages.length;
+      pages.splice(at, 0, ""); meta.secs.splice(at, 0, null); meta.kinds.splice(at, 0, "blank");
+    }
+    // Tyhjät sivut menevät takakannen eteen, joten linjojen alkusivut (meta.lineStart) eivät siirry.
+    // Sivunumerot tunnetaan vasta nyt: sisällysluettelot ja esittelyn osioluettelo.
+    const titles = new Map([...secs.map(s => [s.key, s.title]), ["muut", t("vkOtherLines")]]);
+    const b = mode === "bleed" ? VK_BLEED : 0;
+    const bodies = pages.map((h, i) => {
+      const kind = meta.kinds[i];
+      if (kind === "toc") {
+        const key = (h.match(/<!--vk:toc:([^>]+?)-->/) || [])[1];
+        const s = secs.find(x => x.key === key) || { key, title: titles.get(key), lines: others.map(l => l.dataset.short) };
+        return vkTocHtml(s, meta, lineLabels, meta.kinds.findIndex((kk, j) => kk === "map" && meta.secs[j] === key), order[key] || s.lines);
+      }
+      return kind === "intro" ? vkIntroHtml(V, meta) : h;
+    });
+    // Yksi sivu (pw x ph + leikkuuvara b joka reunalla). Täysiväriset sivut (kansi, väliotsikko, takakansi, kaupungin
+    // sivu) jatkuvat leikkuuvaran yli; sisältö ja sivunumero siirtyvät b:n verran sisään.
+    const pageDiv = i => {
+      const kind = meta.kinds[i], sec = meta.secs[i], n = i + 1;
+      const full = ["cover", "divider", "city", "back", "blank"].includes(kind);
+      const secTitle = sec ? titles.get(sec) || "" : "";
+      const foot = ["cover", "divider", "city", "back"].includes(kind) ? ""
+        : `<div class="vk-foot ${n % 2 ? "r" : "l"}" style="bottom:${5 + b}mm;${n % 2 ? `right:${7 + b}mm` : `left:${7 + b}mm`}">${n % 2 ? `${esc(secTitle)} <b>${n}</b>` : `<b>${n}</b> ${esc(secTitle)}`}</div>`;
+      const fullBody = b ? bodies[i].replace(/^<div class="(vk-cover-n|vk-divider|vk-back|vk-citypage)"/, (m0, c) =>
+        `<div class="${c}" style="padding:${c === "vk-citypage" ? `${8 + b}mm` : `${12 + b}mm ${9 + b}mm`}"`) : bodies[i];
+      return `<div class="vk-np vk-np-${kind}" style="width:${G.pw + 2 * b}mm;height:${G.ph + 2 * b}mm">`
+        + (full ? fullBody : `<div class="vihko-page-content ${G.cls}" style="left:${VK_N_M.s + b}mm;right:${VK_N_M.s + b}mm;top:${VK_N_M.t + b}mm;bottom:${VK_N_M.b + b}mm">${bodies[i]}</div>`)
+        + foot + `</div>`;
+    };
+    // Leikkuumerkit: viivat leikkuuviivan jatkeena arkin reunasta leikkuuvaran reunaan asti (eivät osu painoalaan).
+    const cropMarks = (x0, y0, w, h, gap, len) => {
+      const L = (x, y, ww, hh) => `<i class="vk-crop" style="left:${x}mm;top:${y}mm;width:${ww}mm;height:${hh}mm"></i>`;
+      const xs = [x0, x0 + w], ys = [y0, y0 + h];
+      return xs.flatMap(x => ys.flatMap(y => [
+        L(x - 0.1, y < y0 + 1 ? y - gap - len : y + gap, 0.2, len),
+        L(x < x0 + 1 ? x - gap - len : x + gap, y - 0.1, len, 0.2)])).join("");
+    };
+    let html, size, count = pages.length;
+    if (mode === "bleed") {
+      const W = G.pw + 2 * VK_SLUG, H = G.ph + 2 * VK_SLUG;
+      html = pages.map((_, i) => `<div class="vk-sheet" style="width:${W}mm;height:${H}mm">`
+        + `<div style="position:absolute;left:${VK_SLUG - b}mm;top:${VK_SLUG - b}mm">${pageDiv(i)}</div>`
+        + cropMarks(VK_SLUG, VK_SLUG, G.pw, G.ph, VK_BLEED, VK_SLUG - VK_BLEED - 0.5) + `</div>`).join("");
+      size = `${W}mm ${H}mm`;
+    } else if (mode === "a4") {
+      // Satulanidonnan arkitus kuten A5-vihkossa (vkImpose): arkki i ETU [N-2i | 1+2i], TAKA [2+2i | N-1-2i].
+      const N = pages.length, S = N / 4;
+      const x0 = (297 - 2 * G.pw) / 2, y0 = (210 - G.ph) / 2;
+      const sheet = (l, r) => `<div class="vk-sheet" style="width:297mm;height:210mm">`
+        + `<div style="position:absolute;left:${x0}mm;top:${y0}mm">${pageDiv(l - 1)}</div>`
+        + `<div style="position:absolute;left:${x0 + G.pw}mm;top:${y0}mm">${pageDiv(r - 1)}</div>`
+        + cropMarks(x0, y0, 2 * G.pw, G.ph, 2, Math.min(6, y0 - 2.5))
+        + `<i class="vk-crop" style="left:${x0 + G.pw - 0.1}mm;top:${y0 - 5}mm;width:0.2mm;height:3mm"></i>`
+        + `<i class="vk-crop" style="left:${x0 + G.pw - 0.1}mm;top:${y0 + G.ph + 2}mm;width:0.2mm;height:3mm"></i></div>`;
+      const sheets = [];
+      for (let i = 0; i < S; i++) { sheets.push(sheet(N - 2 * i, 1 + 2 * i)); sheets.push(sheet(2 + 2 * i, N - 1 - 2 * i)); }
+      html = sheets.join("");
+      size = "297mm 210mm";
+      count = sheets.length;
+    } else {
+      html = pages.map((_, i) => pageDiv(i)).join("");
+      size = `${G.pw}mm ${G.ph}mm`;
+    }
+    document.getElementById("vihkoPrint")?.remove();
+    const wrap = document.createElement("div");
+    wrap.id = "vihkoPrint";
+    wrap.className = "vk-n";
+    wrap.dataset.pages = String(pages.length);
+    wrap.dataset.sheets = String(count);
+    wrap.dataset.mode = mode;
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    document.body.classList.add("vihko-printing");
+    setPageOrientation("size:" + size);
+    const cleanup = () => {
+      document.body.classList.remove("vihko-printing");
+      wrap.remove();
+      setPageOrientation("portrait");
+      hidePrintPrep();
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    await imagesReady(wrap);
+    window.print();
+  });
+}
+
 // Rinnakkaisajo rajatulla samanaikaisuudella (proxyn ~10 req/s suoja)
 async function mapLimit(items, limit, fn) {
   const out = new Array(items.length);
@@ -15574,11 +16893,114 @@ function pickKeyStops(cand, target = KEY_STOP_TARGET, limit = KEY_STOP_LIMIT) {
 // Vihkotaulukko yhdelle suunnalle: sarakkeina isot pysäkit (timepoint +
 // aina lähtö & pääte), riveinä päivän lähdöt. Rivi = yksi vuoro avainpysäkkien
 // läpi (esim. Pilkekatu 13:05 · Matkakeskus 13:13 · …).
+// keyOpts.maxCols (kaupungin vihkon kapea taulukko): sarakkeet valitaan vkPickColsilla, ei tasavälein karsimalla.
+// keyOpts.marks: rivikirjain, kun rivin ensimmäinen tai viimeinen näkyvä sarake ei ole vuoron todellinen lähtö tai pääte.
+// keyOpts.disp: sarakeotsikot näyttöniminä (vkStopName).
 function bookletTableHtml(trips, keyOpts) {
   const valid = (trips || []).filter(tr => (tr.stoptimes || []).length);
   if (!valid.length) return `<p class="muted">${t("bookletNoData")}</p>`;
-  const keyStops = bookletKeyStops(valid, keyOpts);
-  return bookletRowsHtml(valid, keyStops);
+  let keyStops = keyOpts?.maxCols ? vkPickCols(valid, keyOpts.maxCols, keyOpts.longName) : bookletKeyStops(valid, keyOpts);
+  // Kapea sivu (86 mm): sarakkeita vähemmän, jos otsikoiden pisimmät sanat eivät mahdu. Kuusi saraketta katkaisi pitkät
+  // nimet kesken sanan ("Vuoksennisk a"); lähiliikenteen lyhyet kylänimet mahtuvat kuuteen, Imatran pitkät viiteen.
+  // Leveysarvio samoista fonttikoista kuin CSS (.vk-narrow .vk-tbl: aika 7,2 pt, otsikko 6,3 pt lihavoituna, reunus 1,4 mm).
+  if (keyOpts?.maxCols) {
+    const mm = (str, pt, bold) => cbTextWidth(str, bold) * pt / 9.75 * 0.3528;
+    const colW = st => Math.max(mm("00:00", 7.2) + 2, ...vkStopName(st?.name).split(/[\s-]+/).filter(Boolean).map(w => mm(w, 6.3, true))) + 1.4;
+    for (let m = keyOpts.maxCols - 1; m >= 5 && keyStops.reduce((a, st) => a + colW(st), 0) > (keyOpts.widthMm || 84); m--)
+      keyStops = vkPickCols(valid, m, keyOpts.longName);
+  }
+  return bookletRowsHtml(valid, keyStops, keyOpts);
+}
+// Kapean taulukon sarakkeet (kaupungin vihkon malli, 28.9.2026). Ehdokkaina on yleisimmän reittivariantin koko
+// pysäkkisarja, ei vain ensimmäisen vuoron aikapisteet. Järjestys:
+// 1) lähtö ja pääte sekä päätepysäkin ohitus kesken vuoron (lenkki), kun ohitus on vähintään 10 min lähdöstä ja
+//    päätteestä: linjan 500 aamuvuoro ohittaa Ruoholammen 07:36 ja päättyy sinne Sammonlahden lenkin jälkeen 07:55,
+//    linjan 24 vuoro kulkee Imatrankosken kautta kolmesti. Aikaehto rajaa pois keskustan läpiajon (610 Oikokatu-Armada
+//    vuoron alussa ja lopussa), joka vei kaksi saraketta ja pudotti Rikkilän;
+// 2) linjan nimen paikat ("Lpr - Nuijamaa, loma" -> Nuijamaa, "Lpr-Pulsa-Tani" -> Pulsa ja Tanin lähtöpysäkki): toinen
+//    tarkastus löysi 201:ltä, 610:ltä ja 620:ltä vuoroja, joiden kylän lähtöaika ei näkynyt missään, kun kylä jäi kahden
+//    sarakkeen väliin (36-61 min aukko). Kaupungin vihkossa kylät ovat aina mukana;
+// 3) vihkon pääpysäkit (CONFIG.vihko.mainStops, esim. Imatran Keskusasema), jos vuoro kulkee niiden kautta eikä
+//    valittu sarake ole alle 3 min päässä (101: Keskusasema ja Imatran keskusliikenneasema ovat samassa paikassa);
+// 4) sarakkeet, joissa vähintään kaksi riviä alkaa tai päättyy (ennen linjan 111 Joutseno putosi tasavälikarsinnassa);
+// 5) aukko: jos jollakin rivillä kahden näkyvän sarakkeen väli on yli 30 min, väliin pysäkki ajan puolivälistä
+//    (solmupysäkki ensin), jottei matkustaja jää ilman aikaa pitkällä osuudella;
+// 6) loput pysäkeillä, jotka ovat kauimpana jo valituista.
+// Palautettavalla sarakelistalla on oma align: vuoro kohdistetaan koko pysäkkisarjaan ja siitä poimitaan valitut
+// käynnit. Pelkkiin valittuihin nimiin kohdistus vei kahdesti käydyn pysäkin sarakkeeseen ensimmäisen käynnin
+// (linjan 500 pääteaikana 07:36, ei 07:55).
+function vkPickCols(valid, max, longName) {
+  // Ehdokkaat yleisimmän reittivariantin pysäkeistä (pisin vuoro voi olla harvinainen variantti, esim. 23 Huhtasen koululle).
+  const main = mostCommonStops(valid);
+  const rep = valid.reduce((a, b) => ((b.stoptimes || []).length > (a.stoptimes || []).length ? b : a), valid[0]);
+  const seq = main || (rep.stoptimes || []).map(st => st.stop);
+  const n = seq.length;
+  const align = bookletAlign(seq, vkStopKey);
+  const cols = idx => {
+    const ix = [...idx].sort((a, b) => a - b);
+    const out = ix.map(i => seq[i]);
+    out.align = sts => { const r = align(sts); return ix.map(i => r[i]); };
+    return out;
+  };
+  if (n <= max) return cols(seq.keys());
+  const names = seq.map(st => vkStopName(st?.name));
+  const rows = valid.map(tr => keepMonotone(align(tr.stoptimes || [])));
+  const keep = new Set([0, n - 1]);
+  const add = i => { if (keep.size < max) keep.add(i); };
+  // Kahden sarakkeen aikaero ensimmäisellä rivillä, joka käy molemmissa.
+  const dt = (i, j) => { const r = rows.find(r => r[i] != null && r[j] != null); return r ? Math.abs(r[i] - r[j]) : Infinity; };
+  for (const e of [0, n - 1])
+    names.forEach((x, i) => { if (i !== e && x === names[e] && dt(i, 0) >= 600 && dt(i, n - 1) >= 600) add(i); });
+  const first = nm => nm.split(/[\s_]+/)[0].toLowerCase();
+  for (const tok of String(longName || "").split(/\s*[-–,/]\s*/).map(x => x.trim().toLowerCase()).filter(x => x.length > 2)) {
+    const hits = names.map((nm, i) => [nm, i]).filter(([nm]) => first(nm) === tok || first(nm) === tok + "n");
+    const exact = hits.find(([nm]) => nm.toLowerCase() === tok);
+    if (hits.length) add((exact || hits[0])[1]);
+  }
+  for (const nm of (CONFIG.vihko?.mainStops || []))
+    names.forEach((x, i) => { if (x === nm && ![...keep].some(k => dt(i, k) < 180)) add(i); });
+  const score = new Array(n).fill(0);
+  for (const r of rows) {
+    const f = r.findIndex(v => v != null);
+    if (f < 0) continue;
+    let l = n - 1;
+    while (r[l] == null) l--;
+    score[f]++; score[l]++;
+  }
+  for (const i of [...Array(n).keys()].filter(i => !keep.has(i) && score[i] >= 2).sort((a, b) => score[b] - score[a] || a - b)) add(i);
+  for (let guard = 0; guard < n && keep.size < max; guard++) {
+    const cs = [...keep].sort((a, b) => a - b);
+    let best = null;
+    for (const r of rows) {
+      const vis = cs.filter(i => r[i] != null);
+      for (let k = 0; k + 1 < vis.length; k++) {
+        const x = vis[k], y = vis[k + 1], gap = r[y] - r[x];
+        if (y - x > 1 && gap > 1800 && (!best || gap > best.gap)) best = { x, y, gap, r };
+      }
+    }
+    if (!best) break;
+    const mid = best.r[best.x] + best.gap / 2;
+    let pick = -1, pd = Infinity;
+    for (let i = best.x + 1; i < best.y; i++) {
+      if (best.r[i] == null || keep.has(i)) continue;
+      const d = Math.abs(best.r[i] - mid) - (hubKeyOf(seq[i]) ? 600 : 0);
+      if (d < pd) { pd = d; pick = i; }
+    }
+    if (pick < 0) break;
+    keep.add(pick);
+  }
+  while (keep.size < max) {
+    let best = -1, bd = -1;
+    for (let i = 1; i < n - 1; i++) {
+      if (keep.has(i)) continue;
+      let d = Infinity;
+      for (const h of keep) d = Math.min(d, Math.abs(h - i));
+      if (d > bd) { bd = d; best = i; }
+    }
+    if (best < 0) break;
+    keep.add(best);
+  }
+  return cols(keep);
 }
 // Avainpysäkit (sarakkeet / reittijanan solmut) vuorojoukolle: timepointit + aina lähtö ja pää,
 // täydennettynä tasavälein, rajattuna pickKeyStopsilla. Yhteinen laajalle vihkolle ja tiiviin
@@ -15611,39 +17033,102 @@ function bookletKeyStops(valid, keyOpts) {
   }
   return pickKeyStops(cand, keyOpts?.target, keyOpts?.limit);
 }
-function bookletRowsHtml(valid, keyStops) {
-  const rows0 = valid.map(tr => {
-    const m = {};
-    for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture;
-    // sarakejärjestyksessä taaksepäin kulkevat ajat pois (ks. keepMonotone)
-    const mono = keepMonotone(keyStops.map(s => m[s.gtfsId] ?? null));
-    keyStops.forEach((s, i) => { if (mono[i] == null) delete m[s.gtfsId]; });
-    return m;
-  });
+// Sarake = avainpysäkin esiintymä, ei pysäkin tunnus. Rengaslinjalla lähtö- ja päätepysäkki ovat
+// sama pysäkki: tunnusavaimella kumpikin sarake sai lähtöajan, keepMonotone poisti sen päätteestä
+// ja poisto osui samalla avaimella myös lähtösarakkeeseen (Imatran linja 21: lähtösarake pelkkiä
+// pisteitä, 28.9.2026).
+// Käynnit kohdistetaan sarakkeisiin järjestyksen säilyttäen (pisin yhteinen alijono): kesken lenkin alkava vuoro
+// käy rengaslinjan lähtö- ja päätepysäkillä vain lopussa, ja n:s käynti -sääntö vei sen ensimmäiseen sarakkeeseen,
+// josta keepMonotone poisti sen, eli paluuaika katosi (Imatran 21, lähiliikenteen 114/120/610/620, tarkistin 28.9.2026).
+// stopKey: sarakkeen ja käynnin vertailuavain. Oletus pysäkin tunnus; kaupungin vihkon mallissa näyttönimi (vkStopName),
+// koska otsikko ei erota laitureita: linjan 23 lyhyt vuoro päättyy Imatrankoski I:lle, sarake oli Imatrankoski L, ja rivi
+// näkyi "14:10 · · · ·"; linjan 113 vuoro pysähtyy Silmukuja th E:llä, ja "·" väitti, ettei se kulje pysäkin kautta
+// (tarkastus ja tarkistin 28.9.2026).
+function bookletAlign(keyStops, stopKey = st => st?.gtfsId) {
+  const ids = keyStops.map(stopKey);
+  return sts => {
+    const n = ids.length, m = sts.length;
+    const ks = sts.map(x => stopKey(x.stop));
+    const dp = Array.from({ length: n + 1 }, () => new Int16Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1], ks[j] === ids[i] ? 1 + dp[i + 1][j + 1] : 0);
+    const out = new Array(n).fill(null);
+    for (let i = 0, j = 0; i < n && j < m;) {
+      if (ks[j] === ids[i] && dp[i][j] === 1 + dp[i + 1][j + 1]) { out[i] = sts[j].scheduledDeparture; i++; j++; }
+      else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+      else j++;
+    }
+    return out;
+  };
+}
+const vkStopKey = st => vkStopName(st?.name);
+function bookletRowsHtml(valid, keyStops, opts = {}) {
+  const align = keyStops.align || bookletAlign(keyStops, opts.disp ? vkStopKey : undefined);
+  const nameOf = keyStops.map(s => vkStopName(s.name));
+  // sarakejärjestyksessä taaksepäin kulkevat ajat pois (ks. keepMonotone; kohdistuksen jälkeen varotoimi)
+  const rows0 = valid.map(tr => keepMonotone(align(tr.stoptimes || [])));
   // Järjestys yhteisen avainpysäkin ajan mukaan. Ennen lajiteltiin 1. avainpysäkin mukaan ja
   // vuorot, jotka eivät käy siellä, putosivat taulun loppuun (Joensuun 101 La: 05.50 ... 20.55
   // ja vasta sitten 09.00-19.00, auditointi 23.9.2026). Puuttuva aika arvioidaan ensimmäisestä
   // yhteisestä pysäkistä ja tyypillisestä ajoajasta.
-  const ids = keyStops.map(s => s.gtfsId);
-  const refId = ids.reduce((b, id) =>
-    rows0.filter(m => m[id] != null).length > rows0.filter(m => m[b] != null).length ? id : b, ids[0]);
-  const off = {};
-  for (const id of ids) {
-    const d = rows0.filter(m => m[id] != null && m[refId] != null).map(m => m[id] - m[refId]).sort((a, b) => a - b);
-    off[id] = d.length ? d[Math.floor(d.length / 2)] : null;
-  }
-  const keyOf = m => {
-    if (m[refId] != null) return m[refId];
-    for (const id of ids) if (m[id] != null && off[id] != null) return m[id] - off[id];
-    const v = Object.values(m); return v.length ? Math.min(...v) : 1e9;
+  const n = keyStops.length;
+  const cnt = j => rows0.filter(r => r[j] != null).length;
+  let ref = 0;
+  for (let j = 1; j < n; j++) if (cnt(j) > cnt(ref)) ref = j;
+  const off = keyStops.map((_, j) => {
+    const d = rows0.filter(r => r[j] != null && r[ref] != null).map(r => r[j] - r[ref]).sort((x, y) => x - y);
+    return d.length ? d[Math.floor(d.length / 2)] : null;
+  });
+  const keyOf = r => {
+    if (r[ref] != null) return r[ref];
+    for (let j = 0; j < n; j++) if (r[j] != null && off[j] != null) return r[j] - off[j];
+    const v = r.filter(x => x != null); return v.length ? Math.min(...v) : 1e9;
   };
-  const rows = rows0.map(m => [keyOf(m), m]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
-  const head = keyStops.map(s => `<th scope="col">${esc(s.name)}</th>`).join("");
+  const rows = rows0.map((r, i) => [keyOf(r), r, valid[i]]).sort((x, y) => x[0] - y[0]);
+  const head = keyStops.map(s => `<th scope="col">${esc(opts.disp ? vkStopName(s.name) : String(s.name || "").replace(/_/g, " "))}</th>`).join("");
+  // Rivikirjaimet (opts.marks, tarkastus 28.9.2026): yhden ajan rivi "14:10 · · · ·" ei kertonut, mistä vuoro lähtee tai
+  // minne se päättyy. Kirjain rivin ensimmäiseen näkyvään aikaan, selite taulukon alle.
+  const codes = new Map();
+  const codeOf = txt => {
+    if (!codes.has(txt)) codes.set(txt, [..."abcdefghijklmnopqrstuvwxyz"][codes.size] || "*");
+    return codes.get(txt);
+  };
   let usedDot = false;
-  const body = rows.map(m =>
-    `<tr>${keyStops.map(s => `<td>${m[s.gtfsId] == null ? (usedDot = true, "·") : fmtSec(m[s.gtfsId])}</td>`).join("")}</tr>`).join("");
+  const body = rows.map(([, r0, tr]) => {
+    let sup = "";
+    const r = r0;
+    const f = r.findIndex(v => v != null);
+    // Kaupungin vihkon malli: vuoro, joka käy sarakkeen pysäkillä eri järjestyksessä kuin sarakkeet (lenkki toiseen
+    // suuntaan), sai "·":n, vaikka se ajaa pysäkin kautta (610 klo 12.05 Rikkilä 12.50, toinen tarkastus 28.9.2026). Aika
+    // näytetään sarakkeessa ja kirjain kertoo järjestyksen. Lähtö- ja päätekirjaimet luetaan järjestyksessä olevista ajoista.
+    const extra = new Map();
+    if (opts.marks) {
+      const used = new Set(r.filter(v => v != null));
+      nameOf.forEach((nm, i) => {
+        if (r[i] != null) return;
+        const st = (tr.stoptimes || []).find(x => vkStopName(x.stop?.name) === nm && !used.has(x.scheduledDeparture));
+        if (st) { extra.set(i, st.scheduledDeparture); used.add(st.scheduledDeparture); }
+      });
+    }
+    if (opts.marks && f >= 0) {
+      const sts = tr.stoptimes, s0 = sts[0], s1 = sts[sts.length - 1];
+      let l = r.length - 1;
+      while (r[l] == null) l--;
+      // Kirjain, jos vuoro lähtee vähintään minuuttia ennen ensimmäistä näkyvää aikaa tai päättyy vähintään minuuttia
+      // viimeisen jälkeen. Samassa minuutissa viereiseltä pysäkiltä lähtevä ei tarvitse kirjainta: 610:n "12:05 Oikokatu"
+      // ja selite "lähtee pysäkiltä Oleksi klo 12:05" luettiin ristiriidaksi (toinen tarkastus 28.9.2026).
+      if (r[f] - s0.scheduledDeparture >= 60)
+        sup += codeOf(t("vkRowFrom", { stop: vkStopName(s0.stop?.name), time: fmtSec(s0.scheduledDeparture) }));
+      if (s1.scheduledDeparture - r[l] >= 60) sup += codeOf(t("compactEndsAt", { stop: vkStopName(s1.stop?.name) }));
+    }
+    const order = extra.size ? codeOf(t("vkRowOrder")) : "";
+    return `<tr>${r.map((v, i) => `<td>${v == null
+      ? (extra.has(i) ? `${fmtSec(extra.get(i))}<sup>${esc(order)}</sup>` : (usedDot = true, "·"))
+      : fmtSec(v) + (i === f && sup ? `<sup>${esc(sup)}</sup>` : "")}</td>`).join("")}</tr>`;
+  }).join("");
+  const marks = codes.size ? `<p class="cb-notes vk-marks">${[...codes].map(([txt, c]) => `<b>${esc(c)}</b> = ${esc(txt)}`).join(" · ")}</p>` : "";
   return `<div class="matrix-wrap"><table class="stoptable booklet">
-      <thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>` +
+      <thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>${marks}` +
     (usedDot ? `<p class="matrix-legend">${t("legendSkipStop")}</p>` : "");
 }
 
@@ -15659,10 +17144,38 @@ function bookletRowsHtml(valid, keyStops) {
 function cbStopBase(n) {
   return (n || "").replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+(?:[A-ZÅÄÖ]|\d{1,2})$/u, "").trim() || (n || "");
 }
+// Kaupungin vihkon näyttönimi (tarkastus 28.9.2026): laiturikirjain, sulkulisäke, suuntaliite "keskustaan/keskustasta"
+// ja syötteen alaviiva pois ("Kurjentie 27 keskustaan" -> "Kurjentie 27", "Simolantie_keskustasta" -> "Simolantie").
+// Talonnumero jää: "Saimaantie 19" ja "Saimaantie 17" ovat eri pysäkkejä (cbStopBase pudottaisi numeron). Vain
+// näyttämiseen: vertailuavain on edelleen cbStopBase (lähtö/pääte, yhdistelmät, ohitusajat, reittikuvaukset).
+function vkStopName(n) {
+  const s = String(n || "").replace(/_/g, " ").replace(/\s*\([^)]*\)\s*/g, " ").trim();
+  const b = s.replace(/\s+[A-ZÅÄÖ]$/u, "").trim() || s;
+  return b.replace(/\s+keskusta(?:an|sta)$/iu, "").trim() || b;
+}
+// Suunnan päätepysäkin näyttönimi. Kadunvarren pääte ("Mäntyläntie 10 keskustasta") ei kerro määränpäätä, joten sen
+// sijaan käytetään sinne päättyvien vuorojen yleisintä kilpeä, jos se on yksi paikannimi (linja 4: "Mäntylä").
+// Monipaikkainen kilpi ("Kiiskinmäki-Keskusta-Puhakankatu") tai numero ei kelpaa.
+function vkEndName(stop, trips) {
+  const n = stop?.name || "";
+  if (!/\s+keskusta(?:an|sta)$/iu.test(cbStopBase(n))) return vkStopName(n);
+  const cnt = new Map();
+  for (const tr of trips || []) {
+    const st = tr.stoptimes || [];
+    const last = st[st.length - 1]?.stop;
+    const hs = String(tr.tripHeadsign || "").trim();
+    if (!last || !hs || (last.gtfsId !== stop.gtfsId && cbStopBase(last.name) !== cbStopBase(n))) continue;
+    if (/[-–\d]/.test(hs)) continue;
+    cnt.set(hs, (cnt.get(hs) || 0) + 1);
+  }
+  const best = [...cnt].sort((a, b) => b[1] - a[1])[0];
+  return best ? best[0] : vkStopName(n);
+}
 
 // Yhden suunnan tuntiruudukko. d = { label, stops, groups }. codeFor(avain, selite) antaa
 // linjan yhteisen kirjaimen, jotta sama poikkeus on samalla kirjaimella molemmissa suunnissa.
-function cbGridHtml(d, codeFor) {
+// nameOf: pysäkin nimi kirjainten teksteissä (kaupungin vihkon mallissa vkStopName, muuten perusnimi kuten ennen).
+function cbGridHtml(d, codeFor, nameOf = cbStopBase) {
   const gs = d.groups || [];
   if (!gs.length) return `<div class="cb-dir"><h3>${esc(d.label)}</h3><p class="muted">${t("bookletNoData")}</p></div>`;
   const sub = (g, h) => [...g.dows].every(x => h.dows.has(x));
@@ -15684,22 +17197,31 @@ function cbGridHtml(d, codeFor) {
   const entries = new Map(cols.map(c => [c, []]));
   for (const g of gs) {
     const col = rootOf(g);
-    const dayCode = g === col ? null
-      : codeFor("d:" + g.label, t("compactOnlyDays", { days: g.dows.size === col.dows.size && g.school && !g.period
-          ? t(g.school === "koul" ? "schoolTerm" : "schoolBreak") : g.label }));
+    // Kirjaimen avain on selitteen teksti: sama merkitys saa saman kirjaimen myös keskustan ohitusaikojen
+    // ruudukossa (ennen "e = päättyy pysäkille Muukonniemi · f = päättyy pysäkille Muukonniemi", 28.9.2026).
+    const dayText = g === col ? "" : t("compactOnlyDays", { days: g.dows.size === col.dows.size && g.school && !g.period
+      ? t(g.school === "koul" ? "schoolTerm" : "schoolBreak") : g.label });
+    const dayCode = g === col ? null : codeFor("t:" + dayText, dayText);
     for (const tr of g.trips) {
       const st = tr.stoptimes || [];
       if (!st.length) continue;
       const a = cbStopBase(st[0].stop?.name), z = cbStopBase(st[st.length - 1].stop?.name);
       const marks = [];
       if (dayCode) marks.push(dayCode);
-      if (mainStart && mainEnd && (a !== mainStart || z !== mainEnd)) {
+      if (tr._mark) marks.push(codeFor("m:" + tr._mark, t("vkMergedLine", { line: tr._markLine, name: tr._markName }), tr._mark));
+      else if (mainStart && mainEnd && (a !== mainStart || z !== mainEnd)) {
+        // Teksti nameOf-nimellä (kaupungin vihkossa vkStopName: ei laiturikirjainta, suuntaliitettä eikä alaviivaa), vertailu perusnimellä.
+        const an = nameOf(st[0].stop?.name), zn = nameOf(st[st.length - 1].stop?.name);
         const txt = a !== mainStart && z !== mainEnd
-          ? `${t("compactStartsAt", { stop: a })}, ${t("compactEndsAt", { stop: z })}`
-          : a !== mainStart ? t("compactStartsAt", { stop: a }) : t("compactEndsAt", { stop: z });
-        marks.push(codeFor(`v:${a}|${z}`, txt));
+          ? `${t("compactStartsAt", { stop: an })}, ${t("compactEndsAt", { stop: zn })}`
+          : a !== mainStart ? t("compactStartsAt", { stop: an }) : t("compactEndsAt", { stop: zn });
+        marks.push(codeFor("t:" + txt, txt));
       }
-      entries.get(col).push({ sec: st[0].scheduledDeparture, marks });
+      // Sama sarake, sama lähtöhetki ja samat kirjaimet = matkustajalle sama lähtö, näytetään kerran. Syötteessä on
+      // linjan 2 arkivuoro klo 18.45 Keskustasta Kivisalmeen kahdesti eri patterneilla ("15 45 45", tarkastus 28.9.2026).
+      const sec = st[0].scheduledDeparture, mk = marks.join("");
+      if (entries.get(col).some(e => e.sec === sec && e.marks.join("") === mk)) continue;
+      entries.get(col).push({ sec, marks });
     }
   }
   const hours = [...new Set([...entries.values()].flat().map(e => Math.floor(e.sec / 3600)))].sort((x, y) => x - y);
@@ -15712,7 +17234,8 @@ function cbGridHtml(d, codeFor) {
   const body = hours.map(h => `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th>`
     + cols.map(c => minuteTensCells(tensOf.get(c), inHour(c, h), fmt, e => e.sec)).join("") + `</tr>`).join("");
   return `<div class="cb-dir"><h3>${esc(d.label)}</h3><table class="cb-grid">`
-    + `<thead><tr><th scope="col" class="cb-hcol">${t("compactHour")}</th>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+    + `<thead><tr><th scope="col" class="cb-hcol">${t("compactHour")}</th>${head}</tr></thead><tbody>${body}</tbody></table>`
+    + (d.routeText || []).map(x => `<p class="cb-route">${esc(x)}</p>`).join("") + `</div>`;
 }
 
 // Reittijanan tekstin leveys samalla fontilla kuin janan SVG:ssä (viewBox-yksikkö = px 13 px:n
@@ -15757,7 +17280,8 @@ function cbFitLines(name, avail, bold, maxLines) {
 // pituus arvattiin merkkimäärästä, joten Lappeenrannan "Suolavuorentie-Sahurinkatu keskustasta" meni
 // naapurinsa päälle ja päätypysäkin nimi leikkautui kuvan reunasta.
 function cbStripNames(names, xs, W, yBase) {
-  const n = names.length, GAP = 6, EDGE = 2;
+  // GAP 12 (oli 6): yhdelle riville mahtuneet nimet lukeutuivat yhdeksi ("Keskusta Kauppakatu 73", tarkastus 28.9.2026).
+  const n = names.length, GAP = 12, EDGE = 2;
   const bold = i => i === 0 || i === n - 1;
   const lane = i => (i === 0 ? xs[0] - EDGE : (xs[i] - xs[i - 1]) / 2)
     + (i === n - 1 ? W - EDGE - xs[i] : (xs[i + 1] - xs[i]) / 2) - GAP;
@@ -15788,7 +17312,7 @@ function cbStripNames(names, xs, W, yBase) {
 // Reittijana: pääsuunnan isot pysäkit (samat kuin laajan vihkon sarakkeet) ja tyypillinen
 // matka-aika niiden välillä kumpaankin suuntaan (mediaani). Vastasuunta haetaan perusnimellä,
 // koska vastakkaisen laiturin pysäkki on datassa eri pysäkki.
-function cbStripSvg(dirs) {
+function cbStripSvg(dirs, nameOf = cbStopBase) {
   const flat = d => (d?.groups || []).flatMap(g => g.trips).filter(tr => (tr.stoptimes || []).length);
   const t0 = flat(dirs[0]);
   if (!t0.length) return "";
@@ -15797,20 +17321,41 @@ function cbStripSvg(dirs) {
   const ks = stripStops(bookletKeyStops(mainTrips.length ? mainTrips : t0, { target: 6, limit: 7 }), 8);
   if (ks.length < 2) return "";
   const med = arr => { const s = arr.filter(x => x > 0).sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
-  const timesById = tr => { const m = {}; for (const st of tr.stoptimes) if (m[st.stop.gtfsId] == null) m[st.stop.gtfsId] = st.scheduledDeparture; return m; };
-  const timesByBase = tr => { const m = {}; for (const st of tr.stoptimes) { const k = cbStopBase(st.stop?.name); if (m[k] == null) m[k] = st.scheduledDeparture; } return m; };
+  // Ajat solmuihin järjestyksessä: solmu haetaan edellisen löydetyn käynnin jälkeen. Pysäkin ensimmäinen käynti ei
+  // kelpaa lenkillä, jossa pysäkki toistuu: P3:n janasta puuttui kolme väliaikaa ja viimeisellä välillä luki koko
+  // matkan "55 min" (tarkastus 28.9.2026). Vastasuunta haetaan perusnimin käännetyssä järjestyksessä.
+  const seqTimes = (tr, keys, keyOf) => {
+    const out = [];
+    let j = 0;
+    for (const k of keys) {
+      let v = null;
+      for (let q = j; q < tr.stoptimes.length; q++) if (keyOf(tr.stoptimes[q]) === k) { v = tr.stoptimes[q].scheduledDeparture; j = q + 1; break; }
+      out.push(v);
+    }
+    return out;
+  };
+  const n = ks.length;
+  // Vastasuunnan pysäkki näyttönimen perusmuodolla: Lappeenrannan pysäkkiparit eroavat vain suuntaliitteeltä
+  // ("Kurjentie 27 keskustaan" / "... keskustasta"), eikä perusnimi tunnistanut niitä, joten linjan 4 janasta puuttuivat
+  // kaikki paluuajat (28.9.2026).
+  const backKey = nm => cbStopBase(vkStopName(nm));
+  const m0 = (mainTrips.length ? mainTrips : t0).map(tr => seqTimes(tr, ks.map(s => s.gtfsId), st => st.stop?.gtfsId));
+  const t1 = flat(dirs[1]).map(tr => seqTimes(tr, ks.map(s => backKey(s.name)).reverse(), st => backKey(st.stop?.name)));
+  // Palvelulinjan (P1, P3) ajat ovat syötteessä ajantasauspisteitä: 6-7 peräkkäistä pysäkkiä samalla minuutilla ja seuraava
+  // väli koko loppumatka (P3:n janassa "55 min", tarkastus 28.9.2026). Tavallisilla linjoilla jakson mediaani on enintään 4
+  // (mitattu Lappeenrannan kaikilta linjoilta). Silloin janaan ei merkitä matka-aikoja.
+  const runOf = tr => { let best = 1, cur = 1; for (let q = 1; q < tr.stoptimes.length; q++) { cur = tr.stoptimes[q].scheduledDeparture === tr.stoptimes[q - 1].scheduledDeparture ? cur + 1 : 1; best = Math.max(best, cur); } return best; };
+  const runs = t0.map(runOf).sort((a, b) => a - b);
+  const placeholder = runs[Math.floor(runs.length / 2)] >= 5;
   const fw = [], bw = [];
-  const m0 = (mainTrips.length ? mainTrips : t0).map(timesById);
-  const t1 = flat(dirs[1]).map(timesByBase);
-  for (let i = 0; i < ks.length - 1; i++) {
-    const A = ks[i], B = ks[i + 1];
-    fw.push(med(m0.filter(m => m[A.gtfsId] != null && m[B.gtfsId] != null).map(m => m[B.gtfsId] - m[A.gtfsId])));
-    const a = cbStopBase(A.name), b = cbStopBase(B.name);
+  for (let i = 0; i < n - 1 && !placeholder; i++) {
+    fw.push(med(m0.filter(m => m[i] != null && m[i + 1] != null).map(m => m[i + 1] - m[i])));
+    const a = n - 1 - i, b = n - 2 - i;   // vastasuunnan järjestyksessä: B (b) ennen A:ta (a)
     bw.push(t1.length ? med(t1.filter(m => m[a] != null && m[b] != null).map(m => m[a] - m[b])) : null);
   }
-  const W = 600, PADX = 40, n = ks.length, step = (W - 2 * PADX) / (n - 1), yL = 60;
+  const W = 600, PADX = 40, step = (W - 2 * PADX) / (n - 1), yL = 60;
   const xs = ks.map((_, i) => PADX + i * step);
-  const names = cbStripNames(ks.map(s => cbStopBase(s.name)), xs, W, yL - 16);
+  const names = cbStripNames(ks.map(s => nameOf(s.name)), xs, W, yL - 16);
   const mins = s => s == null ? "" : Math.max(1, Math.round(s / 60));
   const segs = fw.map((s, i) => {
     const cx = ((xs[i] + xs[i + 1]) / 2).toFixed(1), f = mins(s), b = mins(bw[i]);
@@ -15841,18 +17386,37 @@ function stripStops(ks, max) {
 }
 
 // Tiiviin vihkon linja-aukeama. dirs = [{ label, stops, groups, trips }], mapHtml valmiina.
-function compactLineHtml(route, dirs, mapHtml) {
+function compactLineHtml(route, dirs, mapHtml, merged = [], extras = [], perDirLegend = false) {
   const codes = new Map();
-  const codeFor = (key, text) => {
-    if (!codes.has(key)) codes.set(key, { letter: "abcdefghijklmnopqrstuvwxyz"[codes.size] || "*", text });
+  // forced: rinnakkaislinjan kirjain (X, H). Muut saavat ensimmäisen vapaan pienaakkosen.
+  const codeFor = (key, text, forced) => {
+    if (!codes.has(key)) {
+      const used = new Set([...codes.values()].map(c => c.letter));
+      codes.set(key, { letter: forced || [..."abcdefghijklmnopqrstuvwxyz"].find(l => !used.has(l)) || "*", text });
+    }
     return codes.get(key).letter;
   };
-  const grids = dirs.map(d => cbGridHtml(d, codeFor));
+  // Suunta ja sen keskustan ohitusajat peräkkäin (vihkon järjestys).
+  // Kaupungin vihkon malli (perDirLegend): pysäkit näyttöniminä (vkStopName). Muut vihkot ennallaan.
+  const nameOf = perDirLegend ? vkStopName : cbStopBase;
+  let grids = dirs.flatMap((d, i) => [cbGridHtml(d, codeFor, nameOf), extras[i] ? cbGridHtml(extras[i], codeFor, nameOf) : ""]).filter(Boolean);
+  // Kaupungin vihkon malli: jokaisen ruudukon alle sen omien kirjainten selite (kapeassa vihkossa ruudukot ovat eri
+  // sivuilla kuin linjan kartta ja koko linjan selite).
+  if (perDirLegend) {
+    const byLetter = new Map([...codes.values()].map(c => [c.letter, c.text]));
+    grids = grids.map(g => {
+      const used = [...new Set([...g.matchAll(/<sup>([^<]*)<\/sup>/g)].flatMap(m => [...m[1]]))].filter(l => byLetter.has(l));
+      if (!used.length) return g;
+      const order = [...codes.values()].map(c => c.letter).filter(l => used.includes(l));
+      const p = `<p class="cb-notes cb-legend">${order.map(l => `<b>${esc(l)}</b> = ${esc(byLetter.get(l))}`).join(" · ")}</p>`;
+      return g.replace(/<\/table>/, "</table>" + p);
+    });
+  }
   const notes = [...codes.values()].map(c => `<span><b>${c.letter}</b> = ${esc(c.text)}</span>`).join(" · ");
-  return `<section class="card booklet-line compact">
-      <h2>${badgeHtml(route)} ${esc(route.longName)}</h2>
+  return `<section class="card booklet-line compact" data-short="${esc(route.shortName || "")}">
+      <h2>${badgeHtml(route)}${merged.map(m => " " + badgeHtml(m)).join("")} ${esc(route.longName)}</h2>
       ${mapHtml}
-      ${cbStripSvg(dirs)}
+      ${cbStripSvg(dirs, nameOf)}
       ${notes ? `<p class="cb-notes">${notes}</p>` : ""}
       <div class="cb-grids">${grids.join("")}</div>
     </section>`;
@@ -16493,7 +18057,24 @@ async function bindReprintTab(routes, today) {
 // ohjautuvat oikealle välilehdelle (route()); välilehdet ovat URL-osoitettavia (#/tulosteet/<tab>
 // tai ?tab=<tab>). Kaikki kolme paneelia ovat DOMissa → sidonnat toimivat tabista riippumatta;
 // välilehden vaihto ei piirrä näkymää uudelleen (history.replaceState → lomaketila säilyy).
-const PRINT_TABS = ["vihko", "kaytava", "julisteet", "muutokset", "uusintapainatus", "naytot"];
+// CONFIG.vihko-osioiden linjat, jotka puuttuvat aktiivilistasta (ei lähtöjä koepäivinä). Ilman aktiivisuus-
+// suodatusta: vihko kattaa koko kauden, ja koonti näyttää linjan ne päivät, joina se ajaa (esim. loma-aikoina).
+async function vkSeasonRoutes(routes) {
+  try {
+    const want = new Set((CONFIG.vihko?.sections || []).flatMap(s => s.lines));
+    const have = new Set(routes.map(r => r.shortName));
+    const missing = [...want].filter(x => !have.has(x));
+    if (!missing.length) return [];
+    const feed = await findFeed();
+    const { data } = await cachedGql("vkseason:" + feed + ":" + missing.join(","),
+      `query ($feeds: [String]) { routes(feeds: $feeds) { gtfsId shortName longName@L mode color textColor } }`, { feeds: [feed] });
+    const seen = new Set();
+    return (data.routes || []).filter(r => missing.includes(r.shortName) && (CONFIG.modes || ["BUS"]).includes(r.mode))
+      .filter(r => !seen.has(r.shortName) && seen.add(r.shortName));
+  } catch (e) { return []; }
+}
+
+const PRINT_TABS = ["vihko", "kaytava", "julisteet", "lahipysakit", "muutokset", "uusintapainatus", "naytot"];
 // query: valinnainen URLSearchParams, ks. applyPrintQuery. Palvelutiski ja QR-linkit
 // esivalitsevat linjat kyselyllä ja käynnistävät koonnin, jotta jokainen tuloste on
 // toteutettu vain kerran ja vain täällä (3.9.2026).
@@ -16508,6 +18089,9 @@ async function viewPrintCenter(tab, query) {
   // ottelupäivinä (täysauditointi 27.9.2026). Siksi niitä ei tarjota millekään tulosteelle.
   const eventLines = CONFIG.eventLines || [];
   const routes = (await loadRoutes()).filter(r => !eventLines.includes(r.shortName));
+  // Kaupungin vihkon kauden linjat, jotka eivät aja lähipäivinä (Lappeenrannan loma-ajan linjat 114, 201
+  // ja 301 ajavat vasta syyslomalla, joten aktiivilista pudottaa ne). Vain vihkon linjavalintaan.
+  const bookletRoutes = CONFIG.vihko ? [...routes, ...(await vkSeasonRoutes(routes))] : routes;
   if (navStale(nav)) return;
   const today = todayISO();
   setView(`
@@ -16519,6 +18103,7 @@ async function viewPrintCenter(tab, query) {
         <button type="button" class="ptab" data-ptab="vihko" aria-pressed="false">${t("tabBooklet")}</button>
         <button type="button" class="ptab" data-ptab="kaytava" aria-pressed="false">${t("tabCorridor")}</button>
         <button type="button" class="ptab" data-ptab="julisteet" aria-pressed="false">${t("tabPosters")}</button>
+        <button type="button" class="ptab" data-ptab="lahipysakit" aria-pressed="false">${t("tabNearby")}</button>
         <button type="button" class="ptab" data-ptab="muutokset" aria-pressed="false">${t("tabChanges")}</button>
         <button type="button" class="ptab" data-ptab="uusintapainatus" aria-pressed="false">${t("tabReprint")}</button>
         <button type="button" class="ptab" data-ptab="naytot" aria-pressed="false">${t("tabScreens")}</button>
@@ -16547,6 +18132,7 @@ async function viewPrintCenter(tab, query) {
           <select id="bookletLayout">
             <option value="compact">${t("bookletLayoutCompact")}</option>
             <option value="full">${t("bookletLayoutFull")}</option>
+            ${CONFIG.vihko ? `<option value="city">${t("bookletLayoutCity")}</option>` : ""}
           </select>
         </div>
         <div class="field">
@@ -16566,7 +18152,7 @@ async function viewPrintCenter(tab, query) {
         <p class="buildbar"><button type="button" id="buildBtn">${t("generateBooklet")}</button>
            <span id="buildStatus" class="muted" role="status"></span></p>
         <ul class="plain" id="lineChecks">
-          ${routes.map(r => `<li><label class="item" style="cursor:pointer;align-items:center">
+          ${bookletRoutes.map(r => `<li><label class="item" style="cursor:pointer;align-items:center">
               <input type="checkbox" class="lineCb" value="${esc(r.gtfsId)}"
                      style="width:1.4rem;height:1.4rem;flex:none">
               ${badgeHtml(r)} <span>${esc(r.longName)}</span></label></li>`).join("")}
@@ -16623,7 +18209,8 @@ async function viewPrintCenter(tab, query) {
         <label class="embed-field" for="posterStopQ">${t("deskStopLabel")}</label>
         <div class="suggest"><input id="posterStopQ" type="text" autocomplete="off" placeholder="${t("deskStopPlaceholder")}">
           <ul class="plain suggest-list" id="posterStopList" hidden></ul></div>
-        <p><button type="button" id="posterStopGo" disabled>${icon("print")} ${t("printStopPoster")}</button></p>
+        <p class="row" style="flex-wrap:wrap;gap:0.5rem;align-items:center"><button type="button" id="posterStopGo" disabled>${icon("print")} ${t("printStopPoster")}</button>
+          <label class="dtopt">${t("posterSizeLabel")} <select id="posterStopSize">${Object.keys(POSTER_SIZES).map(k => `<option value="${k}">${k}</option>`).join("")}</select></label></p>
       </div>
       <div class="card no-print">
         <h2>${icon("print")} ${t("batchPosterTitle")}</h2>
@@ -16650,6 +18237,37 @@ async function viewPrintCenter(tab, query) {
         </p>
       </div>
       <div id="batchOut"></div>
+    </div>
+
+    <div class="ppanel" data-ppanel="lahipysakit" hidden>
+      <!-- Lähipysäkkipaketti ("rehtoripaketti", Lappeenrannan palaveri 28.9.2026): koulun, päiväkodin tai
+           palvelutalon lähipysäkit kartalla, pysäkeiltä lähtevät linjat ja jokaisen pysäkin aikataulu. -->
+      <div class="card no-print" id="nearForm">
+        <h2>${icon("pin")} ${t("nearTitle")}</h2>
+        <p class="muted">${t("nearIntro")}</p>
+        <label class="embed-field" for="nearQ">${t("nearPlaceLabel")}</label>
+        <div class="suggest"><input id="nearQ" type="text" autocomplete="off" placeholder="${t("nearPlacePlaceholder")}">
+          <ul class="plain suggest-list" id="nearList" hidden></ul></div>
+        <div class="field">
+          <label for="nearRadius">${t("nearRadiusLabel")}</label>
+          <select id="nearRadius">
+            <option value="300">300 m</option>
+            <option value="500" selected>500 m</option>
+            <option value="800">800 m</option>
+          </select>
+        </div>
+        <div class="field">
+          <span class="muted" id="nearDtLbl">${t("dayTypesLabel")}</span>
+          <div class="row" role="group" aria-labelledby="nearDtLbl" style="flex-wrap:wrap;gap:0.4rem 1rem">
+            <label class="dtopt"><input type="checkbox" class="nearDt" value="weekday" checked> ${t("dayWeekday")}</label>
+            <label class="dtopt"><input type="checkbox" class="nearDt" value="sat"> ${t("daySat")}</label>
+            <label class="dtopt"><input type="checkbox" class="nearDt" value="sun"> ${t("daySun")}</label>
+          </div>
+        </div>
+        <p class="buildbar"><button type="button" id="nearGo" disabled>${icon("print")} ${t("nearGenerate")}</button>
+          <span id="nearStatus" class="muted" role="status"></span></p>
+      </div>
+      <div id="nearOut"></div>
     </div>
 
     <div class="ppanel" data-ppanel="muutokset" hidden>
@@ -16696,9 +18314,10 @@ async function viewPrintCenter(tab, query) {
   };
   btns.forEach(b => b.addEventListener("click", () => showTab(b.dataset.ptab)));
 
-  bindBookletTab(routes, today);
+  bindBookletTab(bookletRoutes, today);
   bindCorridorTab(routes, today);
   bindPostersTab(routes);
+  bindNearbyTab();
   bindChangesTab();
   bindScreenNetTab();
   // Uusintapainatus lataa perustason ja mahdollisen palvelinsynkronoinnin taustalla:
@@ -16714,6 +18333,7 @@ async function viewPrintCenter(tab, query) {
      ?line=<gtfsId>      vihko: rastita linja  |  julisteet: valitse erätulostuksen linja
      ?lines=<id>,<id>    vihko / kaytava: rastita nämä linjat
      ?corridor=<key>     kaytava: käytäväpreset CONFIG.corridorsista
+     ?lat=&lon=&name=    lahipysakit: paikka (valinnainen &r=300|500|800 kävelymatka)
      &go=1               käynnistä koonti heti (muuten vain esivalinta)
    Tuntematon tai tyhjäksi jäävä valinta EI käynnistä koontia: puolikas tuloste olisi
    pahempi kuin tekemätön, koska se näyttää valmiilta. */
@@ -16747,6 +18367,14 @@ function applyPrintQuery(tab, query) {
     } else if (ids.length && check(".corrCb", ids) >= 2 && go) {
       document.getElementById("corrGo")?.click();
     }
+  } else if (tab === "lahipysakit") {
+    // ?lat=&lon=&name=[&r=500][&go=1]: esivalittu paikka (palvelutiski, smoke, jaettava linkki).
+    const lat = parseFloat(query.get("lat")), lon = parseFloat(query.get("lon"));
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    nearPick({ name: query.get("name") || t("nearDefaultPlace"), lat, lon });
+    const r = query.get("r"), sel = document.getElementById("nearRadius");
+    if (r && sel && [...sel.options].some(o => o.value === r)) sel.value = r;
+    if (go) document.getElementById("nearGo")?.click();
   } else if (tab === "julisteet" && ids.length) {
     const sel = document.getElementById("batchLine");
     if (sel && [...sel.options].some(o => o.value === ids[0])) {
@@ -16754,6 +18382,154 @@ function applyPrintQuery(tab, query) {
       if (go) document.getElementById("batchGo")?.click();
     }
   }
+}
+
+/* ---------- Kaupungin vihkon yhdistelmätaulukot (CONFIG.vihko.combos, 28.9.2026) ----------
+   Joukon vihkon "Linjat 1, 2, 7, 12 ja 14 yhdistelmä Keskusta - Lauritsala": listattujen linjojen lähdöt lähtö-
+   pysäkiltä kohti määränpäätä samassa taulukossa. Vuoro kuuluu suuntaan, jos se käy lähtöpysäkillä (ei viimeisenä,
+   nousu sallittu) ja sen jälkeen määränpäässä; aika on lähtö lähtöpysäkiltä. Päivätyypit ja kirjaimet kuten
+   pysäkkijulisteessa (canonicalPosterBlocks). Käytävämoottori (corridorBuild) ei sovi tähän: se etsii osuuden, jonka
+   kaikki linjat jakavat, ja Keskusta-Lauritsala jäi siltä tyhjäksi (mitattu 28.9.2026). */
+async function vkComboTrips(c, routes) {
+  const probe = activeProbeDates();
+  const probeAliases = probe.map((d, i) => `p${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
+  const per = [];
+  for (const short of c.lines) {
+    const r = routes.find(x => x.shortName === short);
+    if (!r) continue;
+    const ids = await lineIds(r.gtfsId);
+    // Sama kysely ja välimuistiavain kuin vihkon koonnissa, joten linjan data tulee välimuistista.
+    const { data } = await cachedGql("proute:" + ids.join(","),
+      `query ($ids: [String]) {
+             routes(ids: $ids) {
+               gtfsId shortName longName@L color textColor
+               patterns { code name directionId ${probeAliases} patternGeometry { length points } stops { gtfsId name@L lat lon } }
+             }
+           }`, { ids });
+    const pats = (data.routes || []).filter(Boolean).flatMap(x => x.patterns || []);
+    per.push({ route: r, trips: await dirTripsWithDays(pats) });
+  }
+  return per;
+}
+function vkComboPick(per, dir) {
+  const inSet = (n, arr) => arr.includes(cbStopBase(n));
+  return per.map(({ route, trips }) => {
+    const sh = route.shortName || "";
+    const from = dir.lineFrom?.[sh] || dir.from, to = dir.lineTo?.[sh] || dir.to;
+    const hits = [];
+    for (const tr of trips) {
+      const sts = tr.stoptimes || [];
+      const i = sts.findIndex((st, k) => k < sts.length - 1 && st.pickupType !== "NONE" && inSet(st.stop?.name, from));
+      if (i < 0) continue;
+      if (sts.findIndex((st, k) => k > i && inSet(st.stop?.name, to)) < 0) continue;
+      hits.push({ tr, sts: sts.slice(i) });
+    }
+    return { route, hits };
+  });
+}
+// Suunnan huomautus linjoille, joilla on oma lähtö- tai määräpysäkki (lineFrom/lineTo). cb-keep: toistuu jokaisessa
+// päivätyyppiosassa (vkSplitDays), koska ajat ovat lähtöjä eri pysäkiltä.
+function vkComboDirNotes(dir, picked) {
+  const hitsOf = sh => picked.find(p => (p.route.shortName || "") === sh)?.hits || [];
+  // Määräpysäkki, joka on jokaisen vuoron pääte: "päättyy pysäkille", muuten "ajaa pysäkin kautta".
+  const endsAt = (sh, st) => hitsOf(sh).every(h => cbStopBase(h.sts[h.sts.length - 1].stop?.name) === cbStopBase(st));
+  const notes = [
+    ...Object.entries(dir.lineFrom || {}).filter(([sh]) => hitsOf(sh).length).map(([sh, st]) => t("vkComboFrom", { line: sh, stop: vkStopName(st[0]) })),
+    ...Object.entries(dir.lineTo || {}).filter(([sh]) => hitsOf(sh).length)
+      .map(([sh, st]) => t(endsAt(sh, st[0]) ? "vkComboEnds" : "vkComboVia", { line: sh, stop: vkStopName(st[0]) }))];
+  return notes.length ? `<p class="cb-notes cb-keep">${notes.map(esc).join(" ")}</p>` : "";
+}
+function vkComboBuckets(picked, date, bucketMatch) {
+  const blocks = new Map();
+  for (const { route, hits } of picked) {
+    const derived = hits.map(h => ({ serviceId: h.tr.serviceId, activeDates: h.tr.activeDates,
+      stoptimes: [{ scheduledDeparture: h.sts[0].scheduledDeparture, stop: h.sts[0].stop }] }));
+    for (const g of groupTripsByDays(derived, date)) {
+      if (!blocks.has(g.key)) blocks.set(g.key, { dows: g.dows, school: g.school, period: g.period, label: g.label, lines: new Map() });
+      const b = blocks.get(g.key), lk = route.shortName || "";
+      if (!b.lines.has(lk)) b.lines.set(lk, { route, headsign: "", times: [] });
+      b.lines.get(lk).times.push(...g.trips.map(tr => tr.stoptimes[0].scheduledDeparture));
+    }
+  }
+  const arr = [...blocks.values()].map(b => ({ ...b, lines: [...b.lines.values()] }));
+  arr.sort((a, b) => Math.min(...a.dows) - Math.min(...b.dows) || b.dows.size - a.dows.size
+    || (a.school ? 1 : 0) - (b.school ? 1 : 0) || (a.period?.from || 0) - (b.period?.from || 0));
+  return canonicalPosterBlocks(arr).filter(b => bucketMatch(b.dows));
+}
+const vkLegendHtml = (buckets, only) => {
+  const legend = [];
+  for (const b of buckets) for (const l of b.legend || []) if (!legend.some(x => x.code === l.code) && (!only || only.has(l.code))) legend.push(l);
+  return legend.length ? `<p class="cb-notes cb-legend">${legend.map(l => `<b>${esc(l.code)}</b> = ${esc(l.text)}`).join(" · ")}</p>` : "";
+};
+// Tuntiruudukko: minuutti ja pieni linjanumero (sub) sekä rajauksen kirjain (sup), kymmenluvuittain kuten muualla.
+function vkComboGridHtml(label, buckets, notes = "") {
+  const cols = buckets.map(b => ({ label: b.label,
+    e: b.lines.flatMap(L => [...new Set(L.times)].map(sec => ({ sec, line: L.route.shortName || "", code: L.codes.get(sec) || "" })))
+      .sort((x, y) => x.sec - y.sec || x.line.localeCompare(y.line, "fi", { numeric: true })) }));
+  if (!cols.some(c => c.e.length)) return "";
+  const hours = [...new Set(cols.flatMap(c => c.e.map(x => Math.floor(x.sec / 3600))))].sort((a, b) => a - b);
+  const tens = cols.map(c => minuteTens(c.e.map(x => x.sec)));
+  const fmt = x => String(Math.floor((x.sec % 3600) / 60)).padStart(2, "0") + `<sub>${esc(x.line)}</sub>` + (x.code ? `<sup>${esc(x.code)}</sup>` : "");
+  const head = cols.map((c, i) => `<th scope="col"${tens[i].length > 1 ? ` colspan="${tens[i].length}"` : ""}>${esc(c.label)}</th>`).join("");
+  const body = hours.map(h => `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th>`
+    + cols.map((c, i) => minuteTensCells(tens[i], c.e.filter(x => Math.floor(x.sec / 3600) === h), fmt, x => x.sec)).join("") + `</tr>`).join("");
+  return `<div class="cb-dir"><h3>${esc(label)}</h3><table class="cb-grid cg-combo">`
+    + `<thead><tr><th scope="col" class="cb-hcol">${t("compactHour")}</th>${head}</tr></thead><tbody>${body}</tbody></table>${vkLegendHtml(buckets)}${notes}</div>`;
+}
+// Pysäkkisarakkeet (lähiliikenne 110-113): Linja | enintään neljä avainpysäkkiä pisimmästä vuorosta, rivi per lähtö.
+function vkComboMatrixHtml(label, picked, buckets) {
+  const rep = new Map();
+  for (const { route, hits } of picked) for (const h of hits) {
+    const k = (route.shortName || "") + "|" + h.sts[0].scheduledDeparture;
+    if (!rep.has(k) || rep.get(k).sts.length < h.sts.length) rep.set(k, { route, sts: h.sts });
+  }
+  const longest = [...rep.values()].sort((a, b) => b.sts.length - a.sts.length)[0];
+  if (!longest) return "";
+  const ks = bookletKeyStops([{ stoptimes: longest.sts }], { target: 4, limit: 4 });
+  const cell = (sts, k) => {
+    const st = sts.find(x => cbStopBase(x.stop?.name) === cbStopBase(k.name));
+    return st ? fmtSec(st.scheduledDeparture) : "·";
+  };
+  // Kirjain- ja "·"-selite ryhmäkohtaisesti taulukon alle (tarkastus 28.9.2026: "·"-selite puuttui kokonaan).
+  const groups = buckets.map(b => {
+    const rows = b.lines.flatMap(L => [...new Set(L.times)].map(sec => ({ L, sec, r: rep.get((L.route.shortName || "") + "|" + sec) })))
+      .filter(x => x.r).sort((x, y) => x.sec - y.sec);
+    if (!rows.length) return "";
+    const used = new Set(rows.flatMap(x => [...(x.L.codes.get(x.sec) || "")]));
+    const dot = rows.some(x => ks.some(k => cell(x.r.sts, k) === "·"));
+    return `<h4 class="daytype">${esc(b.label)}</h4><div class="matrix-wrap"><table class="stoptable booklet">
+      <thead><tr><th scope="col">${t("corridorLineCol")}</th>${ks.map(k => `<th scope="col">${esc(vkStopName(k.name))}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(x => `<tr><td>${esc(x.L.route.shortName || "")}${x.L.codes.get(x.sec) ? `<sup>${esc(x.L.codes.get(x.sec))}</sup>` : ""}</td>`
+        + ks.map(k => `<td>${cell(x.r.sts, k)}</td>`).join("") + `</tr>`).join("")}</tbody></table></div>`
+      + (used.size ? vkLegendHtml([b], used).replace('class="cb-notes cb-legend"', 'class="cb-notes vk-marks"') : "")
+      + (dot ? `<p class="matrix-legend">${t("legendSkipStop")}</p>` : "");
+  }).join("");
+  return groups ? `<h3>${esc(label)}</h3>${groups}` : "";
+}
+async function vkComboSection(c, routes, date, bucketMatch) {
+  const per = await vkComboTrips(c, routes);
+  if (per.length < 2) return null;
+  const shorts = c.lines.filter(s => per.some(x => x.route.shortName === s));
+  const title = t("vkComboTitle", { lines: shorts.slice(0, -1).join(", ") + " " + t("vkAnd") + " " + shorts[shorts.length - 1] });
+  const parts = [];
+  for (const dir of c.dirs) {
+    const picked = vkComboPick(per, dir);
+    if (!picked.some(p => p.hits.length)) continue;
+    const buckets = vkComboBuckets(picked, date, bucketMatch);
+    if (!buckets.length) continue;
+    const label = `${dir.from[0]} → ${dir.to[0]}`;
+    const html = c.format === "matrix" ? vkComboMatrixHtml(label, picked, buckets) : vkComboGridHtml(label, buckets, vkComboDirNotes(dir, picked));
+    if (html) parts.push(html);
+  }
+  if (!parts.length) return null;
+  const toc = `${title}: ${c.dirs[0].from[0]} – ${c.dirs[0].to[0]}`;
+  const badges = per.map(x => badgeHtml(x.route)).join(" ");
+  const html = c.format === "matrix"
+    ? `<section class="card booklet-line booklet-combo" data-short="combo:${esc(c.key)}" data-toc="${esc(toc)}">
+        <h2>${badges} ${esc(title)}</h2>${parts.join("")}</section>`
+    : `<section class="card booklet-line compact booklet-combo" data-short="combo:${esc(c.key)}" data-toc="${esc(toc)}">
+        <h2>${badges} ${esc(title)}</h2><p class="cb-notes">${t("vkComboNote")}</p><div class="cb-grids">${parts.join("")}</div></section>`;
+  return { label: toc, html, net: null };
 }
 
 function bindBookletTab(routes, today) {
@@ -16808,15 +18584,28 @@ function bindBookletTab(routes, today) {
     if (!selected.length) { status.textContent = t("noLinesSelected"); return; }
     const date = document.getElementById("bookletDate").value || today;
     const dirChoice = document.getElementById("dirSel").value;
-    const compact = (document.getElementById("bookletLayout")?.value || "compact") === "compact";
+    const layoutSel = document.getElementById("bookletLayout")?.value || "compact";
+    const compact = layoutSel !== "full";
+    // "city" = kaupungin vihkon malli (CONFIG.vihko): osion asettelu linjakohtaisesti (Lappeenrannan
+    // paikallisliikenne tuntiruudukkona, Imatra, lähi- ja seutuliikenne pysäkkisarakkein).
+    const compactFor = short => layoutSel === "city" ? (vkSectionOf(short)?.layout || "compact") === "compact" : compact;
     let dayKeys = [...document.querySelectorAll(".dtCb:checked")].map(c => c.value);
     if (!dayKeys.length) dayKeys = ["weekday"];
     const dts = dayTypeDates(date).filter(d => dayKeys.includes(d.key)); // vain otsikkoyhteenvetoon
     // Kuuluuko ajopäivä-lohko (dows) valittuihin ämpäreihin? weekday=Ma–Pe, sat=La, sun=Su.
     const bucketMatch = (dows) => dayKeys.some(k =>
       k === "weekday" ? [...dows].some(d => d <= 4) : k === "sat" ? dows.has(5) : dows.has(6));
+    // Kaupungin vihkon aineisto (reittikuvaukset, ottelubussien tekstit), ks. CONFIG.vihko.dataUrl.
+    const vkData = layoutSel === "city" && CONFIG.vihko?.dataUrl
+      ? await fetch(CONFIG.vihko.dataUrl, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null) : null;
+    // Kaupungin vihkon mallissa rinnakkaislinja (CONFIG.vihko.merge, esim. 1X) kootaan päälinjan taulukkoon.
+    const mergeMap = layoutSel === "city" && CONFIG.vihko?.merge ? CONFIG.vihko.merge : {};
+    const shortOf = id => routes.find(r => r.gtfsId === id || (r.gtfsIds || []).includes(id))?.shortName || "";
+    const memberOf = new Map(Object.entries(mergeMap).flatMap(([main, mem]) => Object.keys(mem).map(m => [m, main])));
+    const selShorts = new Set(selected.map(shortOf));
+    const buildIds = selected.filter(id => !(memberOf.has(shortOf(id)) && selShorts.has(memberOf.get(shortOf(id)))));
     let done = 0;
-    const setStatus = () => { status.textContent = t("buildingBooklet", { done, total: selected.length }); };
+    const setStatus = () => { status.textContent = t("buildingBooklet", { done, total: buildIds.length }); };
     setStatus();
 
     // Pää-pattern per suunta TULEVIEN vuorojen mukaan (ei kaikkien aikojen) —
@@ -16826,7 +18615,7 @@ function bindBookletTab(routes, today) {
     const upcoming = p => probe.reduce((n, _, i) => n + ((p["p" + i] || []).length), 0);
 
     // 6 linjaa rinnakkain (oli 4): koonti on verkon odotusta, kutsut ~0,1 s (profiloitu 23.9.2026).
-    const sections = await mapLimit(selected, 6, async (routeId) => {
+    const sections = await mapLimit(buildIds, 6, async (routeId) => {
       try {
         const ids = await lineIds(routeId);
         const { data } = await cachedGql("proute:" + ids.join(","),
@@ -16871,32 +18660,169 @@ function bindBookletTab(routes, today) {
           try { trips = await dirTripsWithDays(dirPats, ptdMemo); groups = groupTripsByDays(trips, date); }
           catch (e) { groups = []; }
           groups = groups.filter(g => bucketMatch(g.dows));
-          return { label, stops, groups, trips };
+          // Kaupungin vihkon malli: otsikko näyttöniminä ("Keskusta L → Mäntyläntie 10 keskustasta" -> "Keskusta → Mäntylä",
+          // tarkastus 28.9.2026). Kadunvarren päätteen nimi tulee vuorojen kilvestä, joten otsikko lasketaan vasta vuoroista.
+          const cityLabel = layoutSel === "city" && stops.length
+            ? `${vkStopName(stops[0].name)} → ${vkEndName(stops[stops.length - 1], trips)}` : label;
+          return { label: cityLabel, stops, groups, trips };
         }));
         // Silmukkalinja: lähtö ja pääte ovat sama pysäkki, jolloin molemmat suunnat saivat saman
         // otsikon "Joutseno linja-autoasema → Joutseno linja-autoasema" eikä lukija erottanut niitä
         // (linja 120, täysauditointi 27.9.2026). Otsikkoon lisätään pysäkki neljänneksen matkan
         // kohdalta: silmukan eri kiertosuunnat kulkevat siinä eri pysäkkien kautta.
         const sameLabel = l => dirs.filter(x => x.label === l).length > 1;
+        const nm = s => layoutSel === "city" ? vkStopName(s.name) : s.name;
         const loopFix = dirs.map(d => {
           const st = d.stops || [];
           return st.length > 3 && (st[0].name === st[st.length - 1].name || sameLabel(d.label))
-            ? `${st[0].name} → ${st[Math.floor(st.length / 4)].name} → ${st[st.length - 1].name}` : d.label;
+            ? `${nm(st[0])} → ${nm(st[Math.floor(st.length / 4)])} → ${nm(st[st.length - 1])}` : d.label;
         });
         dirs.forEach((d, i) => { d.label = loopFix[i]; });
+        // Kaupungin vihkon malli: vuoro siirretään suuntaan, jonka pääreitin pysäkkijärjestykseen se sopii parhaiten.
+        // Syöte voi merkitä toisen haaran vuoron samaan suuntatunnukseen (Lappeenrannan 620: Tanista 14.05 lähtevä vuoro
+        // Oleksin taulukossa vain kahdella viimeisellä ajalla, lähtöaika ei näkynyt missään; tarkistin 28.9.2026).
+        if (layoutSel === "city" && dirs.length > 1) {
+          const idxs = primaries.map(q => { const m = new Map(); (q.stops || []).forEach((st, i) => { if (!m.has(st.gtfsId)) m.set(st.gtfsId, i); }); return m; });
+          const score = (ix, sts) => {
+            let sc = 0, prev = -1;
+            for (const st of sts) {
+              const i = ix.get(st.stop?.gtfsId);
+              if (i == null) continue;
+              if (prev >= 0) sc += i > prev ? 1 : (i < prev ? -1 : 0);
+              prev = i;
+            }
+            return sc;
+          };
+          const moved = dirs.map(() => []);
+          let any = false;
+          dirs.forEach((d, di) => {
+            d.trips = (d.trips || []).filter(tr => {
+              const sc = idxs.map(ix => score(ix, tr.stoptimes || []));
+              const best = sc.indexOf(Math.max(...sc));
+              if (best !== di && sc[best] > sc[di]) { moved[best].push(tr); any = true; return false; }
+              return true;
+            });
+          });
+          if (any) dirs.forEach((d, i) => {
+            d.trips = d.trips.concat(moved[i]);
+            d.groups = groupTripsByDays(d.trips, date).filter(g => bucketMatch(g.dows));
+          });
+        }
+        const merged = [];
+        for (const [mShort, letter] of Object.entries(mergeMap[route.shortName || ""] || {})) {
+          const mr = routes.find(r => r.shortName === mShort);
+          if (!mr) continue;
+          const mids = await lineIds(mr.gtfsId);
+          const { data: md } = await cachedGql("proute:" + mids.join(","),
+            `query ($ids: [String]) {
+               routes(ids: $ids) {
+                 gtfsId shortName longName@L color textColor
+                 patterns { code name directionId ${probeAliases} patternGeometry { length points } stops { gtfsId name@L lat lon } }
+               }
+             }`, { ids: mids });
+          const mRoutes = (md.routes || []).filter(Boolean);
+          const mByDir = new Map();
+          for (const q of assignDirKeys(mRoutes.flatMap(r => r.patterns || []))) {
+            if (!mByDir.has(dirKey(q))) mByDir.set(dirKey(q), []);
+            mByDir.get(dirKey(q)).push(q);
+          }
+          // Jäsenen suunta = päälinjan suunta, jonka pysäkkijärjestykseen se osuu myötäsuuntaan (corridorOrientScore).
+          const refIdx = primaries.map(q => { const m = new Map(); (q.stops || []).forEach((st, i) => { if (!m.has(st.gtfsId)) m.set(st.gtfsId, i); }); return m; });
+          let used = false;
+          for (const list of mByDir.values()) {
+            const mp = list.slice().sort((a, b) => upcoming(b) - upcoming(a))[0];
+            const scores = refIdx.map(ix => corridorOrientScore(ix, mp.stops || []));
+            const bi = scores.indexOf(Math.max(...scores));
+            if (bi < 0 || scores[bi] < 2) continue;
+            let mtrips = [];
+            try { mtrips = await dirTripsWithDays(list); } catch (e) { mtrips = []; }
+            mtrips.forEach(tr => { tr._mark = letter; tr._markLine = mShort; tr._markName = mr.longName || ""; });
+            // Eri lähtöpysäkiltä lähtevä jäsen (1X Keskusta L -> LUT-Yliopisto) ei kuulu Kiiskinmäen lähtöaikoihin: se
+            // menee keskustan ohitusaikojen ruudukkoon kuten vihkon "Linja 1 ja 1X Keskusta - Yliopisto" -taulukossa.
+            if (cbStopBase(mp.stops?.[0]?.name) !== cbStopBase(primaries[bi].stops?.[0]?.name)) {
+              dirs[bi].midMembers = (dirs[bi].midMembers || []).concat(mtrips);
+              used = true;
+              continue;
+            }
+            // Päivätyyppiryhmät yhdistetään avaimella ilman aikasignatuurin päällekkäisyyspoistoa, jottei samaan
+            // minuuttiin osuva päälinjan ja jäsenen lähtö sulaudu yhdeksi.
+            const byKey = new Map(dirs[bi].groups.map(g => [g.key, g]));
+            for (const g of groupTripsByDays(mtrips, date).filter(g => bucketMatch(g.dows))) {
+              if (byKey.has(g.key)) byKey.get(g.key).trips = byKey.get(g.key).trips.concat(g.trips);
+              else { dirs[bi].groups.push(g); byKey.set(g.key, g); }
+            }
+            dirs[bi].trips = dirs[bi].trips.concat(mtrips);
+            used = true;
+          }
+          if (used) merged.push(mr);
+        }
+        // Keskustan ohitusajat (CONFIG.vihko.timingStops/timingLines): suunnan vuorot leikattuna keskustan pysäkiltä
+        // eteenpäin, jolloin ruudukon ajat ovat lähtöjä keskustasta. Päätepysäkkinä keskustaan päättyvät eivät kuulu.
+        const extras = dirs.map(d => {
+          const V = CONFIG.vihko;
+          if (layoutSel !== "city" || !V?.timingStops || !(V.timingLines || []).includes(route.shortName || "")) return null;
+          const st = d.stops || [];
+          const ti = st.findIndex((x, k) => k > 0 && k < st.length - 1 && V.timingStops.includes(cbStopBase(x.name)));
+          if (ti < 0) return null;
+          const base = cbStopBase(st[ti].name);
+          const cut = tr => {
+            const s2 = tr.stoptimes || [];
+            const k = s2.findIndex((x, j) => j < s2.length - 1 && cbStopBase(x.stop?.name) === base);
+            return k < 0 ? null : { ...tr, stoptimes: s2.slice(k) };
+          };
+          const byKey = new Map(), groups = [];
+          for (const set of [(d.trips || []).map(cut).filter(Boolean), (d.midMembers || []).map(cut).filter(Boolean)])
+            for (const g of groupTripsByDays(set, date).filter(g => bucketMatch(g.dows))) {
+              if (byKey.has(g.key)) byKey.get(g.key).trips = byKey.get(g.key).trips.concat(g.trips);
+              else { const c = { ...g, trips: g.trips.slice() }; byKey.set(g.key, c); groups.push(c); }
+            }
+          if (!groups.length) return null;
+          groups.sort((a, b) => Math.min(...a.dows) - Math.min(...b.dows) || b.dows.size - a.dows.size || (a.school ? 1 : 0) - (b.school ? 1 : 0));
+          return { label: `${vkStopName(st[ti].name)} → ${vkEndName(st[st.length - 1], d.trips)}`, stops: st.slice(ti), groups, timing: true };
+        });
+        // Reittikuvaukset (vkData = CONFIG.vihko.dataUrl) suunnan lähtö- ja pääteperusnimellä.
+        const rtFor = d => {
+          const st = d?.stops || [];
+          if (!vkData || !st.length) return [];
+          const a = cbStopBase(st[0].name), z = cbStopBase(st[st.length - 1].name);
+          const es = ((vkData.reitit || {})[route.shortName || ""] || [])
+            .filter(e => e.lahto === a && (!e.paate || e.paate === z) && (!e.kautta || st.some(x => cbStopBase(x.name) === e.kautta)));
+          // Sama kuvaus kahdelta vihkon sivulta kerran; eri kuvaukset (esim. arki ja viikonloppu) vihkon otsikoineen.
+          const uniq = es.filter((e, i) => es.findIndex(o => (o.tekstit || []).join("|") === (e.tekstit || []).join("|")) === i);
+          const heads = new Set(uniq.map(e => e.otsikko)).size > 1;   // samaa otsikkoa ei toisteta (linja 23)
+          return uniq.flatMap(e => (e.tekstit || []).map((x, i) => (heads && i === 0 ? `${e.otsikko}: ${x}` : x)));
+        };
+        dirs.forEach(d => { d.routeText = rtFor(d); });
+        extras.forEach(d => { if (d) d.routeText = rtFor(d); });
         // Reittikaavio (kuten Kotkan vihossa): tulostettavien suuntien pisin geometria.
         // Taustakarttana MML:n selkokartta ja reitti kunnan värillä (23.9.2026, JOJO:n malli).
         const mapDirs = primaries.map(p => printMapDir(byDir.get(dirKey(p)) || [p])).filter(Boolean);
-        const mapHtml = mapDirs.length ? printMapSvg([{ shortName: route.shortName, dirs: mapDirs }],
-          { basemap: true, routeColor: "var(--header-bg, #333)" }) : "";
+        // Kaupungin vihkon malli: linjakartalle kaikki liikennöivät variantit (tarkastus 28.9.2026: linjan 12 kartta näytti
+        // osuuden Keskusta-LUT ja jana Keskusta-Kivisalmi, eikä kumpikaan koko linjaa). Suuntien pääreitit ensin, jolloin
+        // nuolet (arrowDirs) ovat niillä. Linjastokartta (net) käyttää edelleen pääreittejä.
+        let lineMapDirs = mapDirs;
+        if (layoutSel === "city") {
+          const seen = new Set(), all = [];
+          const tripsOf = q => upcoming(q) * 1e6 + (q.patternGeometry?.length || 0);
+          const lists = primaries.map(p => (byDir.get(dirKey(p)) || [p]).filter(q => q.patternGeometry?.points).sort((a, b) => tripsOf(b) - tripsOf(a)));
+          const add = q => { const g = q.patternGeometry.points; if (!seen.has(g)) { seen.add(g); all.push({ points: decodePolyline(g), stops: q.stops || [] }); } };
+          lists.forEach(l => { if (l[0]) add(l[0]); });
+          lists.flat().filter(q => upcoming(q) > 0).sort((a, b) => tripsOf(b) - tripsOf(a)).forEach(add);
+          if (all.length) lineMapDirs = all;
+        }
+        const mapHtml = lineMapDirs.length ? printMapSvg([{ shortName: route.shortName, dirs: lineMapDirs }],
+          { basemap: true, routeColor: "var(--header-bg, #333)", ...(layoutSel === "city" ? { arrowDirs: 2, labelName: vkStopName } : {}) }) : "";
         const label = `${route.shortName || ""} ${route.longName}`.trim();
-        if (compact) return { label, html: compactLineHtml(route, dirs, mapHtml) };
+        const net = { shortName: route.shortName || "", longName: route.longName || "", dirs: mapDirs };   // kapean vihkon linjastokartta
+        if (compactFor(route.shortName || "")) return { label, net, html: compactLineHtml(route, dirs, mapHtml, merged, extras, layoutSel === "city") };
+        // Kaupungin vihkon malli: sarakkeet kapean sivun mukaan (vkPickCols), rivikirjaimet ja näyttönimet.
+        const keyOpts = layoutSel === "city" ? { maxCols: vkNarrowGeom().maxCols, marks: true, disp: true, longName: route.longName || "" } : undefined;
         const dirHtml = dirs.map(d => `<h3>${esc(d.label)}</h3>` + (d.groups.length
-          ? d.groups.map(g => `<h4 class="daytype">${esc(g.label)}</h4>${bookletTableHtml(g.trips)}`).join("")
-          : `<p class="muted">${t("bookletNoData")}</p>`));
+          ? d.groups.map(g => `<h4 class="daytype">${esc(g.label)}</h4>${bookletTableHtml(g.trips, keyOpts)}`).join("")
+          : `<p class="muted">${t("bookletNoData")}</p>`) + (d.routeText || []).map(x => `<p class="vk-route">${esc(x)}</p>`).join(""));
         return {
-          label,
-          html: `<section class="card booklet-line">
+          label, net,
+          html: `<section class="card booklet-line" data-short="${esc(route.shortName || "")}">
             <h2>${badgeHtml(route)} ${esc(route.longName)}</h2>
             ${mapHtml}
             ${dirHtml.join("")}
@@ -16911,6 +18837,15 @@ function bindBookletTab(routes, today) {
     });
     if (mySeq !== viewSeq) return;
     const ok = sections.filter(Boolean);
+    // Yhdistelmä ei kaada vihkoa (linjojen sivut ovat jo koossa), mutta puuttuminen näytetään tilarivillä.
+    const comboFail = [];
+    if (layoutSel === "city" && (CONFIG.vihko?.combos || []).length) {
+      for (const c of CONFIG.vihko.combos) {
+        if (!ok.some(x => x.net?.shortName === c.after)) continue;   // vain jos yhdistelmän paikkalinja on vihkossa
+        try { const sec = await vkComboSection(c, routes, date, bucketMatch); if (sec) ok.push(sec); else comboFail.push(c.key); }
+        catch (e) { comboFail.push(c.key); }
+      }
+    }
     const toc = ok.map(s => `<li>${esc(s.label)}</li>`).join("");
     const out = document.getElementById("bookletOut");
     out.innerHTML = `
@@ -16921,12 +18856,20 @@ function bindBookletTab(routes, today) {
         <p class="muted">${t("printDaysNote")}</p>
         <p class="no-print buildbar"><button type="button" id="bookletPrint">${icon("print")} ${t("bookletPrintBtn")}</button>
           <button type="button" id="bookletPrintA5">${icon("print")} ${t("bookletPrintA5")}</button>
-          <button type="button" id="bookletPrintA5Read" class="secondary">${icon("print")} ${t("bookletPrintA5Read")}</button></p>
+          <button type="button" id="bookletPrintA5Read" class="secondary">${icon("print")} ${t("bookletPrintA5Read")}</button>
+          ${CONFIG.vihko ? `<button type="button" id="bookletPrintNarrowBleed">${icon("print")} ${t("bookletPrintNarrowBleed", { w: vkNarrowGeom().pw, h: vkNarrowGeom().ph })}</button>
+          <button type="button" id="bookletPrintNarrow" class="secondary">${icon("print")} ${t("bookletPrintNarrow", { w: vkNarrowGeom().pw, h: vkNarrowGeom().ph })}</button>
+          <button type="button" id="bookletPrintNarrowA4" class="secondary">${icon("print")} ${t("bookletPrintNarrowA4")}</button>` : ""}</p>
         <p class="no-print muted vihko-note">${t("vihkoDuplexNote")}</p>
         ${toc ? `<nav class="booklet-toc"><h3>${t("bookletToc")}</h3><ul>${toc}</ul></nav>` : ""}
       </div>
       ${ok.map(s => s.html).join("")}`;
-    status.textContent = "";
+    status.textContent = comboFail.length ? t("vkComboFailed", { keys: comboFail.join(", ") }) : "";
+    out.vkNet = ok.map(s => s.net).filter(Boolean);
+    out.vkData = vkData;
+    document.getElementById("bookletPrintNarrow")?.addEventListener("click", () => printVihkoNarrow("pages"));
+    document.getElementById("bookletPrintNarrowBleed")?.addEventListener("click", () => printVihkoNarrow("bleed"));
+    document.getElementById("bookletPrintNarrowA4")?.addEventListener("click", () => printVihkoNarrow("a4"));
     document.getElementById("bookletPrintA5")?.addEventListener("click", () => printVihko(false));
     document.getElementById("bookletPrintA5Read")?.addEventListener("click", () => printVihko(true));
     document.getElementById("bookletPrint")?.addEventListener("click", () => {
