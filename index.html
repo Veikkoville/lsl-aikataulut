@@ -17000,7 +17000,8 @@ function vkPickCols(valid, max, longName, po = {}) {
   // kelpaa täydennysriviksi, koska se luettiin kyläksi: Simolantie on kaupungissa 40 min ennen Simolaa (tarkastus 4).
   const toks = String(longName || "").split(/\s*[-–,/]\s*/).map(x => x.trim().toLowerCase()).filter(x => x.length > 2);
   const derived = new Set(po.all ? names.map((nm, i) => [nm.toLowerCase(), i])
-    .filter(([nm]) => toks.some(tk => nm.startsWith(tk) && /^\S*(?:tie|katu)\b/u.test(nm.slice(tk.length)))).map(([, i]) => i) : []);
+    .filter(([nm]) => toks.some(tk => nm.startsWith(tk) && /^n?(?:tie|katu)$/u.test(nm.slice(tk.length)))).map(([, i]) => i) : []);
+  // Vain numeroton nimi ("Simolantie"): osoite "Vainikkalantie 104" on selvästi tie ja täyttää maaseutuosuuden aukon (tarkastus 5).
   const score = new Array(n).fill(0);
   for (const r of rows) {
     const f = r.findIndex(v => v != null);
