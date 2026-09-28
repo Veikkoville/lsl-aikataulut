@@ -10303,7 +10303,11 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
         if (hl === String(CONFIG.city || "").toLowerCase() || (CONFIG.cityAbbr || []).some(a => hl === a.toLowerCase())) {
           const loppu = sts[sts.length - 1].stop?.name || "";
           const solmu = (CONFIG.centerStopNames || []).some(c => loppu.toLowerCase().startsWith(c.toLowerCase()));
-          kilpi = (loppu && !solmu ? cbStopBase(loppu) : "") || r.longName || headsign;
+          // Reitin nimi päättyy tähän kaupunkiin ("Helsinki - Inkoo") ja vuoro keskustan solmupysäkille: bussin oma
+          // kilpi ("Inkoo") on oikea määränpää. Pitkä nimi luettiin matkaksi Helsinkiin (kaupunkitarkastus 29.9.2026).
+          const nimiLoppu = String(r.longName || "").split(/\s*[-–]\s*/).pop().trim().toLowerCase();
+          kilpi = (loppu && !solmu ? cbStopBase(loppu) : "")
+            || (solmu && nimiLoppu === String(CONFIG.city || "").toLowerCase() ? headsign : "") || r.longName || headsign;
         }
         const key = (r.shortName || "") + " " + kilpi;
         if (!byLine.has(key)) byLine.set(key, { route: r, headsign: kilpi, trips: [] });
