@@ -3343,6 +3343,9 @@ const CONFIGS = {
       // Keskustan ohitusajat omana ruudukkonaan (Joukon vihkossa linjoilla 1, 2, 4 ja 5, esim. "Keskusta - Kanavansuu -
       // Kiiskinmäki"). Pysäkki perusnimellä (Keskusta I/L).
       timingStops: ["Keskusta"], timingLines: ["1", "2", "4", "5"],
+      // Pääpysäkit kapean taulukon sarakkeiksi aina, kun vuoro kulkee niiden kautta (vkPickCols). Imatran keskusliikenneasema
+      // putosi linjan 24 taulukosta, kun sarakkeet valittiin aukkojen ja tasavälin mukaan (kolmas tarkastus 28.9.2026).
+      mainStops: ["Keskusasema"],
       // Reittikuvaukset ("Reitti: katu-katu") eivät ole aineistossa: vihkon tekstit sellaisinaan, kohdistettu suuntiin.
       dataUrl: "docs/vihko/lappeenranta.json",
       // Vyöhykkeet pysäkkien zoneId:stä (mitattu 28.9.2026: Oleksi 1, Joutseno 2, Imatran keskusliikenneasema 3).
@@ -16908,34 +16911,54 @@ function bookletTableHtml(trips, keyOpts) {
   }
   return bookletRowsHtml(valid, keyStops, keyOpts);
 }
-// Kapean taulukon sarakkeet (kaupungin vihkon malli, 28.9.2026). Ehdokkaina on suunnan pisimmän vuoron koko pysäkkisarja,
-// ei vain ensimmäisen vuoron aikapisteet. Järjestys:
-// 1) lähtö ja pääte;
+// Kapean taulukon sarakkeet (kaupungin vihkon malli, 28.9.2026). Ehdokkaina on yleisimmän reittivariantin koko
+// pysäkkisarja, ei vain ensimmäisen vuoron aikapisteet. Järjestys:
+// 1) lähtö ja pääte sekä päätepysäkin ohitus kesken vuoron (lenkki), kun ohitus on vähintään 10 min lähdöstä ja
+//    päätteestä: linjan 500 aamuvuoro ohittaa Ruoholammen 07:36 ja päättyy sinne Sammonlahden lenkin jälkeen 07:55,
+//    linjan 24 vuoro kulkee Imatrankosken kautta kolmesti. Aikaehto rajaa pois keskustan läpiajon (610 Oikokatu-Armada
+//    vuoron alussa ja lopussa), joka vei kaksi saraketta ja pudotti Rikkilän;
 // 2) linjan nimen paikat ("Lpr - Nuijamaa, loma" -> Nuijamaa, "Lpr-Pulsa-Tani" -> Pulsa ja Tanin lähtöpysäkki): toinen
 //    tarkastus löysi 201:ltä, 610:ltä ja 620:ltä vuoroja, joiden kylän lähtöaika ei näkynyt missään, kun kylä jäi kahden
 //    sarakkeen väliin (36-61 min aukko). Kaupungin vihkossa kylät ovat aina mukana;
-// 3) sarakkeet, joissa vähintään kaksi riviä alkaa tai päättyy (ennen linjan 111 Joutseno putosi tasavälikarsinnassa);
-// 4) aukko: jos jollakin rivillä kahden näkyvän sarakkeen väli on yli 30 min, väliin pysäkki ajan puolivälistä
+// 3) vihkon pääpysäkit (CONFIG.vihko.mainStops, esim. Imatran Keskusasema), jos vuoro kulkee niiden kautta eikä
+//    valittu sarake ole alle 3 min päässä (101: Keskusasema ja Imatran keskusliikenneasema ovat samassa paikassa);
+// 4) sarakkeet, joissa vähintään kaksi riviä alkaa tai päättyy (ennen linjan 111 Joutseno putosi tasavälikarsinnassa);
+// 5) aukko: jos jollakin rivillä kahden näkyvän sarakkeen väli on yli 30 min, väliin pysäkki ajan puolivälistä
 //    (solmupysäkki ensin), jottei matkustaja jää ilman aikaa pitkällä osuudella;
-// 5) loput pysäkeillä, jotka ovat kauimpana jo valituista.
+// 6) loput pysäkeillä, jotka ovat kauimpana jo valituista.
+// Palautettavalla sarakelistalla on oma align: vuoro kohdistetaan koko pysäkkisarjaan ja siitä poimitaan valitut
+// käynnit. Pelkkiin valittuihin nimiin kohdistus vei kahdesti käydyn pysäkin sarakkeeseen ensimmäisen käynnin
+// (linjan 500 pääteaikana 07:36, ei 07:55).
 function vkPickCols(valid, max, longName) {
   // Ehdokkaat yleisimmän reittivariantin pysäkeistä (pisin vuoro voi olla harvinainen variantti, esim. 23 Huhtasen koululle).
   const main = mostCommonStops(valid);
   const rep = valid.reduce((a, b) => ((b.stoptimes || []).length > (a.stoptimes || []).length ? b : a), valid[0]);
   const seq = main || (rep.stoptimes || []).map(st => st.stop);
   const n = seq.length;
-  if (n <= max) return seq;
-  const names = seq.map(st => vkStopName(st?.name));
   const align = bookletAlign(seq, vkStopKey);
+  const cols = idx => {
+    const ix = [...idx].sort((a, b) => a - b);
+    const out = ix.map(i => seq[i]);
+    out.align = sts => { const r = align(sts); return ix.map(i => r[i]); };
+    return out;
+  };
+  if (n <= max) return cols(seq.keys());
+  const names = seq.map(st => vkStopName(st?.name));
   const rows = valid.map(tr => keepMonotone(align(tr.stoptimes || [])));
   const keep = new Set([0, n - 1]);
   const add = i => { if (keep.size < max) keep.add(i); };
+  // Kahden sarakkeen aikaero ensimmäisellä rivillä, joka käy molemmissa.
+  const dt = (i, j) => { const r = rows.find(r => r[i] != null && r[j] != null); return r ? Math.abs(r[i] - r[j]) : Infinity; };
+  for (const e of [0, n - 1])
+    names.forEach((x, i) => { if (i !== e && x === names[e] && dt(i, 0) >= 600 && dt(i, n - 1) >= 600) add(i); });
   const first = nm => nm.split(/[\s_]+/)[0].toLowerCase();
   for (const tok of String(longName || "").split(/\s*[-–,/]\s*/).map(x => x.trim().toLowerCase()).filter(x => x.length > 2)) {
     const hits = names.map((nm, i) => [nm, i]).filter(([nm]) => first(nm) === tok || first(nm) === tok + "n");
     const exact = hits.find(([nm]) => nm.toLowerCase() === tok);
     if (hits.length) add((exact || hits[0])[1]);
   }
+  for (const nm of (CONFIG.vihko?.mainStops || []))
+    names.forEach((x, i) => { if (x === nm && ![...keep].some(k => dt(i, k) < 180)) add(i); });
   const score = new Array(n).fill(0);
   for (const r of rows) {
     const f = r.findIndex(v => v != null);
@@ -16977,7 +17000,7 @@ function vkPickCols(valid, max, longName) {
     if (best < 0) break;
     keep.add(best);
   }
-  return seq.filter((_, i) => keep.has(i));
+  return cols(keep);
 }
 // Avainpysäkit (sarakkeet / reittijanan solmut) vuorojoukolle: timepointit + aina lähtö ja pää,
 // täydennettynä tasavälein, rajattuna pickKeyStopsilla. Yhteinen laajalle vihkolle ja tiiviin
@@ -17040,7 +17063,7 @@ function bookletAlign(keyStops, stopKey = st => st?.gtfsId) {
 }
 const vkStopKey = st => vkStopName(st?.name);
 function bookletRowsHtml(valid, keyStops, opts = {}) {
-  const align = bookletAlign(keyStops, opts.disp ? vkStopKey : undefined);
+  const align = keyStops.align || bookletAlign(keyStops, opts.disp ? vkStopKey : undefined);
   const nameOf = keyStops.map(s => vkStopName(s.name));
   // sarakejärjestyksessä taaksepäin kulkevat ajat pois (ks. keepMonotone; kohdistuksen jälkeen varotoimi)
   const rows0 = valid.map(tr => keepMonotone(align(tr.stoptimes || [])));
