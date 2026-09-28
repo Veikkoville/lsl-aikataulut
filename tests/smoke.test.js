@@ -64,7 +64,9 @@ async function minuuttiLinjaus(page, rootSel, media) {
     const viat = [];
     let n = 0;
     document.querySelectorAll(`${sel} table.hourgrid, ${sel} table.cb-grid`).forEach((t, ti) => {
-      const hr = t.tHead && t.tHead.rows[0];
+      // Sarakeryhmät otsikon VIIMEISESTÄ rivistä: linjasarakkeisen julisteen (poster-matrix) ensimmäinen rivi on koko
+      // levyinen otsikko, ja rows[0] niputti kaikki linjat yhdeksi ryhmäksi (väärä hälytys 8 kaupungissa 28.9.2026, issue #40).
+      const hr = t.tHead && t.tHead.rows[t.tHead.rows.length - 1];
       const grp = [];
       if (hr) [...hr.cells].forEach((c, gi) => { for (let k = 0; k < (c.colSpan || 1); k++) grp.push(gi); });
       const xs = new Map();

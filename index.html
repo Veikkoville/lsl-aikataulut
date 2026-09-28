@@ -916,6 +916,12 @@
   .vihko-page-content.vk-narrow .vk-h3 { font-size: 8.5pt; }
   .vihko-page-content.vk-narrow .vk-tbl th, .vihko-page-content.vk-narrow .vk-tbl td { font-size: 7.2pt; padding: 0.45mm 0.7mm; }
   .vihko-page-content.vk-narrow .vk-tbl th { font-size: 6.3pt; }
+  /* Kylätaulukko (29.9.2026): pysäkit riveinä kuten Joukon vihkossa, nimisarake 30 mm, ajat keskitettyinä. */
+  .vihko-page-content .vk-tbl.vk-tr { table-layout: auto; }
+  .vihko-page-content .vk-tbl.vk-tr th[scope="row"] { width: 30mm; max-width: 30mm; font-size: 7pt; font-weight: 600; color: #000;
+    vertical-align: middle; white-space: normal; overflow-wrap: break-word; }
+  .vihko-page-content .vk-tbl.vk-tr td { text-align: center; }
+  .vihko-page-content .vk-tbl.vk-tr tr:nth-child(odd) th, .vihko-page-content .vk-tbl.vk-tr tr:nth-child(odd) td { background: #eef1f4; }
   .vihko-page-content.vk-narrow table.cb-grid { font-size: 8pt; }
   .vihko-page-content.vk-narrow .cb-mapwrap .print-map svg { max-height: 118mm !important; }
   .vihko-page-content.vk-narrow .vk-netmap .print-map svg { max-height: 172mm !important; }
@@ -3387,7 +3393,8 @@ const CONFIGS = {
           note: ["KOSKINÄYTÖKSET:", "Imatrankosken silta on suljettu liikenteeltä koskinäytösten aikana. Silta suljetaan noin 15 min ennen näytöksen alkua ja sulku kestää noin 45 minuuttia.",
             "Mikäli koskinäytös osuu samaan aikaan paikallisliikenteen bussivuorojen kanssa, bussit lähtevät Imatrankoskelta tai niiden pääteasema on Imatrankoski."] },
         // Lähiliikenteellä ei linjakohtaisia karttoja, vaan osion linjastokartta (kuten vihkon s. 79).
-        { key: "lahi", title: "Lappeenrannan lähiliikenne", layout: "full", network: true, lineMaps: false,
+        // transpose: kylät riveinä ja vuorot sarakkeina kuten Joukon vihkossa (s. 82-99), rows = rivejä enintään (29.9.2026).
+        { key: "lahi", title: "Lappeenrannan lähiliikenne", layout: "full", network: true, lineMaps: false, transpose: true, rows: 14,
           lines: ["110", "111", "112", "113", "114", "120", "121", "130", "200", "201", "300", "301", "500",
             "601", "602", "603", "604", "610", "620"] },
         { key: "seutu", title: "Seutuliikenne", layout: "full", network: false, lines: ["100", "101"] },
@@ -3433,7 +3440,10 @@ const CONFIGS = {
       "113": [0, 2], "114": [1, 2], "610": [2, 2], "110": [3, 2], "111": [4, 2], "112": [5, 2],
       "201": [0, 3], "604": [1, 3], "120": [2, 3], "121": [3, 3], "130": [4, 3], "200": [5, 3],
       "1011": [4, 4], "1012": [5, 4],
-      "603": [0, 5], "300": [1, 5], "301": [2, 5], "500": [3, 5], "601": [4, 5], "602": [5, 5],
+      // Lähiliikenteen kartalla jokaisella värillä oli kaksi pisteviivaa ("3 5" ja "1 4"), jotka painettuina näyttivät
+      // samalta (110 ja 500, kolmas tarkastus 28.9.2026): "1 4" -> "6 4", ja 500 yhtenäisenä, koska violetilla on jo
+      // pisteet (110), pistekatko (121) ja pitkä katko (620).
+      "603": [0, 4], "300": [1, 4], "301": [2, 4], "500": [3, 0], "601": [4, 4], "602": [5, 4],
     },
     // Poikkeuspäivät #/poikkeukset-sivulle yleisen pyhäpäivälistan sijaan (yleinen lista väitti
     // 25.12. ajettavan sunnuntaiaikataululla, vaikka Jouko ei liikennöi, ja syysloma puuttui;
@@ -4313,6 +4323,7 @@ const STRINGS = {
     vkComboEnds: "Linja {line} päättyy pysäkille {stop}.",
     vkRowFrom: "lähtee pysäkiltä {stop} klo {time}",
     vkRowOrder: "vuoro kulkee tämän pysäkin kautta muussa järjestyksessä kuin sarakkeet",
+    vkRowOrderRows: "vuoro kulkee tämän pysäkin kautta muussa järjestyksessä kuin rivit",
     // pysäkkihaku ja paikannus
     noStopsFor: 'Ei pysäkkejä haulla "{q}".',
     noPlacesFor: 'Ei osumia haulla "{q}".',
@@ -4999,6 +5010,7 @@ const STRINGS = {
     vkComboEnds: "Line {line} ends at {stop}.",
     vkRowFrom: "departs from {stop} at {time}",
     vkRowOrder: "the trip serves this stop in a different order than the columns",
+    vkRowOrderRows: "the trip serves this stop in a different order than the rows",
     noStopsFor: 'No stops found for "{q}".',
     noPlacesFor: 'No results for "{q}".',
     noMatchesArea: "No matches. The search is limited to {city}.",
@@ -5674,6 +5686,7 @@ const STRINGS = {
     vkComboEnds: "Linje {line} slutar vid {stop}.",
     vkRowFrom: "avgår från {stop} kl. {time}",
     vkRowOrder: "turen trafikerar hållplatsen i annan ordning än kolumnerna",
+    vkRowOrderRows: "turen trafikerar hållplatsen i annan ordning än raderna",
     noStopsFor: 'Inga hållplatser hittades för "{q}".',
     noPlacesFor: 'Inga resultat för "{q}".',
     noMatchesArea: "Inga träffar. Sökningen är begränsad till {city} område.",
@@ -10293,7 +10306,11 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
         if (hl === String(CONFIG.city || "").toLowerCase() || (CONFIG.cityAbbr || []).some(a => hl === a.toLowerCase())) {
           const loppu = sts[sts.length - 1].stop?.name || "";
           const solmu = (CONFIG.centerStopNames || []).some(c => loppu.toLowerCase().startsWith(c.toLowerCase()));
-          kilpi = (loppu && !solmu ? cbStopBase(loppu) : "") || r.longName || headsign;
+          // Reitin nimi päättyy tähän kaupunkiin ("Helsinki - Inkoo") ja vuoro keskustan solmupysäkille: bussin oma
+          // kilpi ("Inkoo") on oikea määränpää. Pitkä nimi luettiin matkaksi Helsinkiin (kaupunkitarkastus 29.9.2026).
+          const nimiLoppu = String(r.longName || "").split(/\s*[-–]\s*/).pop().trim().toLowerCase();
+          kilpi = (loppu && !solmu ? cbStopBase(loppu) : "")
+            || (solmu && nimiLoppu === String(CONFIG.city || "").toLowerCase() ? headsign : "") || r.longName || headsign;
         }
         const key = (r.shortName || "") + " " + kilpi;
         if (!byLine.has(key)) byLine.set(key, { route: r, headsign: kilpi, trips: [] });
@@ -16113,16 +16130,25 @@ function vkLineAtoms(line, o = {}) {
       else if (tag === "FIGURE") { if (!o.noMap) atoms.push({ html: o.rot ? vkMapHtml(node.outerHTML, { w: o.rot.w, h: o.rot.h + 12 }) : node.outerHTML }); }   // reittikaavio (SVG)
       // o.chunkLegends (kapea vihko): taulukon kirjain- ja "·"-selite kulkevat taulukon rivipalojen mukana (vkPaginate),
       // jottei selite jää eri sivulle kuin kirjaimet. Reittiteksti samalla typografialla kuin tiiviissä osiossa.
-      else if (o.chunkLegends && tag === "P" && prev?.table && node.classList.contains("vk-marks")) prev.legend = vkLegendItems(node);
-      else if (o.chunkLegends && tag === "P" && prev?.table && node.classList.contains("matrix-legend")) prev.dotLegend = node.textContent.trim();
+      // Kylätaulukon (vk-tr) vuororyhmät ovat peräkkäisiä taulukoita: selite jokaiselle, koska ryhmä voi jäädä eri sivulle.
+      else if (o.chunkLegends && tag === "P" && prev?.table && node.classList.contains("vk-marks")) {
+        const it = vkLegendItems(node);
+        for (let k = atoms.length - 1; k >= 0 && atoms[k].table && (k === atoms.length - 1 || atoms[k].cls); k--) atoms[k].legend = it;
+      }
+      else if (o.chunkLegends && tag === "P" && prev?.table && node.classList.contains("matrix-legend")) {
+        const dl = node.textContent.trim();
+        for (let k = atoms.length - 1; k >= 0 && atoms[k].table && (k === atoms.length - 1 || atoms[k].cls); k--) atoms[k].dotLegend = dl;
+      }
       else if (o.chunkLegends && tag === "P" && node.classList.contains("vk-route")) atoms.push({ html: node.outerHTML });
       else {
         const src = tag === "TABLE" ? node : node.querySelector("table");
-        const table = src ? vkNarrowTable(src, o.maxCols) : null;
+        // Kylätaulukko: rivit ovat pysäkkejä, joten sitä ei kavenneta sarakkeittain eikä jaeta riveittäin sivujen väliin.
+        const tr = src?.classList.contains("vk-tr");
+        const table = src ? (tr ? src.cloneNode(true) : vkNarrowTable(src, o.maxCols)) : null;
         const rows = table ? [...table.querySelectorAll("tbody tr")].map(tr => tr.outerHTML) : [];
         if (table && rows.length)
           atoms.push({ table: true, thead: table.querySelector("thead")?.outerHTML || "", rows,
-                       cont: [lineLabel, dirLabel, dayLabel].filter(Boolean).join(" · ") });
+                       cont: [lineLabel, dirLabel, dayLabel].filter(Boolean).join(" · "), ...(tr ? { cls: "vk-tr", atomic: true } : {}) });
         else atoms.push({ html: `<div class="vk-note">${esc(node.textContent.trim())}</div>` });
       }
     }
@@ -16237,7 +16263,7 @@ function vkPaginate(atoms, geom, meta) {
   // Kapea vihko: palan alle sen omien kirjainten selite ja "·"-selite, jos palassa on piste (vkLineAtoms chunkLegends).
   const tableHtml = (a, rows, cont) =>
     (cont ? `<div class="vk-cont">${esc(a.cont)} ${t("vihkoContinued")}</div>` : "")
-    + `<table class="vk-tbl">${a.thead}<tbody>${rows.join("")}</tbody></table>`  // EI booklet/stoptable-luokkaa: @media print -säännöt eivät saa muuttaa mitattua kokoa
+    + `<table class="vk-tbl${a.cls ? " " + a.cls : ""}">${a.thead}<tbody>${rows.join("")}</tbody></table>`  // EI booklet/stoptable-luokkaa: @media print -säännöt eivät saa muuttaa mitattua kokoa
     + (a.legend ? vkLegendFor(a.legend, rows.join("")) : "")
     + (a.dotLegend && rows.some(r => r.includes("<td>·</td>")) ? `<p class="cb-notes">${esc(a.dotLegend)}</p>` : "");
   // Kapea vihko (dirFlow): suunta saa jatkaa samalla sivulla, jos koko suunta (otsikko ja taulukot)
@@ -16257,6 +16283,13 @@ function vkPaginate(atoms, geom, meta) {
       if (a.page !== undefined) {
         flush();
         push(a.page, a.sec === undefined ? curSec : a.sec, a.kind || "page");
+      } else if (a.table && a.atomic && fits(tableHtml(a, a.rows, false))) {
+        // Kylätaulukko kokonaisena: jos ei mahdu nykyiselle sivulle, uudelle jatko-otsikon kanssa (linja · suunta · päivät).
+        let h = tableHtml(a, a.rows, false);
+        if (cur && !fits(cur + h)) { flush(); h = tableHtml(a, a.rows, true); }
+        cur += h;
+        mark(a);
+        curOnlyLineHead = false;
       } else if (a.table) {
         let i = 0, first = true;
         while (i < a.rows.length) {
@@ -16899,12 +16932,20 @@ function pickKeyStops(cand, target = KEY_STOP_TARGET, limit = KEY_STOP_LIMIT) {
 function bookletTableHtml(trips, keyOpts) {
   const valid = (trips || []).filter(tr => (tr.stoptimes || []).length);
   if (!valid.length) return `<p class="muted">${t("bookletNoData")}</p>`;
+  const mm = (str, pt, bold) => cbTextWidth(str, bold) * pt / 9.75 * 0.3528;
+  // Kylätaulukko (keyOpts.transpose, kaupungin vihkon lähiliikenne 29.9.2026): kuten Joukon vihkossa pysäkit riveinä ja
+  // vuorot sarakkeina, jolloin kyliä mahtuu noin 14 eikä 5-6. Rivit kaikista reittivarianteista (vkPickCols po.all).
+  // Vuorosarakkeita leveyden mukaan: nimisarake 30 mm, aika 7,2 pt + reunus + kirjain.
+  if (keyOpts?.transpose) {
+    const ks = vkPickCols(valid, keyOpts.rows || 14, keyOpts.longName, { all: true, name: vkPlaceName, place: true });
+    const tripCols = Math.max(3, Math.floor(((keyOpts.widthMm || 84) - 30) / (mm("00:00", 7.2) + 1.4 + 1.3)));
+    return bookletRowsHtml(valid, ks, { ...keyOpts, nameFn: vkPlaceName, tripCols });
+  }
   let keyStops = keyOpts?.maxCols ? vkPickCols(valid, keyOpts.maxCols, keyOpts.longName) : bookletKeyStops(valid, keyOpts);
   // Kapea sivu (86 mm): sarakkeita vähemmän, jos otsikoiden pisimmät sanat eivät mahdu. Kuusi saraketta katkaisi pitkät
   // nimet kesken sanan ("Vuoksennisk a"); lähiliikenteen lyhyet kylänimet mahtuvat kuuteen, Imatran pitkät viiteen.
   // Leveysarvio samoista fonttikoista kuin CSS (.vk-narrow .vk-tbl: aika 7,2 pt, otsikko 6,3 pt lihavoituna, reunus 1,4 mm).
   if (keyOpts?.maxCols) {
-    const mm = (str, pt, bold) => cbTextWidth(str, bold) * pt / 9.75 * 0.3528;
     const colW = st => Math.max(mm("00:00", 7.2) + 2, ...vkStopName(st?.name).split(/[\s-]+/).filter(Boolean).map(w => mm(w, 6.3, true))) + 1.4;
     for (let m = keyOpts.maxCols - 1; m >= 5 && keyStops.reduce((a, st) => a + colW(st), 0) > (keyOpts.widthMm || 84); m--)
       keyStops = vkPickCols(valid, m, keyOpts.longName);
@@ -16929,13 +16970,17 @@ function bookletTableHtml(trips, keyOpts) {
 // Palautettavalla sarakelistalla on oma align: vuoro kohdistetaan koko pysäkkisarjaan ja siitä poimitaan valitut
 // käynnit. Pelkkiin valittuihin nimiin kohdistus vei kahdesti käydyn pysäkin sarakkeeseen ensimmäisen käynnin
 // (linjan 500 pääteaikana 07:36, ei 07:55).
-function vkPickCols(valid, max, longName) {
+// po (kylätaulukko, 29.9.2026): po.all = ehdokkaina kaikkien reittivarianttien pysäkit yhtenä järjestyksenä (vkSuperSeq),
+// po.name = näyttönimi (vkPlaceName), po.place = paikannimet (kylä, koulu) katuosoitteiden edelle täydennyssarakkeissa.
+function vkPickCols(valid, max, longName, po = {}) {
+  const nameFn = po.name || vkStopName;
+  const keyFn = st => nameFn(st?.name);
   // Ehdokkaat yleisimmän reittivariantin pysäkeistä (pisin vuoro voi olla harvinainen variantti, esim. 23 Huhtasen koululle).
   const main = mostCommonStops(valid);
   const rep = valid.reduce((a, b) => ((b.stoptimes || []).length > (a.stoptimes || []).length ? b : a), valid[0]);
-  const seq = main || (rep.stoptimes || []).map(st => st.stop);
+  const seq = po.all ? vkSuperSeq(valid, keyFn) : (main || (rep.stoptimes || []).map(st => st.stop));
   const n = seq.length;
-  const align = bookletAlign(seq, vkStopKey);
+  const align = bookletAlign(seq, keyFn);
   const cols = idx => {
     const ix = [...idx].sort((a, b) => a - b);
     const out = ix.map(i => seq[i]);
@@ -16943,7 +16988,7 @@ function vkPickCols(valid, max, longName) {
     return out;
   };
   if (n <= max) return cols(seq.keys());
-  const names = seq.map(st => vkStopName(st?.name));
+  const names = seq.map(st => nameFn(st?.name));
   const rows = valid.map(tr => keepMonotone(align(tr.stoptimes || [])));
   const keep = new Set([0, n - 1]);
   const add = i => { if (keep.size < max) keep.add(i); };
@@ -16951,14 +16996,12 @@ function vkPickCols(valid, max, longName) {
   const dt = (i, j) => { const r = rows.find(r => r[i] != null && r[j] != null); return r ? Math.abs(r[i] - r[j]) : Infinity; };
   for (const e of [0, n - 1])
     names.forEach((x, i) => { if (i !== e && x === names[e] && dt(i, 0) >= 600 && dt(i, n - 1) >= 600) add(i); });
-  const first = nm => nm.split(/[\s_]+/)[0].toLowerCase();
-  for (const tok of String(longName || "").split(/\s*[-–,/]\s*/).map(x => x.trim().toLowerCase()).filter(x => x.length > 2)) {
-    const hits = names.map((nm, i) => [nm, i]).filter(([nm]) => first(nm) === tok || first(nm) === tok + "n");
-    const exact = hits.find(([nm]) => nm.toLowerCase() === tok);
-    if (hits.length) add((exact || hits[0])[1]);
-  }
-  for (const nm of (CONFIG.vihko?.mainStops || []))
-    names.forEach((x, i) => { if (x === nm && ![...keep].some(k => dt(i, k) < 180)) add(i); });
+  // Kylätaulukko: linjan nimen paikasta johdettu kadunnimi ("Simolantie" linjalla Lpr-Simola-Rikkilä, "Imatrantie") ei
+  // kelpaa täydennysriviksi, koska se luettiin kyläksi: Simolantie on kaupungissa 40 min ennen Simolaa (tarkastus 4).
+  const toks = String(longName || "").split(/\s*[-–,/]\s*/).map(x => x.trim().toLowerCase()).filter(x => x.length > 2);
+  const derived = new Set(po.all ? names.map((nm, i) => [nm.toLowerCase(), i])
+    .filter(([nm]) => toks.some(tk => nm.startsWith(tk) && /^n?(?:tie|katu)$/u.test(nm.slice(tk.length)))).map(([, i]) => i) : []);
+  // Vain numeroton nimi ("Simolantie"): osoite "Vainikkalantie 104" on selvästi tie ja täyttää maaseutuosuuden aukon (tarkastus 5).
   const score = new Array(n).fill(0);
   for (const r of rows) {
     const f = r.findIndex(v => v != null);
@@ -16967,7 +17010,25 @@ function vkPickCols(valid, max, longName) {
     while (r[l] == null) l--;
     score[f]++; score[l]++;
   }
-  for (const i of [...Array(n).keys()].filter(i => !keep.has(i) && score[i] >= 2).sort((a, b) => score[b] - score[a] || a - b)) add(i);
+  const first = nm => nm.split(/[\s_]+/)[0].toLowerCase();
+  for (const tok of String(longName || "").split(/\s*[-–,/]\s*/).map(x => x.trim().toLowerCase()).filter(x => x.length > 2)) {
+    // Kylätaulukossa myös taivutettu alku, jos pysäkki on risteys tai paikka eikä tie tai katu ("Soskua" -> "Soskuantien
+    // risteys"). Pelkkä vartalo osui 28.9. tiennimiin (Imatrantie, Ylämaantie), ja ne jäävät yhä pois.
+    const hits = names.map((nm, i) => [nm, i]).filter(([nm]) => first(nm) === tok || first(nm) === tok + "n"
+      || (po.all && first(nm).startsWith(tok) && (/\sristeys$/iu.test(nm) || vkPlaceScore(nm) === 2))
+      || (po.all && nm.toLowerCase().split(/\s+/).pop() === tok));   // paikka nimen lopussa: "Varikkotien ja Koskentien risteys Ylämaa"
+    const exact = hits.find(([nm]) => nm.toLowerCase() === tok);
+    // Kylätaulukossa paikan pääte ennen muita samannimisiä: 111:n "Imatra" = Imatran keskusliikenneasema (vuoron pääte),
+    // ei ensimmäinen osuma Imatran uimahalli (29.9.2026).
+    const term = po.all ? hits.filter(([, i]) => score[i] > 0).sort((x, y) => score[y[1]] - score[x[1]])[0] : null;
+    // Muuten sama sana ennen taivutettua: 112 "Joutseno" = Joutseno linja-autoasema, ei Joutsenon koulu (tarkastus 4).
+    const same = po.all ? hits.find(([nm]) => first(nm) === tok) : null;
+    if (hits.length) add((exact || term || same || hits[0])[1]);
+  }
+  for (const nm of (CONFIG.vihko?.mainStops || []))
+    names.forEach((x, i) => { if (x === nm && ![...keep].some(k => dt(i, k) < 180)) add(i); });
+  // Kylätaulukossa jokaisen vuoron lähtö- ja päätepysäkki riviksi (yksikin riittää), jotta vuoro alkaa ja päättyy näkyvissä.
+  for (const i of [...Array(n).keys()].filter(i => !keep.has(i) && score[i] >= (po.all ? 1 : 2)).sort((a, b) => score[b] - score[a] || a - b)) add(i);
   for (let guard = 0; guard < n && keep.size < max; guard++) {
     const cs = [...keep].sort((a, b) => a - b);
     let best = null;
@@ -16982,8 +17043,8 @@ function vkPickCols(valid, max, longName) {
     const mid = best.r[best.x] + best.gap / 2;
     let pick = -1, pd = Infinity;
     for (let i = best.x + 1; i < best.y; i++) {
-      if (best.r[i] == null || keep.has(i)) continue;
-      const d = Math.abs(best.r[i] - mid) - (hubKeyOf(seq[i]) ? 600 : 0);
+      if (best.r[i] == null || keep.has(i) || derived.has(i)) continue;
+      const d = Math.abs(best.r[i] - mid) - (hubKeyOf(seq[i]) ? 600 : 0) - (po.place ? 300 * vkPlaceScore(names[i]) : 0);
       if (d < pd) { pd = d; pick = i; }
     }
     if (pick < 0) break;
@@ -16992,15 +17053,66 @@ function vkPickCols(valid, max, longName) {
   while (keep.size < max) {
     let best = -1, bd = -1;
     for (let i = 1; i < n - 1; i++) {
-      if (keep.has(i)) continue;
+      if (keep.has(i) || derived.has(i)) continue;
       let d = Infinity;
       for (const h of keep) d = Math.min(d, Math.abs(h - i));
+      if (po.place) d *= [1, 1.3, 2][vkPlaceScore(names[i])];
       if (d > bd) { bd = d; best = i; }
     }
     if (best < 0) break;
     keep.add(best);
   }
   return cols(keep);
+}
+// Kaikkien reittivarianttien pysäkit yhtenä järjestyksenä (kylätaulukko, 29.9.2026). Yleisin variantti ensin, muut
+// yhdistetään siihen pisimmän yhteisen alijonon kautta: yhteiset pysäkit kerran, variantin omat oikeaan kohtaan. Ennen
+// ehdokkaina oli vain yleisin variantti, joten 620:n iltapäivävuoron Pulsa ja 111/112:n Imatran jatko puuttuivat
+// taulukoista (kolmas tarkastus 28.9.2026).
+function vkSuperSeq(valid, key) {
+  const cnt = new Map();
+  for (const tr of valid) {
+    const s = (tr.stoptimes || []).map(x => x.stop);
+    if (!s.length) continue;
+    const k = s.map(key).join("|");
+    const e = cnt.get(k);
+    if (e) e.n++; else cnt.set(k, { s, n: 1 });
+  }
+  const lists = [...cnt.values()].sort((a, b) => b.n - a.n || b.s.length - a.s.length).map(e => e.s);
+  let seq = (lists[0] || []).slice();
+  for (const s of lists.slice(1)) {
+    const a = seq.map(key), b = s.map(key), n = a.length, m = b.length;
+    const dp = Array.from({ length: n + 1 }, () => new Int16Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = a[i] === b[j] ? 1 + dp[i + 1][j + 1] : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    const out = [];
+    // Tasatilanteessa ennen ensimmäistä yhteistä pysäkkiä pohjan omat ensin (sen lähtö jää alkuun), sen jälkeen variantin
+    // omat ensin (pohjan pääte jää loppuun): 111:n aamuvuoro päättyy Joutsenoon eri järjestyksessä kuin Imatran vuoro.
+    let met = false;
+    for (let i = 0, j = 0; i < n || j < m;) {
+      if (i < n && j < m && a[i] === b[j]) { out.push(seq[i]); i++; j++; met = true; continue; }
+      const si = i < n ? dp[i + 1][j] : -1, sj = j < m ? dp[i][j + 1] : -1;
+      if (j >= m || (i < n && (si > sj || (si === sj && !met)))) { out.push(seq[i]); i++; }
+      else { out.push(s[j]); j++; }
+    }
+    seq = out;
+  }
+  return seq;
+}
+// Kylätaulukon näyttönimi: pysäkkiparin numero pois ("Soskuantien risteys 1/2", "Korkea-aho 1/2", "Tanin lähtöpysäkki 1"),
+// koska rivi on paikka eikä laituri: 130:n Ravonsydämen vuoro kulkee Räätälintien risteys 2:n kautta, ja "·" rivillä
+// "Räätälintien risteys 1" väitti, ettei se kulje risteyksen kautta (kolmas tarkastus 28.9.2026). Katuosoitteen
+// talonnumero jää ("Merenlahdentie 2", "Vaalimaantie 392").
+function vkPlaceName(n) {
+  const s = vkStopName(n);
+  const m = s.match(/^(.*\D)\s+[12]$/u);
+  if (!m || /(?:katu|tie|kuja|polku|väylä|raitti|kaari|tanhua|rinne|ranta)$/iu.test(m[1].trim())) return s;
+  return m[1].trim();
+}
+// Paikannimi kylätaulukon täydennysriviksi: 2 = kylä, koulu tai muu paikka ("Pulsa", "Korkea-ahon koulu"), 1 = risteys tai
+// kadunnimi ilman numeroa, 0 = katuosoite ("Vaalimaantie 392"). Joukon vihkon riveillä ovat kylät, eivät osoitteet.
+function vkPlaceScore(nm) {
+  if (/\d/.test(nm)) return 0;
+  return /(?:katu|tie|kuja|polku|väylä|risteys|th)$/iu.test(nm) ? 1 : 2;
 }
 // Avainpysäkit (sarakkeet / reittijanan solmut) vuorojoukolle: timepointit + aina lähtö ja pää,
 // täydennettynä tasavälein, rajattuna pickKeyStopsilla. Yhteinen laajalle vihkolle ja tiiviin
@@ -17064,7 +17176,8 @@ function bookletAlign(keyStops, stopKey = st => st?.gtfsId) {
 const vkStopKey = st => vkStopName(st?.name);
 function bookletRowsHtml(valid, keyStops, opts = {}) {
   const align = keyStops.align || bookletAlign(keyStops, opts.disp ? vkStopKey : undefined);
-  const nameOf = keyStops.map(s => vkStopName(s.name));
+  const nm = opts.nameFn || vkStopName;
+  const nameOf = keyStops.map(s => nm(s.name));
   // sarakejärjestyksessä taaksepäin kulkevat ajat pois (ks. keepMonotone; kohdistuksen jälkeen varotoimi)
   const rows0 = valid.map(tr => keepMonotone(align(tr.stoptimes || [])));
   // Järjestys yhteisen avainpysäkin ajan mukaan. Ennen lajiteltiin 1. avainpysäkin mukaan ja
@@ -17104,9 +17217,11 @@ function bookletRowsHtml(valid, keyStops, opts = {}) {
     const extra = new Map();
     if (opts.marks) {
       const used = new Set(r.filter(v => v != null));
-      nameOf.forEach((nm, i) => {
+      // Kylätaulukossakin koko sarakkeessa, myös vuoron lähdön yläpuolella ja päätteen alapuolella: rajaus näkyvään
+      // väliin jätti "·":n pysäkeille, joilla vuoro käy (200 klo 16.20 Karjalantie, 620 klo 6.55 Lyseo, tarkastus 4).
+      nameOf.forEach((cn, i) => {
         if (r[i] != null) return;
-        const st = (tr.stoptimes || []).find(x => vkStopName(x.stop?.name) === nm && !used.has(x.scheduledDeparture));
+        const st = (tr.stoptimes || []).find(x => nm(x.stop?.name) === cn && !used.has(x.scheduledDeparture));
         if (st) { extra.set(i, st.scheduledDeparture); used.add(st.scheduledDeparture); }
       });
     }
@@ -17118,18 +17233,32 @@ function bookletRowsHtml(valid, keyStops, opts = {}) {
       // viimeisen jälkeen. Samassa minuutissa viereiseltä pysäkiltä lähtevä ei tarvitse kirjainta: 610:n "12:05 Oikokatu"
       // ja selite "lähtee pysäkiltä Oleksi klo 12:05" luettiin ristiriidaksi (toinen tarkastus 28.9.2026).
       if (r[f] - s0.scheduledDeparture >= 60)
-        sup += codeOf(t("vkRowFrom", { stop: vkStopName(s0.stop?.name), time: fmtSec(s0.scheduledDeparture) }));
-      if (s1.scheduledDeparture - r[l] >= 60) sup += codeOf(t("compactEndsAt", { stop: vkStopName(s1.stop?.name) }));
+        sup += codeOf(t("vkRowFrom", { stop: nm(s0.stop?.name), time: fmtSec(s0.scheduledDeparture) }));
+      if (s1.scheduledDeparture - r[l] >= 60) sup += codeOf(t("compactEndsAt", { stop: nm(s1.stop?.name) }));
     }
-    const order = extra.size ? codeOf(t("vkRowOrder")) : "";
-    return `<tr>${r.map((v, i) => `<td>${v == null
+    const order = extra.size ? codeOf(t(opts.transpose ? "vkRowOrderRows" : "vkRowOrder")) : "";
+    return r.map((v, i) => v == null
       ? (extra.has(i) ? `${fmtSec(extra.get(i))}<sup>${esc(order)}</sup>` : (usedDot = true, "·"))
-      : fmtSec(v) + (i === f && sup ? `<sup>${esc(sup)}</sup>` : "")}</td>`).join("")}</tr>`;
-  }).join("");
+      : fmtSec(v) + (i === f && sup ? `<sup>${esc(sup)}</sup>` : ""));
+  });
   const marks = codes.size ? `<p class="cb-notes vk-marks">${[...codes].map(([txt, c]) => `<b>${esc(c)}</b> = ${esc(txt)}`).join(" · ")}</p>` : "";
+  const dotNote = usedDot ? `<p class="matrix-legend">${t("legendSkipStop")}</p>` : "";
+  // Kylätaulukko (opts.transpose): pysäkit riveinä, vuorot sarakkeina aikajärjestyksessä. Yli opts.tripCols vuoroa jaetaan
+  // tasakokoisiin peräkkäisiin taulukoihin (8 vuoroa = 4 + 4, ei 6 + 2); jokainen toistaa kaikki rivit.
+  if (opts.transpose) {
+    const K = opts.tripCols || 6, nT = body.length;
+    const per = Math.ceil(nT / Math.max(1, Math.ceil(nT / K)));
+    let html = "";
+    for (let c = 0; c < nT; c += per) {
+      const part = body.slice(c, c + per);
+      html += `<div class="matrix-wrap"><table class="stoptable booklet vk-tr"><tbody>`
+        + keyStops.map((_, i) => `<tr><th scope="row">${esc(nameOf[i]).replace(/\//g, "/<wbr>")}</th>${part.map(cs => `<td>${cs[i]}</td>`).join("")}</tr>`).join("")
+        + `</tbody></table></div>`;
+    }
+    return html + marks + dotNote;
+  }
   return `<div class="matrix-wrap"><table class="stoptable booklet">
-      <thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>${marks}` +
-    (usedDot ? `<p class="matrix-legend">${t("legendSkipStop")}</p>` : "");
+      <thead><tr>${head}</tr></thead><tbody>${body.map(cs => `<tr>${cs.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>${marks}` + dotNote;
 }
 
 /* ---------- Tiivis vihko (23.9.2026, JOJO:n talviaikatauluvihkon malli) ----------
@@ -18662,8 +18791,10 @@ function bindBookletTab(routes, today) {
           groups = groups.filter(g => bucketMatch(g.dows));
           // Kaupungin vihkon malli: otsikko näyttöniminä ("Keskusta L → Mäntyläntie 10 keskustasta" -> "Keskusta → Mäntylä",
           // tarkastus 28.9.2026). Kadunvarren päätteen nimi tulee vuorojen kilvestä, joten otsikko lasketaan vasta vuoroista.
+          // Kylätaulukon osiossa pysäkkiparin numero pois myös otsikosta ("Kosenmäki 1" -> "Kosenmäki", tarkastus 4).
+          const pn = vkSectionOf(route.shortName || "")?.transpose ? (x => vkPlaceName(x)) : (x => x);
           const cityLabel = layoutSel === "city" && stops.length
-            ? `${vkStopName(stops[0].name)} → ${vkEndName(stops[stops.length - 1], trips)}` : label;
+            ? `${pn(vkStopName(stops[0].name))} → ${pn(vkEndName(stops[stops.length - 1], trips))}` : label;
           return { label: cityLabel, stops, groups, trips };
         }));
         // Silmukkalinja: lähtö ja pääte ovat sama pysäkki, jolloin molemmat suunnat saivat saman
@@ -18671,7 +18802,7 @@ function bindBookletTab(routes, today) {
         // (linja 120, täysauditointi 27.9.2026). Otsikkoon lisätään pysäkki neljänneksen matkan
         // kohdalta: silmukan eri kiertosuunnat kulkevat siinä eri pysäkkien kautta.
         const sameLabel = l => dirs.filter(x => x.label === l).length > 1;
-        const nm = s => layoutSel === "city" ? vkStopName(s.name) : s.name;
+        const nm = s => layoutSel === "city" ? (vkSectionOf(route.shortName || "")?.transpose ? vkPlaceName(s.name) : vkStopName(s.name)) : s.name;
         const loopFix = dirs.map(d => {
           const st = d.stops || [];
           return st.length > 3 && (st[0].name === st[st.length - 1].name || sameLabel(d.label))
@@ -18816,7 +18947,10 @@ function bindBookletTab(routes, today) {
         const net = { shortName: route.shortName || "", longName: route.longName || "", dirs: mapDirs };   // kapean vihkon linjastokartta
         if (compactFor(route.shortName || "")) return { label, net, html: compactLineHtml(route, dirs, mapHtml, merged, extras, layoutSel === "city") };
         // Kaupungin vihkon malli: sarakkeet kapean sivun mukaan (vkPickCols), rivikirjaimet ja näyttönimet.
-        const keyOpts = layoutSel === "city" ? { maxCols: vkNarrowGeom().maxCols, marks: true, disp: true, longName: route.longName || "" } : undefined;
+        // Osion transpose (lähiliikenne): kylätaulukko, pysäkit riveinä kuten Joukon vihkossa.
+        const vsec = layoutSel === "city" ? vkSectionOf(route.shortName || "") : null;
+        const keyOpts = layoutSel === "city" ? { maxCols: vkNarrowGeom().maxCols, marks: true, disp: true, longName: route.longName || "",
+          ...(vsec?.transpose ? { transpose: true, rows: vsec.rows || 14, widthMm: vkNarrowGeom().w - 2 } : {}) } : undefined;
         const dirHtml = dirs.map(d => `<h3>${esc(d.label)}</h3>` + (d.groups.length
           ? d.groups.map(g => `<h4 class="daytype">${esc(g.label)}</h4>${bookletTableHtml(g.trips, keyOpts)}`).join("")
           : `<p class="muted">${t("bookletNoData")}</p>`) + (d.routeText || []).map(x => `<p class="vk-route">${esc(x)}</p>`).join(""));
