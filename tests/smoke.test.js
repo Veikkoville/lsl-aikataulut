@@ -1444,7 +1444,7 @@ async function minuuttiLinjaus(page, rootSel, media) {
     active: document.querySelector('.ptab[aria-pressed="true"]')?.dataset.ptab,
     booklet: !!document.getElementById("buildBtn"), batch: !!document.getElementById("batchGo"), hub: !!document.getElementById("hubStopSearch"),
   }));
-  (pc.tabs === 6 && pc.active === "vihko" && /#\/tulosteet\/vihko/.test(pc.hash) && pc.booklet && pc.batch && pc.hub)
+  (pc.tabs === 7 && pc.active === "vihko" && /#\/tulosteet\/vihko/.test(pc.hash) && pc.booklet && pc.batch && pc.hub)
     ? ok(`tulosteet-keskus: #/tulosta ohjautuu vihko-välilehdelle, 6 välilehteä (${pc.hash})`)
     : fail("tulosteet-keskus: #/tulosta-ohjaus tai välilehdet pielessä: " + JSON.stringify(pc));
   // Muutosvahti-välilehti: lukee viikkoajon tuloksen docs/muutosvahti/<city>.json (sama origin).
@@ -1499,7 +1499,7 @@ async function minuuttiLinjaus(page, rootSel, media) {
         valitut: document.querySelectorAll("#chgList input[type=checkbox]:checked").length, paneeleja: document.querySelectorAll(".ppanel").length };
     });
     (!irrotus.aikana.lista && irrotus.aikana.piilopaneeleja === 0 && irrotus.jalkeen === irrotus.rivit
-      && irrotus.valitut === 2 && irrotus.paneeleja === 6)
+      && irrotus.valitut === 2 && irrotus.paneeleja === 7)
       ? ok(`tulostus: muutosvahdin lista ja piilotetut välilehdet pois tulostuksen ajaksi, palautuvat valintoineen (${irrotus.rivit} riviä)`)
       : fail("tulostus: irrotus/palautus pielessä: " + JSON.stringify(irrotus));
     // Erätulosteen julisteissa QR kuten pysäkkisivun julisteessa (muutosvahti, 2 pysäkkiä).
@@ -2029,7 +2029,149 @@ async function minuuttiLinjaus(page, rootSel, media) {
       (ps && /^#\/pysakki\/[^?]+$/.test(ps.hash) && ps.rivit >= 3)
         ? ok(`tulosteet: pysäkin juliste haulla, pysäkin sivu kokosi ja tulosti julisteen (${ps.rivit} tuntiriviä, kysely poistettu osoitteesta)`)
         : fail("tulosteet: pysäkin juliste ei koostunut haun kautta: " + JSON.stringify(ps));
+      // A1-juliste (28.9.2026): A4-asettelu skaalattuna A1-arkille (594 x 841 mm), yksi arkki, isommat portaat.
+      // Chrome ei tunne A1-avainsanaa, joten sivukoko on millimetreinä; avainsanalla PDF tuli Letter-koossa.
+      if (ps) {
+        await page.evaluate(() => { window.__psPrinted = false; });
+        await page.goto(BASE + "/" + ps.hash + "?print=poster&size=A1", { waitUntil: "networkidle2" });
+        const a1 = await page.waitForFunction(() => window.__psPrinted && document.querySelector("#stopPrintOut .poster-day")
+          ? { page: document.getElementById("pageOrient")?.textContent || "",
+              size: document.querySelector("#stopPrintOut .print-only")?.dataset.size,
+              zoom: parseFloat(document.querySelector("#stopPrintOut .print-only")?.style.zoom || "0"),
+              status: document.getElementById("stopPrintStatus")?.textContent || "" } : null,
+          { timeout: 60000 }).then(h => h.jsonValue()).catch(() => null);
+        (a1 && /594mm 841mm/.test(a1.page) && a1.size === "A1" && Math.abs(a1.zoom - 2.828) < 0.01 && !/\d/.test(a1.status))
+          ? ok(`tulosteet: A1-juliste yhdellä arkilla (${a1.page.trim()}, zoom ${a1.zoom.toFixed(2)})`)
+          : fail("tulosteet: A1-juliste pielessä: " + JSON.stringify(a1));
+      }
     }
+  }
+
+  // Rengaslinjan pysäkkisarakkeet (28.9.2026): lähtö- ja päätepysäkki ovat sama pysäkki. Tunnusavaimella
+  // päätteen poisto keepMonotonessa osui myös lähtösarakkeeseen, ja Imatran linjan 21 lähtösarake oli
+  // pelkkiä pisteitä. Vakioaineisto: A 07.00, B 07.05, C 07.10, A 07.15.
+  {
+    const cells = await page.evaluate(() => {
+      const box = document.createElement("div");
+      box.innerHTML = bookletRowsHtml([{ stoptimes: [
+        { stop: { gtfsId: "A" }, scheduledDeparture: 25200 }, { stop: { gtfsId: "B" }, scheduledDeparture: 25500 },
+        { stop: { gtfsId: "C" }, scheduledDeparture: 25800 }, { stop: { gtfsId: "A" }, scheduledDeparture: 26100 }] }],
+        [{ gtfsId: "A", name: "A" }, { gtfsId: "B", name: "B" }, { gtfsId: "C", name: "C" }, { gtfsId: "A", name: "A" }]);
+      return [...box.querySelectorAll("tbody td")].map(td => td.textContent.trim());
+    });
+    cells.join(" ") === "07:00 07:05 07:10 07:15"
+      ? ok("vihon pysäkkisarakkeet: rengaslinjan lähtö- ja päätesarake saavat omat aikansa (vakioaineisto)")
+      : fail("vihon pysäkkisarakkeet: rengaslinja väärin: " + JSON.stringify(cells));
+    // Kesken lenkin alkava vuoro käy A:lla vain lopussa: aika kuuluu viimeiseen sarakkeeseen, ei ensimmäiseen.
+    const mid = await page.evaluate(() => {
+      const box = document.createElement("div");
+      box.innerHTML = bookletRowsHtml([{ stoptimes: [
+        { stop: { gtfsId: "B" }, scheduledDeparture: 25500 }, { stop: { gtfsId: "C" }, scheduledDeparture: 25800 },
+        { stop: { gtfsId: "A" }, scheduledDeparture: 26100 }] }],
+        [{ gtfsId: "A", name: "A" }, { gtfsId: "B", name: "B" }, { gtfsId: "C", name: "C" }, { gtfsId: "A", name: "A" }]);
+      return [...box.querySelectorAll("tbody td")].map(td => td.textContent.trim());
+    });
+    mid.join(" ") === "· 07:05 07:10 07:15"
+      ? ok("vihon pysäkkisarakkeet: kesken lenkin alkavan vuoron paluu viimeiseen sarakkeeseen (vakioaineisto)")
+      : fail("vihon pysäkkisarakkeet: kesken lenkin alkava vuoro väärin: " + JSON.stringify(mid));
+  }
+
+  // Kaupungin vihkon malli, painovalmis kapea vihko (Lappeenranta 100 x 200 mm, 28.9.2026). Rakenne:
+  // sivumäärä neljällä jaollinen, ei leikkautuvaa sisältöä, kansi ja takakansi, kaupungin omien sivujen
+  // paikat, ja sisällysluettelon sivunumero osuu sivulle, jolla linja oikeasti alkaa. Kaupunki palautetaan.
+  {
+    const prevCity = await page.evaluate(() => cityKey);
+    await page.goto(BASE + "/?city=lappeenranta#/tulosteet/vihko", { waitUntil: "networkidle2" });
+    let vn = null;
+    if (await page.waitForSelector(".lineCb", { timeout: 30000 }).then(() => true).catch(() => false)) {
+      await page.evaluate(() => {
+        window.__vnRp = window.print; window.__vnPrinted = false; window.print = () => { window.__vnPrinted = true; };
+        document.getElementById("bookletLayout").value = "city";
+        document.querySelectorAll(".lineCb").forEach(c => {
+          c.checked = ["1", "21", "300"].includes(c.closest("li").querySelector(".badge")?.textContent.trim());
+        });
+        document.getElementById("buildBtn").click();
+      });
+      if (await page.waitForSelector("#bookletPrintNarrow", { timeout: 120000 }).then(() => true).catch(() => false)) {
+        await page.$eval("#bookletPrintNarrow", b => b.click());
+        await page.waitForFunction(() => window.__vnPrinted, { timeout: 60000 }).catch(() => {});
+        vn = await page.evaluate(() => {
+          const w = document.getElementById("vihkoPrint");
+          if (!w || !w.classList.contains("vk-n")) return { puuttuu: true };
+          const pages = [...w.querySelectorAll(".vk-np")];
+          const kind = k => pages.filter(p => p.classList.contains("vk-np-" + k)).length;
+          const clipped = pages.filter(p => { const c = p.querySelector(":scope > .vihko-page-content");
+            return c && (c.scrollWidth > c.clientWidth + 1 || c.scrollHeight > c.clientHeight + 1); }).length;
+          const toc = [];
+          for (const pg of pages.filter(p => p.classList.contains("vk-np-toc")))
+            for (const tr of pg.querySelectorAll("table.vk-toc tr")) {
+              const label = tr.cells[0]?.textContent.trim() || "", n = parseInt(tr.cells[1]?.textContent, 10);
+              if (/^\d/.test(label)) toc.push({ label, n, osuu: !!pages[n - 1] && pages[n - 1].textContent.replace(/\s+/g, " ").includes(label.replace(/^\S+\s+/, "")) });
+            }
+          const res = { sivuja: pages.length, kansi: kind("cover"), taka: kind("back"), kaupunki: kind("city"),
+            leikkautuu: clipped, toc, koko: pages[0]?.style.width + " " + pages[0]?.style.height,
+            page: document.getElementById("pageOrient")?.textContent || "" };
+          w.remove(); document.body.classList.remove("vihko-printing");
+          return res;
+        });
+        // Painotalolle (leikkuuvarat 3 mm + leikkuumerkit, arkki 116 x 216 mm) ja itse tulostettava A4-arkitus.
+        for (const [btn, mode] of [["#bookletPrintNarrowBleed", "bleed"], ["#bookletPrintNarrowA4", "a4"]]) {
+          await page.evaluate(() => { window.__vnPrinted = false; });
+          await page.$eval(btn, b => b.click());
+          await page.waitForFunction(() => window.__vnPrinted, { timeout: 60000 }).catch(() => {});
+          vn[mode] = await page.evaluate(() => {
+            const w = document.getElementById("vihkoPrint");
+            if (!w) return null;
+            const sheets = [...w.querySelectorAll(".vk-sheet")];
+            const r = { tila: w.dataset.mode, sivuja: +w.dataset.pages, arkkeja: sheets.length,
+              merkit: sheets.map(s => s.querySelectorAll("i.vk-crop").length),
+              page: document.getElementById("pageOrient")?.textContent || "",
+              arkki: sheets[0] ? sheets[0].style.width + " " + sheets[0].style.height : "" };
+            w.remove(); document.body.classList.remove("vihko-printing");
+            return r;
+          });
+        }
+        await page.evaluate(() => { window.print = window.__vnRp; });
+      }
+    }
+    (vn && !vn.puuttuu && vn.sivuja % 4 === 0 && vn.leikkautuu === 0 && vn.kansi === 1 && vn.taka === 1 && vn.kaupunki === 13
+      && vn.toc.length >= 3 && vn.toc.every(x => x.osuu) && vn.koko === "100mm 200mm" && /100mm 200mm/.test(vn.page)
+      && vn.bleed?.tila === "bleed" && vn.bleed.arkkeja === vn.sivuja && vn.bleed.merkit.every(n => n === 8) && /116mm 216mm/.test(vn.bleed.page)
+      && vn.a4?.tila === "a4" && vn.a4.arkkeja * 2 === vn.sivuja && /297mm 210mm/.test(vn.a4.page))
+      ? ok(`kapea vihko: ${vn.sivuja} sivua 100 x 200 mm, 0 leikkautuu, 13 kaupungin sivun paikkaa, sisällysluettelo osuu (${vn.toc.length} linjaa); painotalolle ${vn.bleed.arkkeja} arkkia 116 x 216 mm leikkuumerkein, A4-arkitus ${vn.a4.arkkeja} arkkia`)
+      : fail("kapea vihko: rakenne pielessä: " + JSON.stringify(vn));
+    await page.goto(BASE + "/?city=" + (prevCity || "lahti") + "#/", { waitUntil: "networkidle2" });
+  }
+
+  // Lähipysäkkipaketti ("rehtoripaketti", 28.9.2026): paikka kyselyllä, kansisivu (kartta, pysäkit,
+  // linjat) ja jokaiselle pysäkille tiivis juliste. Assertio vaatii kootun paketin: virheteksti tai
+  // tyhjä linjataulukko ei kelpaa. Kansisivun kirjaimet ovat yhteisiä: sama kirjain ei saa tarkoittaa
+  // kahta eri asiaa (pysäkkien julisteissa kirjaimet ovat pysäkkikohtaisia).
+  {
+    const f = await page.evaluate(() => ({ lat: AREA.focus.lat, lon: AREA.focus.lon }));
+    await page.goto(BASE + "/#/tulosteet/lahipysakit?lat=" + f.lat + "&lon=" + f.lon + "&name=" +
+      encodeURIComponent("Testipaikka, Keskusta") + "&r=500&go=1", { waitUntil: "networkidle2" });
+    const np = await page.waitForFunction(() => {
+      const st = document.getElementById("nearStatus")?.textContent || "";
+      if (document.querySelector("#nearOut .near-cover")) {
+        const legend = [...document.querySelectorAll("#nearOut .near-cover .poster-legend b")].map(b => b.textContent);
+        return {
+          stops: document.querySelectorAll("#nearOut table.near-stops tbody tr").length,
+          lines: document.querySelectorAll("#nearOut table.near-lines tbody tr").length,
+          zero: [...document.querySelectorAll("#nearOut table.near-lines tbody tr")].filter(tr => !(parseInt(tr.lastElementChild.textContent, 10) > 0)).length,
+          posters: document.querySelectorAll("#nearOut .poster-compact .poster-stop").length,
+          marks: document.querySelectorAll("#nearOut .near-cover .pm-stopmark").length,
+          place: document.querySelectorAll("#nearOut .near-cover .pm-place").length,
+          legendDup: legend.length - new Set(legend).size,
+          title: document.querySelector("#nearOut .print-brandhead h2")?.textContent || "",
+        };
+      }
+      return /[a-zäö]{4}/i.test(st) && !/\d+\s*\/\s*\d+|…/.test(st) ? { error: st } : null;
+    }, { timeout: 120000 }).then(h => h.jsonValue()).catch(() => null);
+    (np && !np.error && np.stops >= 1 && np.lines >= 1 && !np.zero && np.posters === np.stops
+      && np.marks === np.stops && np.place === 1 && !np.legendDup && /Testipaikka/.test(np.title))
+      ? ok(`lähipysäkit: paketti koottu kyselyllä (${np.stops} pysäkkiä kartalla ja julisteina, ${np.lines} linjariviä, selite yksiselitteinen)`)
+      : fail("lähipysäkit: paketti ei koostunut oikein: " + JSON.stringify(np));
   }
 
   // URL-osoitteistettu välilehti (?tab=) ja yksi etusivun nappi (ei enää kahta tulostenappia)
@@ -2236,7 +2378,7 @@ async function minuuttiLinjaus(page, rootSel, media) {
     yksikoita: document.querySelectorAll(".rpCb").length,
     osoite: location.hash,
   }));
-  (rpTab.valilehtia === 6 && rpTab.valittu === "uusintapainatus" && rpTab.paneeliNakyy &&
+  (rpTab.valilehtia === 7 && rpTab.valittu === "uusintapainatus" && rpTab.paneeliNakyy &&
    rpTab.yksikoita > 50 && rpTab.osoite === "#/tulosteet/uusintapainatus")
     ? ok(`navigointi: #/uusintapainatus avaa tulostekeskuksen välilehden (${rpTab.valilehtia} välilehteä, ${rpTab.yksikoita} yksikköä)`)
     : fail("navigointi: uusintapainatus-välilehti: " + JSON.stringify(rpTab));

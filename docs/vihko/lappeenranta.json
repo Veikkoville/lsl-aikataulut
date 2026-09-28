@@ -1,0 +1,552 @@
+{
+ "lahde": "Joukon talviaikataulu 2026-2027 (Lappeenrannan seudun joukkoliikenne), reittikuvaukset sellaisinaan. Kohdistus palvelun suuntiin: lahto/paate = pysäkin perusnimi, kautta = rengaslinjan välipysäkki. Päivitetään reittimuutosten yhteydessä.",
+ "reitit": {
+  "1": [
+   {
+    "sivu": 10,
+    "otsikko": "Yliopisto - Keskusta - Kanavansuu - Kiiskinmäki",
+    "lahto": "LUT-Yliopisto",
+    "paate": "Kiiskinmäki",
+    "tekstit": [
+     "Ma-Pe: Yliopisto/Skinnarilankatu-Teknologiapuistonkatu-Teekkarik.-Jupiterinkatu-Orioninkatu-Sammonlahdenkatu-Merenlahdentie-Helsingintie-Lavolankatu-Puhakankatu-Suonionkatu-Valtakatu-Taipalsaarentie-Koulukatu",
+     "La-Su: Ajetaan Huhtiniemen kautta reittiä: Huhtiniemenkatu-Wäinönkatu-Kornetinkatu-Kuusimäenkatu"
+    ]
+   },
+   {
+    "sivu": 11,
+    "otsikko": "Keskusta - Kanavansuu - Kiiskinmäki",
+    "lahto": "Keskusta",
+    "paate": "Kiiskinmäki",
+    "tekstit": [
+     "Reitti: Koulukatu-Oikokatu-Urheilukatu-Imatrantie-Kaukaankatu-Standertskjöldinkatu-Lauritsalantie-Yhteistyönkatu-Karjalantie-Hallituskatu-Muukontie-Suolavuorentie-Muukontie"
+    ]
+   },
+   {
+    "sivu": 12,
+    "otsikko": "Kiiskinmäki - Kanavansuu - Keskusta - Yliopisto",
+    "lahto": "Kiiskinmäki",
+    "paate": "LUT-Yliopisto",
+    "tekstit": [
+     "Reitti: Muukontie-Suolavuorentie-Kanavasuun kääntöpaikka-Suolavuorentie-Muukontie-Hallituskatu-Hyötiöntie-Hyötiöntie-Karjalantie-Yhteistyönkatu-Lauritsalantie-Standertskjöldinkatu-Kaukaankatu-Imatrantie-Urheilukatu-Liikenneympyrä-Oikokatu-Koulukatu"
+    ]
+   },
+   {
+    "sivu": 13,
+    "otsikko": "Kanavansuu - Keskusta - Yliopisto",
+    "lahto": "Kiiskinmäki",
+    "paate": "LUT-Yliopisto",
+    "tekstit": [
+     "Reitti: Suolavuorentie-Muukontie-Hallituskatu-Hyötiöntie-Karjalantie-Yhteistyönkatu-Lauritsalantie-Standertskjöldink.-Kaukaankatu-Imatrantie-Urheilukatu-Liikenneympyrä-Oikokatu-Koulukatu"
+    ]
+   },
+   {
+    "sivu": 14,
+    "otsikko": "Keskusta - Yliopisto",
+    "lahto": "Keskusta",
+    "paate": "LUT-Yliopisto",
+    "tekstit": [
+     "Ma-Pe: Koulukatu-Valtakatu-Suonionkatu-Puhakankatu-Lavolankatu-Helsingintie-Merenlahdentie-Sammonlahdenkatu-Orioninkatu-Jupiterinkatu-Teekkarikatu-Teknologiapuistonkatu-Skinnarilankatu/Yliopisto",
+     "La-Su: Ajetaan Huhtiniemen kautta reittiä: Kuusimäenkatu-Kornetinkatu-Wäinönkatu-Huhtiniemenkatu"
+    ]
+   }
+  ],
+  "2": [
+   {
+    "sivu": 16,
+    "otsikko": "Kivisalmi - Keskusta - Hovinpelto",
+    "lahto": "Kivisalmi",
+    "paate": "Hovinpelto",
+    "tekstit": [
+     "Reitti: Honkasaarenkatu-Taipalsaarentie-Kivistönkatu-Piiluvankatu-Voisalmentie-Tyysterniementie-Taipalsaarentie-Koulukatu"
+    ]
+   },
+   {
+    "sivu": 17,
+    "otsikko": "Keskusta - Hovinpelto",
+    "lahto": "Keskusta",
+    "paate": "Hovinpelto",
+    "tekstit": [
+     "Sunnuntain vuorot ajetaan Imatrantietä keskussairaalan kautta.",
+     "Reitti: Koulukatu-Valtakatu-Lepolankatu-Harapaisentie-Kärrinkatu-Kaakkoiskaari-Onnelantie-Onninkatu-Joukahaisenkatu-Reunakatu-Kalevankatu-Karjalantie-Asemakatu-Kartanontie-Hakalintie-Hakalinkatu-Hovinkatu-Isopällinkatu-Pienpällinkatu"
+    ]
+   },
+   {
+    "sivu": 18,
+    "otsikko": "Hovinpelto - Keskusta - Kivisalmi",
+    "lahto": "Hovinpelto",
+    "paate": "Kivisalmi",
+    "tekstit": [
+     "Sunnuntain vuorot ajetaan Imatrantietä keskussairaalan kautta.",
+     "Reitti: Pienpällinkatu-Isopällinkatu-Hovinkatu-Hakalinkatu-Hakalintie-Kartanontie-Luukkaankatu-Asemakatu-Karjalantie-Kalevankatu-Reunakatu-Joukahaisenkatu-Onninkatu-Onnelantie-Kaakkoiskaari-Kärrinkatu-Harapaisentie-Lepolankatu-Valtakatu-Oikokatu-Koulukatu"
+    ]
+   },
+   {
+    "sivu": 19,
+    "otsikko": "Keskusta - Kivisalmi",
+    "lahto": "Keskusta",
+    "paate": "Kivisalmi",
+    "tekstit": [
+     "Reitti: Koulukatu-Taipalsaarentie-Tyysterniementie-Voisalmentie-Piiluvankatu-Kivistönkatu-Taipalsaarentie-Honkasaarenkatu päätepysäkki"
+    ]
+   }
+  ],
+  "3": [
+   {
+    "sivu": 25,
+    "otsikko": "Puhakankatu -  Keskusta - Pikisaari - Kariniemi - Kivisalmi",
+    "lahto": "Puhakankatu 3-7 keskustasta",
+    "paate": "Kivistönkatu",
+    "tekstit": [
+     "Reitti: Puhakankatu-Lavolankatu-Ratakatu-Matkakeskus-Lepolankatu-Valtakatu-Koulukatu-Taipalsaarentie-Satamatie-Pikisaarentie-Satamatie-Taipalsaarentie-Maininkikatu-Kivisalmenkatu-Voisalmentie-Saratie-Voisalmentie-Kivistönkatu-Piiluvankatu-Voisalmentie-Tyyserniementie-Satamatie-Pikisaarentie-Satamatie-Taipalsaarentie-Koulukatu-Liikenneympyrä-Valtakatu-Lepolankatu-Matkakeskus-Ratakatu-Lavolankatu-Puhakankatu"
+    ]
+   }
+  ],
+  "3K": [
+   {
+    "sivu": 24,
+    "otsikko": "Kivisalmi - Kesämäki - Kivisalmi (ma-pe koulupäivinä)",
+    "lahto": "Kivisalmi",
+    "paate": "Kesämäki",
+    "tekstit": [
+     "Reitti: Kivisalmi/Honkasaarenkatu-Taipalsaarentie-Kivistönkatu-Piiluvankatu-Saratie-Voisalmentie-Tyysterniementie-Taipalsaarentie-Koulukatu-Lappeenkatu-Suonionkatu-Puhakankatu-Lavolankatu-Ratakatu-Lepolankatu-Valtakatu-Oikokatu-Koulukatu-Taipalsaarentie-Tyysterniementie-Voisalmentie-Saratie-Piiluvankatu-Kivistönkatu-Taipalsaarentie-Kivisalmi/Honkasaarenkatu"
+    ]
+   }
+  ],
+  "4": [
+   {
+    "sivu": 28,
+    "otsikko": "Karhuvuori - Keskusta - Mäntylä",
+    "lahto": "Karhuvuori",
+    "paate": "Mäntyläntie 10 keskustasta",
+    "tekstit": [
+     "Reitti: Karhuvuorenkatu-Hiessillankatu-Myllymäenkatu-Viipurintie-Kauppakatu-Lappeenkatu-Oikokatu-Koulukatu-Valtakatu-Suonionkatu-Puhakankatu-Lavolank.-Lentokentäntie-Pilotinkatu-Koppelontie-Mattilantie-Kurjentie-Mäntyläntie"
+    ]
+   },
+   {
+    "sivu": 29,
+    "otsikko": "Keskusta - Mäntylä",
+    "lahto": "Keskusta",
+    "paate": "Mäntyläntie 10 keskustasta",
+    "tekstit": [
+     "Reitti: Koulukatu-Valtakatu-Suonionkatu-Puhakankatu-Lavolank.-Lentokentäntie- Pilotinkatu -Koppelontie-Mattilantie-Kurjentie-Mäntyläntie"
+    ]
+   },
+   {
+    "sivu": 30,
+    "otsikko": "Mäntylä - Keskusta - Karhuvuori",
+    "lahto": "Mäntylä",
+    "paate": "Karhuvuori",
+    "tekstit": [
+     "Reitti: Mäntyläntie-Kurjentie-Koppelontie-Pilotinkatu-Lentokentäntie-Lavolankatu-Puhakankatu-Suonionkatu-Valtakatu-Koulukatu-Oikokatu-Lappeenkatu-Mutkakatu-Kauppakatu-Viipurintie-Eteläkatu-Karhuvuorenkatu/Karhuvuori"
+    ]
+   },
+   {
+    "sivu": 31,
+    "otsikko": "Keskusta - Karhuvuori",
+    "lahto": "Keskusta",
+    "paate": "Karhuvuori",
+    "tekstit": [
+     "Reitti: Koulukatu-Oikokatu-Lappeenkatu-Mutkakatu-Kauppakatu-Viipurintie-Eteläkatu-Karhuvuorenkatu/Karhuvuori"
+    ]
+   }
+  ],
+  "5": [
+   {
+    "sivu": 33,
+    "otsikko": "Yliopisto - Keskusta - Matkakeskus",
+    "lahto": "LUT-Yliopisto",
+    "paate": "Matkakeskus",
+    "tekstit": [
+     "Reitti: Yliopisto/Skinnarilankatu-Helsingintie-Suonionkatu-Valtakatu-Koulukatu-Valtakatu-Lepolankatu-Ratakatu/Matkakeskus"
+    ]
+   },
+   {
+    "sivu": 34,
+    "otsikko": "Keskusta - Matkakeskus",
+    "lahto": "Keskusta",
+    "paate": "Matkakeskus",
+    "tekstit": [
+     "Reitti: Koulukatu - Valtakatu - Lepolankatu - Ratakatu/Matkakeskus"
+    ]
+   },
+   {
+    "sivu": 35,
+    "otsikko": "Matkakeskus - Keskusta - Yliopisto",
+    "lahto": "Matkakeskus",
+    "paate": "LUT-Yliopisto",
+    "tekstit": [
+     "Reitti: Matkakeskus/Ratakatu - Lepolankatu - Valtakatu - Koulukatu"
+    ]
+   },
+   {
+    "sivu": 36,
+    "otsikko": "Keskusta - Yliopisto",
+    "lahto": "Keskusta",
+    "paate": "LUT-Yliopisto",
+    "tekstit": [
+     "Reitti: Koulukatu-Valtakatu-Suonionkatu-Helsingintie-Skinnarilankatu/Yliopisto"
+    ]
+   }
+  ],
+  "7": [
+   {
+    "sivu": 40,
+    "otsikko": "Mustola - Keskusta - Mustola",
+    "lahto": "Mustola",
+    "paate": "Keskusta",
+    "tekstit": [
+     "Reitti: Pitkäkatu-Itäinen Kanavatie-Muukontie-Läntinen Kanavatie-Pienpällinkatu-Isopällinkatu-Hovinkatu-Hakalinkatu-Karjalantie-Asemakatu-Hallituskatu-Hyötiöntie-Yhteistyönkatu-Lauritsalantie-Standertsköldinkatu-Kaukaankatu-Imatrantie-Urheilukatu-Oikokatu-Koulukatu"
+    ]
+   },
+   {
+    "sivu": 40,
+    "otsikko": "Mustola - Keskusta - Mustola",
+    "lahto": "Keskusta",
+    "paate": "Mustola",
+    "tekstit": [
+     "Reitti: Koulukatu-Oikokatu-Urheilukatu-Imatrantie-Kaukaankatu-Standertsköldinkatu-Lauritsalantie-Yhteistyönkatu-Hyötiöntie-Hallituskatu-Asemakatu-Karjalantie-Hakalinkatu-Hovinkatu-Isopällinkatu-Pienpällinkatu-Läntinen Kanavatie-Muukontie-Itäinen Kanavatie-Pitkäkatu"
+    ]
+   }
+  ],
+  "8": [
+   {
+    "sivu": 42,
+    "otsikko": "Kariniemi - Pikisaari - Keskusta - Ruoholampi - Rutola",
+    "lahto": "Kariniemi",
+    "paate": "Rutola",
+    "tekstit": [
+     "Reitti: Maininkikatu-Taipalsaarentie-Satamatie-Pikisaarentie-Satamatie-Taipalsaarentie-Koulukatu-Oikokatu-Lappeenkatu-Puhakankatu-Lavolankatu-Helsingintie-Kuusimäenkatu-Kornetinkatu-Wäinönkatu-Huhtiniemenkatu-Helsingintie-Salpausselänkatu-Lavolantie-Merenlahdentie-Sammonlahdenkatu-Orioninkatu-Munteronkatu-Ruoholammenkatu-Tilsalankatu-Salpausselänkatu-Vanha Mikkelintie"
+    ]
+   },
+   {
+    "sivu": 42,
+    "otsikko": "Rutola - Ruoholampi - Keskusta - Pikisaari - Kariniemi",
+    "lahto": "Rutola",
+    "paate": "Kariniemi",
+    "tekstit": [
+     "Reitti: Vanha Mikkelintie-Salpausselänkatu-Tilsalankatu-Merenlahdentie-Munteronkatu-Ruoholammenk.-Merenlahdentie-Orioninkatu-Sammonlahdenkatu-Lavolantie-Salpausselänkatu-Helsingintie-Huhtiniemenkatu-Wäinönkatu-Kornetinkatu-Kuusimäenkatu-Helsingintie-Lavolankatu-Puhakankatu-Lappeenkatu-Koulukatu-Taipalsaarentie-Satamatie-Pikisaarentie-Satamatie-Taipalsaarentie-Maininkikatu"
+    ]
+   }
+  ],
+  "12": [
+   {
+    "sivu": 44,
+    "otsikko": "Kivisalmi - Yliopisto - Keskusta - Karhuvuori - Kiiskinmäki",
+    "lahto": "Keskusta",
+    "paate": "LUT-Yliopisto",
+    "tekstit": [
+     "Reitti: Kivisalmi-Yliopisto",
+     "Honkasaarenkatu-Taipalsaarentie-Kivistönkatu-Piiluvankatu-Voisalmentie-Tyysterniementie-Taipalsaarentie-Koulukatu-Suonionkatu-Helsingintie-Merenlahdentie-Orioninkatu-Teekkarikatu-Teknologiapuistonkatu-Skinnarilankatu-Yliopisto"
+    ]
+   },
+   {
+    "sivu": 44,
+    "otsikko": "Kivisalmi - Yliopisto - Keskusta - Karhuvuori - Kiiskinmäki",
+    "lahto": "LUT-Yliopisto",
+    "paate": "Keskusta",
+    "tekstit": [
+     "Reitti: Yliopisto - Keskusta (Koulukatu) - Karhuvuori - Mustola - Kiiskinmäki",
+     "Yliopisto/Skinnarilankatu-Teknologiapuistonkatu-Teekkarikatu-Jupiterinkatu-Orioninkatu-Sammonlahdenkatu-Merenlahdentie-Helsingintie-Suonionkatu-Koulukatu-Lappeenkatu-Hietalankatu-Harapaisentie-Kärrinkatu-Vanha Viipurintie-Karhuvuorenkatu-Eteläkatu-Onninkatu-Joukahaisenkatu-Kalevankatu-Asemakatu-Karjalantie-Hakalinkatu-Hovink.-Pienpällink.-Läntinen Kanavatie-Sulkutie-Itäinen Kanavatie-Muukontie-Suolavuorentie-Muukontie-Hallituskatu-Karjalantie-Lauritsalantie-Standertskjöldinkatu-Kaukaankatu-Valtakatu-Oikokatu-Koulukatu",
+     "Reitti: Yliopisto-Keskusta-Yliopisto: Yliopistolta tullessa ajetaan keskustaan reittiä Lappeenkatu-Oikokatu-Koulukatu"
+    ]
+   }
+  ],
+  "14": [
+   {
+    "sivu": 46,
+    "otsikko": "Mäntylä - Keskusta - Karhuvuori - Lauritsala - Mustola",
+    "lahto": "Mäntylä",
+    "paate": "Mustola",
+    "tekstit": [
+     "Reitti: Mäntyläntie-Kurjentie-Vaalimaantie-Lavolankatu-Puhakankatu-Suonionkatu-Valtakatu-Taipalsaarentie-Oksasenkatu-Kauppakatu-Lappeenkatu-liikenneympyrä-Lappeenkatu-Mutkakatu-Kauppakatu-Vanha Viipurintie-Karhuvuorenkatu-Eteläkatu-Onninkatu-Joukahaisenkatu-Kalevankatu-Karjalantie-Asemakatu-Hallituskatu-Muukontie-Itäinen Kanavatie-Pitkäkatu"
+    ]
+   }
+  ],
+  "21": [
+   {
+    "sivu": 60,
+    "otsikko": "Vuoksenniska-Imatrankoski-Keskusasema-Vuoksenniska",
+    "lahto": "Vuoksenniska",
+    "paate": "Vuoksenniska",
+    "tekstit": [
+     "Reitti: Vuoksenniskantie - Rönkäntie - Ratamokatu - Torikatu - Karjalantie - Kartanonkatu -Sotkulammentie - Linnansuontie - Savikannantie - Imatrankoskentie - Helsingintie - Einonkatu - Olavinkatu - Esterinkatu - Heikinkatu - Vuoksenrannankatu - Koulukatu - Tainionkoskentie - Joutsenonkatu - Paperharjuntie - Pienmustalammintie - Saimaantie - Tainionkoskentie - Tornansillantie - Vuoksenniskantie - Honkaharju – Vuoksenniskantie",
+     "Lauantaisin kaikki vuorot liikennöidään ns kauppavuoroina reittiä Tietäjänkatu-Keskuskatu"
+    ]
+   }
+  ],
+  "22": [
+   {
+    "sivu": 61,
+    "otsikko": "Vuoksenniska-Keskusasema-Imatrankoski-Vuoksenniska",
+    "lahto": "Vuoksenniska",
+    "paate": "Vuoksenniska",
+    "tekstit": [
+     "Reitti: Vuoksenniskantie - Honkaharju - Vuoksenniskantie - Tornansillantie - Tainionkoskentie -Saimaantie - Pienmustalammintie – Paperharjuntie - Joutsenonkatu - Tainionkoskentie -Koulukatu - Vuoksenrannankatu - Heikinkatu - Esterinkatu - Olavinkatu - Einonkatu -Helsingintie - Imatrankoskentie - Savikannantie - Linnansuontie - Sotkulammentie -Kartanonkatu - Karjalantie - Torikatu - Ratamokatu - Rönkäntie - Vuoksenniskantie",
+     "Lauantaisin kaikki vuorot liikennöidään ns kauppavuoroina reittiä Keskuskatu-Tietäjänkatu"
+    ]
+   }
+  ],
+  "23": [
+   {
+    "sivu": 63,
+    "otsikko": "Huhtanen-Vuoksenniska-Keskusasema-Imatrankoski-Jakola",
+    "lahto": "Huhtanen",
+    "paate": "Jakola",
+    "tekstit": [
+     "Reitti Huhtasesta Jakolaan: Päivärannantie - Niskapietiläntie - Kaukopäänkatu - Ruokolahdentie - Vuoksenniskantie - Sienimäenkatu - Rouskunkatu - Liekokatu -Sienimäenkatu - Vuoksenniskantie - Tornansillantie - Tainionkoskentie - Koulukatu -Lappeentie - Esterinkatu - Olavinkatu - Einonkatu - Helsingintie - Imatrankoskentie - Ensontie",
+     "Huhtasessa kääntöpaikka on Päiväranta."
+    ]
+   },
+   {
+    "sivu": 64,
+    "otsikko": "Huhtanen-Vuoksenniska-Keskusasema-Imatrankoski-Jakola",
+    "lahto": "Huhtanen",
+    "paate": "Jakola",
+    "tekstit": [
+     "Kaikki vuorot liikennöidään ns kauppavuoroina Keskuskadun ja Tietäjänkadun kautta."
+    ]
+   },
+   {
+    "sivu": 65,
+    "otsikko": "Jakola-Imatrankoski-Keskusasema-Vuoksenniska-Huhtanen",
+    "lahto": "Jakola",
+    "paate": "Huhtanen",
+    "tekstit": [
+     "Reitti Jakolasta Huhtaseen: Ensontie - Imatrankoskentie - Helsingintie - Einonkatu -Olavinkatu - Esterinkatu - Lappeentie - Koulukatu - Tainionkoskentie - Tornansillantie - Vuoksenniskantie - Sienimäenkatu - Liekokatu - Rouskunkatu - Sienimäenkatu -Vuoksenniskantie - Ruokolahdentie - Kaukopäänkatu - Niskapietiläntie - Päivärannantie",
+     "Huhtasessa kääntöpaikka on Päiväranta."
+    ]
+   },
+   {
+    "sivu": 66,
+    "otsikko": "Jakola-Imatrankoski-Keskusasema-Vuoksenniska-Huhtanen",
+    "lahto": "Jakola",
+    "paate": "Huhtanen",
+    "tekstit": [
+     "Kaikki vuorot liikennöidään ns kauppavuoroina Tietäjänkadun ja Keskuskadun kautta."
+    ]
+   }
+  ],
+  "24": [
+   {
+    "sivu": 68,
+    "otsikko": "Tainionkoski-Imatrankoski-Salo-Issakka",
+    "lahto": "Imatrankoski",
+    "paate": "Imatrankoski",
+    "tekstit": [
+     "Reitti: Olavinkatu - Esterinkatu - Helsingintie - Viipurintie - Räikköläntie - Vallinkoskentie  - Viipurintie - Helsingintie - Esterinkatu - Olavinkatu - Einonkatu - Helsingintie - Imatrankoskentie - Vuoksentie - Vuoksenniskantie - Tornansillantie - Tainionkoskentie - Einonkatu - Olavinkatu"
+    ],
+    "kautta": "Viipurintie 769"
+   },
+   {
+    "sivu": 68,
+    "otsikko": "Tainionkoski-Imatrankoski-Salo-Issakka",
+    "lahto": "Imatrankoski",
+    "paate": "Imatrankoski",
+    "tekstit": [
+     "Reitti: Olavinkatu - Einonkatu - Helsingintie - Tainionkoskentie-Tornansillantie - Vuoksenniskantie - Vuoksentie - Imatrankoskentie - Helsingintie - Einonkatu -  Olavinkatu - Esterinkatu - Helsingintie - Viipurintie - Vallinkoskentie - Räikköläntie - Viipurintie - Helsingintie - Esterinkatu - Olavinkatu"
+    ],
+    "kautta": "Itäsiitola 2"
+   }
+  ],
+  "25": [
+   {
+    "sivu": 70,
+    "otsikko": "Kosken koulu- Imatrankoski-Keskusasema-Kylpylä",
+    "lahto": "Koskenkoulu",
+    "paate": "Imatran kylpylä",
+    "tekstit": [
+     "Reitti: Vuoksentie - Imatrankoskentie - Helsingintie - Einonkatu - Olavinkatu - Esterinkatu - Helsingintie - Viipurintie - Meltolantie - Korvenkannantie -Keskuskatu - Kukkolinnankatu - Tietäjänkatu - Koulukatu - Tainionkoskentie -Joutsenonkatu - Lammassaarentie - Purjekuja"
+    ]
+   },
+   {
+    "sivu": 71,
+    "otsikko": "Imatrankoski-Keskusasema-Kylpylä",
+    "lahto": "Koskenkoulu",
+    "paate": "Imatran kylpylä",
+    "tekstit": [
+     "Reitti: Imatrankoskentie - Helsingintie - Einonkatu - Olavinkatu - Esterinkatu - Helsingintie - Viipurintie - Meltolantie - Korvenkannantie -Keskuskatu - Kukkolinnankatu - Tietäjänkatu - Koulukatu - Tainionkoskentie -Joutsenonkatu - Lammassaarentie - Purjekuja"
+    ]
+   },
+   {
+    "sivu": 72,
+    "otsikko": "Kylpylä-Keskusasema-Imatrankoski-Kosken koulu",
+    "lahto": "Imatran kylpylä",
+    "paate": "Koskenkoulu",
+    "tekstit": [
+     "Reitti: Purjekuja - Lammassaarentie - Joutsenonkatu - Tainionkoskentie - Koulukatu - Tietäjänkatu - Kukkolinnankatu - Keskuskatu -Korvenkannantie - Meltolantie - Viipurintie - Helsingintie - Esterinkatu - Olavinkatu -Einonkatu - Helsingintie - Imatrankoskentie - Vuoksentie"
+    ]
+   },
+   {
+    "sivu": 73,
+    "otsikko": "Kylpylä-Keskusasema-Imatrankoski",
+    "lahto": "Imatran kylpylä",
+    "paate": "Koskenkoulu",
+    "tekstit": [
+     "Reitti: Purjekuja - Lammassaarentie - Joutsenonkatu - Tainionkoskentie - Koulukatu - Tietäjänkatu - Kukkolinnankatu - Keskuskatu -Korvenkannantie - Meltolantie - Viipurintie - Helsingintie - Esterinkatu - Olavinkatu -Einonkatu - Helsingintie - Imatrankoskentie"
+    ]
+   }
+  ],
+  "100": [
+   {
+    "sivu": 107,
+    "otsikko": "Lappeenranta - Joutseno - Imatra",
+    "lahto": "Oleksi",
+    "paate": "Imatran keskusliikenneasema",
+    "tekstit": [
+     "Reitti: Koulukatu-Oikokatu-Urheilukatu-Imatrantie-Kaukaankatu-Standertskjöldinkatu-Lauritsalantie-Yhteistyönkatu-Karjalantie-Kuutostie-Teollisuustie-Joutseno/Keskuskatu-Saimaantie-Kuutostie-Kotakorventie-Jänhiäläntie-Asematie-Imatranväylä-Helsingintie-Olavinkatu-Helsingintie-Tainionkoskentie"
+    ]
+   },
+   {
+    "sivu": 108,
+    "otsikko": "Lappeenranta - Joutseno - Imatra",
+    "lahto": "Oleksi",
+    "paate": "Imatran keskusliikenneasema",
+    "tekstit": [
+     "Reitti: Koulukatu-Oikokatu-Urheilukatu-Imatrantie-Kaukaankatu-Standertskjöldinkatu-Lauritsalantie-Yhteistyönkatu-Karjalantie-Kuutostie-Teollisuustie-Joutseno/Keskuskatu-Saimaantie-Kuutostie-Kotakorventie-Jänhiäläntie-Asematie-Imatranväylä-Helsingintie-Olavinkatu-Helsingintie-Tainionkoskentie"
+    ]
+   },
+   {
+    "sivu": 109,
+    "otsikko": "Imatra - Joutseno - Lappeenranta",
+    "lahto": "Imatran keskusliikenneasema",
+    "paate": "Armada",
+    "tekstit": [
+     "Reitti: Tainionkoskentie-Helsingintie-Olavinkatu-Helsingintie-Imatranväylä-Asematie-Jänhiäläntie-Kotakorventie-Kuutostie-Saimaantie-Joutseno/Keskuskatu-Teollisuustie-Kuutostie-Karjalantie-Yhteistyönkatu-Lauritsalantie-Standertskjöldinkatu-Kaukaankatu-Imatrantie-Urheilukatu-Oikokatu-Koulukatu"
+    ]
+   },
+   {
+    "sivu": 110,
+    "otsikko": "Imatra - Joutseno - Lappeenranta",
+    "lahto": "Imatran keskusliikenneasema",
+    "paate": "Armada",
+    "tekstit": [
+     "Reitti: Tainionkoskentie-Helsingintie-Olavinkatu-Helsingintie-Imatranväylä-Asematie-Jänhiäläntie-Kotakorventie-Kuutostie-Saimaantie-Joutseno/Keskuskatu-Teollisuustie-Kuutostie-Karjalantie-Yhteistyönkatu-Lauritsalantie-Standertskjöldinkatu-Kaukaankatu-Imatrantie-Urheilukatu-Oikokatu-Koulukatu"
+    ]
+   }
+  ],
+  "101": [
+   {
+    "sivu": 112,
+    "otsikko": "Imatra - Joutseno - Lappeenranta",
+    "lahto": "Vuoksenniska Imatra",
+    "paate": "LUT-Yliopisto",
+    "tekstit": [
+     "Reitti: Peltolankatu-Vuoksenniskantie-Tainionkoskentie-Helsingintie-Olavinkatu-Helsingintie-Imatranväylä-Asematie-Jänhiäläntie-Kotakorventie-Kuutostie-Saimaantie-Joutseno/Keskuskatu-Teollisuustie-Kuutostie-Karjalantie-Yhteistyönkatu-Lauritsalantie- Standertskjödinkatu-Kaukaankatu-Imatrantie-Urheilukatu-Oikokatu-Koulukatu-Suonionkatu-Helsingintie-Skinnarilankatu"
+    ]
+   },
+   {
+    "sivu": 112,
+    "otsikko": "Lappeenranta - Joutseno - Imatra",
+    "lahto": "LUT-Yliopisto",
+    "paate": "Vuoksenniska Imatra",
+    "tekstit": [
+     "Reitti: Skinnarilankatu-Helsingintie-Suonionkatu-Valtakatu-Koulukatu- Oikokatu-Urheilukatu-Imatrantie-Kaukaankatu-Standertskjödinkatu-Lauritsalantie-Yhteistyönkatu-Karjalantie-Kuutostie-Teollisuustie-Joutseno/Keskuskatu-Saimaantie-Kuutostie-Kotajärventie-Jänhiäläntie-Asematie-Imatranväylä-Helsingintie-Olavinkatu-Helsingintie-Tainionkoskentie-Vuoksenniskantie-Peltolankatu"
+    ]
+   }
+  ],
+  "130": [
+   {
+    "sivu": 87,
+    "otsikko": "Lappeenranta - Partala - Soskua",
+    "lahto": "Oleksi",
+    "paate": "Armada",
+    "tekstit": [
+     "Iltapäivällä ajetaan reittiä: Ravonsydän-Soskuantie-Kivisaarentie"
+    ]
+   }
+  ],
+  "601": [
+   {
+    "sivu": 93,
+    "otsikko": "Hujakkala-Ylämaa-Raippo-Simola-Lpr",
+    "lahto": "Vaalimaantie 4295",
+    "paate": "Armada",
+    "tekstit": [
+     "Kaupunkiin tultaessa ajetaan reittiä: Vaalimaantie-Ratakatu-Lepolankatu-Valtakatu-Oikokatu-Koulukatu"
+    ]
+   }
+  ],
+  "603": [
+   {
+    "sivu": 93,
+    "otsikko": "Hujakkala-Ylämaa-Raippo-Simola-Lpr",
+    "lahto": "Koskenkylä",
+    "paate": "Armada",
+    "tekstit": [
+     "Kaupunkiin tultaessa ajetaan reittiä: Vaalimaantie-Ratakatu-Lepolankatu-Valtakatu-Oikokatu-Koulukatu"
+    ]
+   },
+   {
+    "sivu": 97,
+    "otsikko": "Lpr - Simola - Raippo -Ylämaa - Hujakkala",
+    "lahto": "Oleksi",
+    "paate": "Koskenkylä",
+    "tekstit": [
+     "Kaupungista lähdettäessä reittiä: Koulukatu-Oikokatu-Valtakatu-Lepolankatu-Ratakatu-Vaalimaantie"
+    ]
+   }
+  ],
+  "604": [
+   {
+    "sivu": 96,
+    "otsikko": "Lpr - Raippo -Ylämaa - Hujakkala",
+    "lahto": "Oleksi",
+    "paate": "Vaalimaantie 4271",
+    "tekstit": [
+     "Kaupungista lähdettäessä reittiä: Koulukatu-Oikokatu-Valtakatu-Lepolankatu-Ratakatu-Vaalimaantie"
+    ]
+   },
+   {
+    "sivu": 96,
+    "otsikko": "Lpr - Raippo -Ylämaa - Hujakkala",
+    "lahto": "Vaalimaantie 4295",
+    "paate": "Armada",
+    "tekstit": [
+     "Kaupunkiin tultaessa ajetaan reittiä: Vaalimaantie-Ratakatu-Lepolankatu-Valtakatu-Oikokatu"
+    ]
+   }
+  ],
+  "610": [
+   {
+    "sivu": 97,
+    "otsikko": "Lpr - Simola - Raippo -Ylämaa - Hujakkala",
+    "lahto": "Oikokatu",
+    "paate": "Armada",
+    "tekstit": [
+     "Kaupungista lähdettäessä reittiä: Koulukatu-Oikokatu-Valtakatu-Lepolankatu-Ratakatu-Vaalimaantie"
+    ]
+   },
+   {
+    "sivu": 98,
+    "otsikko": "Lappeenranta - Simola - Rikkilä",
+    "lahto": "Oikokatu",
+    "paate": "Armada",
+    "tekstit": [
+     "1) Kaupunkiin tultaessa reittiä: Vaalimaantie-Ratakatu-Lepolankatu-Valtakatu-Oikokatu-Koulukatu",
+     "2) Kaupungista lähdettäessä reittiä: Koulukatu-Oikokatu-Valtakatu-Lepolankatu-Ratakatu-Vaalimaantie",
+     "3) Kaupungista lähdettäessä reittiä: Oikokatu-Kouluk.-Taipalsaarentie-Oksasenkatu-Snellmaninkatu-Simolantie-Vaalimaantie"
+    ]
+   }
+  ]
+ },
+ "tapahtuma": {
+  "1011": {
+   "sivu": 48,
+   "tekstit": [
+    "Lähtö: 50 min ennen ottelun alkua LUT-yliopistolta.",
+    "Reitti: Yliopisto-Skinnarilankatu-Teknologiapuistonkatu-Teekkarikatu-Jupiterinkatu-Orioninkatu-Sammonlahdenkatu-Merenlahdentie-Helsingintie-Lavolankatu-Puhakankatu-Suonionkatu-Valtakatu-Taipalsaarentie-Koulukatu-Oikokatu-Valtakatu-Parkkarilankatu-Rullatie-Kisakatu",
+    "Paluu: Runkosarjassa 15 minuuttia ottelun päättymisen jälkeen. Playoffs-otteluissa viimeistään 15 minuuttia ottelun tai ensimmäisen jatkoerän päättymisen jälkeen.",
+    "Reitti: Kisakatu-Standertskjöldinkatu-Valtakatu-Koulukatu-Valtakatu-Suonionkatu-Puhakankatu- Lavolankatu-Helsingintie-Merenlahdentie-Sammonlahdenkatu-Orioninkatu-Jupiterinkatu-Teekkarikatu-Teknologiapuistonkatu-Skinnarilankatu/Yliopisto"
+   ]
+  },
+  "1012": {
+   "sivu": 50,
+   "tekstit": [
+    "Lähtö: 40 min ennen ottelun alkua Kivisalmesta.",
+    "Reitti: Honkasaarenkatu-Taipalsaarentie-Kivistönkatu-Piiluvankatu-Voisalmentie-Tyysterniementie-Taipalsaarentie-Koulukatu-Oikokatu-Valtakatu-Parkkarilankatu-Rullatie-Kisakatu",
+    "Paluu: Runkosarjassa 15 minuuttia ottelun päättymisen jälkeen. Playoffs-otteluissa viimeistään 15 minuuttia ottelun tai ensimmäisen jatkoerän päättymisen jälkeen.",
+    "Reitti: Kisakatu-Standertskjöldinkatu-Valtakatu-Oikokatu-Koulukatu-Taipalsaarentie-Tyysterniementie-Voisalmentie-Kivistönkatu-Piiluvankatu-Taipalsaarentie-Honkasaarenkatu päätepysäkki"
+   ]
+  }
+ }
+}
