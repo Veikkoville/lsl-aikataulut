@@ -2078,6 +2078,55 @@ async function minuuttiLinjaus(page, rootSel, media) {
       : fail("vihon pysäkkisarakkeet: kesken lenkin alkava vuoro väärin: " + JSON.stringify(mid));
   }
 
+  // Julisteen kolme korjausta (kaupunkitarkastus 29.9.2026), vakioaineisto:
+  // (1) keskustan solmupysäkin saapuva vuoro pysäkkien koordinaateilla: kauas jatkava lähtee (Inkoo 11
+  //     15.30), seuraavalle pysäkille päättyvä saapuu ajasta riippumatta (Turku C4 24, 330 s), kahden pysäkin
+  //     päähän päättyvä ja koordinaatiton ennallaan (Turku B9 ei saa tyhjentyä);
+  // (2) kokonaan uusi linja saa jakson "alkaen" ja ikkunan omasta alustaan (Lahti 28, perjantai putosi);
+  // (3) arkkimäärä sivunvaihdot simuloiden: katkeamaton lohko siirtyy seuraavalle arkille (Oulu 4 vs 5).
+  {
+    const r = await page.evaluate(() => {
+      const c = (CONFIG.centerStopNames || [])[0];
+      if (!c) return { skip: true };
+      const far = { stopsLeft: 6, remainingM: 2784, terminalM: 2513 }, near = { stopsLeft: 1, remainingM: 494, terminalM: 494 };
+      const days = [];
+      for (let k = 14; k < 70; k++) {
+        const x = new Date(); x.setDate(x.getDate() + k);
+        if (x.getDay() >= 1 && x.getDay() <= 5) days.push(isoOf(x).replace(/-/g, ""));
+      }
+      const g = groupTripsByDays([{ serviceId: "uusi", activeDates: days, stoptimes: [{ scheduledDeparture: 64800 }] }],
+        todayISO(), { markNew: true });
+      const box = document.createElement("div");
+      box.className = "poster-measure poster-compact";
+      document.body.appendChild(box);
+      const st = document.createElement("div");
+      st.className = "poster-stop";
+      st.innerHTML = `<div class="poster-head" style="height:100px;width:100%"></div>` +
+        [0, 1, 2].map(() => `<section class="poster-day" style="height:600px;width:100%"></section>`).join("");
+      let sheets;
+      try { sheets = posterSheetCount(st, box); } finally { box.remove(); }
+      return {
+        rule: [arrivingHere("Kaukokylä", c, 300, false, c, far), arrivingHere(CONFIG.city, c, 300, false, c, far),
+          arrivingHere("Kaukokylä", c, 330, false, c, near), arrivingHere("Kaukokylä", c, 300, false, c),
+          arrivingHere("Kaukokylä", c, 330, false, c), arrivingHere("Kaukokylä", c, 330, false, c, { stopsLeft: 2, remainingM: 700, terminalM: 470 })],
+        groups: g.map(x => ({ dows: [...x.dows].sort().join(","), from: x.period && x.period.from, to: x.period && x.period.to })),
+        first: +days[0], sheets, simple: Math.ceil(1900 / POSTER_SHEET_PX),
+      };
+    });
+    if (r.skip) ok("julisteen korjaukset: kaupungilla ei keskustan solmupysäkkejä, sääntötesti ohitettu");
+    else {
+      JSON.stringify(r.rule) === "[false,true,true,true,false,false]"
+        ? ok("julisteen saapuvat vuorot: kauas jatkava lähtee, kaupunkikilpi ja seuraavalle pysäkille päättyvä saapuvat, kahden pysäkin ja koordinaatiton ennallaan")
+        : fail("julisteen saapuvat vuorot väärin (odotettu [false,true,true,true,false,false]): " + JSON.stringify(r.rule));
+      r.groups.length === 1 && r.groups[0].dows === "0,1,2,3,4" && r.groups[0].from === r.first && !r.groups[0].to
+        ? ok(`julisteen uusi linja: Ma–Pe ja jakso ${r.first} alkaen (vakioaineisto)`)
+        : fail("julisteen uusi linja väärin: " + JSON.stringify(r));
+      r.sheets === 3 && r.simple === 2
+        ? ok("julisteen arkkimäärä: sivunvaihtojen simulointi 3 arkkia, pelkkä korkeus olisi antanut 2 (vakioaineisto)")
+        : fail("julisteen arkkimäärä väärin: " + JSON.stringify({ sheets: r.sheets, simple: r.simple }));
+    }
+  }
+
   // Kaupungin vihkon malli, painovalmis kapea vihko (Lappeenranta 100 x 200 mm, 28.9.2026). Rakenne:
   // sivumäärä neljällä jaollinen, ei leikkautuvaa sisältöä, kansi ja takakansi, kaupungin omien sivujen
   // paikat, ja sisällysluettelon sivunumero osuu sivulle, jolla linja oikeasti alkaa. Kaupunki palautetaan.
