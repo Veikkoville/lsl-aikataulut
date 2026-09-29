@@ -950,6 +950,9 @@
   .vihko-page-content .vk-evtext { font-size: 7.6pt; margin: 0 0 1.4mm; line-height: 1.3; }
   .vihko-page-content .vk-rot-in { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
   .vihko-page-content .vk-rot-in .print-map { margin: 0; }
+  /* Linjastokartta ja keskustan suurennos rinnakkain samassa käännössä (29.9.2026). */
+  .vihko-page-content .vk-netrow { display: flex; gap: 2mm; align-items: flex-start; }
+  .vihko-page-content .vk-netrow > div { flex: none; }
   table.cb-grid sub { font-size: 0.6em; font-weight: 700; color: #333; margin-left: 0.03em; vertical-align: -0.2em; letter-spacing: 0; }
   .cb-route, .vk-route { font-size: 0.78em; line-height: 1.25; margin: 0.4rem 0 0; }
   .vihko-page-content .cb-route, .vihko-page-content .vk-route { font-size: 6.6pt; margin: 0.8mm 0 0; color: #222; }
@@ -3346,6 +3349,8 @@ const CONFIGS = {
       feedback: { title: "Kysymykset ja palautteet, ota yhteyttä!", body: "Jätä asiakaspalautteesi osoitteessa:",
         url: "epalvelu.lappeenranta.fi/eFeedback" },
       backUrl: "lappeenranta.fi/jouko",
+      // Linjastokartat kaistoina (maplibre-gl-lanes-ydin, 29.9.2026): linjat rinnakkain yhteisillä kaduilla.
+      netLanes: true,
       // Rinnakkaislinjat päälinjan taulukkoon kirjaimella kuten Joukon vihkossa ("Linja 1 ja 1X", 2H = "H").
       // 3K on vihkossakin oma linjansa. Vain kaupungin vihkon mallissa.
       merge: { "1": { "1X": "X" }, "2": { "2H": "H" } },
@@ -3390,7 +3395,10 @@ const CONFIGS = {
         // netLines: linjastokartan linjat kuten Joukon vihkon s. 9 (ei 12, 14, P1, P3 eikä 1X/2H).
         { key: "lpr", title: "Lappeenrannan paikallisliikenne", layout: "compact", network: true,
           lines: ["1", "1X", "2", "2H", "3K", "3", "4", "5", "7", "8", "12", "14", "1001", "1003"],
-          netLines: ["1", "2", "3K", "3", "4", "5", "7", "8"] },
+          netLines: ["1", "2", "3K", "3", "4", "5", "7", "8"],
+          // Keskustan suurennos linjastokarttasivulle (29.9.2026): 3x pääkartan mittakaava (prototyypissä Puhakankadun
+          // nippu erottui vasta suurennoksessa).
+          netInset: { mag: 3 } },
         { key: "imatra", title: "Imatran paikallisliikenne", layout: "full", network: true,
           lines: ["21", "22", "23", "24", "25"],
           note: ["KOSKINÄYTÖKSET:", "Imatrankosken silta on suljettu liikenteeltä koskinäytösten aikana. Silta suljetaan noin 15 min ennen näytöksen alkua ja sulku kestää noin 45 minuuttia.",
@@ -4312,6 +4320,8 @@ const STRINGS = {
     vkDayTicket: "Päivälippu",
     vkExTitle: "Juhlapyhä- ja poikkeusliikennöinti",
     vkNetTitle: "{sec}: linjastokartta",
+    vkNetInset: "Keskustan suurennos",
+    vkNetInsetAria: "{sec}: linjastokartan keskustan suurennos",
     vkToc: "Sisällysluettelo",
     vkTocMap: "Linjastokartta",
     vkPageShort: "s.",
@@ -4999,6 +5009,8 @@ const STRINGS = {
     vkDayTicket: "Day ticket",
     vkExTitle: "Public holidays and exceptions",
     vkNetTitle: "{sec}: network map",
+    vkNetInset: "City centre, enlarged",
+    vkNetInsetAria: "{sec}: network map, city centre enlarged",
     vkToc: "Contents",
     vkTocMap: "Network map",
     vkPageShort: "p.",
@@ -5675,6 +5687,8 @@ const STRINGS = {
     vkDayTicket: "Dagsbiljett",
     vkExTitle: "Helgdagar och undantag",
     vkNetTitle: "{sec}: linjekarta",
+    vkNetInset: "Centrum, förstoring",
+    vkNetInsetAria: "{sec}: linjekarta, centrum förstorat",
     vkToc: "Innehåll",
     vkTocMap: "Linjekarta",
     vkPageShort: "s.",
@@ -7322,6 +7336,240 @@ function netStyleFor(key, mode) {
   return { color: NET_COLORS[ci], dash: PM_DASHES[di], ci, di,
     stroke: `var(--net-c${ci})`, badge: `var(--net-b${ci})`, badgeText: "var(--net-b-text)" };
 }
+// Linjastokartan linjajärjestys (29.9.2026, vaihe 1: kapean vihkon linjastokartta). Yhteiset pysäkkivälit piirretään
+// rinnakkaisina kaistoina maplibre-gl-lanes-ytimellä (vendor/maplibre-gl-lanes-core-1.0.0.min.js, MIT), joka järjestää
+// kaistat risteysten vähentämiseksi (Bast, Brosi ja Storandt: MLNCM) ja yhdistää ne solmuissa liitoskaarin. Kirjasto
+// vaatii, että yhteinen reitti jakaa kärkipisteensä, mutta GTFS-shapet eivät jaa, joten graafi kootaan pysäkeistä
+// (prototyyppi 29.9.2026, vaiheet 3a-3e): 1) kadun eri puolten pysäkit samaksi solmuksi, 2) suunnan shape kulkee solmun
+// kautta, kun se ohittaa solmun PML.visit metrin päästä, 3) sama solmupari = yksi reuna ja yksi geometria (ensimmäinen
+// kulkija), 4) saman solmun kaksi reunaa, jotka kulkevat samaa katua ennen erkanemista, jaetaan uudella solmulla.
+// Kynnysarvot on valittu Lappeenrannan datalla. Tulos on toistettava: kaikki silmukat kulkevat lajiteltuja avaimia,
+// ja järjestäjällä on kiinteä siemen (kirjaston PRNG on mulberry32, ei Math.randomia) ja kiinteä annealMoves.
+const PML = { clusterAny: 60, clusterName: 200, nodeMerge: 45, visit: 35, splitTol: 12, splitMin: 40, maxSplits: 2000,
+  seed: 42, anneal: 100000, width: 2.0, spacing: 2.4, casing: 0.5 };
+function pmLaneGraph(lines, lib, nameOf = vkStopName) {
+  const recs0 = [];
+  lines.forEach((l, li) => (l.dirs || []).forEach((d, di) => {
+    const pts = (d.points || []).filter(p => p && p.length === 2);
+    if (pts.length > 1) recs0.push({ short: l.shortName || "", li, di, pts, stops: (d.stops || []).filter(s => s && s.gtfsId && s.lat != null && s.lon != null) });
+  }));
+  if (!recs0.length) throw new Error("linjastokartalla ei ole reittejä");
+  // Metrikoordinaatit samalla leveyspiirillä kuin printMapSvg:n kehys (reittipisteet ja pysäkit).
+  let la0 = Infinity, la1 = -Infinity;
+  for (const r of recs0) { for (const p of r.pts) { la0 = Math.min(la0, p[0]); la1 = Math.max(la1, p[0]); } for (const s of r.stops) { la0 = Math.min(la0, s.lat); la1 = Math.max(la1, s.lat); } }
+  const KY = 111320, KX = KY * Math.cos((la0 + la1) / 2 * Math.PI / 180);
+  const toM = (lat, lon) => [lon * KX, lat * KY];
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  // 1) Pysäkkiklusterit: alle clusterAny m nimestä riippumatta tai sama näyttönimi alle clusterName m. Union-find, juureksi
+  // pienin tunnus, joten ositus ei riipu parien käsittelyjärjestyksestä (parit karsitaan x-lajittelulla).
+  const stopById = new Map();
+  for (const r of recs0) for (const s of r.stops) stopById.set(s.gtfsId, s);
+  const ids = [...stopById.keys()].sort();
+  const parent = new Map(ids.map(id => [id, id]));
+  const find = x => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+  const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) (ra < rb ? parent.set(rb, ra) : parent.set(ra, rb)); };
+  const sm = ids.map(id => { const s = stopById.get(id); return { id, m: toM(s.lat, s.lon), nm: nameOf(s.name) }; }).sort((a, b) => a.m[0] - b.m[0]);
+  for (let i = 0; i < sm.length; i++) for (let j = i + 1; j < sm.length && sm[j].m[0] - sm[i].m[0] < PML.clusterName; j++) {
+    const d = dist(sm[i].m, sm[j].m);
+    if (d < PML.clusterAny || (d < PML.clusterName && sm[i].nm === sm[j].nm)) union(sm[i].id, sm[j].id);
+  }
+  const centroid = mem => [mem.reduce((s, m) => s + m.lat, 0) / mem.length, mem.reduce((s, m) => s + m.lon, 0) / mem.length];
+  const groupsOf = () => { const g = new Map(); for (const id of ids) { const r = find(id); if (!g.has(r)) g.set(r, []); g.get(r).push(stopById.get(id)); } return g; };
+  // Toinen kierros: lähekkäiset keskipisteet (risteyksen eri kulmat) yhteen.
+  for (let round = 0; round < 3; round++) {
+    const groups = groupsOf(), roots = [...groups.keys()].sort(), cs = roots.map(r => toM(...centroid(groups.get(r))));
+    let merged = false;
+    for (let i = 0; i < roots.length; i++) for (let j = i + 1; j < roots.length; j++)
+      if (dist(cs[i], cs[j]) < PML.nodeMerge && find(roots[i]) !== find(roots[j])) { union(roots[i], roots[j]); merged = true; }
+    if (!merged) break;
+  }
+  const groups = groupsOf();
+  const nodes = [...groups.keys()].sort().map((r, i) => {
+    const mem = groups.get(r), [lat, lon] = centroid(mem);
+    return { id: i, lat, lon, m: toM(lat, lon), name: nameOf(mem[0].name), stops: mem };
+  });
+  // 2) Suunnan solmukäynnit shapea pitkin (järjestys matkan mukaan). Solmu, joka on yli visit m päässä shapen
+  // rajauksesta, ei voi tulla käydyksi, joten se ohitetaan ilman tulokseen vaikuttavaa eroa.
+  const V = PML.visit;
+  const recs = recs0.map(r => {
+    const pts = r.pts.map(p => toM(p[0], p[1])), cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + dist(pts[i - 1], pts[i]));
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    const vis = [];
+    for (const n of nodes) {
+      if (n.m[0] < x0 - V || n.m[0] > x1 + V || n.m[1] < y0 - V || n.m[1] > y1 + V) continue;
+      let open = null;
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, ay] = pts[i - 1], [bx, by] = pts[i], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+        const t = L2 ? Math.max(0, Math.min(1, ((n.m[0] - ax) * dx + (n.m[1] - ay) * dy) / L2)) : 0;
+        const d = Math.hypot(ax + dx * t - n.m[0], ay + dy * t - n.m[1]), s = cum[i - 1] + t * Math.sqrt(L2);
+        if (d < V) { if (!open) open = { node: n.id, d, s }; else if (d < open.d) { open.d = d; open.s = s; } }
+        else if (open && d > V * 1.5) { vis.push(open); open = null; }
+      }
+      if (open) vis.push(open);
+    }
+    vis.sort((a, b) => a.s - b.s || a.node - b.node);
+    const out = [];
+    for (const v of vis) if (!out.length || out[out.length - 1].node !== v.node) out.push(v);
+    return { short: r.short, li: r.li, di: r.di, pts, cum, vis: out, steps: [] };
+  });
+  // 3) Reunat: sama solmupari = sama reuna ja sama geometria (ensimmäinen kulkija määrää).
+  const edgeGeom = new Map();   // "a-b" (a < b) -> [[x, y] metreinä] a:sta b:hen
+  for (const rec of recs) for (let i = 1; i < rec.vis.length; i++) {
+    const u = rec.vis[i - 1], v = rec.vis[i], a = Math.min(u.node, v.node), b = Math.max(u.node, v.node), key = a + "-" + b;
+    if (!edgeGeom.has(key)) {
+      let mid = [];
+      for (let j = 0; j < rec.pts.length; j++) if (rec.cum[j] > u.s + 1 && rec.cum[j] < v.s - 1) mid.push(rec.pts[j]);
+      if (u.node > v.node) mid = mid.reverse();
+      const g = [nodes[a].m, ...mid, nodes[b].m], ded = [g[0]];
+      for (let j = 1; j < g.length - 1; j++) if (dist(g[j], ded[ded.length - 1]) > 3) ded.push(g[j]);
+      ded.push(g[g.length - 1]);
+      edgeGeom.set(key, ded);
+    }
+    rec.steps.push({ key, fwd: u.node < v.node });
+  }
+  // 4) Yhteinen alkuosa: kaksi saman solmun reunaa, jotka kulkevat samaa katua (alle splitTol m toisistaan) yli splitMin m
+  // ennen erkanemista, jaetaan uudella solmulla, jolloin yhteinen osa on yksi reuna. Toistetaan, kunnes muutoksia ei tule.
+  // Parin tulos riippuu vain solmusta ja kahdesta geometriasta, joten tarkistettu pari muistetaan (memo).
+  let nextNode = nodes.length, splits = 0;
+  const extra = new Map(), memo = new Map();
+  const nodeM = id => (id < nodes.length ? nodes[id].m : extra.get(id));
+  const oriented = (key, from) => (+key.split("-")[0] === from ? edgeGeom.get(key) : edgeGeom.get(key).slice().reverse());
+  const resample = (g, step) => {
+    const out = [{ p: g[0], s: 0 }];
+    let s = 0;
+    for (let i = 1; i < g.length; i++) {
+      const L = dist(g[i - 1], g[i]), n = Math.max(1, Math.ceil(L / step));
+      for (let q = 1; q <= n; q++) out.push({ p: [g[i - 1][0] + (g[i][0] - g[i - 1][0]) * q / n, g[i - 1][1] + (g[i][1] - g[i - 1][1]) * q / n], s: s + L * q / n });
+      s += L;
+    }
+    return out;
+  };
+  const distToPoly = (p, g) => {
+    let best = Infinity, bs = 0, s = 0;
+    for (let i = 1; i < g.length; i++) {
+      const [ax, ay] = g[i - 1], [bx, by] = g[i], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy, L = Math.sqrt(L2);
+      const t = L2 ? Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / L2)) : 0;
+      const d = Math.hypot(ax + dx * t - p[0], ay + dy * t - p[1]);
+      if (d < best) { best = d; bs = s + t * L; }
+      s += L;
+    }
+    return { d: best, s: bs };
+  };
+  const cutAt = (g, sCut) => {
+    let s = 0;
+    for (let i = 1; i < g.length; i++) {
+      const L = dist(g[i - 1], g[i]);
+      if (s + L >= sCut) {
+        const t = L ? (sCut - s) / L : 0, P = [g[i - 1][0] + (g[i][0] - g[i - 1][0]) * t, g[i - 1][1] + (g[i][1] - g[i - 1][1]) * t];
+        return [[...g.slice(0, i), P], [P, ...g.slice(i)]];
+      }
+      s += L;
+    }
+    return [g.slice(), [g[g.length - 1]]];
+  };
+  const polyLen = g => g.reduce((s, p, i) => (i ? s + dist(g[i - 1], p) : 0), 0);
+  for (let iter = 0; iter < PML.maxSplits; iter++) {
+    const inc = new Map();
+    for (const key of [...edgeGeom.keys()].sort()) for (const n of key.split("-").map(Number)) { if (!inc.has(n)) inc.set(n, []); inc.get(n).push(key); }
+    let done = null;
+    outer: for (const n of [...inc.keys()].sort((a, b) => a - b)) {
+      const ks = inc.get(n);
+      for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) {
+        const G1 = edgeGeom.get(ks[i]), G2 = edgeGeom.get(ks[j]), mk = n + "|" + ks[i] + "|" + ks[j], c = memo.get(mk);
+        if (c && c[0] === G1 && c[1] === G2) continue;
+        const g1 = oriented(ks[i], n), g2 = oriented(ks[j], n), L1 = polyLen(g1), L2 = polyLen(g2);
+        let shared = 0;
+        const r1 = resample(g1, 4);
+        for (const { p, s } of r1) { if (s === 0) continue; if (distToPoly(p, g2).d < PML.splitTol) shared = s; else break; }
+        if (shared < PML.splitMin) { memo.set(mk, [G1, G2]); continue; }
+        const s2 = distToPoly(r1.find(x => x.s >= shared).p, g2).s;
+        if (shared > L1 - 15 && s2 > L2 - 15) { memo.set(mk, [G1, G2]); continue; }   // rinnakkaiset kokonaan: eri solmupari
+        done = { n, k1: ks[i], k2: ks[j], g1, g2, shared, s2, L1, L2 };
+        break outer;
+      }
+    }
+    if (!done) break;
+    const { n, k1, k2, g1, g2, shared, s2, L1, L2 } = done;
+    const other = key => key.split("-").map(Number).find(x => x !== n);
+    const o1 = other(k1), o2 = other(k2);
+    // Jos toinen reuna loppuu yhteisen osan sisällä, sen pääte on jakosolmu.
+    let m, head, tail1, tail2;
+    if (shared > L1 - 15) { m = o1; head = g1; tail1 = null; tail2 = cutAt(g2, s2)[1]; }
+    else if (s2 > L2 - 15) { m = o2; head = g2; tail2 = null; tail1 = cutAt(g1, shared)[1]; }
+    else { m = nextNode++; const [h, tl] = cutAt(g1, shared); head = h; tail1 = tl; tail2 = cutAt(g2, s2)[1]; extra.set(m, head[head.length - 1]); }
+    const mPt = nodeM(m);
+    head = head.slice(); head[head.length - 1] = mPt;
+    const put = (a, b, g) => {   // g kulkee a:sta b:hen
+      const key = Math.min(a, b) + "-" + Math.max(a, b);
+      if (!edgeGeom.has(key)) edgeGeom.set(key, a < b ? g : g.slice().reverse());
+      return key;
+    };
+    const replace = new Map();   // vanha avain -> uudet askeleet solmusta n poispäin
+    const kHead = put(n, m, head);
+    if (tail1) { const tl = tail1.slice(); tl[0] = mPt; tl[tl.length - 1] = nodeM(o1); put(m, o1, tl); replace.set(k1, [[n, m], [m, o1]]); }
+    else replace.set(k1, [[n, m]]);
+    if (tail2) { const tl = tail2.slice(); tl[0] = mPt; tl[tl.length - 1] = nodeM(o2); put(m, o2, tl); replace.set(k2, [[n, m], [m, o2]]); }
+    else replace.set(k2, [[n, m]]);
+    for (const [k, seq] of replace) if (!(seq.length === 1 && Math.min(...seq[0]) + "-" + Math.max(...seq[0]) === k)) edgeGeom.delete(k);
+    for (const rec of recs) {
+      const ns = [];
+      for (const st of rec.steps) {
+        const seq = replace.get(st.key);
+        if (!seq) { ns.push(st); continue; }
+        const [a, b] = st.key.split("-").map(Number), from = st.fwd ? a : b;
+        const path = from === n ? seq : seq.slice().reverse().map(([x, y]) => [y, x]);
+        for (const [x, y] of path) ns.push({ key: Math.min(x, y) + "-" + Math.max(x, y), fwd: x < y });
+      }
+      rec.steps = ns;
+    }
+    if (!edgeGeom.has(kHead)) throw new Error("linjastokartan reunan jako epäonnistui");
+    splits++;
+  }
+  // 5) Suunta = yksi LineString reunojen yhteisiä kärkipisteitä pitkin. Suunta, joka ei käy kahdessa solmussa (ei
+  // pysäkkejä), piirretään omana shapenaan, jottei se katoa kartalta.
+  const toLL = ([x, y]) => [Math.round(x / KX * 1e7) / 1e7, Math.round(y / KY * 1e7) / 1e7];
+  const features = [];
+  for (const rec of recs) {
+    const coords = [];
+    for (const st of rec.steps) {
+      const g = st.fwd ? edgeGeom.get(st.key) : edgeGeom.get(st.key).slice().reverse();
+      for (let i = coords.length ? 1 : 0; i < g.length; i++) coords.push(toLL(g[i]));
+    }
+    const cs = coords.length > 1 ? coords : rec.pts.map(toLL);
+    features.push({ type: "Feature", properties: { route: rec.short, dir: rec.di }, geometry: { type: "LineString", coordinates: cs } });
+  }
+  // Katkoviiva kaistanleveyksinä: PM_DASHES-kuvio on mitoitettu vanhalle 3,2 yksikön viivalle (kerroin 1,5).
+  const routes = {};
+  for (const l of lines) {
+    const st = netStyleFor(l.shortName || ""), dash = st.dash ? st.dash.split(/\s+/).map(Number) : null;
+    routes[l.shortName || ""] = { color: st.color, name: l.shortName || "", ...(dash ? { dash: [dash[0] * 1.5 / 3.2, dash[1] * 1.5 / 3.2] } : {}) };
+  }
+  const graph = lib.buildLineGraph(features, { routeProperty: "route", routes });
+  if (!graph.edges.length) throw new Error("linjastokartan graafi on tyhjä");
+  const cost = lib.orderLanes(graph, { seed: PML.seed, annealMoves: PML.anneal });
+  lib.stabilizeLanes(graph);
+  return { lib, graph, nodes, edgeGeom, recs, KX, KY, cost, splits };
+}
+// Kaistojen polut printMapSvg:n kehykseen: zoom, jolla kirjaston maailmapikseli (Web Mercator, 512 px) = kehyksen yksikkö
+// kehyksen keskileveydellä. Paikallinen projektio ja Mercator eroavat kaupungin kokoisella alueella alle 0,5 %.
+function pmLaneLayout(model, fr, k) {
+  const { lib, graph } = model;
+  const sizes = { spacing: PML.spacing * k, width: PML.width * k, casingWidth: PML.casing * k };
+  const zoom = Math.log2(fr.sc * 40075016.686 * Math.cos(fr.midLat * Math.PI / 180) / 512);
+  const lay = lib.layoutAtZoom(graph, zoom, () => sizes);
+  const drawIdx = new Map(lay.drawOrder.map((r, i) => [r, i]));
+  const paths = lay.paths.map((p, i) => {
+    const pts = [];
+    for (let j = 0; j + 1 < p.coords.length; j += 2) {
+      const [lo, la] = lib.mercatorToLngLat(p.coords[j] / lay.scale, p.coords[j + 1] / lay.scale);
+      pts.push([fr.X(lo), fr.Y(la)]);
+    }
+    return { i, route: p.route, look: p.look, start: p.startDistance, pts };
+  }).filter(p => p.pts.length > 1).sort((a, b) => drawIdx.get(a.route) - drawIdx.get(b.route) || a.i - b.i);
+  return { sizes, paths, merged: lay.mergedEdges.length };
+}
 function printMapSvg(lines, opts = {}) {
   // lines: [{ shortName, dirs: [{ points: [[lat,lon]…], stops: [{gtfsId,name,lat,lon}] }] }]
   // opts.marks: [{ lat, lon, kind: "place" | "stop", tag, name }] = paikka (tähti + nimilappu) ja
@@ -7339,6 +7587,8 @@ function printMapSvg(lines, opts = {}) {
     if (la < minLat) minLat = la; if (la > maxLat) maxLat = la;
     if (lo < minLon) minLon = lo; if (lo > maxLon) maxLon = lo;
   }
+  // opts.bbox: kiinteä kehys (linjastokartan keskustan suurennos, 29.9.2026). Viivat kehyksen ulkopuolella leikkautuvat.
+  if (opts.bbox) ({ minLat, maxLat, minLon, maxLon } = opts.bbox);
   const M = 111320, kx = M * Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
   const minSpan = opts.minSpan || 300;
   const wM = Math.max(minSpan, (maxLon - minLon) * kx), hM = Math.max(minSpan, (maxLat - minLat) * M);
@@ -7355,7 +7605,10 @@ function printMapSvg(lines, opts = {}) {
   const f = n => (Math.round(n * 10) / 10).toString();
   // Korkea kartta (pystyalue) tulostuu max-height-rajan takia kapeampana → kasvata
   // tekstit, pisteet ja viivat samassa suhteessa, jotta A4:llä nimilappu on ≥ 8 pt.
-  const k = Math.max(1, H / 440);
+  // opts.k: kiinteä kerroin, kun kuva tulostuu pääkarttaa kapeampana (suurennos) ja koot halutaan paperilla samoiksi.
+  const k = opts.k || Math.max(1, H / 440);
+  // opts.frame: kutsuja saa kehyksen (linjastokartan suurennoksen mitoitus pääkartan mittakaavasta).
+  if (opts.frame) Object.assign(opts.frame, { W, H, sc, k, minLat, maxLat, minLon, maxLon, midLat: (minLat + maxLat) / 2, X, Y });
   const out = [];
   out.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#fff" stroke="#999" stroke-width="1"/>`);
 
@@ -7421,7 +7674,27 @@ function printMapSvg(lines, opts = {}) {
   // ruutua) linjoista globaalissa järjestyksessä: (järjestys + 0,5) x väli. Suunnan 1 etumerkki on käänteinen, jolloin
   // linjan kaksi suuntaa osuvat päällekkäin, ja vastakkaisiin suuntiin piirretyt eri linjat menevät eri puolille. Yksin
   // kulkeva linja ei siirry. Siirtymä tasoitetaan liukuvalla keskiarvolla, ja valkoiset reunukset piirretään ensin.
-  const par = opts.colorLines ? (() => {
+  // Linjajärjestys (29.9.2026): opts.lanes (pmLaneGraph) korvaa säännön kaistoilla. Jos kaistoja ei saada, piirretään
+  // vanha sääntö ja virhe merkitään kuvaan (data-lanes-error), jottei tarkistus hyväksy varapiirtoa onnistumisena.
+  let laneErr = opts.laneError || "", lanes = null;
+  if (opts.colorLines && opts.lanes) {
+    try { lanes = pmLaneLayout(opts.lanes, { sc, midLat: (minLat + maxLat) / 2, X, Y }, k); }
+    catch (e) { laneErr = String((e && e.message) || e); }
+  }
+  if (lanes) {
+    // Reunukset ensin, värit kirjaston drawOrder-järjestyksessä (linja, jonka kaista päättyy toisen nipun alle, ensin).
+    // Katkoviivan vaihe jatkuu polulta toiselle (startDistance), joten kuvio ei hyppää solmuissa.
+    const w = lanes.sizes.width, cw = w + 2 * lanes.sizes.casingWidth, el = [];
+    const ds = lanes.paths.map(p => p.pts.map((q, i) => (i ? "L" : "M") + f(q[0]) + " " + f(q[1])).join(""));
+    ds.forEach(d => el.push(`<path d="${d}" fill="none" stroke="#fff" stroke-opacity="0.9" stroke-width="${f(cw)}" stroke-linejoin="round" stroke-linecap="round"/>`));
+    lanes.paths.forEach((p, i) => {
+      const dash = p.look.dash;
+      el.push(`<path d="${ds[i]}" fill="none" stroke="${p.look.color}" stroke-width="${f(w)}" stroke-linejoin="round" stroke-linecap="${dash ? "butt" : "round"}"`
+        + (dash ? ` stroke-dasharray="${f(dash[0] * w)} ${f(dash[1] * w)}" stroke-dashoffset="${f(p.start % ((dash[0] + dash[1]) * w))}"` : "") + `/>`);
+    });
+    out.push(`<g class="pm-lanes" data-lanes="${lanes.paths.length}">${el.join("")}</g>`);
+  }
+  const par = opts.colorLines && !lanes ? (() => {
     const STEP = 2.5, CELL = 6, gap = 3.2 * k;
     const tracks = [];
     lines.forEach((l, li) => (l.dirs || []).forEach((d, di) => {
@@ -7454,6 +7727,7 @@ function printMapSvg(lines, opts = {}) {
   })() : null;
   if (par) {
     const wLine = 3.2 * k;
+    out.push(`<g class="pm-par"${laneErr ? ` data-lanes-error="${esc(laneErr)}"` : ""}>`);
     for (const p of par) out.push(`<path d="${p.d}" fill="none" stroke="#fff" stroke-opacity="0.9" stroke-width="${f(wLine + 2.6 * k)}" stroke-linejoin="round" stroke-linecap="round"/>`);
     for (const p of par) {
       const { color: ink, dash } = lineInk(lines[p.li], p.li);
@@ -7461,8 +7735,14 @@ function printMapSvg(lines, opts = {}) {
       // Katkoviiva suorin päin: pyöreät päät sulattivat lyhyet katkot yhteen (121 ja 620 näyttivät samalta, toinen tarkastus).
       out.push(`<path d="${p.d}" fill="none" stroke="${ink}" stroke-width="${f(wLine)}" stroke-linejoin="round" stroke-linecap="${dash ? "butt" : "round"}"${dash ? ` stroke-dasharray="${dash.split(/\s+/).map(v => f(v * k * 1.5)).join(" ")}"` : ""}/>`);
     }
+    out.push(`</g>`);
   }
-  if (!par) lines.forEach((l, li) => {
+  // opts.insetRect: suurennoksen alue pääkartalla katkoviivakehyksenä.
+  if (opts.insetRect) {
+    const r = opts.insetRect, x0 = X(r.minLon), x1 = X(r.maxLon), y0 = Y(r.maxLat), y1 = Y(r.minLat);
+    out.push(`<rect class="pm-inset-area" x="${f(x0)}" y="${f(y0)}" width="${f(x1 - x0)}" height="${f(y1 - y0)}" fill="none" stroke="#000" stroke-width="${f(1.1 * k)}" stroke-dasharray="${f(4 * k)} ${f(2.5 * k)}"/>`);
+  }
+  if (!par && !lanes) lines.forEach((l, li) => {
     const { color: ink, dash } = lineInk(l, li);
     (l.dirs || []).forEach((d, di) => {
       const pts = (d.points || []).filter(p => p && p.length === 2);
@@ -7554,7 +7834,11 @@ function printMapSvg(lines, opts = {}) {
   // Laatikko piirretään oletuspaikkaansa ja siirretään translate-muunnoksella (deco[].dx/dy).
   const deco = [];
   if (showLegend) deco.push({ key: "legend", box: { x: 6, y: 6, w: legendW, h: legendH }, c: 0 });
-  deco.push({ key: "north", box: { x: nx - 12, y: 6, w: 24, h: 46 + 10 * k }, c: 1 });
+  // opts.caption: otsikkolappu (linjastokartan suurennos), opts.noNorth: ei pohjoisnuolta (sama suunta kuin pääkartalla).
+  const cap = opts.caption || "", capPad = 4 * k;
+  const capW = cap ? Math.round(cbTextWidth(cap, true) * FS / 13 + 2 * capPad) : 0, capH = Math.round(LH + capPad);
+  if (cap) deco.push({ key: "caption", box: { x: 6, y: 6, w: capW, h: capH }, c: 0 });
+  if (!opts.noNorth) deco.push({ key: "north", box: { x: nx - 12, y: 6, w: 24, h: 46 + 10 * k }, c: 1 });
   deco.push({ key: "scale", box: { x: sx - 6, y: sy - 20 - 8 * k, w: sw + 12, h: 27 + 8 * k }, c: 2 });
   if (attr) deco.push({ key: "attr", box: { x: W - attrW - 4, y: H - attrH - 3, w: attrW + 4, h: attrH + 3 }, c: 3 });
   {
@@ -7582,8 +7866,15 @@ function printMapSvg(lines, opts = {}) {
     };
     rec(0, new Set(), []);
     let best = null, bestCost = Infinity;
+    // Suurennoksessa (caption) laatikot ovat suhteessa leveämpiä: otsikko ja lähdemerkintä osuivat samalle reunalle
+    // päällekkäin. Päällekkäiset sijoitukset hylätään (vain caption-kartoilla, muut kartat ennallaan).
+    const clash = p => p.some((c, i) => p.some((c2, j) => {
+      if (j <= i) return false;
+      const a = at(deco[i], c), b = at(deco[j], c2);
+      return !(a.x + a.w + 3 < b.x || b.x + b.w + 3 < a.x || a.y + a.h + 3 < b.y || b.y + b.h + 3 < a.y);
+    }));
     for (const p of perms) {
-      const cst = p.reduce((n, c, i) => n + cost(at(deco[i], c)), 0) + (p.every((c, i) => c === deco[i].c) ? -0.5 : 0);
+      const cst = p.reduce((n, c, i) => n + cost(at(deco[i], c)), 0) + (p.every((c, i) => c === deco[i].c) ? -0.5 : 0) + (cap && clash(p) ? 1e6 : 0);
       if (cst < bestCost) { bestCost = cst; best = p; }
     }
     deco.forEach((dc, i) => { const b = at(dc, best[i]); dc.dx = b.x - dc.box.x; dc.dy = b.y - dc.box.y; placed.push(b); });
@@ -7650,21 +7941,50 @@ function printMapSvg(lines, opts = {}) {
   // joten Lappeenrannan "Muukontie-Hakalinkatu keskustaan" näkyi muodossa "Muukontie-Hakalinkatu keskust…".
   const LW = 150 * k, LS = Math.round(13 * k);
   const fsWidth = s => cbTextWidth(s, true) * FS / 13;
+  // Kaistakartalla (lanes, 29.9.2026) lappu menee kohtaan, jonka alle jää vähiten kaistoja: keskustan suurennoksessa lappu
+  // "Keskusta" peitti itään lähtevän nipun. Tasapelissä entinen järjestys. Kaistojen näytteet 2 yksikön välein ruudukkoon.
+  const laneGrid = lanes ? new Map() : null, LG = 16;
+  if (laneGrid) for (const p of lanes.paths) for (let i = 1; i < p.pts.length; i++) {
+    const [ax, ay] = p.pts[i - 1], [bx, by] = p.pts[i], m = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 2));
+    for (let q = 0; q < m; q++) {
+      const x = ax + (bx - ax) * q / m, y = ay + (by - ay) * q / m, key = Math.floor(x / LG) + ":" + Math.floor(y / LG);
+      if (!laneGrid.has(key)) laneGrid.set(key, []);
+      laneGrid.get(key).push(x, y);
+    }
+  }
+  const laneCost = b => {
+    let n = 0;
+    const r = lanes.sizes.width / 2 + lanes.sizes.casingWidth;
+    for (let gx = Math.floor((b.x - r) / LG); gx <= Math.floor((b.x + b.w + r) / LG); gx++)
+      for (let gy = Math.floor((b.y - r) / LG); gy <= Math.floor((b.y + b.h + r) / LG); gy++) {
+        const a = laneGrid.get(gx + ":" + gy) || [];
+        for (let i = 0; i < a.length; i += 2) if (a[i] >= b.x - r && a[i] <= b.x + b.w + r && a[i + 1] >= b.y - r && a[i + 1] <= b.y + b.h + r) n++;
+      }
+    return n;
+  };
+  // opts.k (suurennos): lapun etäisyys pisteestä ja tekstin reunus paperilla samat kuin pääkartalla.
+  const kl = opts.k ? k : 1;
   for (const c of list) {
     if (labels.length >= maxLabels) break;
     let rows = cbFitLines(c.name, LW * 13 / FS, true, 2);
     if (rows[rows.length - 1].endsWith("…")) rows = cbFitLines(c.name, LW * 13 / FS, true, 3);
-    const w = Math.round(Math.max(...rows.map(fsWidth)) + 10), hgt = LH + (rows.length - 1) * LS;
-    const o = c.off || 7;
+    const w = Math.round(Math.max(...rows.map(fsWidth)) + 10 * kl), hgt = LH + (rows.length - 1) * LS;
+    const o = c.off || 7 * kl;
     const tries = [[o, -hgt / 2], [-w - o, -hgt / 2], [-w / 2, -hgt - o + 1], [-w / 2, o]];
+    let best = null, bestCost = Infinity;
     for (const [dx, dy] of tries) {
       const b = { x: c.x + dx, y: c.y + dy, w, h: hgt };
       if (overlaps(b)) continue;
-      placed.push(b);
-      labels.push(`<g class="pm-label"><rect x="${f(b.x)}" y="${f(b.y)}" width="${w}" height="${hgt}" rx="2" fill="#fff" stroke="#000" stroke-width="${f(0.9 * k)}"/>`
-        + rows.map((r, j) => `<text x="${f(b.x + 5)}" y="${f(b.y + LH * 0.72 + j * LS)}" font-size="${FS}" font-weight="600" fill="#000">${esc(r)}</text>`).join("") + `</g>`);
-      break;
+      if (!laneGrid) { best = b; break; }
+      const cst = laneCost(b);
+      if (cst < bestCost) { bestCost = cst; best = b; }
+      if (!cst) break;
     }
+    if (!best) continue;
+    const b = best;
+    placed.push(b);
+    labels.push(`<g class="pm-label"><rect x="${f(b.x)}" y="${f(b.y)}" width="${w}" height="${hgt}" rx="2" fill="#fff" stroke="#000" stroke-width="${f(0.9 * k)}"/>`
+      + rows.map((r, j) => `<text x="${f(b.x + 5 * kl)}" y="${f(b.y + LH * 0.72 + j * LS)}" font-size="${FS}" font-weight="600" fill="#000">${esc(r)}</text>`).join("") + `</g>`);
   }
 
   // 4) mittakaava (vasen ala), pohjoisnuoli (oikea ylä), linjaselite (vasen ylä) jos linjoja > 1
@@ -7672,8 +7992,10 @@ function printMapSvg(lines, opts = {}) {
   extras.push(`<g class="pm-scale"${decoT("scale")}><rect x="${sx - 6}" y="${f(sy - 20 - 8 * k)}" width="${f(sw + 12)}" height="${f(27 + 8 * k)}" fill="#fff" fill-opacity="0.85"/>`
     + `<path d="M${sx} ${sy - 4}V${sy}H${f(sx + sw)}V${sy - 4}" fill="none" stroke="#000" stroke-width="${f(1.5 * k)}"/>`
     + `<text x="${f(sx + sw / 2)}" y="${f(sy - 7)}" font-size="${f(10 * k)}" text-anchor="middle" fill="#000">${scaleM >= 1000 ? (scaleM / 1000) + " km" : scaleM + " m"}</text></g>`);
-  extras.push(`<g class="pm-north"${decoT("north")}><path d="M${nx} 42V20" stroke="#000" stroke-width="${f(1.5 * k)}"/><polygon points="${nx - 5},22 ${nx},12 ${nx + 5},22" fill="#000"/>`
+  if (!opts.noNorth) extras.push(`<g class="pm-north"${decoT("north")}><path d="M${nx} 42V20" stroke="#000" stroke-width="${f(1.5 * k)}"/><polygon points="${nx - 5},22 ${nx},12 ${nx + 5},22" fill="#000"/>`
     + `<text x="${nx}" y="${f(46 + 10 * k)}" font-size="${f(11 * k)}" font-weight="700" text-anchor="middle" fill="#000">${esc(t("mapNorth"))}</text></g>`);
+  if (cap) extras.push(`<g class="pm-caption"${decoT("caption")}><rect x="6" y="6" width="${capW}" height="${capH}" fill="#fff" stroke="#000" stroke-width="${f(0.9 * k)}"/>`
+    + `<text x="${f(6 + capPad)}" y="${f(6 + capPad / 2 + LH * 0.72)}" font-size="${FS}" font-weight="700" fill="#000">${esc(cap)}</text></g>`);
   if (showLegend) {
     const rh = 16 * k;
     const rows = lines.map((l, i) => `<path d="M12 ${f(18 * k + i * rh)}H${f(40 * k)}" stroke="${lineInk(l, i).color}" stroke-width="${f(3.2 * k)}" stroke-linecap="round"${lineInk(l, i).dash ? ` stroke-dasharray="${lineInk(l, i).dash}"` : ""}/>`
@@ -7682,8 +8004,10 @@ function printMapSvg(lines, opts = {}) {
   }
   if (attr) extras.push(`<g class="pm-attr"${decoT("attr")}><rect x="${W - attrW - 3}" y="${H - attrH - 2}" width="${attrW}" height="${attrH}" fill="#fff" fill-opacity="0.85"/>`
     + `<text x="${W - 7}" y="${f(H - 2 - attrH * 0.28)}" font-size="${attrFS}" text-anchor="end" fill="#333">${esc(attr)}</text></g>`);
-  // tiilet peittävät alkuperäisen reunaviivan → kehys päällimmäiseksi
-  if (useBase) extras.push(`<rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" fill="none" stroke="#999" stroke-width="1"/>`);
+  // tiilet peittävät alkuperäisen reunaviivan → kehys päällimmäiseksi. Suurennoksen (caption) kehys on tumma ja paperilla
+  // yhtä paksu kuin pääkartan suurennosalueen kehys.
+  if (useBase || cap) extras.push(cap ? `<rect x="${f(0.55 * k)}" y="${f(0.55 * k)}" width="${f(W - 1.1 * k)}" height="${f(H - 1.1 * k)}" fill="none" stroke="#000" stroke-width="${f(1.1 * k)}"/>`
+    : `<rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" fill="none" stroke="#999" stroke-width="1"/>`);
 
   const aria = esc(opts.aria || t("printMapAria"));
   return `<figure class="print-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${aria}" font-family="system-ui, Arial, sans-serif">`
@@ -16702,15 +17026,53 @@ function pmLegendSvg(lines, fs = 13, cols = 2) {
   const H = Math.ceil(Math.max(...colH) + PAD);
   return `<figure class="pm-legend-strip"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t("vkTocMap"))}" font-family="system-ui, Arial, sans-serif">${out.join("")}</svg></figure>`;
 }
-function vkNetworkPage(sec, net, G) {
+// Linjajärjestys (kaistat) vihkon linjastokartoilla: osion netLanes, sitten CONFIG.vihko.netLanes, oletus pois.
+// Kaistan leveys ja graafin kynnysarvot on valittu Lappeenrannan datalla ja omalla linjapaletilla. Kokeilu 29.9.2026
+// (Lahti, Joensuu, Kuopio, Turku, Oulu, Inkoo, kuusi linjaa): Joensuussa ja Oulussa nippu selkeni, mutta hajautuspaletin
+// piste- ja katkoviivat jäivät 2,0 yksikön kaistoina haaleiksi (Lahti, Kuopio). Siksi kaupunkikohtainen, tarkistettava.
+const vkNetLanes = sec => (sec && sec.netLanes) ?? CONFIG.vihko?.netLanes ?? false;
+// maplibre-gl-lanes-ydin (vendor/, MIT) ladataan vasta kapean vihkon koonnissa: muut näkymät eivät lataa sitä.
+let lanesCoreLoad = null;
+function ensureLanesCore() {
+  if (window.MaplibreGlLanesCore) return Promise.resolve(window.MaplibreGlLanesCore);
+  lanesCoreLoad = lanesCoreLoad || loadScript("vendor/maplibre-gl-lanes-core-1.0.0.min.js").then(() => {
+    if (!window.MaplibreGlLanesCore) throw new Error("MaplibreGlLanesCore puuttuu");
+    return window.MaplibreGlLanesCore;
+  }).catch(e => { lanesCoreLoad = null; throw e; });
+  return lanesCoreLoad;
+}
+// Suurennoksen keskipiste: linjastokartan tihein kohta eli solmut, joiden kautta kulkee vähintään 60 % suurimman
+// solmun linjoista (Lappeenrannassa Keskusta, Puhakankatu ja Matkakeskus). Rajauksen keskipiste ja koko metreinä.
+function pmLaneHub(model) {
+  const { graph, lib } = model;
+  const cnt = graph.nodes.map(n => new Set(n.ports.flatMap(p => graph.edges[p.edge].routes)).size);
+  const max = Math.max(0, ...cnt);
+  if (max < 3) return null;
+  const ll = graph.nodes.filter((n, i) => cnt[i] >= Math.ceil(max * 0.6)).map(n => lib.mercatorToLngLat(n.x, n.y));
+  const lo0 = Math.min(...ll.map(p => p[0])), lo1 = Math.max(...ll.map(p => p[0]));
+  const la0 = Math.min(...ll.map(p => p[1])), la1 = Math.max(...ll.map(p => p[1]));
+  const lat = (la0 + la1) / 2;
+  return { lat, lon: (lo0 + lo1) / 2, eM: (lo1 - lo0) * 111320 * Math.cos(lat * Math.PI / 180), nM: (la1 - la0) * 111320 };
+}
+function vkNetworkPage(sec, net, G, lanesLib) {
   // netLines: kartan linjat, jos kaikkia osion linjoja ei piirretä (Joukon s. 9: 1, 2, 3K, 4, 5, 7, 8).
   const lines = (sec.netLines || sec.lines).map(s => net.get(s)).filter(l => l && l.dirs.length);
   if (lines.length < 2) return "";
   const aria = t("vkNetTitle", { sec: sec.title });
-  const map = maxAspect => printMapSvg(lines.map(l => ({ shortName: l.shortName, dirs: l.dirs })), {
-    basemap: true, colorLines: true, noLegend: true, evenLabels: 0, maxLabels: 18, maxAspect, aria, labelName: vkStopName });
+  const ml = lines.map(l => ({ shortName: l.shortName, dirs: l.dirs }));
+  // Kaistat (pmLaneGraph). Virhe ei kaada vihkoa: kartta piirretään vanhalla säännöllä ja virhe merkitään kuvaan.
+  let lanes = null, laneError = "";
+  if (vkNetLanes(sec)) {
+    if (!lanesLib) laneError = "maplibre-gl-lanes-ydin ei latautunut";
+    else try { lanes = pmLaneGraph(ml, lanesLib); }
+    catch (e) { laneError = String((e && e.message) || e); console.warn("Linjastokartan kaistat:", e); }
+  }
+  const fr = {};
+  const map = (maxAspect, extra = {}) => printMapSvg(ml, { basemap: true, colorLines: true, noLegend: true, evenLabels: 0, maxLabels: 18,
+    maxAspect, aria, labelName: vkStopName, lanes, laneError, frame: fr, ...extra });
   const H2 = 12, avail = G.h - H2;
-  let svg = map(G.h / G.w - 0.12);
+  let maxAsp = G.h / G.w - 0.12;
+  let svg = map(maxAsp);
   let ar = vkAspect(svg);
   // Selitteen fontti noin 2,5 mm paperilla: kääntyvässä kartassa kaista on sivun pituinen, pystykartassa sivun levyinen.
   const strip = rotW => pmLegendSvg(lines, 2.5 / (rotW / 640), lines.length <= 6 ? 1 : rotW > 120 ? 3 : 2);
@@ -16719,9 +17081,34 @@ function vkNetworkPage(sec, net, G) {
   else {
     // Pystykartta: kartta ja kaista allekkain sivun levyisinä, joten kartta madalletaan kaistan verran.
     leg = strip(G.w);
-    svg = map(Math.max(0.8, avail / G.w - vkAspect(leg) - 0.06));
+    maxAsp = Math.max(0.8, avail / G.w - vkAspect(leg) - 0.06);
+    svg = map(maxAsp);
     ar = vkAspect(svg);
     if (ar < 0.8) leg = strip(Math.min(avail, (G.w - 4) / ar));
+  }
+  // Keskustan suurennos (sec.netInset, Villen päätös 29.9.2026): vihkon mittakaavassa keskustan lyhyet pysäkkivälit
+  // yhdistyvät liitoskaariksi eikä nippua voi lukea. Kääntyvä kartta on sivun levyinen, joten sivun pituudesta jää
+  // kaistale: suurennos sijoitetaan siihen samaan kääntöön pääkartan oikealle puolelle (sivulla yläreunaan), samassa
+  // suunnassa, mittakaava netInset.mag kertaa pääkartan ja kaistat, tekstit ja pisteet paperilla samankokoisina.
+  const ins = sec.netInset && lanes && ar < 0.8 ? pmLaneHub(lanes) : null;
+  if (ins) {
+    const gap = 2, minI = sec.netInset.minMm || 36;
+    let Lm = Math.min(avail, (G.w - 4) / (ar + vkAspect(leg)));
+    if (avail - gap - Lm < minI) { Lm = avail - gap - minI; leg = strip(Lm); Lm = Math.min(Lm, (G.w - 4) / (ar + vkAspect(leg))); }
+    const Li = avail - gap - Lm, Hc = Lm * (ar + vkAspect(leg));
+    const asp = Hc / Li, Hi = Math.round(640 * asp), sci = (sec.netInset.mag || 3) * fr.sc * Lm / Li, PAD = 30;
+    const wM = (640 - 2 * PAD) / sci, hM = (Hi - 2 * PAD) / sci, kxm = 111320 * Math.cos(ins.lat * Math.PI / 180);
+    const box = m => ({ minLat: ins.lat - (hM / 2 + m) / 111320, maxLat: ins.lat + (hM / 2 + m) / 111320,
+      minLon: ins.lon - (wM / 2 + m) / kxm, maxLon: ins.lon + (wM / 2 + m) / kxm });
+    const inset = printMapSvg(ml, { basemap: true, colorLines: true, noLegend: true, evenLabels: 0, maxLabels: 8, labelName: vkStopName,
+      lanes, laneError, bbox: box(0), aspect: asp, k: fr.k * Lm / Li, noNorth: true, caption: t("vkNetInset"),
+      aria: t("vkNetInsetAria", { sec: sec.title }) });
+    svg = map(maxAsp, { insetRect: box(PAD / sci) });   // sama kehys, lisäksi suurennoksen alue
+    const L = Lm + gap + Li;
+    return `<div class="vk-h2">${esc(aria)}</div><div class="vk-netmap"><div class="cb-mapwrap vk-rot" style="height:${L.toFixed(1)}mm">`
+      + `<div class="vk-rot-in" style="width:${L.toFixed(1)}mm"><div class="vk-netrow">`
+      + `<div class="vk-netmain" style="width:${Lm.toFixed(1)}mm">${svg}${leg}</div>`
+      + `<div class="vk-netinset" style="width:${Li.toFixed(1)}mm">${inset}</div></div></div></div></div>`;
   }
   return `<div class="vk-h2">${esc(aria)}</div><div class="vk-netmap">${vkMapHtml(svg, { w: G.w, h: avail }, leg)}</div>`;
 }
@@ -16831,18 +17218,22 @@ function printVihkoNarrow(mode = "pages") {
     const combos = (V.combos || []).filter(c => byShort.has("combo:" + c.key));
     const others = lineEls.filter(l => !inSec.has(l.dataset.short) && !String(l.dataset.short).startsWith("combo:"));
     const lastSec = V.pages.map(p => !!(p && p.section)).lastIndexOf(true);
-    const [zoneStops, events] = await Promise.all([vkZoneStops().catch(() => []), vkEventAtoms(V, out.vkData, G).catch(() => new Map())]);
+    // Linjastokarttojen kaistat: ydin ladataan vain, jos jollain osiolla on linjastokartta kaistoin. Latausvirhe ei kaada
+    // vihkoa (kartta vanhalla säännöllä, virhe merkitty kuvaan).
+    const needLanes = secs.some(s => s.network && vkNetLanes(s));
+    const [zoneStops, events, lanesLib] = await Promise.all([vkZoneStops().catch(() => []), vkEventAtoms(V, out.vkData, G).catch(() => new Map()),
+      needLanes ? ensureLanesCore().catch(e => { console.warn("Linjastokartan kaistat:", e); return null; }) : null]);
     for (const [k, v] of (events.labels || new Map())) lineLabels.set(k, v);
     const atoms = [];
     const order = {};   // osio -> linja-, yhdistelmä- ja tapahtumasivujen avaimet sijoitusjärjestyksessä (sisällysluettelo)
     const pageAtom = (html, kind, sec = null) => atoms.push({ page: html, kind, sec });
-    const sectionAtoms = (key, title, lines, network, lineMaps = true, netLines = null) => {
+    const sectionAtoms = (key, title, lines, network, lineMaps = true, netLines = null, sec = {}) => {
       const els = lines.map(s => byShort.get(s)).filter(Boolean);
       if (!els.length) return;
       order[key] = [];
       pageAtom(vkDividerHtml(title), "divider", key);
       pageAtom(`<!--vk:toc:${key}-->`, "toc", key);
-      const nm = network ? vkNetworkPage({ key, title, lines, netLines }, net, G) : "";
+      const nm = network ? vkNetworkPage({ key, title, lines, netLines, netInset: sec.netInset, netLanes: sec.netLanes }, net, G, lanesLib) : "";
       if (nm) pageAtom(nm, "map", key);
       const placed = new Set();
       const after = short => {
@@ -16875,7 +17266,7 @@ function printVihkoNarrow(mode = "pages") {
       else if (p && p.city) for (let i = 0; i < (p.n || 1); i++) pageAtom(vkCityPageHtml(p, i, p.n || 1, G), "city");
       else if (p && p.section) {
         const s = secs.find(x => x.key === p.section);
-        if (s) sectionAtoms(s.key, s.title, s.lines, s.network, s.lineMaps !== false, s.netLines);
+        if (s) sectionAtoms(s.key, s.title, s.lines, s.network, s.lineMaps !== false, s.netLines, s);
       }
       // Kaupungin osioihin kuulumattomat valitut linjat viimeisen osion perään omana osionaan.
       if (idx === lastSec && others.length)
