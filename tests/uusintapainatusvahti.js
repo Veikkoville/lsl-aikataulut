@@ -39,10 +39,12 @@ async function vertaaSivulla(page, units) {
     for (const [id, u] of Object.entries(units)) {
       // Poistettu käytäväpreset: tunnus alkaa "corr:" mutta CONFIGissa ei ole vastinetta.
       // Se ei ole "ajan tasalla" vaan tuntematon, joten se menee epäonnistuneisiin.
-      if (id.startsWith("corr:") && !corrs.has(id)) { failed.push(id); continue; }
+      // Oma käytävä ("corr:m:192+192M") kantaa linjat tunnuksessaan (reprintManualCorridor).
+      const corr = corrs.get(id) || (typeof reprintManualCorridor === "function" ? reprintManualCorridor(id) : null);
+      if (id.startsWith("corr:") && !corr) { failed.push(id); continue; }
       try {
-        const snap = corrs.has(id)
-          ? await reprintCorridorSnap(corrs.get(id), date, routes)
+        const snap = corr
+          ? await reprintCorridorSnap(corr, date, routes)
           : await reprintLineSnap(id, date);
         if (!snap) { failed.push(id); continue; }
         if (reprintDiff(u.sig, snap).length) stale.push(id);

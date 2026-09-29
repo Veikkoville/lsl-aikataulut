@@ -645,6 +645,11 @@ export function buildAdminA11y(body) {
       deficiencies: Array.isArray(body.deficiencies)
         ? body.deficiencies.map(x => s(x, 400)).filter(Boolean).slice(0, 30) : [],
       method: s(body.method, 600),
+      // Kaksikielinen kunta (Inkoo): ruotsinkielinen seloste. Tyhjä = ruotsinkielinen näkymä käyttää suomea.
+      orgNameSv: s(body.orgNameSv, 120),
+      methodSv: s(body.methodSv, 600),
+      deficienciesSv: Array.isArray(body.deficienciesSv)
+        ? body.deficienciesSv.map(x => s(x, 400)).filter(Boolean).slice(0, 30) : [],
     },
   };
 }

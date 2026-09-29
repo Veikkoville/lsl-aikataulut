@@ -4582,6 +4582,12 @@ const STRINGS = {
     reprintChecking: "Tarkistetaan {done}/{total}…",
     reprintTracked: "Seurannassa",
     reprintAddMore: "Lisää seurantaan",
+    reprintManualAdd: "Oma käytävä (linjat, joilla on yhdistetty suunta-aikataulu)",
+    reprintManualPh: "esim. 192, 192M",
+    reprintManualBtn: "Lisää käytävä",
+    reprintManualLabel: "Käytävä {lines}",
+    reprintManualNeed2: "Anna vähintään kaksi linjaa.",
+    reprintManualUnknown: "Tuntematon linja: {lines}",
     reprintNoBaseline: "Mitään tulostetta ei ole vielä merkitty painetuksi. Valitse alta ne jotka olet painanut, aja tarkistus ja merkitse ne painetuiksi: se on vertailukohta jota vasten muutokset näkyvät.",
     reprintSrvTitle: "Palvelinvahti: kaupungin oma avain",
     reprintSrvIntro: "Ilman avainta seuranta elää vain tässä selaimessa: toisella koneella lista on tyhjä eikä mikään voi ilmoittaa vanhentuneista tulosteista. Avaimella painomerkinnät tallentuvat palvelimelle. Avaimen saa ylläpidosta. Palvelimelle tallentuu tuloste ja sen sormenjälki, ei henkilötietoa.",
@@ -5273,6 +5279,12 @@ const STRINGS = {
     reprintChecking: "Checking {done}/{total}…",
     reprintTracked: "Tracked",
     reprintAddMore: "Add to tracking",
+    reprintManualAdd: "Own corridor (lines with a combined timetable)",
+    reprintManualPh: "e.g. 192, 192M",
+    reprintManualBtn: "Add corridor",
+    reprintManualLabel: "Corridor {lines}",
+    reprintManualNeed2: "Enter at least two lines.",
+    reprintManualUnknown: "Unknown line: {lines}",
     reprintNoBaseline: "No sheet has been marked as printed yet. Pick the ones you have printed, run a check and mark them printed: that is the baseline changes are measured against.",
     reprintSrvTitle: "Server watch: the city key",
     reprintSrvIntro: "Without a key the baseline lives only in this browser: on another computer the list is empty and nothing can notify you about out-of-date sheets. With a key the print marks are stored on the server. Ask your administrator for the key. The server stores the sheet and its fingerprint, no personal data.",
@@ -5964,6 +5976,12 @@ const STRINGS = {
     reprintChecking: "Kontrollerar {done}/{total}…",
     reprintTracked: "Bevakade",
     reprintAddMore: "Lägg till bevakning",
+    reprintManualAdd: "Egen korridor (linjer med gemensam tidtabell)",
+    reprintManualPh: "t.ex. 192, 192M",
+    reprintManualBtn: "Lägg till korridor",
+    reprintManualLabel: "Korridor {lines}",
+    reprintManualNeed2: "Ange minst två linjer.",
+    reprintManualUnknown: "Okänd linje: {lines}",
     reprintNoBaseline: "Ingen utskrift har ännu markerats som tryckt. Välj de du har tryckt, kör en kontroll och markera dem som tryckta: det är utgångsläget som ändringarna mäts mot.",
     reprintSrvTitle: "Servervakt: stadens egen nyckel",
     reprintSrvIntro: "Utan nyckel finns utgångsläget bara i den här webbläsaren: på en annan dator är listan tom och ingenting kan meddela om föråldrade utskrifter. Med nyckel sparas tryckmärkningarna på servern. Nyckeln fås av administratören. På servern sparas utskriften och dess fingeravtryck, inga personuppgifter.",
@@ -6294,7 +6312,7 @@ function updateChrome() {
       </nav>
       <nav class="foot-col" aria-label="${t("footColInfo")}">
         <h4>${t("footColInfo")}</h4>
-        <a href="#/saavutettavuus">${t("a11yStatement")}</a>
+        <a href="#/saavutettavuus" id="footA11y">${t("a11yStatement")}</a>
         <a href="#/tietosuoja">${t("privacyLink")}</a>
         <a href="#/kayttoehdot">${t("termsLink")}</a>
         <a href="#/palaute">${t("fbLink")}</a>
@@ -6304,6 +6322,7 @@ function updateChrome() {
     </div>
     <p class="foot-note">${t("footerNote")}</p>
     <p class="foot-data" id="footAttribution">${t("footData")}</p>`;
+  syncA11yFootLabel();
 }
 
 let apiKey = localStorage.getItem("digitransitKey") || "";
@@ -6345,7 +6364,39 @@ async function gql(query, variables, opts) {
   const json = await res.json();
   if (json.errors && !(opts && opts.allowPartial && json.data))
     throw new Error(t("errApi") + json.errors.map(e => e.message).join("; "));
+  if (json.data) await fixPlatformNames(json.data);
   return json.data;
+}
+
+/* Laituripysäkin nimi aineistossa on pelkkä laituri ("29", "30-35", "T": MATKA-feedin Kamppi, Karjaa ja
+   Lohja), jolloin vihkon pääteasema ja pysäkkilistat näyttivät pelkän numeron tai kirjaimen (Inkoon
+   auditointi 29.9.2026). Tällaiselle pysäkille haetaan emoaseman nimi yhdellä kyselyllä (välimuisti) ja
+   nimi näytetään muodossa "Kamppi, laituri 29". Koskee vain pysäkkejä, joilla on gtfsId ja emoasema;
+   muut nimet pysyvät ennallaan, eikä epäonnistunut haku kaada alkuperäistä kyselyä. */
+const PLATFORM_NAME_RE = /^\s*(\d+(\s*[-–,]\s*\d+)*|[A-ZÅÄÖ])\s*$/;
+const platformParent = new Map();   // gtfsId -> emoaseman nimi tai null
+async function fixPlatformNames(data) {
+  const hits = [];
+  const walk = o => {
+    if (!o || typeof o !== "object") return;
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    if (typeof o.name === "string" && typeof o.gtfsId === "string" && PLATFORM_NAME_RE.test(o.name)) hits.push(o);
+    for (const k in o) if (o[k] && typeof o[k] === "object") walk(o[k]);
+  };
+  walk(data);
+  if (!hits.length) return;
+  const need = [...new Set(hits.map(o => o.gtfsId))].filter(id => !platformParent.has(id));
+  if (need.length) {
+    try {
+      const d = await gql(`query ($ids: [String]) { stops(ids: $ids) { gtfsId parentStation { name@L } } }`, { ids: need });
+      const got = new Map((d.stops || []).filter(Boolean).map(x => [x.gtfsId, x.parentStation?.name || null]));
+      for (const id of need) platformParent.set(id, got.get(id) || null);
+    } catch (e) { return; }   // nimi jää ennalleen
+  }
+  for (const o of hits) {
+    const parent = platformParent.get(o.gtfsId);
+    if (parent) o.name = parent.replace(/\s*\([^)]*\)\s*$/, "") + ", " + t("platform", { p: o.name.trim() });
+  }
 }
 
 /* ---------- Offline-välimuisti: viimeksi nähty data ---------- */
@@ -8999,6 +9050,14 @@ function loadPublished(force) {
   return publishedPromise;
 }
 function loadAdminAlerts(force) { return loadPublished(force).then(d => d.alerts); }
+// Ruotsinkielinen seloste julkaistu -> alatunnisteen linkistä pois "(på finska)".
+function syncA11yFootLabel() {
+  if (lang !== "sv") return;
+  loadPublished().then(d => {
+    const el = document.getElementById("footA11y");
+    if (el && a11ySvReady(d.a11y)) el.textContent = "Tillgänglighetsutlåtande";
+  }).catch(() => {});
+}
 
 /* ---------- Anonyymi käyttöanalytiikka (kaupungin dashboardia varten) ----------
    Ei käyttäjätunnuksia, ei evästeitä, ei IP-tallennusta; kunnioittaa Do Not
@@ -10386,8 +10445,9 @@ async function reprintHlCompute(base, todo, date) {
   const units = {};
   await mapLimit(todo, 2, async (id) => {
     try {
-      const snap = corrs.has(id)
-        ? await reprintCorridorSnap(corrs.get(id), date, routes)
+      const corr = corrs.get(id) || reprintManualCorridor(id);
+      const snap = corr
+        ? await reprintCorridorSnap(corr, date, routes)
         : await reprintLineSnap(id, date);
       if (snap) units[id] = reprintDiff(base[id].sig, snap).length > 0;
     } catch (e) { /* yksittäinen epäonnistunut yksikkö jätetään laskematta */ }
@@ -16087,7 +16147,10 @@ async function viewAccessibilityStatement() {
 }
 
 // Kaupungin ylläpidossa julkaisema, digipalvelulain (306/2019) mukainen seloste.
+// Ruotsinkielinen näkymä käyttää sv-kenttiä, kun kaksikielinen kunta on julkaissut ne (a11ySvReady).
+function a11ySvReady(a) { return !!(a && (a.orgNameSv || a.methodSv || (a.deficienciesSv || []).length)); }
 function viewOfficialA11y(a) {
+  if (lang === "sv" && a11ySvReady(a)) { viewOfficialA11ySv(a); return; }
   const statusText = {
     full: "Tämä digipalvelu täyttää saavutettavuusvaatimukset (WCAG 2.1, A- ja AA-taso).",
     partial: "Tämä digipalvelu täyttää saavutettavuusvaatimukset (WCAG 2.1, A- ja AA-taso) osittain. Vaatimusten vastaiset sisällöt on lueteltu alla.",
@@ -16109,7 +16172,7 @@ function viewOfficialA11y(a) {
       ${defs.length ? `<h2>Ei-saavutettava sisältö</h2><ul>${defs.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
       <h2>Palaute ja yhteystiedot</h2>
       <p>Huomasitko saavutettavuuspuutteen? Ilmoita siitä meille${feedback.length ? ": " + feedback.join(" tai ") : "."}${feedback.length ? "." : ""}
-        ${a.orgName ? `Vastaamme palautteeseen ${esc(a.orgName)}.` : ""}</p>
+        ${a.orgName ? `Palautteeseen vastaa ${esc(a.orgName)}.` : ""}</p>
       <h2>Valvontaviranomainen</h2>
       <p lang="fi">Jos et ole tyytyväinen saamaasi vastaukseen tai et saa vastausta lainkaan
         kahden viikon aikana, voit tehdä ilmoituksen valvontaviranomaiselle.
@@ -16118,6 +16181,43 @@ function viewOfficialA11y(a) {
         Verkkosivut: <a href="https://www.saavutettavuusvaatimukset.fi" target="_blank" rel="noopener">saavutettavuusvaatimukset.fi</a><br>
         Sähköposti: <a href="mailto:saavutettavuus@traficom.fi">saavutettavuus@traficom.fi</a><br>
         Puhelinvaihde: 029 534 5000</p>
+    </div>`);
+}
+
+// Ruotsinkielinen seloste (tillgänglighetsutlåtande). Tillsynsmyndighetens uppgifter enligt modellen på
+// saavutettavuusvaatimukset.fi/sv (kontrollerad 29.9.2026).
+function viewOfficialA11ySv(a) {
+  const org = a.orgNameSv || a.orgName;
+  const statusText = {
+    full: "Denna digitala tjänst uppfyller tillgänglighetskraven (WCAG 2.1, nivå A och AA).",
+    partial: "Denna digitala tjänst uppfyller delvis tillgänglighetskraven (WCAG 2.1, nivå A och AA). Innehåll som inte uppfyller kraven listas nedan.",
+    none: "Denna digitala tjänst uppfyller ännu inte tillgänglighetskraven.",
+  }[a.status] || "";
+  const defs = ((a.deficienciesSv || []).length ? a.deficienciesSv : (a.deficiencies || [])).filter(Boolean);
+  const method = a.methodSv || a.method;
+  const feedback = [];
+  if (a.feedbackEmail) feedback.push(`per e-post till <a href="mailto:${esc(a.feedbackEmail)}">${esc(a.feedbackEmail)}</a>`);
+  if (a.feedbackUrl) feedback.push(`med <a href="${esc(a.feedbackUrl)}" target="_blank" rel="noopener">responsformuläret</a>`);
+  setView(`
+    ${crumbHtml()}
+    <div class="card" lang="sv">
+      <h2>Tillgänglighetsutlåtande</h2>
+      <p>${esc(org)} strävar efter att säkerställa tillgängligheten i busstidtabellstjänsten i ${esc(cityName())}
+        i enlighet med lagen om tillhandahållande av digitala tjänster (306/2019).${a.date ? ` Detta utlåtande har utarbetats eller uppdaterats ${esc(a.date)}.` : ""}</p>
+      <h2>Tillgänglighetsstatus</h2>
+      <p>${statusText}</p>
+      ${method ? `<p>${esc(method)}</p>` : ""}
+      ${defs.length ? `<h2>Innehåll som inte är tillgängligt</h2><ul>${defs.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
+      <h2>Respons och kontaktuppgifter</h2>
+      <p>Har du upptäckt en tillgänglighetsbrist? Meddela oss${feedback.length ? " " + feedback.join(" eller ") : ""}.
+        ${org ? `Responsen besvaras av ${esc(org)}.` : ""}</p>
+      <h2>Tillsynsmyndighet</h2>
+      <p>Om du inte är nöjd med svaret eller inte får något svar alls inom två veckor, kan du göra en
+        anmälan till tillsynsmyndigheten. Tillsynsmyndighetens kontaktuppgifter:</p>
+      <p>Transport- och kommunikationsverket Traficom, Tillgänglighetstillsyn<br>
+        Webbplats: <a href="https://www.tillganglighetskrav.fi" target="_blank" rel="noopener">tillganglighetskrav.fi</a><br>
+        E-post: <a href="mailto:tillganglighet@traficom.fi">tillganglighet@traficom.fi</a><br>
+        Telefonväxel: 029 534 5000</p>
     </div>`);
 }
 
@@ -18452,6 +18552,21 @@ function corridorTableHtml(group, keyStops) {
 
 const REPRINT_VER = 1;
 function reprintKey() { return "reprintBase:" + cityKey; }
+// Oma käytävä (Inkoon 192+192M: kaupungilla ei ole käytäväpresettiä, mutta käsin koottu yhdistetty
+// suunta-aikataulu painetaan). Tunnus "corr:m:192+192M" kantaa linjat itsessään, joten sama yksikkö
+// toimii toisella koneella palvelinsynkronoinnin jälkeen ja päivittäisessä uusintapainatusvahdissa.
+function reprintManualCorridor(id) {
+  if (!String(id).startsWith("corr:m:")) return null;
+  const lines = String(id).slice(7).split("+").map(x => decodeURIComponent(x)).filter(Boolean);
+  return lines.length >= 2 ? { key: String(id).slice(5), lines, name: lines.join(" + ") } : null;
+}
+function reprintManualId(lines) { return "corr:m:" + lines.map(x => encodeURIComponent(String(x).trim())).join("+"); }
+function reprintManualKey() { return "reprintManual:" + cityKey; }
+function reprintManualLoad() {
+  try { const a = JSON.parse(localStorage.getItem(reprintManualKey()) || "[]"); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+function reprintManualSave(ids) { try { localStorage.setItem(reprintManualKey(), JSON.stringify([...new Set(ids)].slice(0, 30))); } catch (e) {} }
 function reprintLoad() {
   try { const o = JSON.parse(localStorage.getItem(reprintKey()) || "{}"); return (o && typeof o === "object") ? o : {}; }
   catch (e) { return {}; }
@@ -18721,8 +18836,11 @@ async function bindReprintTab(routes, today) {
   const base = reprintLoad();
 
   // Seurattava yksikkö = painettava arkki: linjatuloste tai käytävätuloste.
+  const manualIds = [...new Set([...Object.keys(base).filter(k => k.startsWith("corr:m:")), ...reprintManualLoad()])];
   const units = [
     ...(CONFIG.corridors || []).map(c => ({ id: "corr:" + c.key, kind: "corridor", cfg: c, label: corridorName(c) })),
+    ...manualIds.map(id => ({ id, cfg: reprintManualCorridor(id) })).filter(u => u.cfg)
+      .map(u => ({ ...u, kind: "corridor", label: t("reprintManualLabel", { lines: u.cfg.name }) })),
     ...routes.map(r => ({ id: r.gtfsId, kind: "line", route: r, label: `${r.shortName || ""} ${r.longName || ""}`.trim() })),
   ];
   const tracked = u => !!base[u.id];
@@ -18753,6 +18871,14 @@ async function bindReprintTab(routes, today) {
         <ul class="plain" id="rpTracked">${trackedUnits.map(unitRow).join("")}</ul>` :
         `<p class="muted">${t("reprintNoBaseline")}</p>`}
       <h3>${t("reprintAddMore")}</h3>
+      <div class="field">
+        <label for="rpManual">${t("reprintManualAdd")}</label>
+        <div class="row" style="flex-wrap:wrap;gap:0.4rem">
+          <input type="text" id="rpManual" placeholder="${esc(t("reprintManualPh"))}" autocomplete="off">
+          <button type="button" id="rpManualBtn" class="secondary">${t("reprintManualBtn")}</button>
+        </div>
+        <p class="muted" id="rpManualMsg" role="status"></p>
+      </div>
       <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
         <input type="search" id="rpFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
       </div>
@@ -18763,6 +18889,27 @@ async function bindReprintTab(routes, today) {
   document.getElementById("rpSrvSave")?.addEventListener("click", () => {
     reprintSrvSetKey(document.getElementById("rpSrvKey").value.trim());
     bindReprintTab(routes, today);   // sama välilehti uudelleen: synkronointi ajetaan heti uudella avaimella
+  });
+
+  document.getElementById("rpManualBtn").addEventListener("click", () => {
+    const msg = document.getElementById("rpManualMsg");
+    const want = document.getElementById("rpManual").value.split(/[,+\s]+/).map(x => x.trim()).filter(Boolean);
+    const known = new Set(routes.map(r => String(r.shortName || "").toUpperCase()));
+    const lines = [...new Set(want.map(x => x.toUpperCase()))];
+    const unknown = lines.filter(x => !known.has(x));
+    if (lines.length < 2 || unknown.length) {
+      msg.textContent = unknown.length ? t("reprintManualUnknown", { lines: unknown.join(", ") }) : t("reprintManualNeed2");
+      return;
+    }
+    // Linjan tunnus kirjoitetaan kuten reittilistassa (192M eikä 192m).
+    const canon = lines.map(x => routes.find(r => String(r.shortName || "").toUpperCase() === x).shortName);
+    const id = reprintManualId(canon);
+    reprintManualSave([...reprintManualLoad(), id]);
+    bindReprintTab(routes, today);
+    setTimeout(() => {
+      const cb = [...document.querySelectorAll(".rpCb")].find(c => c.value === id);
+      if (cb) { cb.checked = true; cb.closest("li")?.scrollIntoView({ block: "center" }); }
+    }, 0);
   });
 
   document.getElementById("rpFilter").addEventListener("input", e => {
