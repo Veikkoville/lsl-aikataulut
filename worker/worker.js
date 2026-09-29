@@ -24,6 +24,9 @@ const ALLOWED_ORIGINS = new Set([
   "https://demo.reittari.fi",
   "http://localhost:8000",
   "http://127.0.0.1:8000",
+  // Henkilöstönäkymä omassa osoitteessa Cloudflare Accessin takana (index.html STAFF_HOSTS).
+  "https://reittari-henkilosto.pages.dev",
+  "https://henkilosto.reittari.fi",
 ]);
 
 // CMS-häiriötiedotteiden lähde (WordPress REST). Vain sallitut hostit, ettei
@@ -421,12 +424,29 @@ export async function verifyAccessJwt(token, aud, teamDomain, nowMs) {
   return payload;
 }
 
+// Cloudflare Accessin identiteetti (esim. kunnan Entra ID) -> kaupunki. ADMIN_ACCESS_CITY_MAP on JSON
+// {"inkoo.fi": "inkoo", "inga.fi": "inkoo"} (sähköpostin verkkotunnus pienellä) ja ADMIN_ACCESS_SUPERUSERS
+// pilkuin eroteltu lista sähköposteja, joilla on kaikki kaupungit. Ilman karttaa vanha käytös: Access = "*".
+// Kartan kanssa tuntematon verkkotunnus ei saa oikeuksia (null), vaikka Access päästi sen läpi.
+export function accessScope(payload, env) {
+  if (!env.ADMIN_ACCESS_CITY_MAP) return "*";
+  let map = {};
+  try { map = JSON.parse(env.ADMIN_ACCESS_CITY_MAP) || {}; } catch (e) { map = {}; }
+  const email = String((payload && payload.email) || "").trim().toLowerCase();
+  if (!email) return null;
+  const supers = String(env.ADMIN_ACCESS_SUPERUSERS || "").toLowerCase().split(",").map(x => x.trim()).filter(Boolean);
+  if (supers.includes(email)) return "*";
+  const domain = email.split("@")[1] || "";
+  return Object.prototype.hasOwnProperty.call(map, domain) && typeof map[domain] === "string" ? normAdminCity(map[domain]) : null;
+}
+
 // Istunnon rajaus: "*", kaupunkiavain tai null. Istunto ilman scope-kenttää on luotu
 // ADMIN_PASSWORDilla (ennen kaupunkitunnuksia), joten se on "*".
 async function adminScope(request, env) {
   if (env.ADMIN_ACCESS_AUD && env.ADMIN_ACCESS_TEAM_DOMAIN) {
     const jwt = request.headers.get("Cf-Access-Jwt-Assertion");
-    if (jwt && (await verifyAccessJwt(jwt, env.ADMIN_ACCESS_AUD, env.ADMIN_ACCESS_TEAM_DOMAIN))) return "*";
+    const pl = jwt ? await verifyAccessJwt(jwt, env.ADMIN_ACCESS_AUD, env.ADMIN_ACCESS_TEAM_DOMAIN) : null;
+    if (pl) { const sc = accessScope(pl, env); if (sc) return sc; }
   }
   if (!env.ADMIN_SESSION_SECRET) return null;
   const s = await verifySession(parseCookies(request)["admin_session"], env.ADMIN_SESSION_SECRET);
