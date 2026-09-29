@@ -2130,6 +2130,8 @@ async function minuuttiLinjaus(page, rootSel, media) {
   // Kaupungin vihkon malli, painovalmis kapea vihko (Lappeenranta 100 x 200 mm, 28.9.2026). Rakenne:
   // sivumäärä neljällä jaollinen, ei leikkautuvaa sisältöä, kansi ja takakansi, kaupungin omien sivujen
   // paikat, ja sisällysluettelon sivunumero osuu sivulle, jolla linja oikeasti alkaa. Kaupunki palautetaan.
+  // Linjastokartat (29.9.2026): paikallisliikenteen (1, 4, 8) ja Imatran (21, 22) kartat piirretään kaistoina
+  // (maplibre-gl-lanes-ydin, g.pm-lanes). Varapiirto (vanha sääntö, g.pm-par tai data-lanes-error) on virhe eikä kelpaa.
   {
     const prevCity = await page.evaluate(() => cityKey);
     await page.goto(BASE + "/?city=lappeenranta#/tulosteet/vihko", { waitUntil: "networkidle2" });
@@ -2139,7 +2141,7 @@ async function minuuttiLinjaus(page, rootSel, media) {
         window.__vnRp = window.print; window.__vnPrinted = false; window.print = () => { window.__vnPrinted = true; };
         document.getElementById("bookletLayout").value = "city";
         document.querySelectorAll(".lineCb").forEach(c => {
-          c.checked = ["1", "21", "300"].includes(c.closest("li").querySelector(".badge")?.textContent.trim());
+          c.checked = ["1", "4", "8", "21", "22", "300"].includes(c.closest("li").querySelector(".badge")?.textContent.trim());
         });
         document.getElementById("buildBtn").click();
       });
@@ -2159,9 +2161,16 @@ async function minuuttiLinjaus(page, rootSel, media) {
               const label = tr.cells[0]?.textContent.trim() || "", n = parseInt(tr.cells[1]?.textContent, 10);
               if (/^\d/.test(label)) toc.push({ label, n, osuu: !!pages[n - 1] && pages[n - 1].textContent.replace(/\s+/g, " ").includes(label.replace(/^\S+\s+/, "")) });
             }
+          // Linjastokarttasivut: kaistojen määrä kuvittain, varapiirto ja keskustan suurennos.
+          const kartat = pages.filter(p => p.classList.contains("vk-np-map")).map(p => ({
+            otsikko: p.querySelector(".vk-h2")?.textContent || "",
+            kaistat: [...p.querySelectorAll(".vk-netmap figure.print-map > svg")].map(s => +(s.querySelector("g.pm-lanes")?.getAttribute("data-lanes") || 0)),
+            vara: p.querySelectorAll(".vk-netmap g.pm-par, .vk-netmap [data-lanes-error]").length,
+            suurennos: p.querySelectorAll(".vk-netinset figure.print-map > svg > g.pm-lanes").length,
+            alue: p.querySelectorAll(".vk-netmain .pm-inset-area").length }));
           const res = { sivuja: pages.length, kansi: kind("cover"), taka: kind("back"), kaupunki: kind("city"),
             leikkautuu: clipped, toc, koko: pages[0]?.style.width + " " + pages[0]?.style.height,
-            page: document.getElementById("pageOrient")?.textContent || "" };
+            page: document.getElementById("pageOrient")?.textContent || "", kartat };
           w.remove(); document.body.classList.remove("vihko-printing");
           return res;
         });
@@ -2191,6 +2200,12 @@ async function minuuttiLinjaus(page, rootSel, media) {
       && vn.a4?.tila === "a4" && vn.a4.arkkeja * 2 === vn.sivuja && /297mm 210mm/.test(vn.a4.page))
       ? ok(`kapea vihko: ${vn.sivuja} sivua 100 x 200 mm, 0 leikkautuu, 13 kaupungin sivun paikkaa, sisällysluettelo osuu (${vn.toc.length} linjaa); painotalolle ${vn.bleed.arkkeja} arkkia 116 x 216 mm leikkuumerkein, A4-arkitus ${vn.a4.arkkeja} arkkia`)
       : fail("kapea vihko: rakenne pielessä: " + JSON.stringify(vn));
+    const km = vn && !vn.puuttuu ? vn.kartat || [] : [];
+    const lprKartta = km.find(k => /Lappeenrannan paikallisliikenne/.test(k.otsikko)), imaKartta = km.find(k => /Imatran/.test(k.otsikko));
+    (lprKartta && imaKartta && km.every(k => k.vara === 0 && k.kaistat.length > 0 && k.kaistat.every(n => n > 0))
+      && lprKartta.kaistat.length === 2 && lprKartta.suurennos === 1 && lprKartta.alue === 1 && imaKartta.kaistat.length === 1)
+      ? ok(`kapea vihko: linjastokartat kaistoina (${km.map(k => k.kaistat.join("+")).join(", ")} kaistapolkua), paikallisliikenteen sivulla keskustan suurennos ja sen alue, ei varapiirtoa`)
+      : fail("kapea vihko: linjastokartan kaistat pielessä tai varapiirto: " + JSON.stringify(km));
     await page.goto(BASE + "/?city=" + (prevCity || "lahti") + "#/", { waitUntil: "networkidle2" });
   }
 
