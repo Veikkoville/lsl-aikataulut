@@ -28,6 +28,10 @@
 //
 // Sama lähtöjen poimintasääntö kuin julisteessa (stopPosterBlocks): pelkkä jättö
 // (pickupType NONE) ja vuoron viimeinen pysäkki eivät ole lähtöjä.
+//
+// Aluerajatut kaupungit (CONFIG.areaScoped, Inkoo): feed on koko maan syöte, joten pysäkit
+// rajataan kunnan alueeseen (ks. areaSelection). Muiden kaupunkien pysäkkijoukko on ennallaan:
+// feedin linjojen patternien pysäkit.
 
 const fs = require("fs");
 const path = require("path");
@@ -234,9 +238,67 @@ function classifyNear(n1, n2, f1, f2, prev) {
   return { base: n2, poikkeus: "near" };
 }
 
+// --- Aluerajaus (CONFIG.areaScoped) ---
+// Valtakunnallinen feed (Inkoossa MATKA, koko Suomi) ei rajaa kuntaa: "feedin linjojen pysäkit" olisi koko
+// maa. Pysäkkijoukko = kaikki kunnan alueen (index.html: inMunicipality, area.rect + area.polygon) oman feedin
+// tai lisäfeedin (extraFeeds, esim. lossi) pysäkit, joilla on vähintään yksi CONFIG.modes-kulkutavan linja;
+// lähdöttömät putoavat myöhemmin kuten muissakin kaupungeissa. Julisteen voi tulostaa jokaiselle kunnan
+// pysäkille, joten linjalistan vähimmäispysäkkisääntö (area.minStops, sovelluksen areaRouteIds) EI rajaa tätä
+// joukkoa: Inkoossa se pudottaisi tien 25 kuusi pysäkkiä (linjat 112, 115, 291), joilla on lähtöjä (päätös
+// 29.9.2026: ylimääräinen pysäkki maksaa vähemmän kuin puuttuva). Junapysäkit eivät ole mukana (junat eivät
+// ole pysäkkijulisteella), eivätkä kunnan ulkopuoliset pysäkit (linjan 192 pysäkit Helsingissä). Toisin kuin
+// sovellus, tyhjä joukko ei palaa pelkkään suorakaiteeseen vaan heittää: vahti ei saa raportoida väärää
+// pysäkkijoukkoa ehjänä.
+
+// Ray casting, kopio index.html:n pointInRing-funktiosta. ring = [[lon, lat], ...].
+function pointInRing(lat, lon, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if ((yi > lat) !== (yj > lat) && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+// Sovelluksen inMunicipality: suorakaide (area.rect) ja kunnan raja (area.polygon).
+function inMunicipality(lat, lon, area) {
+  if (lat == null || lon == null) return false;
+  const r = area?.rect;
+  if (r && !(lat >= r.minLat && lat <= r.maxLat && lon >= r.minLon && lon <= r.maxLon)) return false;
+  return !area?.polygon || pointInRing(lat, lon, area.polygon);
+}
+
+// bboxStops = stopsByBbox-vastaus (gtfsId name code lat lon routes { gtfsId mode }), feed = oma feedId.
+// Palauttaa { routeIds, stops }: stops = [{ id, name, code }] id-järjestyksessä, routeIds = valittujen pysäkkien
+// linjat (vain lokiin). Puhdas funktio (yksikkötesti).
+function areaSelection(bboxStops, cfg, feed) {
+  const area = cfg.area || {};
+  const inCityFeed = id => String(id).startsWith(feed + ":") || (cfg.extraFeeds || []).some(f => String(id).startsWith(f + ":"));
+  const modes = cfg.modes || ["BUS"];
+  const chosen = (bboxStops || []).filter(s => inCityFeed(s.gtfsId) && inMunicipality(s.lat, s.lon, area) &&
+    (s.routes || []).some(x => modes.includes(x.mode)));
+  const routeIds = [...new Set(chosen.flatMap(s => (s.routes || []).filter(x => modes.includes(x.mode)).map(x => x.gtfsId)))].sort();
+  const stops = chosen.map(s => ({ id: s.gtfsId, name: s.name, code: s.code || "" }))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return { routeIds, stops };
+}
+
+// Kunnan pysäkit yhdellä bbox-kyselyllä (Inkoo 29.9.2026: 360 pysäkkiä suorakaiteessa, 169 kt linjoineen, 1,3 s).
+async function areaStops(key, cfg, feed, router) {
+  const r = cfg.area?.rect;
+  if (!r) throw new Error("areaScoped ilman area.rect-rajausta");
+  const box = await gql(`query ($minLat: Float!, $minLon: Float!, $maxLat: Float!, $maxLon: Float!) {
+      stopsByBbox(minLat: $minLat, minLon: $minLon, maxLat: $maxLat, maxLon: $maxLon) {
+        gtfsId name code lat lon routes { gtfsId mode } } }`,
+    { minLat: r.minLat, minLon: r.minLon, maxLat: r.maxLat, maxLon: r.maxLon }, router);
+  const sel = areaSelection(box.stopsByBbox, cfg, feed);
+  if (!sel.stops.length) throw new Error(`aluerajaus tyhjä: ${(box.stopsByBbox || []).length} pysäkkiä suorakaiteessa, 0 kunnan alueella`);
+  console.log(`INFO [${key}] aluerajaus: ${sel.stops.length} pysäkkiä kunnan alueella, ${sel.routeIds.length} linjaobjektia (${(box.stopsByBbox || []).length} pysäkkiä suorakaiteessa)`);
+  return new Map(sel.stops.map(s => [s.id, s]));
+}
+
 async function runCity(key, cfg, feedsByRouter) {
   const router = cfg.router || "waltti";
-  if (cfg.areaScoped) return { key, skipped: "areaScoped-feed (koko maan syöte) ei ole vielä tuettu" };
   if (!feedsByRouter[router]) {
     const fd = await gql(`{ feeds { feedId } }`, undefined, router);
     feedsByRouter[router] = (fd.feeds || []).map(f => f.feedId);
@@ -245,10 +307,13 @@ async function runCity(key, cfg, feedsByRouter) {
   if (!feed) throw new Error(`feedMatch ei osu (router ${router})`);
 
   // Kaupungin pysäkit = linjojen patternien pysäkit (juuri ne joilla on juliste).
-  const rd = await gql(`query ($feeds: [String]) { routes(feeds: $feeds) { shortName patterns { stops { gtfsId name code } } } }`, { feeds: [feed] });
-  const stops = new Map();
-  for (const r of (rd.routes || [])) for (const p of (r.patterns || [])) for (const s of (p.stops || []))
-    if (!stops.has(s.gtfsId)) stops.set(s.gtfsId, { id: s.gtfsId, name: s.name, code: s.code || "" });
+  // areaScoped: feed on koko maan syöte, joten pysäkit rajataan kuntaan (areaStops).
+  const stops = cfg.areaScoped ? await areaStops(key, cfg, feed, router) : new Map();
+  if (!cfg.areaScoped) {
+    const rd = await gql(`query ($feeds: [String]) { routes(feeds: $feeds) { shortName patterns { stops { gtfsId name code } } } }`, { feeds: [feed] });
+    for (const r of (rd.routes || [])) for (const p of (r.patterns || [])) for (const s of (p.stops || []))
+      if (!stops.has(s.gtfsId)) stops.set(s.gtfsId, { id: s.gtfsId, name: s.name, code: s.code || "" });
+  }
   const ids = [...stops.keys()].sort();
   await sleep(QUERY_GAP_MS);
 
@@ -319,7 +384,7 @@ async function runCity(key, cfg, feedsByRouter) {
   return { key, ...report.yhteenveto };
 }
 
-module.exports = { classifyNear, firstChangeDay, addDays };
+module.exports = { classifyNear, firstChangeDay, addDays, pointInRing, inMunicipality, areaSelection, extractConfigs };
 
 if (require.main === module) (async () => {
   const configs = extractConfigs();

@@ -1,6 +1,7 @@
-// Muutosvahdin luokittelun yksikkötestit (ei verkkoa): lähiviikkojen tulkinta ja pysäkin muutospäivä.
+// Muutosvahdin luokittelun yksikkötestit (ei verkkoa): lähiviikkojen tulkinta, pysäkin muutospäivä ja
+// aluerajatun kaupungin (areaScoped) pysäkkijoukko.
 // Ajo: node tests/muutosvahti-luokittelu.test.js   (osa npm testiä)
-const { classifyNear, firstChangeDay, addDays } = require("./muutosvahti.js");
+const { classifyNear, firstChangeDay, addDays, areaSelection, inMunicipality, extractConfigs } = require("./muutosvahti.js");
 
 let ok = 0, fail = 0;
 function tarkista(nimi, saatu, odotettu) {
@@ -61,6 +62,49 @@ tarkista("Kaukoviikko ei vakaa (2.11. eri kuin 9.11.) -> null",
   firstChangeDay(paivat((d, w) => (d >= "2026-11-09" ? "x-" : d >= "2026-11-02" ? "uusi-" : "vanha-") + laji(w)), VANHA, UUSI, UUSI2), null);
 tarkista("Ei muutosta -> null",
   firstChangeDay(paivat((d, w) => "vanha-" + laji(w)), VANHA, UUSI, UUSI2), null);
+
+// --- Aluerajaus (areaScoped): kaikki kunnan alueen oman feedin ja lisäfeedin pysäkit (sovelluksen
+// inMunicipality), joilla on CONFIG.modes-linja. Linjalistan minStops ei rajaa pysäkkejä (päätös 29.9.2026).
+// Kunta = neliö lon 0-10, lat 0-10; suorakaide ulottuu sen yli kuten Inkoossa naapurikuntiin.
+const alue = { rect: { minLat: -5, maxLat: 20, minLon: -5, maxLon: 20 },
+  polygon: [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], minStops: 3 };
+const alueCfg = { area: alue, extraFeeds: ["LOSSI"], modes: ["BUS", "FERRY"] };
+const pys = (id, lat, lon, ...linjat) => ({ gtfsId: id, name: id, code: "", lat, lon,
+  routes: linjat.map(l => ({ gtfsId: l.split("/")[0], mode: l.split("/")[1] || "BUS" })) });
+const bbox = [
+  pys("F:a", 5, 5, "F:1", "F:9"), pys("F:b", 6, 6, "F:1"), pys("F:c", 7, 7, "F:1", "X:2"),
+  pys("F:g", 3, 3, "F:9"),                       // vain läpikulkulinja (2 pysäkkiä kunnassa < minStops): mukana
+  pys("F:e", 15, 15, "F:1", "F:9"),              // suorakaiteessa mutta kunnan ulkopuolella
+  pys("X:d", 4, 4, "X:2"), pys("X:k", 1, 1, "X:2"), // toisen feedin pysäkit
+  pys("LOSSI:f", 8, 8, "LOSSI:1/FERRY"),         // lisäfeedin lossilaituri
+  pys("F:h", 2, 2, "F:5/RAIL"), pys("F:i", 2, 3, "F:5/RAIL"), pys("F:j", 2, 4, "F:5/RAIL"), // junapysäkit
+  pys("F:m", 2, 6),                              // ei linjoja
+  pys("F:n", null, null, "F:1"),                 // ei koordinaatteja
+];
+const valinta = areaSelection(bbox, alueCfg, "F");
+tarkista("Aluerajaus: pysäkit = kunnan alueella, oma feed tai lisäfeed, vähintään yksi bussi- tai lossilinja",
+  valinta.stops.map(s => s.id), ["F:a", "F:b", "F:c", "F:g", "LOSSI:f"]);
+tarkista("Aluerajaus: läpikulkulinjan pysäkki mukana, minStops ei rajaa (minStops 100 -> sama joukko)",
+  areaSelection(bbox, { ...alueCfg, area: { ...alue, minStops: 100 } }, "F").stops.map(s => s.id), ["F:a", "F:b", "F:c", "F:g", "LOSSI:f"]);
+tarkista("Aluerajaus: lokin linjat = valittujen pysäkkien bussi- ja lossilinjat",
+  valinta.routeIds, ["F:1", "F:9", "LOSSI:1", "X:2"]);
+tarkista("Aluerajaus: oletuskulkutapa BUS pudottaa lossilaiturin",
+  areaSelection(bbox, { area: alue, extraFeeds: ["LOSSI"] }, "F").stops.map(s => s.id), ["F:a", "F:b", "F:c", "F:g"]);
+tarkista("Aluerajaus: ilman polygonia pelkkä suorakaide (pysäkki e mukaan)",
+  areaSelection(bbox, { area: { rect: alue.rect } }, "F").stops.map(s => s.id), ["F:a", "F:b", "F:c", "F:e", "F:g"]);
+
+// Inkoon oikea CONFIG index.html:stä: rajaus ei saa kadota hiljaa (vahti laajenisi naapurikuntiin).
+const inkoo = extractConfigs().inkoo;
+tarkista("Inkoon CONFIG: areaScoped, rect ja polygon",
+  [!!inkoo?.areaScoped, !!inkoo?.area?.rect, (inkoo?.area?.polygon || []).length > 100], [true, true, true]);
+const r = inkoo.area.rect;
+const suorakaiteessa = (lat, lon) => lat >= r.minLat && lat <= r.maxLat && lon >= r.minLon && lon <= r.maxLon;
+tarkista("Inkoo: pysäkki Inkoo (MATKA:358159) on kunnassa", inMunicipality(60.042697, 24.006211, inkoo.area), true);
+tarkista("Inkoo: Siuntio matkahuolto on suorakaiteessa mutta ei kunnassa",
+  [suorakaiteessa(60.1385451, 24.2252726), inMunicipality(60.1385451, 24.2252726, inkoo.area)], [true, false]);
+tarkista("Inkoo: Kamppi (Helsinki) ei ole kunnassa", inMunicipality(60.1690, 24.9316, inkoo.area), false);
+tarkista("Inkoo: tien 25 pysäkit Svartå vs V ja Salo-Inkoo-liittymä L ovat kunnassa",
+  [inMunicipality(60.134422, 23.8682159, inkoo.area), inMunicipality(60.132644, 23.853085, inkoo.area)], [true, true]);
 
 console.log(`\nmuutosvahdin luokittelu: ${ok} OK, ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

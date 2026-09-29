@@ -135,7 +135,15 @@
    "muuttunut": 46,
    "poikkeus": 22,
    "voimaan": "2026-11-02"
+  },
+  "inkoo": {
+   "ajettu": "2026-09-29T14:58:23.669Z",
+   "pysakkeja": 155,
+   "tulossa": 0,
+   "muuttunut": 0,
+   "poikkeus": 152,
+   "voimaan": null
   }
  },
- "ajettu": "2026-09-27T22:14:06.676Z"
+ "ajettu": "2026-09-29T14:58:31.676Z"
 }
