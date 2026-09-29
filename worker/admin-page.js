@@ -182,6 +182,13 @@ export const ADMIN_HTML = `<!doctype html>
         <textarea id="aMethod" maxlength="600" placeholder="Esim. itsearvio automaattisilla työkaluilla (axe-core, Lighthouse) sekä näppäimistö- ja ruudunlukijatarkistuksin."></textarea>
         <label for="aDefs">Tunnetut puutteet (yksi per rivi)</label>
         <textarea id="aDefs" placeholder="Kartat ovat luonteeltaan visuaalisia; sama tieto on tekstimuodossa.&#10;Liikennöitsijän häiriötiedotteiden tekstisisältöön ei voida vaikuttaa."></textarea>
+        <p class="muted" style="margin-top:0.8rem">Ruotsinkielinen seloste (kaksikielinen kunta, valinn.). Tyhjä kenttä näyttää ruotsinkielisessä näkymässä suomenkielisen tekstin.</p>
+        <label for="aOrgSv">Julkaiseva organisaatio ruotsiksi</label>
+        <input type="text" id="aOrgSv" placeholder="Esim. Ingå kommun">
+        <label for="aMethodSv">Arviointitapa ruotsiksi</label>
+        <textarea id="aMethodSv" maxlength="600"></textarea>
+        <label for="aDefsSv">Tunnetut puutteet ruotsiksi (yksi per rivi)</label>
+        <textarea id="aDefsSv"></textarea>
         <div class="msg" id="a11yMsg"></div>
         <p><button type="submit">Julkaise seloste</button></p>
       </form>
@@ -419,6 +426,7 @@ async function loadA11y(){
   $("aOrg").value=a.orgName||""; $("aDate").value=a.date||""; $("aStatus").value=a.status||"partial";
   $("aEmail").value=a.feedbackEmail||""; $("aUrl").value=a.feedbackUrl||""; $("aMethod").value=a.method||"";
   $("aDefs").value=(a.deficiencies||[]).join("\\n");
+  $("aOrgSv").value=a.orgNameSv||""; $("aMethodSv").value=a.methodSv||""; $("aDefsSv").value=(a.deficienciesSv||[]).join("\\n");
 }
 $("a11yForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -427,6 +435,8 @@ $("a11yForm").addEventListener("submit", async e => {
     orgName: $("aOrg").value.trim(), date: $("aDate").value.trim(), status: $("aStatus").value,
     feedbackEmail: $("aEmail").value.trim(), feedbackUrl: $("aUrl").value.trim(), method: $("aMethod").value.trim(),
     deficiencies: $("aDefs").value.split("\\n").map(s=>s.trim()).filter(Boolean),
+    orgNameSv: $("aOrgSv").value.trim(), methodSv: $("aMethodSv").value.trim(),
+    deficienciesSv: $("aDefsSv").value.split("\\n").map(s=>s.trim()).filter(Boolean),
   };
   if (!payload.orgName){ msg($("a11yMsg"),"Julkaiseva organisaatio on pakollinen.",false); return; }
   const r = await api("/admin/api/a11y", { method:"POST", body: JSON.stringify(payload) });

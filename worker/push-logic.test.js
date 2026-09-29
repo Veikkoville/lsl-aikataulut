@@ -407,6 +407,11 @@ const a11 = buildAdminA11y({ orgName: "Lahden kaupunki", date: "17.6.2026", stat
 check(a11.orgName === "Lahden kaupunki" && a11.status === "partial", "a11y: kentät kootaan");
 check(a11.deficiencies.length === 2, "a11y: tyhjät puuterivit pudotetaan");
 check(buildAdminA11y({ orgName: "x", status: "OUTO" }).rec.status === "partial", "a11y: tuntematon status → partial");
+const a11sv = buildAdminA11y({ orgName: "Inkoon kunta", orgNameSv: "Ingå kommun", methodSv: "Självutvärdering",
+  deficienciesSv: ["Kartorna är visuella", " ", "x".repeat(900)] }).rec;
+check(a11sv.orgNameSv === "Ingå kommun" && a11sv.methodSv === "Självutvärdering" && a11sv.deficienciesSv.length === 2
+  && a11sv.deficienciesSv[1].length === 400, "a11y: ruotsinkieliset kentät kootaan ja rajataan");
+check(buildAdminA11y({ orgName: "x" }).rec.deficienciesSv.length === 0, "a11y: ilman ruotsia tyhjät sv-kentät");
 
 // reittien läpi: tallenna → /published
 const a11ySave = await worker.fetch(req("/admin/api/a11y", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" },
