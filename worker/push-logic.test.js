@@ -3,7 +3,8 @@
 // Aja: node push-logic.test.js
 import worker, { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText, htmlToText, buildFeedbackRecord,
   constantTimeEqual, signSession, verifySession, verifyAccessJwt, buildAdminAlert, currentAdminAlerts, buildAdminFares,
-  buildAdminA11y, buildTrackEvent, buildStatsSql, isAnalyticsClient, quotaGate, RATE_MAX } from "./worker.js";
+  buildAdminA11y, buildTrackEvent, buildStatsSql, isAnalyticsClient, quotaGate, RATE_MAX,
+  adminScopeAllows, resolveAdminLogin } from "./worker.js";
 import { readFileSync } from "node:fs";
 
 let fail = 0;
@@ -321,6 +322,59 @@ check(tampered.status === 403, "admin: peukaloitu eväste → 403");
   // salasanaistunto toimii yhä Accessin ollessa käytössä (rinnakkain, ei korvaa)
   const sessViaCookie = await (await worker.fetch(req("/admin/api/session", { headers: { Cookie: cookie } }), accessEnv)).json();
   check(sessViaCookie.authed === true, "isAdmin: salasanaistunto toimii yhä kun ADMIN_ACCESS_AUD on asetettu (rinnakkain)");
+}
+
+// --- Ylläpito: kunnan oma tunnus (ADMIN_CITY_PASSWORDS) rajautuu omaan kaupunkiin ---
+{
+  check(adminScopeAllows("*", "lahti") && adminScopeAllows("*", "inkoo"), "scope: pääkäyttäjä hallitsee kaikkia kaupunkeja");
+  check(adminScopeAllows("inkoo", "Inkoo") && !adminScopeAllows("inkoo", "lahti") && !adminScopeAllows("inkoo", undefined),
+    "scope: kunnan tunnus vain omaan kaupunkiin (puuttuva kaupunki = lahti)");
+  check(!adminScopeAllows(null, "inkoo"), "scope: ilman istuntoa ei oikeuksia");
+  const cityEnv = { ...adminEnv, ADMIN_CITY_PASSWORDS: JSON.stringify({ inkoo: "inkoon-pitka-salasana", salo: "lyhyt" }) };
+  check(resolveAdminLogin(cityEnv, "salasana123", "inkoo") === "*", "login: pääsalasana antaa kaikki kaupungit myös kunnan sivulla");
+  check(resolveAdminLogin(cityEnv, "inkoon-pitka-salasana", "inkoo") === "inkoo", "login: kunnan salasana omalla sivulla → oma kaupunki");
+  check(resolveAdminLogin(cityEnv, "inkoon-pitka-salasana", "lahti") === null, "login: kunnan salasana toisen kaupungin sivulla hylätään");
+  check(resolveAdminLogin(cityEnv, "lyhyt", "salo") === null, "login: alle 12 merkin kuntasalasana ei kelpaa");
+  check(resolveAdminLogin({ ...adminEnv, ADMIN_CITY_PASSWORDS: "rikki{" }, "x".repeat(20), "inkoo") === null,
+    "login: rikkinäinen ADMIN_CITY_PASSWORDS ei kaada");
+  check(resolveAdminLogin(cityEnv, "x".repeat(20), "__proto__") === null, "login: prototyyppiavain ei kelpaa kaupungiksi");
+
+  const ip = { "CF-Connecting-IP": "198.51.100.77" };   // oma IP, ettei jaa muiden testien kirjautumislaskuria
+  const inkLogin = await worker.fetch(req("/admin/login", { method: "POST", headers: ip,
+    body: JSON.stringify({ password: "inkoon-pitka-salasana", city: "inkoo" }) }), cityEnv);
+  const inkCookie = cookieFrom(inkLogin);
+  check(inkLogin.status === 200 && /^admin_session=/.test(inkCookie), "kuntatunnus: kirjautuminen Inkoon sivulla onnistuu");
+  const H = { Cookie: inkCookie, "Content-Type": "application/json" };
+  const sessInk = await (await worker.fetch(req("/admin/api/session?city=inkoo", { headers: H }), cityEnv)).json();
+  const sessLahti = await (await worker.fetch(req("/admin/api/session?city=lahti", { headers: H }), cityEnv)).json();
+  check(sessInk.authed === true && sessLahti.authed === false, "kuntatunnus: istunto kelpaa Inkoon sivulle mutta ei Lahden");
+  const inkSave = await worker.fetch(req("/admin/api/alerts", { method: "POST", headers: H,
+    body: JSON.stringify({ city: "inkoo", title: "Kamppi-Inkoo myöhässä 20 min", severity: "WARNING" }) }), cityEnv);
+  check(inkSave.status === 200, "kuntatunnus: Inkoon tiedotteen julkaisu onnistuu");
+  const pubInk = await (await worker.fetch(req("/published?city=inkoo"), cityEnv)).json();
+  check(pubInk.alerts.some(a => a.title === "Kamppi-Inkoo myöhässä 20 min"), "kuntatunnus: Inkoon tiedote näkyy /published?city=inkoo");
+  const lahtiBefore = env.PUSH_KV._m.get("admin:alerts:lahti") || null;
+  const cross = [
+    ["GET Lahden tiedotteet", req("/admin/api/alerts?city=lahti", { headers: H })],
+    ["GET ilman kaupunkia (= lahti)", req("/admin/api/alerts", { headers: H })],
+    ["POST Lahden tiedote", req("/admin/api/alerts", { method: "POST", headers: H, body: JSON.stringify({ city: "lahti", title: "x" }) })],
+    ["POST tiedote ilman kaupunkia", req("/admin/api/alerts", { method: "POST", headers: H, body: JSON.stringify({ title: "x" }) })],
+    ["Lahden tiedotteen poisto", req("/admin/api/alerts/delete", { method: "POST", headers: H, body: JSON.stringify({ city: "lahti", id: "a" }) })],
+    ["POST Lahden hinnat", req("/admin/api/fares", { method: "POST", headers: H, body: JSON.stringify({ city: "lahti" }) })],
+    ["POST Lahden seloste", req("/admin/api/a11y", { method: "POST", headers: H, body: JSON.stringify({ city: "lahti", orgName: "x" }) })],
+    ["GET Lahden analytiikka", req("/admin/api/stats?city=lahti", { headers: H })],
+    ["GET Lahden painatusavain", req("/admin/api/reprint/key?city=lahti", { headers: H })],
+    ["POST painatusavain 'la hti'", req("/admin/api/reprint/key", { method: "POST", headers: H, body: JSON.stringify({ city: "la hti" }) })],
+    ["POST Lahden painatusilmoitus", req("/admin/api/reprint/notify", { method: "POST", headers: H, body: JSON.stringify({ city: "lahti", email: "" }) })],
+  ];
+  for (const [name, r] of cross) {
+    const res = await worker.fetch(r, cityEnv);
+    check(res.status === 403, `kuntatunnus: ${name} → 403`);
+  }
+  check((env.PUSH_KV._m.get("admin:alerts:lahti") || null) === lahtiBefore, "kuntatunnus: Lahden tiedotteet ennallaan ristiinyritysten jälkeen");
+  // pääsalasanan istunto (ei scope-kenttää, kuten ennen muutosta luodut) kelpaa kaikkiin kaupunkeihin
+  const mainInk = await (await worker.fetch(req("/admin/api/session?city=inkoo", { headers: { Cookie: cookie } }), cityEnv)).json();
+  check(mainInk.authed === true, "pääkäyttäjä: istunto kelpaa myös Inkoon sivulle");
 }
 
 // --- Ylläpito: hintojen kokoaminen (buildAdminFares) ---

@@ -316,6 +316,30 @@ export function constantTimeEqual(a, b) {
   return r === 0;
 }
 
+// Ylläpidon kaupunkirajaus. ADMIN_PASSWORD ja Cloudflare Access hallitsevat kaikkia kaupunkeja ("*").
+// ADMIN_CITY_PASSWORDS (JSON {"inkoo":"..."}) antaa kunnalle oman tunnuksen, jolla hallitaan vain
+// sen omaa kaupunkia. Normalisointi on sama kuin ADMIN_ALERTS_KEY/ADMIN_FARES_KEY/ADMIN_A11Y_KEY:ssä,
+// joten oikeus tarkistetaan täsmälleen sillä avaimella, jolla tieto tallennetaan.
+export const normAdminCity = c => String(c || "lahti").toLowerCase().slice(0, 30);
+const CITY_PASSWORD_MIN = 12;
+
+export function adminScopeAllows(scope, city) {
+  if (!scope) return false;
+  return scope === "*" || scope === normAdminCity(city);
+}
+
+// Kirjautumisen rajaus salasanan perusteella: "*", kaupunkiavain tai null (väärä salasana).
+export function resolveAdminLogin(env, password, city) {
+  const pw = String(password || "");
+  if (env.ADMIN_PASSWORD && constantTimeEqual(pw, env.ADMIN_PASSWORD)) return "*";
+  let map = {};
+  try { map = JSON.parse(env.ADMIN_CITY_PASSWORDS || "{}") || {}; } catch (e) { map = {}; }
+  const c = normAdminCity(city);
+  const cityPw = Object.prototype.hasOwnProperty.call(map, c) && typeof map[c] === "string" ? map[c] : "";
+  if (cityPw.length >= CITY_PASSWORD_MIN && constantTimeEqual(pw, cityPw)) return c;
+  return null;
+}
+
 async function hmacKey(secret) {
   return crypto.subtle.importKey("raw", new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
@@ -397,13 +421,22 @@ export async function verifyAccessJwt(token, aud, teamDomain, nowMs) {
   return payload;
 }
 
-async function isAdmin(request, env) {
+// Istunnon rajaus: "*", kaupunkiavain tai null. Istunto ilman scope-kenttää on luotu
+// ADMIN_PASSWORDilla (ennen kaupunkitunnuksia), joten se on "*".
+async function adminScope(request, env) {
   if (env.ADMIN_ACCESS_AUD && env.ADMIN_ACCESS_TEAM_DOMAIN) {
     const jwt = request.headers.get("Cf-Access-Jwt-Assertion");
-    if (jwt && (await verifyAccessJwt(jwt, env.ADMIN_ACCESS_AUD, env.ADMIN_ACCESS_TEAM_DOMAIN))) return true;
+    if (jwt && (await verifyAccessJwt(jwt, env.ADMIN_ACCESS_AUD, env.ADMIN_ACCESS_TEAM_DOMAIN))) return "*";
   }
-  if (!env.ADMIN_SESSION_SECRET) return false;
-  return !!(await verifySession(parseCookies(request)["admin_session"], env.ADMIN_SESSION_SECRET));
+  if (!env.ADMIN_SESSION_SECRET) return null;
+  const s = await verifySession(parseCookies(request)["admin_session"], env.ADMIN_SESSION_SECRET);
+  if (!s) return null;
+  return typeof s.scope === "string" && s.scope ? s.scope : "*";
+}
+
+// city = kaupunki, jonka tietoihin pyyntö kohdistuu (puuttuva = lahti, kuten tallennuksessa).
+async function isAdmin(request, env, city) {
+  return adminScopeAllows(await adminScope(request, env), city);
 }
 
 function adminJson(obj, status, extraHeaders) {
@@ -445,12 +478,15 @@ async function handleAdminLogin(request, env) {
   if (loginLimited(ip))
     return adminJson({ error: "too_many" }, 429, { "Retry-After": "900" });
   const body = await request.json().catch(() => null);
-  if (!body || !constantTimeEqual(body.password || "", env.ADMIN_PASSWORD)) {
+  const scope = body ? resolveAdminLogin(env, body.password, body.city) : null;
+  if (!scope) {
     loginFailed(ip);
     return adminJson({ error: "invalid" }, 401);
   }
   loginMap.delete(ip);   // onnistunut kirjautuminen nollaa laskurin
-  const token = await signSession({ exp: Math.floor(Date.now() / 1000) + SESSION_TTL }, env.ADMIN_SESSION_SECRET);
+  const payload = { exp: Math.floor(Date.now() / 1000) + SESSION_TTL };
+  if (scope !== "*") payload.scope = scope;
+  const token = await signSession(payload, env.ADMIN_SESSION_SECRET);
   return adminJson({ ok: true }, 200,
     { "Set-Cookie": `admin_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL}` });
 }
@@ -499,15 +535,15 @@ async function readAdminAlerts(env, city) {
 }
 
 async function handleAdminAlertsGet(request, env, url) {
-  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  if (!(await isAdmin(request, env, url.searchParams.get("city")))) return adminJson({ error: "forbidden" }, 403);
   return adminJson({ items: await readAdminAlerts(env, url.searchParams.get("city")) }, 200);
 }
 
 async function handleAdminAlertsSave(request, env) {
-  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
-  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const body = await request.json().catch(() => null);
   const city = (body && body.city) || "lahti";
+  if (!(await isAdmin(request, env, city))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const { rec, error } = buildAdminAlert(body, Math.floor(Date.now() / 1000));
   if (error) return adminJson({ error }, 400);
   const list = await readAdminAlerts(env, city);
@@ -526,10 +562,10 @@ async function handleAdminAlertsSave(request, env) {
 }
 
 async function handleAdminAlertsDelete(request, env) {
-  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
-  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const body = await request.json().catch(() => null);
   const city = (body && body.city) || "lahti";
+  if (!(await isAdmin(request, env, city))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const id = body && String(body.id || "");
   const list = (await readAdminAlerts(env, city)).filter(a => a.id !== id);
   await env.PUSH_KV.put(ADMIN_ALERTS_KEY(city), JSON.stringify(list));
@@ -572,15 +608,15 @@ async function readAdminFares(env, city) {
 }
 
 async function handleAdminFaresGet(request, env, url) {
-  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  if (!(await isAdmin(request, env, url.searchParams.get("city")))) return adminJson({ error: "forbidden" }, 403);
   return adminJson({ fares: await readAdminFares(env, url.searchParams.get("city")) }, 200);
 }
 
 async function handleAdminFaresSave(request, env) {
-  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
-  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const body = await request.json().catch(() => null);
   const city = (body && body.city) || "lahti";
+  if (!(await isAdmin(request, env, city))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const { rec, error } = buildAdminFares(body);
   if (error) return adminJson({ error }, 400);
   await env.PUSH_KV.put(ADMIN_FARES_KEY(city), JSON.stringify(rec));
@@ -621,15 +657,15 @@ async function readAdminA11y(env, city) {
 }
 
 async function handleAdminA11yGet(request, env, url) {
-  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
+  if (!(await isAdmin(request, env, url.searchParams.get("city")))) return adminJson({ error: "forbidden" }, 403);
   return adminJson({ a11y: await readAdminA11y(env, url.searchParams.get("city")) }, 200);
 }
 
 async function handleAdminA11ySave(request, env) {
-  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
-  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const body = await request.json().catch(() => null);
   const city = (body && body.city) || "lahti";
+  if (!(await isAdmin(request, env, city))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const { rec, error } = buildAdminA11y(body);
   if (error) return adminJson({ error }, 400);
   await env.PUSH_KV.put(ADMIN_A11Y_KEY(city), JSON.stringify(rec));
@@ -757,9 +793,9 @@ async function resolveAnalyticsNames(env, feed, lines, stops) {
 }
 
 async function handleAdminStats(request, env, url) {
-  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
-  const dataset = env.AE_DATASET || "lsl_events";
   const city = url.searchParams.get("city") || "lahti";
+  if (!(await isAdmin(request, env, city))) return adminJson({ error: "forbidden" }, 403);
+  const dataset = env.AE_DATASET || "lsl_events";
   const days = url.searchParams.get("days") || "30";
   const r = await aeQuery(env, buildStatsSql(city, dataset, days));
   if (r.error) return adminJson({ error: r.error }, 200); // dashboard näyttää "ei konfiguroitu"
@@ -1416,9 +1452,9 @@ async function reprintKeyOk(env, city, key) {
 /* ---------- Ylläpito: avaimen myöntäminen kaupungille ---------- */
 
 async function handleAdminReprintKeyGet(request, env, url) {
-  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
-  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const city = reprintCityName(url.searchParams.get("city") || "lahti");
+  if (!(await isAdmin(request, env, city))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const raw = await env.PUSH_KV.get(REPRINT_KEY_KEY(city));
   let created = null;
   try { created = raw ? (JSON.parse(raw).created || null) : null; } catch (e) { created = null; }
@@ -1432,11 +1468,11 @@ async function handleAdminReprintKeyGet(request, env, url) {
 }
 
 async function handleAdminReprintKeyCreate(request, env) {
-  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
-  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const body = await request.json().catch(() => null);
   const city = reprintCityName((body && body.city) || "lahti");
   if (!city) return adminJson({ error: "bad_city" }, 400);
+  if (!(await isAdmin(request, env, city))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const key = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "").slice(0, 8);
   await env.PUSH_KV.put(REPRINT_KEY_KEY(city), JSON.stringify({
     hash: await sha256hex(city + ":" + key), created: new Date().toISOString(),
@@ -1572,11 +1608,11 @@ export function buildReprintNotify(body) {
 }
 
 async function handleAdminReprintNotify(request, env) {
-  if (!(await isAdmin(request, env))) return adminJson({ error: "forbidden" }, 403);
-  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const body = await request.json().catch(() => null);
   const { city, email, error } = buildReprintNotify(body);
   if (error) return adminJson({ error }, 400);
+  if (!(await isAdmin(request, env, city))) return adminJson({ error: "forbidden" }, 403);
+  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
   const data = await readReprintData(env, city);
   if (!data) return adminJson({ error: "no_baseline" }, 404);
   if (!email) {
@@ -1687,7 +1723,7 @@ export default {
     if (url.pathname === "/admin/logout" && request.method === "POST")
       return handleAdminLogout();
     if (url.pathname === "/admin/api/session" && request.method === "GET")
-      return adminJson({ authed: await isAdmin(request, env) }, 200);
+      return adminJson({ authed: await isAdmin(request, env, url.searchParams.get("city")) }, 200);
     if (url.pathname === "/admin/api/alerts" && request.method === "GET")
       return handleAdminAlertsGet(request, env, url);
     if (url.pathname === "/admin/api/alerts" && request.method === "POST")
