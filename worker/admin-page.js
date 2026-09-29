@@ -54,7 +54,7 @@ export const ADMIN_HTML = `<!doctype html>
 </head>
 <body>
 <header>
-  <h1>Aikataulupalvelu · Ylläpito</h1>
+  <h1>Aikataulupalvelu · Ylläpito · <span id="cityName"></span></h1>
   <a id="openApp" href="#" target="_blank" rel="noopener" class="small" style="text-decoration:underline">Avaa julkinen sovellus ↗</a>
   <button id="logoutBtn" class="small secondary hide" style="color:#fff;border-color:#fff">Kirjaudu ulos</button>
 </header>
@@ -165,7 +165,7 @@ export const ADMIN_HTML = `<!doctype html>
       <p class="muted">Digipalvelulaki (306/2019) edellyttää selosteen. Kun julkaiset tämän, sovellus näyttää virallisen, lain mukaisen selosteen oletustekstin sijaan. Valvontaviranomaisen yhteystiedot lisätään automaattisesti.</p>
       <form id="a11yForm">
         <div class="row">
-          <div><label for="aOrg">Julkaiseva organisaatio *</label><input type="text" id="aOrg" placeholder="Lahden kaupunki"></div>
+          <div><label for="aOrg">Julkaiseva organisaatio *</label><input type="text" id="aOrg" placeholder="Kunnan tai kaupungin nimi"></div>
           <div><label for="aDate">Laadittu/päivitetty (pvm)</label><input type="text" id="aDate" placeholder="17.6.2026"></div>
         </div>
         <label for="aStatus">Vaatimustenmukaisuus</label>
@@ -175,7 +175,7 @@ export const ADMIN_HTML = `<!doctype html>
           <option value="none">Ei täytä</option>
         </select>
         <div class="row">
-          <div><label for="aEmail">Palaute: sähköposti</label><input type="text" id="aEmail" placeholder="saavutettavuus@lahti.fi"></div>
+          <div><label for="aEmail">Palaute: sähköposti</label><input type="text" id="aEmail" placeholder="saavutettavuus@kunta.fi"></div>
           <div><label for="aUrl">Palaute: lomakkeen linkki (valinn.)</label><input type="url" id="aUrl"></div>
         </div>
         <label for="aMethod">Arviointitapa (valinn.)</label>
@@ -211,7 +211,11 @@ export const ADMIN_HTML = `<!doctype html>
 
 <script>
 const $ = id => document.getElementById(id);
-const CITY = "lahti";
+// Kaupunki osoitteesta (/admin?city=inkoo). Kunnan oma tunnus toimii vain oman kaupungin sivulla.
+const CITY = (() => {
+  const c = (new URLSearchParams(location.search).get("city") || "lahti").toLowerCase();
+  return /^[a-z][a-z0-9_-]{1,29}$/.test(c) ? c : "lahti";
+})();
 let editing = null;
 
 function show(el, on){ el.classList.toggle("hide", !on); }
@@ -237,13 +241,14 @@ async function api(path, opts){
 
 async function init(){
   $("openApp").href = "https://veikkoville.github.io/lsl-aikataulut/?city=" + CITY;
-  const s = await api("/admin/api/session", { method:"GET" });
+  $("cityName").textContent = CITY.charAt(0).toUpperCase() + CITY.slice(1);
+  const s = await api("/admin/api/session?city=" + CITY, { method:"GET" });
   if (s.data && s.data.authed) enterAdmin(); else show($("loginView"), true);
 }
 
 $("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const r = await api("/admin/login", { method:"POST", body: JSON.stringify({ password: $("pw").value }) });
+  const r = await api("/admin/login", { method:"POST", body: JSON.stringify({ password: $("pw").value, city: CITY }) });
   if (r.ok) { $("pw").value=""; msg($("loginMsg"),"",true); enterAdmin(); }
   else msg($("loginMsg"), r.status===503 ? "Ylläpitoa ei ole vielä konfiguroitu (salaisuudet puuttuvat)." : "Väärä salasana.", false);
 });
@@ -394,7 +399,8 @@ function gatherFares(){
 }
 async function loadFares(){
   const r = await api("/admin/api/fares?city="+CITY, { method:"GET" });
-  fillFares(r.ok && r.data && r.data.fares ? r.data.fares : DEFAULT_FARES);
+  // Lahden oletushinnat vain Lahdelle: muualla tyhjä lomake, ettei Lahden hintoja julkaista vahingossa.
+  fillFares(r.ok && r.data && r.data.fares ? r.data.fares : (CITY === "lahti" ? DEFAULT_FARES : {}));
 }
 $("addSeason").addEventListener("click", ()=>$("seasonBody").appendChild(seasonRowEl()));
 $("addDay").addEventListener("click", ()=>$("dayBody").appendChild(dayRowEl()));
