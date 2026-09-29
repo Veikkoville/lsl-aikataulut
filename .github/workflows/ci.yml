@@ -29,6 +29,11 @@ jobs:
         run: npm test
         working-directory: worker
 
+      # Uusi kaupunki tai muuttunut juurimanifesti ilman `node tools/kaupunkimanifestit.js` -ajoa:
+      # asennettu sovellus avautuisi oletuskaupunkina (Inkoon auditointi 29.9.2026).
+      - name: Kaupunkimanifestit ajan tasalla
+        run: node tools/kaupunkimanifestit.js --check
+
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 15

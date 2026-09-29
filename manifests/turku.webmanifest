@@ -1,0 +1,105 @@
+{
+  "id": "../?city=turku",
+  "name": "Reittari Turku",
+  "short_name": "Reittari",
+  "description": "Epävirallinen aikataulupalvelu: pysäkkiaikataulut, linjat, reaaliaika, häiriöt ja tulosteet.",
+  "start_url": "../?city=turku",
+  "scope": "../",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "dir": "ltr",
+  "lang": "fi",
+  "categories": [
+    "travel",
+    "navigation",
+    "utilities"
+  ],
+  "background_color": "#f4f6f9",
+  "theme_color": "#0b3d91",
+  "icons": [
+    {
+      "src": "../icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "../icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "../icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "../icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "../icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Reittiopas",
+      "short_name": "Reitti",
+      "url": "../?city=turku#/reitti",
+      "icons": [
+        {
+          "src": "../icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Bussit kartalla",
+      "short_name": "Kartta",
+      "url": "../?city=turku#/kartta",
+      "icons": [
+        {
+          "src": "../icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Linjaston kartta",
+      "short_name": "Linjasto",
+      "url": "../?city=turku#/linjasto",
+      "icons": [
+        {
+          "src": "../icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "../screenshot-mobile.png",
+      "sizes": "618x1236",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Etusivu: haku, pikavalinnat ja lähimmät lähdöt"
+    },
+    {
+      "src": "../screenshot-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Reittari bussiaikataulut"
+    }
+  ]
+}

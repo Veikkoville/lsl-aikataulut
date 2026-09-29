@@ -97,6 +97,38 @@
   catch (e) { /* osoitetta ei voi vaihtaa: sivu toimii kuten ennenkin */ }
 })();
 
+// Kotinäytölle asennettu sovellus: staattisen manifestin start_url "." ei sisällä kaupunkia, joten
+// esimerkiksi Inkoon sivulta asennettu sovellus avautui Lahtena (auditointi 29.9.2026). Kaksi kerrosta:
+// (1) muu kuin oletuskaupunki saa oman manifestin (manifests/<kaupunki>.webmanifest), jonka id,
+//     start_url ja pikakuvakkeet sisältävät ?city=-parametrin (Chrome ja Android);
+// (2) jos sovellus käynnistyy kotinäytöltä ilman ?city-parametria (iOS, vanha asennus), palataan
+//     viimeksi avattuun kaupunkiin. Selaimessa avattu paljas osoite on yhä oletuskaupunki.
+(function () {
+  var city = (new URLSearchParams(location.search).get("city") || "").toLowerCase();
+  var ok = /^[a-z]{2,30}$/.test(city);
+  var standalone = false;
+  try { standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; } catch (e) {}
+  try {
+    if (ok) localStorage.setItem("reittariCity", city);
+    else if (!city && standalone) {
+      var muisti = localStorage.getItem("reittariCity");
+      if (muisti && muisti !== "lahti" && /^[a-z]{2,30}$/.test(muisti)) {
+        location.replace(location.pathname + "?city=" + muisti + location.hash);
+        return;
+      }
+    }
+  } catch (e) { /* ei localStoragea: oletuskaupunki kuten ennenkin */ }
+  if (!ok || city === "lahti") return;
+  // Chrome ei hyväksy blob-manifestia, joten kaupungin manifesti on staattinen tiedosto
+  // (tools/kaupunkimanifestit.js). Linkki vaihdetaan vasta kun tiedosto on todettu olemassa olevaksi:
+  // puuttuva tiedosto (uusi kaupunki ilman ajoa) ei saa rikkoa asennettavuutta.
+  var link = document.querySelector('link[rel="manifest"]');
+  if (!link || !window.fetch) return;
+  var oma = "manifests/" + city + ".webmanifest";
+  fetch(oma, { method: "HEAD" }).then(function (r) { if (r.ok) link.href = oma; })
+    .catch(function () { /* juurimanifesti jää voimaan */ });
+})();
+
 // Teema ratkaistaan ennen ensimmäistä maalausta välähdyksen välttämiseksi
 (function () {
   function apply() {
@@ -1409,6 +1441,19 @@
   .desk-opt-time { font-size: 1.3em; font-weight: var(--wmed); font-variant-numeric: tabular-nums; }
   .desk-opt-dur { font-weight: var(--wmed); }
   .desk-opt-lines { margin: 0.45rem 0; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+  .desk-opt-print { margin: 0.4rem 0 0; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+  /* Yhteystuloste asiakkaalle (A4 pysty): isot kellonajat, osuudet riveittäin, QR reittiin. */
+  .itin-print .ip-head { display: flex; justify-content: space-between; gap: 6mm; align-items: flex-start; }
+  .itin-print h2 { margin: 0 0 2mm; font-size: 20pt; line-height: 1.15; }
+  .itin-print .ip-sum { font-size: 13pt; margin: 0 0 5mm; }
+  .itin-print table { width: 100%; border-collapse: collapse; font-size: 12pt; }
+  .itin-print td { padding: 2.2mm 2mm; border-top: 0.3mm solid #888; vertical-align: top; }
+  .itin-print td.it-time { width: 17mm; font-weight: 700; font-size: 14pt; font-variant-numeric: tabular-nums; }
+  .itin-print td.it-line { width: 22mm; }
+  .itin-print .ip-qr { text-align: center; font-size: 9pt; }
+  .itin-print .ip-qr img { width: 30mm; height: 30mm; display: block; margin: 0 auto 1mm; }
+  .itin-print .ip-later { margin: 5mm 0 0; font-size: 12pt; }
+  .itin-print .ip-foot { margin: 4mm 0 0; font-size: 9pt; color: #444; }
   .desk-opt-lines .badge { font-size: 1.05em; }
   details.desk-stops summary { cursor: pointer; color: var(--blue); font-weight: var(--wmed); margin-top: 0.2rem; }
   ul.desk-stoplist { list-style: none; margin: 0.4rem 0 0; padding: 0; }
@@ -3784,6 +3829,7 @@ const CONFIGS = {
     areaScoped: true,
     rail: "IKO", // Inkoon asema, Hanko-rata (HL-juna Helsinki-Hanko)
     centerStopNames: ["Inkoo"],
+    nlExamples: ["Inkoo", "Kamppi"],   // pääväylä Kamppi - Inkoo (linjat 192/192M)
     hubs: [
       { key: "inkoo", name: "Inkoo", center: { lat: 60.04270, lon: 24.00621 } },
     ],
@@ -3859,6 +3905,10 @@ const CONFIGS = {
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
     vehicleRealtime: false,
+    // Valtakunnallisessa MATKA-feedissä ei ole Inkoon linjoille GTFS-RT:tä (29.9.2026: 24 pysäkkiä,
+    // 184 lähtöä, 0 reaaliaikaista). departureRealtime: false vaihtaa reaaliaikalupaukset (etusivu,
+    // meta, alatunniste) NoRt-teksteihin ja piilottaa ●-selitteen. Puuttuessaan oletus on true.
+    departureRealtime: false,
   },
 };
 
@@ -3956,9 +4006,11 @@ const STRINGS = {
     appTitle: "{cityGen} bussiaikataulut",
     appTitleTag: "{cityGen} bussiaikataulut (epävirallinen)",
     metaDesc: "{cityGen} bussien aikataulut, reaaliaikaiset lähdöt, reittiopas, häiriötiedotteet, liput ja kartat selaimessa. Epävirallinen palvelu avoimen Waltti-/Digitransit-datan päälle.",
+    metaDescNoRt: "{cityGen} bussien aikataulut, pysäkkien lähdöt, reittiopas, häiriötiedotteet, liput ja kartat selaimessa. Epävirallinen palvelu avoimen Waltti-/Digitransit-datan päälle.",
     headerSub: "Aikataulut ja reitit selkeästi, avoimesta datasta",
     heroTitle: "Mihin matka?",
     heroTagline: "Hae nopein bussireitti perille reaaliaikaisilla lähtöajoilla.",
+    heroTaglineNoRt: "Hae nopein bussireitti perille ja katso pysäkin seuraavat lähdöt.",
     heroLayerTitle: "Aikataulut paperille ja tiskille, suoraan kaupungin omasta datasta",
     heroLayerSub: "Pysäkkijulisteet, aikatauluvihot ja palvelutiskin näkymä syntyvät Waltti-aikataulusta ja pysyvät ajan tasalla ilman käsityötä. Kaupungin oma reittiopas säilyy ennallaan.",
     heroHlPosters: "Pysäkkijulisteet",
@@ -4028,6 +4080,7 @@ const STRINGS = {
     nlMicError: "Puheentunnistus ei onnistunut. Voit kirjoittaa matkan.",
     footerNote: "Tämä on epävirallinen esittelyversio (demo), joka ei ole joukkoliikenneviranomaisen ({operator}) tuottama eikä hyväksymä.",
     footData: 'Aikataulu- ja reaaliaikadata: {operatorShort} / {dataSource} avoin data Digitransit-rajapinnan kautta, lisenssi <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="license noopener" target="_blank">CC BY 4.0</a>.',
+    footDataNoRt: 'Aikataulutiedot: {operatorShort} / {dataSource} avoin data Digitransit-rajapinnan kautta, lisenssi <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="license noopener" target="_blank">CC BY 4.0</a>.',
     footColService: "Palvelu",
     footColInfo: "Tietoa",
     footProvider: "Palveluntarjoaja",
@@ -4218,6 +4271,16 @@ const STRINGS = {
     deskNextBusFromTo: "pysäkiltä {stop} klo {dep}, perillä {arr}.",
     deskNoBusToday: "Tänään ei bussivuoroja tälle välille.",
     deskOptionsTitle: "Kaikki vaihtoehdot",
+    deskItinPrintBtn: "Tulosta asiakkaalle",
+    itinSummary: "Lähtö {dep}, perillä {arr}",
+    itinWalkLabel: "Kävely",
+    itinWalk: "Kävele {min} min ({m} m): {place}",
+    itinArrive: "perillä {time}",
+    itinStops: "{n} pysäkkiä välissä",
+    itinDirection: "Suunta: {headsign}",
+    itinLater: "Myöhemmät lähdöt samalta pysäkiltä samalla linjalla: {times}",
+    itinQr: "Reitti puhelimeen",
+    itinFoot: "Tulostettu {date} klo {time}. Tarkista ajantasaiset lähdöt QR-koodista.",
     deskStopsTitle: "Pysäkit reitillä",
     deskStopTitle: "Pysäkin linjat",
     deskStopLabel: "Pysäkki",
@@ -4497,7 +4560,7 @@ const STRINGS = {
     deskNeedOneLine: "Valitse yksi linja.", deskNeedOneOfMany: "Valittuna {n} linjaa: valitse yksi.",
     deskNeedLines: "Valitse vähintään yksi linja.", deskNeedTwoLines: "Valitse vähintään kaksi linjaa.",
     deskStopPoster: "Pysäkkijuliste (A4)",
-    deskLineBooklet: "Vihko (A5, taitettava)", deskLineRack: "Koko linja yhdelle A4:lle",
+    deskLineBooklet: "Vihko (A5, taitettava)", deskLineRack: "Koko linja lehtitelineeseen (A4, suunnat eri puolilla)",
     deskLineBatch: "Julisteet linjan kaikille pysäkeille",
     deskCorridorSel: "Yhdistetty suunta-aikataulu",
     deskChangesBtn: "Muutosvahdin tuloste",
@@ -4658,9 +4721,11 @@ const STRINGS = {
     appTitle: "{city} bus timetables",
     appTitleTag: "{city} bus timetables (unofficial)",
     metaDesc: "{city} bus timetables, real-time departures, journey planner, disruption alerts, tickets and maps in your browser. Unofficial service built on open Waltti/Digitransit data.",
+    metaDescNoRt: "{city} bus timetables, stop departures, journey planner, disruption alerts, tickets and maps in your browser. Unofficial service built on open Waltti/Digitransit data.",
     headerSub: "Timetables and routes made clear, from open data",
     heroTitle: "Where to?",
     heroTagline: "Find the fastest bus route with real-time departures.",
+    heroTaglineNoRt: "Find the fastest bus route and see the next departures from your stop.",
     heroLayerTitle: "Timetables on paper and at the desk, straight from the city's own data",
     heroLayerSub: "Stop posters, timetable booklets and the service desk view are generated from the Waltti timetable and stay current without manual work. The city's own journey planner stays as it is.",
     heroHlPosters: "Stop posters",
@@ -4730,6 +4795,7 @@ const STRINGS = {
     nlMicError: "Speech recognition failed. You can type the trip instead.",
     footerNote: "This is an unofficial demo, neither produced nor endorsed by the transit authority ({operator}).",
     footData: 'Timetable and real-time data: {operatorShort} / {dataSource} open data via the Digitransit API, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener" target="_blank">CC BY 4.0</a>.',
+    footDataNoRt: 'Timetable data: {operatorShort} / {dataSource} open data via the Digitransit API, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener" target="_blank">CC BY 4.0</a>.',
     footColService: "Service",
     footColInfo: "About",
     footProvider: "Service provider",
@@ -4908,6 +4974,16 @@ const STRINGS = {
     deskNextBusFromTo: "from {stop} at {dep}, arriving {arr}.",
     deskNoBusToday: "No bus departures for this route today.",
     deskOptionsTitle: "All options",
+    deskItinPrintBtn: "Print for the customer",
+    itinSummary: "Departs {dep}, arrives {arr}",
+    itinWalkLabel: "Walk",
+    itinWalk: "Walk {min} min ({m} m) to {place}",
+    itinArrive: "arrives {time}",
+    itinStops: "{n} stops in between",
+    itinDirection: "Towards {headsign}",
+    itinLater: "Later departures from the same stop on the same line: {times}",
+    itinQr: "Route on your phone",
+    itinFoot: "Printed {date} at {time}. Check current departures with the QR code.",
     deskStopsTitle: "Stops on the route",
     deskStopTitle: "Lines at a stop",
     deskStopLabel: "Stop",
@@ -5179,7 +5255,7 @@ const STRINGS = {
     deskNeedOneLine: "Choose one line.", deskNeedOneOfMany: "{n} lines selected: choose one.",
     deskNeedLines: "Choose at least one line.", deskNeedTwoLines: "Choose at least two lines.",
     deskStopPoster: "Stop poster (A4)",
-    deskLineBooklet: "Booklet (A5, folded)", deskLineRack: "Whole line on one A4",
+    deskLineBooklet: "Booklet (A5, folded)", deskLineRack: "Whole line for the leaflet rack (A4, one direction per side)",
     deskLineBatch: "Posters for every stop on the line",
     deskCorridorSel: "Combined direction timetable",
     deskChangesBtn: "Change watch printout",
@@ -5334,9 +5410,11 @@ const STRINGS = {
     appTitle: "Busstidtabeller i {city}",
     appTitleTag: "Busstidtabeller i {city} (inofficiell)",
     metaDesc: "Busstidtabeller i {city}, avgångar i realtid, reseplanerare, störningsmeddelanden, biljetter och kartor i webbläsaren. Inofficiell tjänst byggd på öppna Waltti-/Digitransit-data.",
+    metaDescNoRt: "Busstidtabeller i {city}, hållplatsernas avgångar, reseplanerare, störningsmeddelanden, biljetter och kartor i webbläsaren. Inofficiell tjänst byggd på öppna Waltti-/Digitransit-data.",
     headerSub: "Tidtabeller och rutter tydligt, från öppna data",
     heroTitle: "Vart vill du?",
     heroTagline: "Hitta den snabbaste bussrutten med avgångar i realtid.",
+    heroTaglineNoRt: "Hitta den snabbaste bussrutten och se nästa avgångar från hållplatsen.",
     heroLayerTitle: "Tidtabeller på papper och vid disken, direkt från stadens egna data",
     heroLayerSub: "Hållplatsaffischer, tidtabellshäften och servicediskens vy skapas ur Waltti-tidtabellen och hålls aktuella utan handarbete. Stadens egen reseplanerare förblir som den är.",
     heroHlPosters: "Hållplatsaffischer",
@@ -5406,6 +5484,7 @@ const STRINGS = {
     nlMicError: "Taligenkänningen misslyckades. Du kan skriva resan istället.",
     footerNote: "Detta är en inofficiell demoversion som varken har producerats eller godkänts av kollektivtrafikmyndigheten ({operator}).",
     footData: 'Tidtabells- och realtidsdata: {operatorShort} / {dataSource} öppna data via Digitransit-gränssnittet, licens <a href="https://creativecommons.org/licenses/by/4.0/deed.sv" rel="license noopener" target="_blank">CC BY 4.0</a>.',
+    footDataNoRt: 'Tidtabellsdata: {operatorShort} / {dataSource} öppna data via Digitransit-gränssnittet, licens <a href="https://creativecommons.org/licenses/by/4.0/deed.sv" rel="license noopener" target="_blank">CC BY 4.0</a>.',
     footColService: "Tjänst",
     footColInfo: "Information",
     footProvider: "Tjänsteleverantör",
@@ -5586,6 +5665,16 @@ const STRINGS = {
     deskNextBusFromTo: "från {stop} kl. {dep}, framme {arr}.",
     deskNoBusToday: "Inga bussturer för den här sträckan idag.",
     deskOptionsTitle: "Alla alternativ",
+    deskItinPrintBtn: "Skriv ut åt kunden",
+    itinSummary: "Avgång {dep}, framme {arr}",
+    itinWalkLabel: "Gång",
+    itinWalk: "Gå {min} min ({m} m) till {place}",
+    itinArrive: "framme {time}",
+    itinStops: "{n} hållplatser emellan",
+    itinDirection: "Mot {headsign}",
+    itinLater: "Senare avgångar från samma hållplats med samma linje: {times}",
+    itinQr: "Rutten i telefonen",
+    itinFoot: "Utskriven {date} kl. {time}. Kontrollera aktuella avgångar med QR-koden.",
     deskStopsTitle: "Hållplatser på rutten",
     deskStopTitle: "Linjer vid en hållplats",
     deskStopLabel: "Hållplats",
@@ -5857,7 +5946,7 @@ const STRINGS = {
     deskNeedOneLine: "Välj en linje.", deskNeedOneOfMany: "{n} linjer valda: välj en.",
     deskNeedLines: "Välj minst en linje.", deskNeedTwoLines: "Välj minst två linjer.",
     deskStopPoster: "Hållplatsaffisch (A4)",
-    deskLineBooklet: "Häfte (A5, vikbart)", deskLineRack: "Hela linjen på ett A4",
+    deskLineBooklet: "Häfte (A5, vikbart)", deskLineRack: "Hela linjen för broschyrstället (A4, en riktning per sida)",
     deskLineBatch: "Affischer för alla hållplatser på linjen",
     deskCorridorSel: "Kombinerad riktningstidtabell",
     deskChangesBtn: "Utskrift från ändringsvakten",
@@ -6098,6 +6187,9 @@ function networkPhrase() {
 // jotta esimerkki ei ole kovakoodattu Lahden nimiin (Matkakeskus/Kauppatori) muiden
 // kaupunkien näkymissä. Fallback pitää lauseen ehjänä jos lista puuttuu.
 function nlExample(i) {
+  // CONFIG.nlExamples: kaupunki, jolla on vain yksi keskuspysäkki, antaa esimerkkiparin itse. Muuten
+  // esimerkki olisi "Inkoo → Inkoo" (auditointi 29.9.2026).
+  if (CONFIG.nlExamples?.[i]) return CONFIG.nlExamples[i];
   const n = CONFIG.centerStopNames || [];
   if (n[i]) return n[i];
   const h = (CONFIG.hubs || [])[i];
@@ -6105,8 +6197,15 @@ function nlExample(i) {
 }
 
 function t(key, params) { return tIn(lang, key, params); }
+// ●-selite ("= reaaliaikainen arvio") vain kaupungeissa, joiden lähdöissä on reaaliaikaa.
+function rtLegendHtml(key) {
+  return CONFIG.departureRealtime === false ? "" : `<p class="muted"><span class="rt">●</span> ${t(key)}</p>`;
+}
 // Käännös annetulla kielellä (lue ääneen puhekielellä, joka voi poiketa UI-kielestä)
 function tIn(l, key, params) {
+  // Kaupunki ilman lähtöjen reaaliaikaa (CONFIG.departureRealtime === false): käytä avaimen
+  // NoRt-versiota, jos sellainen on, ettei palvelu lupaa reaaliaikaa jota feedissä ei ole.
+  if (CONFIG.departureRealtime === false && STRINGS.fi[key + "NoRt"] != null) key += "NoRt";
   let s = (STRINGS[l] || STRINGS.fi)[key] ?? STRINGS.fi[key] ?? key;
   const all = { city: cityName(), cityGen: cityGenName(),
                 operator: CONFIG.operator, operatorShort: CONFIG.operatorShort,
@@ -9661,7 +9760,7 @@ async function renderNearby() {
     const list = groups.length
       ? (cachedAt ? staleNoteHtml(cachedAt) : "")
         + groups.map(n => stopDepGroupHtml(n.stop, n.distance + " m")).join("")
-        + `<p class="muted"><span class="rt">●</span> ${t("rtLegend")}</p>`
+        + rtLegendHtml("rtLegend")
       : `<p class="muted">${accFilterOn ? t("accNearbyNone") : t("noDepsRadius")}</p>`;
     const box = document.getElementById("nearbyBody");
     box.innerHTML = toggle + list;
@@ -11549,7 +11648,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       ${anySchool ? `<p class="muted">${esc(t("depSchoolMark"))} = ${esc(t("depSchoolLegend"))}</p>` : ""}
       ${shortTo.length ? `<p class="muted">${esc(t("depShortMark"))} = ${esc(t("depShortLegend", { stops: shortTo.join(", ") }))}</p>` : ""}
       ${otherFrom.length ? `<p class="muted">* ${esc(t("depOtherOriginLegend", { stops: otherFrom.join(", ") }))}</p>` : ""}
-      ${isToday ? `<p class="muted"><span class="rt">●</span> ${t("rtLegend")}</p>` : ""}`;
+      ${isToday ? rtLegendHtml("rtLegend") : ""}`;
     const rb = document.getElementById("remindBtn");
     if (rb) rb.addEventListener("click", () =>
       setDepartureReminder(nextDep, route.shortName || "", patternLabel(current)));
@@ -11927,7 +12026,7 @@ async function viewStop(stopId, autoPrint) {
         <thead><tr><th>${t("thLine")}</th><th>${t("thDest")}</th><th>${t("thDeparts")}</th></tr></thead>
         <tbody id="depRows">${renderRows(stop)}</tbody>
       </table>
-      <p class="muted"><span class="rt">●</span> ${t("rtLegendStop")}</p>
+      ${rtLegendHtml("rtLegendStop")}
       <p class="no-print" style="margin:0.6rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center">
         <button type="button" id="stopPosterBtn">${icon("print")} ${t("printStopPoster")}</button>
         <label class="dtopt"><input type="checkbox" id="posterCompactCb"${CONFIG.posterCompact !== false ? " checked" : ""}> ${t("posterCompactOpt")}</label>
@@ -14513,7 +14612,7 @@ function deskStopsListHtml(node) {
 }
 
 // Yhden yhteyden tiivistelmä (iso): ajat, kesto, linjabadget, vaihdot + pysäkit reitillä.
-function deskOptionHtml(node) {
+function deskOptionHtml(node, i) {
   const dur = fmtDur((new Date(node.end) - new Date(node.start)) / 1000);
   const tr = node.numberOfTransfers === 0 ? t("transfers0")
     : node.numberOfTransfers === 1 ? t("transfers1") : t("transfersN", { n: node.numberOfTransfers });
@@ -14530,7 +14629,74 @@ function deskOptionHtml(node) {
     </div>
     <div class="desk-opt-lines">${ride.length ? lines : `<span class="muted">${t("deskWalkOnly", { dur })}</span>`}</div>
     <details class="desk-stops"><summary>${t("deskStopsTitle")}</summary>${deskStopsListHtml(node)}</details>
+    ${i == null ? "" : `<p class="desk-opt-print"><button type="button" class="secondary deskOptPrint" data-i="${i}">${icon("print")} ${t("deskItinPrintBtn")}</button>
+      <span class="muted" role="status"></span></p>`}
   </div>`;
+}
+
+/* Asiakkaalle ojennettava yhteystuloste (Inkoon tarjous: "asiakaspalvelija voi tulostaa yhteyden
+   asiakkaalle tiskiltä"). Tiskinäkymä on no-print, joten tuloste kootaan #deskPrintOut-säiliöön
+   kuten pysäkkiaikataulu. Sisältö: lähtö ja perilläolo, osuudet nousu- ja jättöpysäkkeineen,
+   kävelyt, myöhemmät lähdöt samalta pysäkiltä samalla linjalla ja QR samaan reittiin puhelimessa. */
+function deskItineraryPrintHtml(node, nodes, from, to, qrImg) {
+  const legs = node.legs || [];
+  const ride = legs.filter(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
+  const dur = fmtDur((new Date(node.end) - new Date(node.start)) / 1000);
+  const tr = node.numberOfTransfers === 0 ? t("transfers0")
+    : node.numberOfTransfers === 1 ? t("transfers1") : t("transfersN", { n: node.numberOfTransfers });
+  const loc = lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI";
+  const day = new Date(node.start).toLocaleDateString(loc, { weekday: "long", day: "numeric", month: "numeric", year: "numeric" });
+  const rows = legs.map((leg, i) => {
+    const time = fmtClock(legTime(leg.start));
+    if (leg.mode === "WALK" || leg.mode === "BICYCLE") {
+      const place = i === legs.length - 1 ? to.name : leg.to.name;
+      const min = Math.max(1, Math.round((leg.duration || 0) / 60));
+      return `<tr><td class="it-time">${time}</td><td class="it-line">${t("itinWalkLabel")}</td>
+        <td>${esc(t("itinWalk", { min, m: Math.round(leg.distance || 0), place }))}</td></tr>`;
+    }
+    const plat = leg.from.stop?.platformCode ? " (" + esc(leg.from.stop.platformCode) + ")" : "";
+    const badge = badgeHtml(leg.route, leg.mode) || `<span class="badge">${esc(modeLabel(leg.mode) || t("modeBus"))}</span>`;
+    const head = leg.trip?.tripHeadsign ? `<br><span class="muted">${esc(t("itinDirection", { headsign: leg.trip.tripHeadsign }))}</span>` : "";
+    const mid = (leg.intermediateStops || []).length;
+    return `<tr><td class="it-time">${time}</td><td class="it-line">${badge}</td>
+      <td><strong>${esc(leg.from.name)}${plat}</strong> → <strong>${esc(leg.to.name)}</strong>
+        ${esc(t("itinArrive", { time: fmtClock(legTime(leg.end)) }))}${mid ? " · " + esc(t("itinStops", { n: mid })) : ""}${head}</td></tr>`;
+  }).join("");
+  // Myöhemmät lähdöt: muut hakutulokset, joiden ensimmäinen osuus on sama linja samalta pysäkiltä.
+  const first = ride[0];
+  const later = first ? nodes.filter(n => n !== node).map(n => (n.legs || []).find(l => l.mode !== "WALK" && l.mode !== "BICYCLE"))
+    .filter(l => l && (l.route?.shortName || "") === (first.route?.shortName || "") && l.from.name === first.from.name
+      && new Date(legTime(l.start)) > new Date(legTime(first.start)))
+    .map(l => fmtClock(legTime(l.start))) : [];
+  const now = new Date();
+  return `<div class="print-only itin-print">
+    <div class="ip-head"><div>
+      <h2>${esc(from.name)} → ${esc(to.name)}</h2>
+      <p class="ip-sum">${esc(day)}<br><strong>${esc(t("itinSummary", { dep: fmtClock(node.start), arr: fmtClock(node.end) }))}</strong> · ${esc(dur)} · ${esc(tr)}</p>
+    </div>${qrImg}</div>
+    <table>${rows}</table>
+    ${later.length ? `<p class="ip-later">${esc(t("itinLater", { times: [...new Set(later)].slice(0, 4).join(", ") }))}</p>` : ""}
+    <p class="ip-foot">${esc(t("itinFoot", { date: now.toLocaleDateString(loc), time: fmtClock(now.toISOString()) }))}</p>
+  </div>`;
+}
+
+async function deskPrintItinerary(node, nodes, from, to, stEl) {
+  const po = document.getElementById("deskPrintOut");
+  if (!po || !node || !from || !to) return;
+  if (stEl) stEl.textContent = t("preparingPrint");
+  let qrImg = "";
+  try {
+    const u = await qrDataUrl(appUrl(tripHash(from, to)), 240);
+    qrImg = `<div class="ip-qr"><img src="${u}" alt="">${esc(t("itinQr"))}</div>`;
+  } catch (e) { /* QR ei pakollinen tulosteelle */ }
+  po.innerHTML = deskItineraryPrintHtml(node, nodes, from, to, qrImg);
+  if (stEl) stEl.textContent = "";
+  runPrintJob(t("preparingPrint"), () => {
+    setPageOrientation("portrait");
+    const done = () => { hidePrintPrep(); window.removeEventListener("afterprint", done); };
+    window.addEventListener("afterprint", done);
+    window.print();
+  });
 }
 
 /* Palvelutiskin oletuspysäkki. Tiskillä ei ehditä kirjoittaa pysäkin nimeä joka asiakkaan
@@ -14786,9 +14952,11 @@ async function viewServiceDesk() {
     res.innerHTML = deskTellHtml(nodes, busNode)
       + (fastestHasBus ? "" : deskNextBusHtml(busNode))   // erillinen "Seuraava bussi" -kortti vain kun kävely voittaa
       + `<h3 class="desk-h3">${t("deskOptionsTitle")}</h3>`
-      + nodes.map(n => deskOptionHtml(n)).join("")
+      + nodes.map((n, i) => deskOptionHtml(n, i)).join("")
       + railHintHtml(nodes);
     fillRailHints();
+    res.querySelectorAll(".deskOptPrint").forEach(b => b.addEventListener("click", () =>
+      deskPrintItinerary(nodes[+b.dataset.i], nodes, dFrom, dTo, b.nextElementSibling)));
   };
 
   bindDeskPlace(fromEl, document.getElementById("deskFromList"), p => { dFrom = p; }, () => toEl.focus());
@@ -14964,7 +15132,7 @@ async function viewServiceDesk() {
     if (!dep) return;
     const deps = stopDepGroupHtml(stop, "") || `<p class="muted">${t("deskDepsNone")}</p>`;
     dep.innerHTML = deps
-      + `<p class="muted desk-deps-upd"><span class="rt">●</span> ${t("rtLegend")} · ${t("deskUpdated", { time: fmtClock(new Date().toISOString()) })}</p>`;
+      + `<p class="muted desk-deps-upd">${CONFIG.departureRealtime === false ? "" : `<span class="rt">●</span> ${t("rtLegend")} · `}${t("deskUpdated", { time: fmtClock(new Date().toISOString()) })}</p>`;
     // Päivitä linjat täydemmästä reittilistasta jos saatavilla (ei pakollinen, lines jo näkyvissä)
     const ln = document.getElementById("deskLines");
     if (ln && (stop.routes || []).length) ln.innerHTML = stopLinesHtml(stop.routes);
