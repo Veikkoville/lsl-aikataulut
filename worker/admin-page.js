@@ -11,6 +11,7 @@ export const ADMIN_HTML = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="https://demo.reittari.fi/icon.svg" type="image/svg+xml">
 <title>Ylläpito · Reittari</title>
 <style>
   @font-face { font-family:'Hanken Grotesk'; font-style:normal; font-weight:100 900; font-display:swap;
