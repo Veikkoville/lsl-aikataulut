@@ -10339,8 +10339,11 @@ function heroLayerHtml() {
 // uusintapainatusseuranta, häiriötiedotteet, CONFIG.season), ei kirjautumista eikä uusia kyselytyyppejä.
 // Ylläpidon osoite (tiedotteet, hinnat, seloste, uusintapainatusavain). Ylläpidolla on oma kirjautuminen
 // (kunnan tunnus tai Cloudflare Access), joten linkki ei avaa mitään ilman sitä.
+// Ylläpidon oma osoite (30.9.2026, worker/wrangler.toml routes). Sama worker kuin PROXY_URL; vanha
+// workers.dev/admin-osoite toimii yhä. Ilman proxya (paikallinen kehitys ilman workeria) linkkiä ei näytetä.
+const ADMIN_BASE = "https://yllapito.reittari.fi";
 function adminUrl() {
-  return PROXY_URL ? PROXY_URL.replace(/\/$/, "") + "/admin?city=" + encodeURIComponent(cityKey) : "";
+  return PROXY_URL ? ADMIN_BASE + "/admin?city=" + encodeURIComponent(cityKey) : "";
 }
 // Demon esikatselupalkki (?nakyma=kuntalainen|henkilosto): kertoo tilan ja palauttaa koko demon.
 function previewBarSync() {
