@@ -611,6 +611,9 @@
     border-top: 1px solid var(--border); }
   .foot-data { max-width: var(--page-max); margin: 0.5rem auto 0; }
   .foot-provider { margin-top: 0.5rem; }
+  /* Savikurki-allekirjoitus (30.9.2026): toimittajan merkki palveluntarjoajarivillä, Reittari pysyy omana brändinä. */
+  .foot-sk { font-weight: 600; white-space: nowrap; }
+  .foot-sk-mark { vertical-align: -4px; margin-right: 0.35rem; border-radius: 4px; }
   .legal { max-width: 46rem; }
   .legal h3 { margin: 1.3rem 0 0.4rem; font-size: 1.05rem; }
   .legal dl { margin: 0.4rem 0 0.8rem; }
@@ -2335,7 +2338,7 @@
   Tämä on epävirallinen palvelu, joka ei ole Lahden seudun liikenteen tuottama.
   Aikataulu- ja reaaliaikadata: LSL / Waltti avoin data Digitransit-rajapinnan kautta,
   lisenssi <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="license noopener" target="_blank">CC BY 4.0</a>.
-  Palveluntarjoaja: Savikurki Digital Oy, <a href="mailto:ville@reittari.fi">ville@reittari.fi</a>.
+  Palveluntarjoaja: <a href="https://savikurki.fi">Savikurki Digital Oy</a>, <a href="mailto:ville@reittari.fi">ville@reittari.fi</a>.
   <a href="#/tietosuoja">Tietosuojaseloste</a> · <a href="#/kayttoehdot">Käyttöehdot</a>
 </footer>
 
@@ -6343,7 +6346,8 @@ function updateChrome() {
       <div class="foot-brand">
         <div><strong>${t("appTitle")}</strong><br><span class="muted">${t("headerSub")}</span>
           <p class="foot-provider" id="footProvider"><span class="muted">${t("footProvider")}:</span>
-            Savikurki Digital Oy, <a href="mailto:ville@reittari.fi">ville@reittari.fi</a></p>
+            <a class="foot-sk" href="https://savikurki.fi" target="_blank" rel="noopener"><svg class="foot-sk-mark" viewBox="0 0 120 120" width="18" height="18" aria-hidden="true" focusable="false"><rect width="120" height="120" rx="24" fill="#b8764f"/><path d="M32 92 C 58 97, 88 92, 88 71 C 88 52, 36 62, 36 41 C 36 28, 50 22, 64 27" fill="none" stroke="#fbfaf7" stroke-width="15" stroke-linecap="round"/><path d="M66 28 L 96 37" fill="none" stroke="#fbfaf7" stroke-width="9" stroke-linecap="round"/></svg>Savikurki Digital Oy</a>,
+            <a href="mailto:ville@reittari.fi">ville@reittari.fi</a></p>
         </div>
       </div>
       <nav class="foot-col" aria-label="${t("footColService")}">

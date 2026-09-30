@@ -163,6 +163,11 @@ export const ADMIN_HTML = `<!doctype html>
 
   .login { max-width:440px; margin:var(--s7) auto 0; }
   .login h2 { margin:0 0 var(--s2); font-size:var(--fs-lg); font-weight:800; }
+  .foot { max-width:1180px; margin:0 auto; padding:var(--s4) var(--s4) var(--s6); border-top:1px solid var(--line); color:var(--muted); font-size:var(--fs-xs); display:flex; flex-wrap:wrap; gap:var(--s2) var(--s4); align-items:center; }
+  .foot a { color:var(--muted); }
+  .foot-sk { font-weight:700; color:var(--ink) !important; text-decoration:none; white-space:nowrap; }
+  .foot-sk:hover { text-decoration:underline; }
+  .foot-sk-mark { vertical-align:-4px; margin-right:6px; border-radius:4px; }
 
   @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
 </style>
@@ -397,6 +402,11 @@ export const ADMIN_HTML = `<!doctype html>
     </div>
   </div>
 </main>
+<footer class="foot">
+  <span>Reittari</span>
+  <span>Palvelun tarjoaa <a class="foot-sk" href="https://savikurki.fi" target="_blank" rel="noopener"><svg class="foot-sk-mark" viewBox="0 0 120 120" width="18" height="18" aria-hidden="true" focusable="false"><rect width="120" height="120" rx="24" fill="#b8764f"/><path d="M32 92 C 58 97, 88 92, 88 71 C 88 52, 36 62, 36 41 C 36 28, 50 22, 64 27" fill="none" stroke="#fbfaf7" stroke-width="15" stroke-linecap="round"/><path d="M66 28 L 96 37" fill="none" stroke="#fbfaf7" stroke-width="9" stroke-linecap="round"/></svg>Savikurki Digital Oy</a></span>
+  <span>Tuki: <a href="mailto:ville@reittari.fi">ville@reittari.fi</a></span>
+</footer>
 
 <script>
 const $ = id => document.getElementById(id);
