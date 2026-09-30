@@ -96,6 +96,11 @@ const classify = sid =>
 
 const compact = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 const plusDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+// Viikkoikkuna (30.9.2026): osa presettien linjoista ajaa vain osan viikkoa (Lappeenrannan 12 on pe- ja
+// la-iltojen linja), joten yksi tarkistuspäivä antoi väärän FAILin. Jos päivän vuorot ovat 0, katsotaan
+// saman viikon muut kuusi päivää ennen FAILia tai WARNia. Tavallisessa tapauksessa kyselyjä ei tule lisää.
+const weekRest = day => [1, 2, 3, 4, 5, 6].map(n =>
+  compact(new Date(+day.slice(0, 4), +day.slice(4, 6) - 1, +day.slice(6, 8) + n)));
 
 const results = [];
 let fails = 0, warns = 0;
@@ -161,9 +166,29 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
         near += (p.near || []).length; far += (p.far || []).length;
         if ((p.near || []).length) (p.stops || []).forEach(s => stops.add(s.gtfsId));
       }
-      perLine.set(line, { near, far, stops });
-      if (near === 0) log("FAIL", key, `presetti ${corr.key}`, `linjalla ${line} 0 vuoroa ${dNear} — presetti kuollut (vrt. Kajaani 12.8.)`);
-      else if (far === 0) log("WARN", key, `presetti ${corr.key}`, `linjalla ${line} 0 vuoroa ${dFar} — kausivaihto tulossa, tarkista presetti`);
+      // Viikkoikkuna: vain jos tarkistuspäivänä 0 vuoroa (ks. weekRest)
+      let nearWeek = false, farWeek = false;
+      for (const which of ["near", "far"]) {
+        if ((which === "near" ? near : far) > 0) continue;
+        const days = weekRest(which === "near" ? dNear : dFar);
+        await sleep(QUERY_GAP_MS);
+        const w = await q(
+          `query ($feeds: [String], $name: String) {
+             routes(feeds: $feeds, name: $name) { shortName patterns {
+               stops { gtfsId }
+               ${days.map(x => `d${x}: tripsForDate(serviceDate: "${x}") { gtfsId }`).join("\n               ")} } } }`,
+          { feeds: [feed], name: line });
+        for (const r of (w.routes || []).filter(r => r.shortName === line)) for (const p of (r.patterns || [])) {
+          const n = days.reduce((sum, x) => sum + (p["d" + x] || []).length, 0);
+          if (which === "near") { near += n; if (n) (p.stops || []).forEach(s => stops.add(s.gtfsId)); }
+          else far += n;
+        }
+        if (which === "near") nearWeek = near > 0; else farWeek = far > 0;
+      }
+      perLine.set(line, { near, far, stops, nearWeek });
+      if (near === 0) log("FAIL", key, `presetti ${corr.key}`, `linjalla ${line} 0 vuoroa viikolla ${dNear}+6 pv — presetti kuollut (vrt. Kajaani 12.8.)`);
+      else if (far === 0) log("WARN", key, `presetti ${corr.key}`, `linjalla ${line} 0 vuoroa viikolla ${dFar}+6 pv — kausivaihto tulossa, tarkista presetti`);
+      else if (nearWeek || farWeek) console.log(`  [${key}] presetti ${corr.key}: linja ${line} ajaa vain osan viikkoa (0 vuoroa ${nearWeek ? dNear : dFar}, viikolla ${nearWeek ? near : far})`);
       await sleep(QUERY_GAP_MS);
     }
     // parittainen yhteisten pysäkkien määrä (corridorNoShared-raja = 3)
@@ -175,7 +200,8 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
     }
     const total = [...perLine.values()].reduce((n, v) => n + v.near, 0);
     if (total > 0 && ![...results.slice(-6)].some(r => r.city === key && r.check === `presetti ${corr.key}` && r.level !== "PASS"))
-      log("PASS", key, `presetti ${corr.key}`, `${corr.lines.join("+")}: ${total} vuoroa ${dNear}, jaettu jakso OK`);
+      log("PASS", key, `presetti ${corr.key}`, `${corr.lines.join("+")}: ${total} vuoroa ${dNear}` +
+        `${[...perLine.entries()].filter(([, v]) => v.nearWeek).map(([l]) => ` (linja ${l} viikolta)`).join("")}, jaettu jakso OK`);
   }
 
   // 3) solmupysäkin pulssi
