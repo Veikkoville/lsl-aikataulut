@@ -4,7 +4,7 @@
 import worker, { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText, htmlToText, buildFeedbackRecord,
   constantTimeEqual, signSession, verifySession, verifyAccessJwt, buildAdminAlert, currentAdminAlerts, buildAdminFares,
   buildAdminA11y, buildTrackEvent, buildStatsSql, isAnalyticsClient, quotaGate, RATE_MAX,
-  adminScopeAllows, resolveAdminLogin } from "./worker.js";
+  adminScopeAllows, resolveAdminLogin, accessScope } from "./worker.js";
 import { readFileSync } from "node:fs";
 
 let fail = 0;
@@ -375,6 +375,18 @@ check(tampered.status === 403, "admin: peukaloitu eväste → 403");
   // pääsalasanan istunto (ei scope-kenttää, kuten ennen muutosta luodut) kelpaa kaikkiin kaupunkeihin
   const mainInk = await (await worker.fetch(req("/admin/api/session?city=inkoo", { headers: { Cookie: cookie } }), cityEnv)).json();
   check(mainInk.authed === true, "pääkäyttäjä: istunto kelpaa myös Inkoon sivulle");
+}
+
+// --- Ylläpito: Access-identiteetti kaupunkiin (ADMIN_ACCESS_CITY_MAP) ---
+{
+  check(accessScope({ email: "a@inkoo.fi" }, {}) === "*", "access: ilman karttaa vanha käytös (kaikki kaupungit)");
+  const aenv = { ADMIN_ACCESS_CITY_MAP: JSON.stringify({ "inkoo.fi": "Inkoo", "inga.fi": "inkoo" }), ADMIN_ACCESS_SUPERUSERS: "ville@savikurki.fi, toinen@x.fi" };
+  check(accessScope({ email: "Juha.Heikkinen@INGA.fi" }, aenv) === "inkoo", "access: kunnan verkkotunnus -> kunta (kirjainkoko ei ratkaise)");
+  check(accessScope({ email: "a@inkoo.fi" }, aenv) === "inkoo", "access: toinen verkkotunnus samaan kuntaan");
+  check(accessScope({ email: "ville@savikurki.fi" }, aenv) === "*", "access: pääkäyttäjä kaikkiin");
+  check(accessScope({ email: "x@lahti.fi" }, aenv) === null, "access: tuntematon verkkotunnus ei saa oikeuksia");
+  check(accessScope({}, aenv) === null && accessScope({ email: "x@__proto__" }, aenv) === null, "access: ilman sähköpostia tai prototyyppiavaimella ei oikeuksia");
+  check(accessScope({ email: "a@inkoo.fi" }, { ADMIN_ACCESS_CITY_MAP: "rikki{" }) === null, "access: rikkinäinen kartta ei anna oikeuksia");
 }
 
 // --- Ylläpito: hintojen kokoaminen (buildAdminFares) ---

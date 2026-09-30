@@ -1442,6 +1442,9 @@
   .desk-opt-dur { font-weight: var(--wmed); }
   .desk-opt-lines { margin: 0.45rem 0; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
   .desk-opt-print { margin: 0.4rem 0 0; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+  .preview-bar { background: #fff4d6; color: #3d2e00; border-bottom: 1px solid #e6c766; padding: 0.45rem 1rem;
+                 font-size: 0.92rem; text-align: center; }
+  .preview-bar a { color: inherit; font-weight: var(--wmed); }
   /* Yhteystuloste asiakkaalle (A4 pysty): isot kellonajat, osuudet riveittäin, QR reittiin. */
   .itin-print .ip-head { display: flex; justify-content: space-between; gap: 6mm; align-items: flex-start; }
   .itin-print h2 { margin: 0 0 2mm; font-size: 20pt; line-height: 1.15; }
@@ -3936,7 +3939,30 @@ function cityFromSharedRoute() {
     return best;
   } catch (e) { return null; }
 }
-const cityKey = (new URLSearchParams(location.search).get("city") || cityFromSharedRoute() || "lahti").toLowerCase();
+/* Näkymätila (30.9.2026): sama sovellus kolmessa roolissa.
+   demo     = demo.reittari.fi, GitHub Pages, localhost: kaikki näkyvissä (myyntidemo). Esikatselu
+              parametrilla ?nakyma=kuntalainen tai ?nakyma=henkilosto.
+   resident = kuntalaisnäkymä kunnan omassa osoitteessa (CONFIG.residentHosts): ei henkilöstön osia, ja
+              henkilöstön reitit ohjautuvat etusivulle.
+   staff    = henkilöstönäkymä omassa osoitteessa (STAFF_HOSTS, Cloudflare Accessin takana): henkilöstön
+              etusivu ja Ylläpito-linkki.
+   Kuntalaisnäkymä on selkeyttä eikä salausta: henkilöstönäkymät näyttävät vain julkista aikataulutietoa.
+   Julkaisu (ylläpito) ja uusintapainatusavain ovat workerin kirjautumisen takana. */
+const STAFF_HOSTS = ["reittari-henkilosto.pages.dev", "henkilosto.reittari.fi"];
+const STAFF_ROUTES = new Set(["palvelutiski", "tilanne", "uusintapainatus", "tulosta", "tulosteet", "kaupunki"]);
+function cityFromHost() {
+  const h = location.hostname.toLowerCase();
+  return Object.keys(CONFIGS).find(k => (CONFIGS[k].residentHosts || []).includes(h)) || null;
+}
+const APP_MODE = (() => {
+  const h = location.hostname.toLowerCase();
+  if (STAFF_HOSTS.includes(h)) return "staff";
+  if (cityFromHost()) return "resident";
+  const p = (new URLSearchParams(location.search).get("nakyma") || "").toLowerCase();
+  return p === "kuntalainen" ? "resident" : p === "henkilosto" ? "staff" : "demo";
+})();
+const APP_PREVIEW = APP_MODE !== "demo" && !STAFF_HOSTS.includes(location.hostname.toLowerCase()) && !cityFromHost();
+const cityKey = (new URLSearchParams(location.search).get("city") || cityFromHost() || cityFromSharedRoute() || "lahti").toLowerCase();
 const CONFIG = CONFIGS[cityKey] || CONFIGS.lahti;
 
 // Vyöhykehinnoitellussa kaupungissa tasataksakentät (single/season/day/capDay/capWeek)
@@ -4257,6 +4283,11 @@ const STRINGS = {
     deskNeedBoth: "Valitse sekä lähtö että määränpää (Enter hyväksyy ehdotuksen).",
     deskSearchErr: "Haku ei onnistunut. Yritä uudelleen.",
     deskTellTitle: "Kerro asiakkaalle",
+    navAdmin: "Ylläpito",
+    adminLinkDesc: "Häiriötiedotteet, hinnat, saavutettavuusseloste ja uusintapainatusavain. Vaatii kirjautumisen.",
+    previewResident: "Esikatselu: kuntalaisnäkymä (henkilöstön osat piilossa)",
+    previewStaff: "Esikatselu: henkilöstönäkymä",
+    previewExit: "Näytä koko demo",
     deskTellBoard: "Linja {line} pysäkiltä {stop} klo {time}.",
     deskTellBoardNext: "Linja {line} pysäkiltä {stop} klo {time} (seuraava {next}).",
     deskTellArrive: "Jää pois pysäkillä {stop}, perillä klo {time}.",
@@ -4966,6 +4997,11 @@ const STRINGS = {
     deskNeedBoth: "Choose both origin and destination (Enter accepts the suggestion).",
     deskSearchErr: "Search failed. Please try again.",
     deskTellTitle: "Tell the customer",
+    navAdmin: "Admin",
+    adminLinkDesc: "Disruption notices, fares, accessibility statement and reprint key. Requires sign-in.",
+    previewResident: "Preview: resident view (staff sections hidden)",
+    previewStaff: "Preview: staff view",
+    previewExit: "Show the full demo",
     deskTellBoard: "Line {line} from stop {stop} at {time}.",
     deskTellBoardNext: "Line {line} from stop {stop} at {time} (next {next}).",
     deskTellArrive: "Get off at stop {stop}, arriving by {time}.",
@@ -5663,6 +5699,11 @@ const STRINGS = {
     deskNeedBoth: "Välj både startplats och destination (Enter väljer förslaget).",
     deskSearchErr: "Sökningen misslyckades. Försök igen.",
     deskTellTitle: "Berätta för kunden",
+    navAdmin: "Administration",
+    adminLinkDesc: "Störningsmeddelanden, priser, tillgänglighetsutlåtande och nyckel för omtryck. Kräver inloggning.",
+    previewResident: "Förhandsvisning: invånarvy (personalens delar dolda)",
+    previewStaff: "Förhandsvisning: personalvy",
+    previewExit: "Visa hela demon",
     deskTellBoard: "Linje {line} från hållplats {stop} kl. {time}.",
     deskTellBoardNext: "Linje {line} från hållplats {stop} kl. {time} (nästa {next}).",
     deskTellArrive: "Stig av vid hållplats {stop}, framme kl. {time}.",
@@ -6288,9 +6329,14 @@ function updateChrome() {
   document.getElementById("brandGlyph").textContent = String(CONFIG.city || "R").charAt(0).toUpperCase();
   const nav = document.getElementById("hdrNav");
   nav.setAttribute("aria-label", t("navAria"));
-  nav.innerHTML = [["", "#/", t("navHome")], ["tulosteet", "#/tulosteet/vihko", t("navPrints")],
-    ...(PROXY_URL ? [["palvelutiski", "#/palvelutiski", t("deskTitle")], ["tilanne", "#/tilanne", t("navStaff")]] : [])]
-    .map(([k, href, label]) => `<a href="${href}" data-nav="${k}">${label}</a>`).join("");
+  const navItems = APP_MODE === "resident" ? [["", "#/", t("navHome")]]
+    : APP_MODE === "staff" ? [["tilanne", "#/tilanne", t("navStaff")], ["tulosteet", "#/tulosteet/vihko", t("navPrints")],
+        ...(PROXY_URL ? [["palvelutiski", "#/palvelutiski", t("deskTitle")]] : [])]
+    : [["", "#/", t("navHome")], ["tulosteet", "#/tulosteet/vihko", t("navPrints")],
+        ...(PROXY_URL ? [["palvelutiski", "#/palvelutiski", t("deskTitle")], ["tilanne", "#/tilanne", t("navStaff")]] : [])];
+  nav.innerHTML = navItems.map(([k, href, label]) => `<a href="${href}" data-nav="${k}">${label}</a>`).join("")
+    + (APP_MODE === "staff" && adminUrl() ? `<a href="${esc(adminUrl())}" target="_blank" rel="noopener" data-nav="admin">${t("navAdmin")} ↗</a>` : "");
+  previewBarSync();
   updateNavCurrent();
   document.getElementById("appFooter").innerHTML = `
     <div class="foot-cols">
@@ -6317,7 +6363,7 @@ function updateChrome() {
         <a href="#/kayttoehdot">${t("termsLink")}</a>
         <a href="#/palaute">${t("fbLink")}</a>
         <a href="#/asetukset">${t("settings")}</a>
-        ${PROXY_URL ? `<a href="#/palvelutiski">${t("deskTitle")}</a>` : ""}
+        ${PROXY_URL && APP_MODE !== "resident" ? `<a href="#/palvelutiski">${t("deskTitle")}</a>` : ""}
       </nav>
     </div>
     <p class="foot-note">${t("footerNote")}</p>
@@ -10287,6 +10333,27 @@ function heroLayerHtml() {
 // Henkilöstön tilanne (ilme 25.9.2026, luonnos B, Villen "yhdistelmä"): yhdellä silmäyksellä onko pysäkeillä tai
 // tiskillä tänään tehtävää. Vain julkista tietoa, jota sovellus jo näyttää (muutosvahdin yhteenveto, paikallinen
 // uusintapainatusseuranta, häiriötiedotteet, CONFIG.season), ei kirjautumista eikä uusia kyselytyyppejä.
+// Ylläpidon osoite (tiedotteet, hinnat, seloste, uusintapainatusavain). Ylläpidolla on oma kirjautuminen
+// (kunnan tunnus tai Cloudflare Access), joten linkki ei avaa mitään ilman sitä.
+function adminUrl() {
+  return PROXY_URL ? PROXY_URL.replace(/\/$/, "") + "/admin?city=" + encodeURIComponent(cityKey) : "";
+}
+// Demon esikatselupalkki (?nakyma=kuntalainen|henkilosto): kertoo tilan ja palauttaa koko demon.
+function previewBarSync() {
+  let bar = document.getElementById("previewBar");
+  if (!APP_PREVIEW) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "previewBar";
+    bar.className = "preview-bar no-print";
+    document.body.insertBefore(bar, document.body.firstChild);
+  }
+  const u = new URL(location.href);
+  u.searchParams.delete("nakyma");
+  bar.innerHTML = `${esc(t(APP_MODE === "resident" ? "previewResident" : "previewStaff"))} ·
+    <a href="${esc(u.pathname + u.search + u.hash)}">${esc(t("previewExit"))}</a>`;
+}
+
 async function viewStaff() {
   const nav = navSeq;
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
@@ -10301,11 +10368,12 @@ async function viewStaff() {
   const img = kind => `<img class="st-thumb" src="img/hero/${cityKey}-${kind}.webp" alt="" loading="lazy">`;
   const ico = name => `<span class="st-thumb st-ico">${icon(name)}</span>`;
   setView(`
-    ${crumbHtml()}
+    ${APP_MODE === "staff" ? "" : crumbHtml()}
     <section class="staff no-print">
       <div class="st-head"><div><h1>${t("staffTitle", { date: day })}</h1><p class="muted">${t("staffSub")}</p></div>
         <div class="st-acts"><a class="btnlink secondary" href="#/palvelutiski">${icon("desk")}${t("deskTitle")}</a>
-          <a class="btnlink" href="#/tulosteet/vihko">${icon("print")}${t("navPrints")}</a></div></div>
+          <a class="btnlink" href="#/tulosteet/vihko">${icon("print")}${t("navPrints")}</a>
+          ${adminUrl() ? `<a class="btnlink secondary" id="stAdmin" href="${esc(adminUrl())}" target="_blank" rel="noopener" title="${esc(t("adminLinkDesc"))}">${icon("settings")}${t("navAdmin")} ↗</a>` : ""}</div></div>
       <div class="st-tiles">
         ${tile("stPosters", "shield", t("staffTilePosters"), "#/tulosteet/muutokset")}
         <a class="st-tile" id="stReprint" href="#/uusintapainatus"><span class="st-k">${icon("repeat")}${t("staffTileReprint")}</span>
@@ -10460,7 +10528,7 @@ function viewRoutes() {
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`
     <div id="alertsBox" class="alerts-banner"></div>
-    ${CONFIG.heroEmphasis === "layer" ? heroLayerHtml() : heroJourneyHtml()}
+    ${CONFIG.heroEmphasis === "layer" && APP_MODE !== "resident" ? heroLayerHtml() : heroJourneyHtml()}
     <!-- Universaalihaku omana lohkonaan (linja/pysäkki/osoite), erotettu A->B-herosta neutraalilla
          taustalla. "Lähellä" yhdistetty heron "Näytä lähimmät lähdöt" -toimintoon (yksi nappi). -->
     <section class="search-section" aria-label="${t("searchSectionTitle")}">
@@ -19875,6 +19943,9 @@ async function route() {
   if (parts[0] !== "monitori") exitMonitorMode(); // poistuttaessa kioskista palauta normaali ulkoasu
   if (parts[0] !== "palvelutiski") exitDeskMode(); // poistuttaessa palvelutiskistä palauta normaali ulkoasu
   const stripFeed = s => String(s || "").replace(/^[^:]+:/, ""); // "Lahti:3" → "3"
+  // Kuntalaisnäkymässä henkilöstön reitit ohjautuvat etusivulle; henkilöstönäkymän etusivu on tilannekuva.
+  if (APP_MODE === "resident" && STAFF_ROUTES.has(parts[0])) { redirectHash("#/"); return; }
+  if (APP_MODE === "staff" && !parts[0]) { redirectHash("#/tilanne"); return; }
   track("view", parts[0] || "home");
   updateNavCurrent(parts[0] || "");
   const nav = ++navSeq;
