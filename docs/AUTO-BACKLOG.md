@@ -66,6 +66,25 @@ nämä samoin kuin tapaamisista kirjatut signaalit.
       tuntemattomiksi: "Lahti:2026-2027 La Historic Rally" EI saa luokittua viikonpaivaksi pelkan
       La-sanan takia (rally, fest, lisat, yksittainen paivamaara); (4) WARN muuttuu PASS-riviksi vain
       kun kaikki uudet serviceId:t luokittuvat, muuten WARN kuten ennen.
+      FIXTUURIT 2026-10-01 (yllapitaja poimi, vastaus PR #28:n kysymykseen): ajon 32812513577
+      22 uutta serviceId:ta sellaisinaan. Lahde: artefakti kausivalidointi-raportti
+      (kausivalidointi-tulos.json, baselineEhdotus miinus tests/kausivalidointi-baseline.json
+      commitissa 5a7dd9e), tasmaa lokin serviceId-uudet-riveihin (lokissa Oulun lista katkeaa
+      kuuden jalkeen). Kopioi merkkijonot tasmalleen, myos aakkoset:
+        lahti: "Lahti:2026-2027 La Historic Rally"
+        salo: "Salo:Koulup_2026_lisävuorot_syksy"
+        kajaani: "Kajaani:Koulu p keskiviikko", "Kajaani:koulup ma,ke,to,pe"
+        kotka: "Kotka:2026-2027 TALVI Jouluaatto2026", "Kotka:2026-2027 TALVI Joulupäivä2026"
+        raasepori: "Raasepori:BOSSE_talvi_ma-to", "Raasepori:BOSSE_talvi_pe",
+          "Raasepori:ME_kesaAW_la-su", "Raasepori:ME_talviAW_la-su"
+        jyvaskyla: "LINKKI:SEUTU L talvi"
+        oulu: "OULU:T_T 26-27 59 La", "OULU:T_T 26-27 59 MaPe", "OULU:T_T 26-27 59 Su",
+          "OULU:T_T 26-27 La alk 14_9", "OULU:T_T 26-27 La alk 24_8",
+          "OULU:T_T 26-27 MaTo KP alk 14_9", "OULU:T_T 26-27 MaTo KP alk 24_8",
+          "OULU:T_T 26-27 Pe KP alk 14_9", "OULU:T_T 26-27 Pe KP alk 24_8",
+          "OULU:T_T 26-27 Su alk 14_9", "OULU:T_T 26-27 Su alk 24_8"
+      Nykyinen luokitin: 7 koul (Salo 1, Kajaani 2, Oulun 4 KP-tunnistetta), 15 ilman luokkaa
+      (ajon WARN-rivien summa). Tarkennuksen (3) mukaan "La Historic Rally" jaa tuntemattomaksi.
 
 ## Tehdyt
 
