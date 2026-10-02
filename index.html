@@ -2301,8 +2301,9 @@
   .tg-h { width: 2.1rem; flex: none; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
   .tg-mins { display: flex; flex-wrap: wrap; gap: 0.3rem; }
   .tg-grouped button { min-width: 2.9rem; font-variant-numeric: tabular-nums; }
-  /* Ruudun kartat samaan hillittyyn sävyyn kuin tulosteiden MML-pohja: reitti ja pysäkit ovat kuvan kirkkain asia. */
-  .leaflet-tile-pane { filter: saturate(0.45) brightness(1.03); }
+  /* Ruudun kartat harmaana (2.10.2026, ennen saturate 0.45): OSM-pohjan oranssit tiet ja värialueet kilpailivat
+     linjavärien kanssa. Reitti, pysäkit ja ajoneuvot ovat kuvan ainoat värit. Sama laatta, vain suodin. */
+  .leaflet-tile-pane { filter: grayscale(1) contrast(0.92) brightness(1.06); }
 </style>
 </head>
 <body>
@@ -8259,9 +8260,11 @@ let leafletPromise = null;
 function ensureLeaflet() {
   if (window.L) return Promise.resolve();
   if (!leafletPromise) {
+    // Leaflet 1.9.4 omalta palvelimelta (vendor/leaflet, BSD-2, ks. THIRD-PARTY-NOTICES.md), ei unpkg:sta
+    // (2.10.2026): yksi kolmannen osapuolen riippuvuus vähemmän, ja service worker välimuistittaa sen.
     leafletPromise = Promise.all([
-      loadCss("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"),
-      loadScript("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"),
+      loadCss("vendor/leaflet/leaflet.css"),
+      loadScript("vendor/leaflet/leaflet.js"),
     ]).catch(err => { leafletPromise = null; throw err; });
   }
   return leafletPromise;
