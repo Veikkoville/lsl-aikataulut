@@ -5,6 +5,7 @@
 
 import { sendPush } from "./webpush.js";
 import { ADMIN_HTML } from "./admin-page.js";
+import { IDENTITEETTI_OTSAKE, varmennaIdentiteetti } from "./savikurki-identiteetti.js";
 
 // Reititysrajapinnat: waltti (oletus, Waltti-kaupungit) ja finland (valtakunnallinen: ELY-,
 // Matkahuolto- ja VR-data, ei-Waltti-kunnat kuten Inkoo). Client valitsee `?router=` -parametrilla;
@@ -28,6 +29,13 @@ const ALLOWED_ORIGINS = new Set([
   "https://reittari-henkilosto.pages.dev",
   "https://henkilosto.reittari.fi",
 ]);
+// Savikurki-työtila (3.10.2026): Reittari välitetään kunnan osoitteessa <kunta>.savikurki.fi/tyotila/reittari/,
+// joten selaimen Origin on kunnan alidomain. Kaikki savikurki.fi:n alidomainit ovat työtilan omia (Workerin reitti
+// *.savikurki.fi/*), ja uusi kunta toimii ilman tämän workerin julkaisua.
+const SAVIKURKI_ORIGIN_RE = /^https:\/\/[a-z0-9-]{2,40}\.savikurki\.fi$/;
+export function isAllowedOrigin(origin) {
+  return ALLOWED_ORIGINS.has(origin) || SAVIKURKI_ORIGIN_RE.test(String(origin || ""));
+}
 
 // CMS-häiriötiedotteiden lähde (WordPress REST). Vain sallitut hostit, ettei
 // workerista tule avointa välityspalvelinta. Lahti: lsl.fi häiriötiedote-kategoria.
@@ -35,7 +43,7 @@ const CMS_ALLOWED_HOSTS = new Set(["www.lsl.fi"]);
 
 function corsHeaders(origin) {
   return {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGINS.has(origin) ? origin : "https://veikkoville.github.io",
+    "Access-Control-Allow-Origin": isAllowedOrigin(origin) ? origin : "https://veikkoville.github.io",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
@@ -113,7 +121,7 @@ export async function bindingAllows(env, name, key) {
 }
 // Palauttaa virhevastauksen jos pyyntö ei saa kuluttaa kiintiötä, muuten null.
 export function quotaGate(request, origin) {
-  if (!ALLOWED_ORIGINS.has(origin)) {
+  if (!isAllowedOrigin(origin)) {
     return new Response("Forbidden: tuntematon origin", { status: 403, headers: corsHeaders(origin) });
   }
   const ip = request.headers.get("CF-Connecting-IP") || "";
@@ -186,7 +194,7 @@ function tooMany(origin, retryS) {
 
 // Origin + nopeusraja. Palauttaa virhevastauksen tai null.
 async function writeGate(request, env, origin, route) {
-  if (!ALLOWED_ORIGINS.has(origin)) return jsonResponse({ error: "forbidden_origin" }, 403, origin);
+  if (!isAllowedOrigin(origin)) return jsonResponse({ error: "forbidden_origin" }, 403, origin);
   const lim = WRITE_LIMITS[route];
   const ip = request.headers.get("CF-Connecting-IP") || "";
   if (!isolateHit("w:" + route, ip, lim.ip, WRITE_WINDOW_MS) ||
@@ -262,7 +270,7 @@ export function parseMmlTilePath(pathname) {
 // Jos se on, sen originin on oltava omamme.
 export function mmlRefererAllowed(referer) {
   if (!referer) return true;
-  try { return ALLOWED_ORIGINS.has(new URL(referer).origin); } catch (e) { return false; }
+  try { return isAllowedOrigin(new URL(referer).origin); } catch (e) { return false; }
 }
 // Läpinäkyvä 1×1 PNG: kun avainta ei ole tai MML ei vastaa, tuloste näyttää kartan kuten ennen
 // (valkoinen pohja) eikä selain lokita virhettä jokaisesta tiilestä (smoke vaatii 0 konsolivirhettä).
@@ -589,9 +597,24 @@ export function accessScope(payload, env) {
   return Object.prototype.hasOwnProperty.call(map, domain) && typeof map[domain] === "string" ? normAdminCity(map[domain]) : null;
 }
 
+// Savikurki-työtila (3.10.2026): työtila välittää ylläpidon kunnan osoitteeseen ja lisää allekirjoitetun
+// identiteettiotsakkeen (savikurki-identiteetti.js). Rooli Reittari.Yllapito antaa ylläpidon vain otsakkeen
+// tuotekunnalle. Toimii salasanan ja Accessin rinnalla; ilman avainta (IDENTITEETTI_AVAIN) otsaketta ei hyväksytä.
+const TYOTILA_YLLAPITO_ROOLI = "Reittari.Yllapito";
+export async function tyotilaScope(request, env) {
+  if (!env.IDENTITEETTI_AVAIN) return null;
+  const arvo = request.headers.get(IDENTITEETTI_OTSAKE);
+  if (!arvo) return null;
+  const id = await varmennaIdentiteetti(arvo, env.IDENTITEETTI_AVAIN, { moduuli: "reittari" });
+  if (!id || !id.roolit.includes(TYOTILA_YLLAPITO_ROOLI) || !id.tuotekunta) return null;
+  return normAdminCity(id.tuotekunta);
+}
+
 // Istunnon rajaus: "*", kaupunkiavain tai null. Istunto ilman scope-kenttää on luotu
 // ADMIN_PASSWORDilla (ennen kaupunkitunnuksia), joten se on "*".
 async function adminScope(request, env) {
+  const tyotila = await tyotilaScope(request, env);
+  if (tyotila) return tyotila;
   if (env.ADMIN_ACCESS_AUD && env.ADMIN_ACCESS_TEAM_DOMAIN) {
     const jwt = request.headers.get("Cf-Access-Jwt-Assertion");
     const pl = jwt ? await verifyAccessJwt(jwt, env.ADMIN_ACCESS_AUD, env.ADMIN_ACCESS_TEAM_DOMAIN) : null;
@@ -2129,8 +2152,11 @@ export default {
       return handleAdminLogin(request, env);
     if (url.pathname === "/admin/logout" && request.method === "POST")
       return handleAdminLogout();
-    if (url.pathname === "/admin/api/session" && request.method === "GET")
-      return adminJson({ authed: await isAdmin(request, env, url.searchParams.get("city")) }, 200);
+    if (url.pathname === "/admin/api/session" && request.method === "GET") {
+      // tyotila = kirjautuminen tulee Savikurki-työtilasta: sivu ei näytä omaa kirjautumistaan eikä uloskirjautumista.
+      const tyotila = adminScopeAllows(await tyotilaScope(request, env), url.searchParams.get("city"));
+      return adminJson({ authed: tyotila || await isAdmin(request, env, url.searchParams.get("city")), tyotila }, 200);
+    }
     if (url.pathname === "/admin/api/alerts" && request.method === "GET")
       return handleAdminAlertsGet(request, env, url);
     if (url.pathname === "/admin/api/alerts" && request.method === "POST")
