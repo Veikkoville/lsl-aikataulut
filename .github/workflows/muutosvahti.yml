@@ -6,6 +6,8 @@
 # KIINTIÖKURI: pelkkiä GraphQL-kutsuja aliasnipuissa, tauot kyselyjen välissä. Ajastus eri
 # päivälle kuin Tuotanto-smoke (ma/to) ja Kausivalidointi (ti): sunnuntaiaamu.
 # Datacommit ei laukaise CI:tä (ci.yml paths-ignore), koska koodi ei muutu.
+# 3.10.2026: master on suojattu (vain PR:llä, auditointi R-12), joten tulos viedään data-haarana PR:ksi ja
+# yhdistetään heti. GITHUB_TOKENilla ei ole ohitusoikeutta, jottei auto-kehitysagentti voi pushata masteriin.
 name: Muutosvahti
 
 on:
@@ -15,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: muutosvahti
@@ -40,16 +43,22 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           grep -E "^(OK|INFO|FAIL|YHTEENVETO)" muutosvahti-loki.txt >> "$GITHUB_STEP_SUMMARY" || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-      - name: Committaa tulos (vain docs/muutosvahti)
+      - name: Committaa tulos PR:nä ja yhdistä (vain docs/muutosvahti)
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "muutosvahti"
           git config user.email "muutosvahti@users.noreply.github.com"
           git add docs/muutosvahti
           if git diff --cached --quiet; then echo "ei muutoksia"; exit 0; fi
-          git commit -m "data(muutosvahti): viikkoajo $(date -u +%Y-%m-%d)"
-          git pull --rebase origin master
-          git push origin HEAD:master
+          paiva="$(date -u +%Y-%m-%d)"
+          haara="data/muutosvahti-${paiva}-${GITHUB_RUN_ID}"
+          git switch -c "$haara"
+          git commit -m "data(muutosvahti): viikkoajo ${paiva}"
+          git push -u origin "$haara"
+          gh pr create --base master --head "$haara" --title "data(muutosvahti): viikkoajo ${paiva}" --body "Muutosvahdin viikkoajo ${GITHUB_RUN_ID}: vain docs/muutosvahti. Yhdistetään automaattisesti."
+          gh pr merge "$haara" --squash --delete-branch
       - name: Arkistoi loki
         if: always()
         uses: actions/upload-artifact@v4
