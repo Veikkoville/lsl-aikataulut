@@ -3949,23 +3949,26 @@ function cityFromSharedRoute() {
    resident = kuntalaisnäkymä kunnan omassa osoitteessa (CONFIG.residentHosts): ei henkilöstön osia, ja
               henkilöstön reitit ohjautuvat etusivulle.
    staff    = henkilöstönäkymä omassa osoitteessa (STAFF_HOSTS, Cloudflare Accessin takana): henkilöstön
-              etusivu ja Ylläpito-linkki.
+              etusivu ja Ylläpito-linkki. Myös Savikurki-työtilassa (<kunta>.savikurki.fi/tyotila/reittari/, TYOTILA_BASE),
+              jossa työtila hoitaa kirjautumisen ja roolit ja jonka palkissa on ylläpidon linkki Ylläpito-roolille.
    Kuntalaisnäkymä on selkeyttä eikä salausta: henkilöstönäkymät näyttävät vain julkista aikataulutietoa.
    Julkaisu (ylläpito) ja uusintapainatusavain ovat workerin kirjautumisen takana. */
 const STAFF_HOSTS = ["reittari-henkilosto.pages.dev", "henkilosto.reittari.fi"];
 const STAFF_ROUTES = new Set(["palvelutiski", "tilanne", "uusintapainatus", "tulosta", "tulosteet", "kaupunki"]);
+// Työtilan polku (3.10.2026): "/tyotila/reittari" kun sovellus on välitetty kunnan työtilaan, muuten "".
+const TYOTILA_BASE = (location.pathname.match(/^\/tyotila\/reittari(?=\/)/) || [""])[0];
 function cityFromHost() {
   const h = location.hostname.toLowerCase();
   return Object.keys(CONFIGS).find(k => (CONFIGS[k].residentHosts || []).includes(h)) || null;
 }
 const APP_MODE = (() => {
   const h = location.hostname.toLowerCase();
-  if (STAFF_HOSTS.includes(h)) return "staff";
+  if (STAFF_HOSTS.includes(h) || TYOTILA_BASE) return "staff";
   if (cityFromHost()) return "resident";
   const p = (new URLSearchParams(location.search).get("nakyma") || "").toLowerCase();
   return p === "kuntalainen" ? "resident" : p === "henkilosto" ? "staff" : "demo";
 })();
-const APP_PREVIEW = APP_MODE !== "demo" && !STAFF_HOSTS.includes(location.hostname.toLowerCase()) && !cityFromHost();
+const APP_PREVIEW = APP_MODE !== "demo" && !TYOTILA_BASE && !STAFF_HOSTS.includes(location.hostname.toLowerCase()) && !cityFromHost();
 const cityKey = (new URLSearchParams(location.search).get("city") || cityFromHost() || cityFromSharedRoute() || "lahti").toLowerCase();
 const CONFIG = CONFIGS[cityKey] || CONFIGS.lahti;
 
@@ -10345,8 +10348,10 @@ function heroLayerHtml() {
 // Ylläpidon oma osoite (30.9.2026, worker/wrangler.toml routes). Sama worker kuin PROXY_URL; vanha
 // workers.dev/admin-osoite toimii yhä. Ilman proxya (paikallinen kehitys ilman workeria) linkkiä ei näytetä.
 const ADMIN_BASE = "https://yllapito.reittari.fi";
+// Työtilassa linkkiä ei näytetä: ylläpito on työtilan palkissa vain Ylläpito-roolille, ja asiakaspalvelun
+// käyttäjä saisi tästä linkistä kieltosivun.
 function adminUrl() {
-  return PROXY_URL ? ADMIN_BASE + "/admin?city=" + encodeURIComponent(cityKey) : "";
+  return PROXY_URL && !TYOTILA_BASE ? ADMIN_BASE + "/admin?city=" + encodeURIComponent(cityKey) : "";
 }
 // Demon esikatselupalkki (?nakyma=kuntalainen|henkilosto): kertoo tilan ja palauttaa koko demon.
 function previewBarSync() {
@@ -20019,7 +20024,8 @@ document.addEventListener("visibilitychange", () => {
   if (document.body.classList.contains("monitor-mode") && !monitorWakeLock) requestWakeLock();
 });
 
-if ("serviceWorker" in navigator) {
+// Työtilassa ei service workeria: henkilöstön näkymät eivät saa jäädä välimuistiin uloskirjautumisen jälkeen.
+if ("serviceWorker" in navigator && !TYOTILA_BASE) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 

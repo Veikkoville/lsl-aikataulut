@@ -1,5 +1,5 @@
 name = "lsl-aikataulut-proxy"
-main = "worker.js"
+main = "main.js"
 compatibility_date = "2026-06-01"
 
 # Ylläpidon oma osoite (30.9.2026): reittari.fi:n DNS on Cloudflaressa, joten worker saa custom domainin.

@@ -47,6 +47,14 @@ itse. Kun asetat molemmat `ADMIN_ACCESS_AUD` (Access-sovelluksen aud-tunniste) j
 -otsakkeen (RS256, varmennetaan Accessin julkista JWKS:ää vasten) salasanaistunnon
 rinnalla. Ilmainen ≤50 käyttäjälle.
 
+**Savikurki-työtila (3.10.2026).** Työtila välittää ylläpidon kunnan osoitteeseen
+`<kunta>.savikurki.fi/tyotila/reittari/yllapito/admin` ja lisää jokaiseen pyyntöön allekirjoitetun
+`Savikurki-Identiteetti`-otsakkeen (`savikurki-identiteetti.js`, kopio työtilasta). Kun secret
+`IDENTITEETTI_AVAIN` on asetettu (sama arvo kuin työtilan `IDENTITEETTI_AVAIN_REITTARI`), rooli
+`Reittari.Yllapito` antaa ylläpidon otsakkeen tuotekunnalle ilman salasanaa. Salasanat ja Access toimivat
+rinnalla. Ylläpitosivun rajapintapolut ovat suhteellisia (`admin/api/...`), jotta sama sivu toimii
+molemmissa osoitteissa. CORS ja kiintiöportti hyväksyvät `https://<kunta>.savikurki.fi`-originit (`isAllowedOrigin`).
+
 Hallittava sisältö on Workers KV:ssä yhdessä avaimessa per tyyppi/kaupunki
 (`admin:alerts:<kaupunki>`, `admin:fares:<kaupunki>`) → ei kuormita KV:n
 list-kiintiötä. Julkinen sovellus lukee ne `/published?city=<kaupunki>`

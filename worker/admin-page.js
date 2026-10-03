@@ -450,6 +450,8 @@ function alertState(a){
   return "now";
 }
 
+// Polut ovat suhteellisia (admin/api/...): sivu toimii omassa osoitteessaan (/admin) ja Savikurki-työtilan
+// välittämänä (/tyotila/reittari/yllapito/admin), jossa työtila hoitaa kirjautumisen.
 async function api(path, opts){
   const r = await fetch(path, Object.assign({ headers:{ "Content-Type":"application/json" } }, opts));
   let data = {}; try { data = await r.json(); } catch(e){}
@@ -468,29 +470,33 @@ function showSection(focus){
 }
 window.addEventListener("hashchange", () => showSection(true));
 
+let TYOTILA = false;
 async function init(){
   $("openApp").href = "https://demo.reittari.fi/?city=" + CITY;
   $("cityName").textContent = CITY_NAME;
   $("glyph").textContent = CITY_NAME.charAt(0);
   document.title = "Ylläpito · " + CITY_NAME + " · Reittari";
-  const s = await api("/admin/api/session?city=" + CITY, { method:"GET" });
+  const s = await api("admin/api/session?city=" + CITY, { method:"GET" });
+  // Työtilassa kirjautuminen ja uloskirjautuminen ovat työtilan palkissa, ja palvelu avautuu työtilan polulta.
+  TYOTILA = !!(s.data && s.data.tyotila);
+  if (TYOTILA) $("openApp").href = "../?city=" + CITY + "#/tilanne";
   if (s.data && s.data.authed) enterAdmin(); else { show($("loginView"), true); $("pw").focus(); }
 }
 
 $("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const r = await api("/admin/login", { method:"POST", body: JSON.stringify({ password: $("pw").value, city: CITY }) });
+  const r = await api("admin/login", { method:"POST", body: JSON.stringify({ password: $("pw").value, city: CITY }) });
   if (r.ok) { $("pw").value=""; msg($("loginMsg"),"",true); enterAdmin(); }
   else msg($("loginMsg"), r.status===503 ? "Ylläpitoa ei ole vielä otettu käyttöön tälle kunnalle." : "Väärä salasana.", false);
 });
 
 $("logoutBtn").addEventListener("click", async () => {
-  await api("/admin/logout", { method:"POST" });
+  await api("admin/logout", { method:"POST" });
   show($("adminView"), false); show($("logoutBtn"), false); show($("loginView"), true);
 });
 
 function enterAdmin(){
-  show($("loginView"), false); show($("adminView"), true); show($("logoutBtn"), true);
+  show($("loginView"), false); show($("adminView"), true); show($("logoutBtn"), !TYOTILA);
   showSection(false);
   renderOverview();
   loadList();
@@ -539,7 +545,7 @@ function renderOverview(){
 
 /* ---------- Häiriötiedotteet ---------- */
 async function loadList(){
-  const r = await api("/admin/api/alerts?city="+CITY, { method:"GET" });
+  const r = await api("admin/api/alerts?city="+CITY, { method:"GET" });
   if (!r.ok){ $("list").innerHTML = "<p class='empty'>Lista ei latautunut.</p>"; S.alerts = { err:true }; renderOverview(); return; }
   const items = (r.data && r.data.items) || [];
   const order = { now:0, future:1, past:2 };
@@ -612,7 +618,7 @@ $("alertForm").addEventListener("submit", async e => {
     url: $("url").value.trim(),
   };
   if (!payload.title){ msg($("formMsg"),"Otsikko on pakollinen.",false); return; }
-  const r = await api("/admin/api/alerts", { method:"POST", body: JSON.stringify(payload) });
+  const r = await api("admin/api/alerts", { method:"POST", body: JSON.stringify(payload) });
   if (r.ok){ resetForm(); msg($("formMsg"),"Tallennettu ja julkaistu.",true); setTimeout(()=>msg($("formMsg"),"",true),2500); loadList(); }
   else if (r.status===403){ msg($("formMsg"),"Istunto vanheni. Kirjaudu uudelleen.",false); }
   else msg($("formMsg"),"Tallennus epäonnistui.",false);
@@ -620,7 +626,7 @@ $("alertForm").addEventListener("submit", async e => {
 
 async function del(id){
   if (!confirm("Poistetaanko tiedote?")) return;
-  const r = await api("/admin/api/alerts/delete", { method:"POST", body: JSON.stringify({ city:CITY, id }) });
+  const r = await api("admin/api/alerts/delete", { method:"POST", body: JSON.stringify({ city:CITY, id }) });
   if (r.ok) loadList();
 }
 
@@ -684,7 +690,7 @@ function gatherFares(){
   };
 }
 async function loadFares(){
-  const r = await api("/admin/api/fares?city="+CITY, { method:"GET" });
+  const r = await api("admin/api/fares?city="+CITY, { method:"GET" });
   const pub = r.ok && r.data && r.data.fares;
   S.fares = pub ? { published:true, checked:pub.checked || "" } : { published:false }; renderOverview();
   // Lahden oletushinnat vain Lahdelle: muualla tyhjä lomake, ettei Lahden hintoja julkaista vahingossa.
@@ -694,7 +700,7 @@ $("addSeason").addEventListener("click", ()=>$("seasonBody").appendChild(seasonR
 $("addDay").addEventListener("click", ()=>$("dayBody").appendChild(dayRowEl()));
 $("faresForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const r = await api("/admin/api/fares", { method:"POST", body: JSON.stringify(gatherFares()) });
+  const r = await api("admin/api/fares", { method:"POST", body: JSON.stringify(gatherFares()) });
   if (r.ok){ msg($("faresMsg"),"Hinnat julkaistu.",true); setTimeout(()=>msg($("faresMsg"),"",true),2500);
     S.fares = { published:true, checked:$("fChecked").value.trim() }; renderOverview(); }
   else if (r.status===403){ msg($("faresMsg"),"Istunto vanheni. Kirjaudu uudelleen.",false); }
@@ -703,7 +709,7 @@ $("faresForm").addEventListener("submit", async e => {
 
 /* ---------- Saavutettavuusseloste ---------- */
 async function loadA11y(){
-  const r = await api("/admin/api/a11y?city="+CITY, { method:"GET" });
+  const r = await api("admin/api/a11y?city="+CITY, { method:"GET" });
   const a = (r.ok && r.data && r.data.a11y) || {};
   S.a11y = a.orgName ? { published:true, date:a.date || "" } : { published:false }; renderOverview();
   $("aOrg").value=a.orgName||""; $("aDate").value=a.date||""; $("aStatus").value=a.status||"partial";
@@ -724,7 +730,7 @@ $("a11yForm").addEventListener("submit", async e => {
     deficienciesSv: $("aDefsSv").value.split("\\n").map(s=>s.trim()).filter(Boolean),
   };
   if (!payload.orgName){ msg($("a11yMsg"),"Julkaiseva organisaatio on pakollinen.",false); return; }
-  const r = await api("/admin/api/a11y", { method:"POST", body: JSON.stringify(payload) });
+  const r = await api("admin/api/a11y", { method:"POST", body: JSON.stringify(payload) });
   if (r.ok){ msg($("a11yMsg"),"Seloste julkaistu.",true); setTimeout(()=>msg($("a11yMsg"),"",true),2500);
     S.a11y = { published:true, date:payload.date }; renderOverview(); }
   else if (r.status===403){ msg($("a11yMsg"),"Istunto vanheni. Kirjaudu uudelleen.",false); }
@@ -733,7 +739,7 @@ $("a11yForm").addEventListener("submit", async e => {
 
 /* ---------- Uusintapainatusvahti: kaupungin avain ---------- */
 async function loadReprintKey(){
-  const r = await api("/admin/api/reprint/key?city="+CITY, { method:"GET" });
+  const r = await api("admin/api/reprint/key?city="+CITY, { method:"GET" });
   const box = $("rpKeyBox");
   if (!r.ok || !r.data || r.data.error){ box.innerHTML="<p class='empty'>Avaintietoa ei saatu.</p>"; S.key = { err:true }; renderOverview(); return; }
   const d = r.data;
@@ -747,7 +753,7 @@ $("rpMailBtn").addEventListener("click", async () => {
   // Tyhjä kenttä = lopeta ilmoitukset. Osoite on henkilötieto, joten se kysytään vain täällä,
   // ei julkisessa sovelluksessa.
   const email = $("rpMail").value.trim();
-  const r = await api("/admin/api/reprint/notify", { method:"POST", body: JSON.stringify({ city: CITY, email }) });
+  const r = await api("admin/api/reprint/notify", { method:"POST", body: JSON.stringify({ city: CITY, email }) });
   if (!r.ok || !r.data || r.data.error){ msg($("rpMailMsg"), "Tallennus epäonnistui" + (r.data && r.data.error ? " (" + r.data.error + ")" : "") + ".", false); return; }
   msg($("rpMailMsg"), email ? "Vahvistusviesti lähetetty osoitteeseen " + email + ". Ilmoitukset alkavat vasta vahvistuksen jälkeen." : "Ilmoitukset lopetettu.", true);
   $("rpMailState").textContent = email ? "Odottaa vahvistusta" : "";
@@ -756,7 +762,7 @@ $("rpMailBtn").addEventListener("click", async () => {
 $("rpKeyBtn").addEventListener("click", async () => {
   // Uusi avain ei pyyhi perustasoa, mutta vanha avain lakkaa toimimasta.
   if (!confirm("Luodaanko uusi avain? Vanha avain lakkaa toimimasta ja se on syötettävä sovellukseen uudelleen.")) return;
-  const r = await api("/admin/api/reprint/key", { method:"POST", body: JSON.stringify({ city: CITY }) });
+  const r = await api("admin/api/reprint/key", { method:"POST", body: JSON.stringify({ city: CITY }) });
   if (!r.ok || !r.data || !r.data.key){ msg($("rpKeyMsg"), "Avaimen luonti epäonnistui.", false); return; }
   $("rpKeyBox").innerHTML = "<p style='margin-top:0'><strong>Uusi avain (näytetään vain nyt):</strong></p><p><code style='word-break:break-all;font-size:1.1em'>"+esc(r.data.key)+"</code></p><p class='muted'>Syötä tämä sovelluksen Uusintapainatus-näkymään.</p>";
   msg($("rpKeyMsg"), "Avain luotu.", true);
@@ -774,7 +780,7 @@ function statList(title, rows, labelFn){
   return "<div><h4>" + esc(title) + "</h4><table class='stable'><tbody>" + items + "</tbody></table></div>";
 }
 async function loadStats(){
-  const r = await api("/admin/api/stats?city="+CITY, { method:"GET" });
+  const r = await api("admin/api/stats?city="+CITY, { method:"GET" });
   const box = $("statsBox");
   if (!r.ok){ box.innerHTML="<p class='empty'>Tilastot eivät latautuneet.</p>"; S.stats = { err:true }; renderOverview(); return; }
   if (r.data && r.data.error === "unconfigured"){
