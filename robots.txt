@@ -1,0 +1,7 @@
+# demo.reittari.fi (GitHub Pages julkaisee koko repon): sovellus indeksoidaan sivujen omilla
+# meta-tageilla, kehitys- ja testitiedostot eivät kuulu hakukoneisiin.
+User-agent: *
+Disallow: /docs/
+Disallow: /tests/
+Disallow: /tools/
+Disallow: /worker/

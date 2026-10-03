@@ -11,36 +11,34 @@ sw.js-cacheversio, mikä tahansa deploy.
 ## Signaalit
 
 Havainnot asiakkailta, tapaamisista ja vahdeista, joita ei ole vielä muutettu tehtäviksi.
-Ylläpitäjä kirjaa ne tänne lyhyesti (kuka-tyyppi, mitä sanottiin, milloin; ei nimiä eikä
-hintoja). Agentti muuttaa niistä backlog-rivejä kun Avoimet on tyhjä ja merkitsee käytetyn
-signaalin "→ backlog <pvm>".
+Ylläpitäjä kirjaa ne tänne lyhyesti: kuka-tyyppi, mitä tarvittiin ja kuukausi. Repo on julkinen,
+joten ei kuntien eikä henkilöiden nimiä, ei tarkkoja päivämääriä, ei sitaatteja eikä hintoja.
+Agentti muuttaa niistä backlog-rivejä kun Avoimet on tyhjä ja merkitsee käytetyn signaalin
+"→ backlog <pvm>".
 
-- 2026-08-26, kaupungin joukkoliikennetiimi tapaamisessa: pysäkkijuliste on heillä A4 ja siihen
+- 2026-08, kaupungin joukkoliikennetiimi tapaamisessa: pysäkkijuliste on heillä A4 ja siihen
   halutaan mahdollisimman paljon tietoa yhdelle arkille; he eivät tarjoa nyt painettavaa lainkaan.
   (Yhden arkin A4 tehty 27.8.; 2.9. rakennettu uusiksi tunti × linja -matriisiksi, 8 linjaa 12 pt:llä
   yhdellä arkilla. → tehty 2.9.)
-- 2026-09-02, kolmas kaupunki peräkkäin (Salo 3.7., Kotka, Vaasa 2.9.) vastasi samalla lauseella
-  "meillä on jo reittiopas, jossa pitkälti samat ominaisuudet". Ensimmäinen ruutu oli A→B-haku, ja
-  ostaja luokitteli palvelun sen mukaan. (→ tehty 2.9.: layer-kaupungin etusivu avaa julisteet, vihot,
+- 2026-09, useampi kaupunki peräkkäin vertasi palvelua omaan reittioppaaseensa ja piti niitä
+  pitkälti samanlaisina. Ensimmäinen ruutu oli A→B-haku, ja ostaja luokitteli palvelun sen mukaan.
+  (→ tehty 2.9.: layer-kaupungin etusivu avaa julisteet, vihot,
   tiskin ja muutosvahdin; A→B alimpana. Muutosvahti (tests/muutosvahti.js + tulostekeskuksen välilehti)
   vastaa kysymykseen jota reittiopas ei tee: mitkä julisteet pitää tulostaa uudelleen.)
-- 2026-08-27, kaupunki jossa ei ole reaaliaikadataa: livekartta näytti tyhjää. (→ backlog 28.8.,
+- 2026-08, kaupunki jossa ei ole reaaliaikadataa: livekartta näytti tyhjää. (→ backlog 28.8.,
   tehty PR #3.)
-- 2026-08-24, kaupungin tekninen johto: kysyivät, missä data sijaitsee ja mitä tapahtuu jos
+- 2026-08, kaupungin tekninen johto: kysyivät, missä data sijaitsee ja mitä tapahtuu jos
   toimittaja katoaa. Tuotteen on kestettävä tämä kysymys ilman erillistä paperia.
   (→ backlog 2026-08-29.)
-- 2026-08-26, kaupungin joukkoliikennetiimi: pyysivät ryhmäkuljetusten tilausten käsittelyä
+- 2026-08, kaupungin joukkoliikennetiimi: pyysivät ryhmäkuljetusten tilausten käsittelyä
   (koulut ja päiväkodit varaavat auton, törmäystarkistus) ja palveluliikenteen kuljettajanäkymää
   (kuljettaja näkee päivän tilaukset). Kaupunki lähettää tarkemmat tiedot sähköpostilla.
   **Ei agentin tehtäväksi**: tämä on oma moduuli (ks. TUOTEPERIAATTEET.md), jonka rajaus ja
   tietosuoja päätetään ihmisen kanssa; kun tiedot tulevat, ylläpitäjä kirjoittaa osatehtävät
   Avoimet-listaan ja agentti toteuttaa ne yksi kerrallaan.
 
-Markkinasignaalit tulevat automaattisesti HILMAn ennakoivista ilmoituksista
-(tietopyynnöt ja markkinavuoropuhelut). Ne kertovat mitä kunnat ovat ostamassa
-seuraavaksi: tietopyyntö edeltää tarjouspyyntöä mitatusti noin seitsemän kuukautta,
-eli signaalin ja lukittujen vaatimusten välissä on aikaa rakentaa. Agentti käsittelee
-nämä samoin kuin tapaamisista kirjatut signaalit.
+Markkinasignaalit tulevat HILMAn ennakoivista ilmoituksista (tietopyynnöt ja
+markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut signaalit.
 
 - 2026-08-28, markkinasignaali (HILMAn ennakoivat ilmoitukset, 3 eri hankintayksikköä 2022-2026): kuntien tietopyynnöissä ja markkinavuoropuheluissa toistuu aihe: tapahtuma- ja harrastuskalenterit kuntalaisille. Osuu tuotteeseen: Kalenteri (sama moottori, toinen data).
 - 2025-05-27, markkinasignaali (HILMAn ennakoivat ilmoitukset, 2 eri hankintayksikköä 2025): kuntien tietopyynnöissä ja markkinavuoropuheluissa toistuu aihe: ulko- ja sisätiloihin sijoitettavat infonäytöt ja niiden sisältö. Osuu tuotteeseen: Reittari, monitorinäkymä.

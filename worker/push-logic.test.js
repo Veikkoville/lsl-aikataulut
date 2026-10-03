@@ -381,7 +381,7 @@ check(tampered.status === 403, "admin: peukaloitu eväste → 403");
 {
   check(accessScope({ email: "a@inkoo.fi" }, {}) === "*", "access: ilman karttaa vanha käytös (kaikki kaupungit)");
   const aenv = { ADMIN_ACCESS_CITY_MAP: JSON.stringify({ "inkoo.fi": "Inkoo", "inga.fi": "inkoo" }), ADMIN_ACCESS_SUPERUSERS: "ville@savikurki.fi, toinen@x.fi" };
-  check(accessScope({ email: "Juha.Heikkinen@INGA.fi" }, aenv) === "inkoo", "access: kunnan verkkotunnus -> kunta (kirjainkoko ei ratkaise)");
+  check(accessScope({ email: "Etunimi.Sukunimi@INGA.fi" }, aenv) === "inkoo", "access: kunnan verkkotunnus -> kunta (kirjainkoko ei ratkaise)");
   check(accessScope({ email: "a@inkoo.fi" }, aenv) === "inkoo", "access: toinen verkkotunnus samaan kuntaan");
   check(accessScope({ email: "ville@savikurki.fi" }, aenv) === "*", "access: pääkäyttäjä kaikkiin");
   check(accessScope({ email: "x@lahti.fi" }, aenv) === null, "access: tuntematon verkkotunnus ei saa oikeuksia");
