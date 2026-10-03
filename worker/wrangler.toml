@@ -47,6 +47,27 @@ id = "d05f6c569d4a49339114fedf5764f4cc"
 binding = "AE"
 dataset = "lsl_events"
 
+# Nopeusrajat Cloudflaren Rate Limiting -sidonnalla (3.10.2026, auditointi R-01, R-06, R-07).
+# VALMISTELTU, POIS PÄÄLTÄ. Koodi käyttää sidontoja vain jos ne ovat olemassa (bindingAllows), joten
+# ilman niitä isolaattikohtaiset rajat kantavat yksin. Sidonta laskee IP:n pyynnöt koko Cloudflaren
+# sijainnissa (ei vain yhdessä isolaatissa) ja toimii myös workers.dev-osoitteessa, jota zone-tason
+# säännöt eivät koske. Vaatii wrangler >= 4.36.0. period on 10 tai 60 sekuntia. namespace_id on
+# tilikohtainen: tarkista ennen käyttöönottoa, ettei saman tilin muu worker käytä samaa numeroa.
+# Käyttöönotto on erillinen julkaisuaskel (deploy).
+# [[ratelimits]]
+# name = "RL_PROXY"          # GraphQL- ja geokoodausproxy, avain = IP
+# namespace_id = "7301"
+#   [ratelimits.simple]
+#   limit = 1200
+#   period = 60
+#
+# [[ratelimits]]
+# name = "RL_WRITE"          # julkiset kirjoittavat reitit, avain = reitti + IP
+# namespace_id = "7302"
+#   [ratelimits.simple]
+#   limit = 10
+#   period = 60
+
 # Häiriötarkistus 5 min välein; lähtömuistutukset minuutin välein
 [triggers]
 crons = ["*/5 * * * *", "* * * * *"]
