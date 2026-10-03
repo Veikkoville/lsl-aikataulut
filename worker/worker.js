@@ -70,16 +70,46 @@ const RATE_WINDOW_MS = 60000;
 // Origin-portti (yllä) on se joka estää ulkopuolisen käytön; tämän raja on karannut
 // silmukka, ei laillinen erätyö. ÄLÄ laske takaisin mittaamatta julisteajoa.
 export const RATE_MAX = 1200;
-const rateMap = new Map();
-function rateLimited(ip) {
-  const now = Date.now();
-  if (rateMap.size > 10000) { // siivous: älä kasva rajatta pitkäikäisessä isolaatissa
-    for (const [k, v] of rateMap) if (now - v.start > RATE_WINDOW_MS) rateMap.delete(k);
+// Koko isolaatin katto kaikille IP-osoitteille yhteensä (3.10.2026, auditointi R-06): Origin on
+// väärennettävissä, joten monesta osoitteesta ajettu käyttö ei osu IP-rajaan. Viisi kertaa
+// IP-raja, jotta usean käyttäjän yhtäaikainen erätulostus mahtuu.
+export const PROXY_ISOLATE_MAX = 6000;
+// GraphQL-rungon katto. Sovelluksen suurimmat kyselyt (linjalista aliaksineen, stops(ids:) 40 id:llä,
+// areaScoped-kaupungin routes(ids:)) ovat muutaman kilotavun luokkaa, joten 64 kt jättää reilusti varaa.
+export const GRAPHQL_MAX_BYTES = 65536;
+export const GEOCODING_MAX_QUERY = 2048;   // sovelluksen haku: noin 250 merkkiä + hakuteksti
+
+// Isolaattikohtainen kiinteän ikkunan laskuri, yhteinen kaikille rajoille. Ei KV-kirjoituksia eikä
+// verkkokutsuja. Palauttaa true kun pyyntö mahtuu rajaan. PEHMEÄ raja kuten yllä: katkaisee yhden
+// lähteen purskeen ja silmukan, ei hajautettua käyttöä. Kattava IP-kohtainen raja vaatii Cloudflaren
+// Rate Limiting -sidonnan (bindingAllows alla, wrangler.toml [[ratelimits]], oletuksena pois päältä).
+const isolateBuckets = new Map();   // bucket -> Map(avain -> { start, n })
+export function isolateHit(bucket, key, max, windowMs, nowMs) {
+  const now = nowMs ?? Date.now();
+  let m = isolateBuckets.get(bucket);
+  if (!m) { m = new Map(); isolateBuckets.set(bucket, m); }
+  if (m.size > 10000) { // siivous: älä kasva rajatta pitkäikäisessä isolaatissa
+    for (const [k, v] of m) if (now - v.start > windowMs) m.delete(k);
+    // Tulva eri avaimilla: pudota vanhimmat (Map säilyttää lisäysjärjestyksen).
+    if (m.size > 20000) { let drop = m.size - 15000; for (const k of m.keys()) { if (drop-- <= 0) break; m.delete(k); } }
   }
-  const e = rateMap.get(ip);
-  if (!e || now - e.start > RATE_WINDOW_MS) { rateMap.set(ip, { start: now, n: 1 }); return false; }
+  const e = m.get(key);
+  if (!e || now - e.start > windowMs) { m.set(key, { start: now, n: 1 }); return true; }
   e.n++;
-  return e.n > RATE_MAX;
+  return e.n <= max;
+}
+// Testejä varten: tuotannossa laskurit nollautuvat isolaatin mukana.
+export function resetIsolateLimits() { isolateBuckets.clear(); }
+function rateLimited(ip) {
+  return !isolateHit("proxy", ip, RATE_MAX, RATE_WINDOW_MS);
+}
+// Cloudflaren Rate Limiting -sidonta (wrangler.toml [[ratelimits]]). Puuttuva sidonta = sallittu, jolloin
+// isolaattirajat kantavat yksin. Sidonnan vika ei saa katkaista palvelua, joten virhe = sallittu.
+export async function bindingAllows(env, name, key) {
+  const rl = env && env[name];
+  if (!rl || typeof rl.limit !== "function") return true;
+  try { const r = await rl.limit({ key: String(key || "") }); return !(r && r.success === false); }
+  catch (e) { return true; }
 }
 // Palauttaa virhevastauksen jos pyyntö ei saa kuluttaa kiintiötä, muuten null.
 export function quotaGate(request, origin) {
@@ -87,12 +117,126 @@ export function quotaGate(request, origin) {
     return new Response("Forbidden: tuntematon origin", { status: 403, headers: corsHeaders(origin) });
   }
   const ip = request.headers.get("CF-Connecting-IP") || "";
-  if (rateLimited(ip)) {
+  if (rateLimited(ip) || !isolateHit("proxy-all", "", PROXY_ISOLATE_MAX, RATE_WINDOW_MS)) {
     const h = new Headers(corsHeaders(origin));
     h.set("Retry-After", "60");
     return new Response("Liikaa pyyntöjä", { status: 429, headers: h });
   }
   return null;
+}
+
+/* ---------- Julkisten kirjoittavien reittien suojaus (3.10.2026, auditointi R-01, R-02, R-07, R-08) ----------
+   /push/subscribe, /push/unsubscribe, /push/reminder, /email/subscribe, /feedback, /track ja
+   /reprint/baseline olivat avoimia: ei Originia, ei nopeusrajaa, ei kokorajoja. Jokainen pyyntö
+   kirjoitti KV:hen, ja ilmaistilin KV-kirjoituskiintiö (1 000/vrk, koko tili) kului muutamalla sadalla
+   pyynnöllä. Suojat:
+   (1) Origin-sallintalista (ALLOWED_ORIGINS, sama kuin CORS). Origin on väärennettävissä curlilla:
+       portti estää vain selaimesta tehdyn väärinkäytön (vieras sivu, myös text/plain-pyyntö ilman
+       preflightia), ei komentoriviltä ajettua.
+   (2) Rungon kokoraja ennen jäsennystä (413) ja kenttien pituus- ja määrärajat.
+   (3) Nopeusraja per IP ja per isolaatti (isolateHit) sekä valinnainen Rate Limiting -sidonta RL_WRITE.
+   (4) Kaupunki tunnettuihin kaupunkeihin ja feed johdetaan palvelimella kaupungista (R-08).
+   (5) KV:hen kirjoitetaan vain kun tila muuttuu (sama tilaus uudelleen = 0 kirjoitusta). */
+
+// Kaupunki -> GTFS-feed, jonka häiriöt kaupungin tilaajille lähetetään. Palvelin johtaa feedin tästä
+// eikä luota selaimen lähettämään arvoon (R-08). Avaimet = index.html CONFIGS, feed-tunnukset
+// todennettu muutosvahdin datasta (docs/muutosvahti/<kaupunki>.json, ajo 27.9.2026: pysäkkien
+// gtfsId-etuliite). Uusi kaupunki lisätään tähän samassa muutoksessa kuin CONFIGSiin:
+// write-guard.test.js vertaa listoja index.html:ään ja kaatuu, jos ne eroavat.
+export const CITY_FEEDS = Object.freeze({
+  lahti: "Lahti", kuopio: "Kuopio", salo: "Salo", kajaani: "Kajaani", vaasa: "Vaasa", kotka: "Kotka",
+  raasepori: "Raasepori", kouvola: "Kouvola", mikkeli: "Mikkeli", hameenlinna: "Hameenlinna",
+  joensuu: "Joensuu", jyvaskyla: "LINKKI", lappeenranta: "Lappeenranta", oulu: "OULU", pori: "Pori",
+  rovaniemi: "Rovaniemi", turku: "FOLI", inkoo: "MATKA",
+});
+const KNOWN_FEEDS = new Set(Object.values(CITY_FEEDS));
+
+// Kaupunkiavain tai null. Hyväksyy sekä avaimen (?city=hameenlinna) että CONFIG.cityn näyttönimen
+// ("Hämeenlinna"), jonka sovellus lähettää push- ja sähköpostitilauksessa: ääkköset puretaan.
+export function resolveCity(c) {
+  const k = String(c == null ? "" : c).normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30);
+  return Object.prototype.hasOwnProperty.call(CITY_FEEDS, k) ? k : null;
+}
+function cityByFeed(feed) {
+  const f = String(feed || "");
+  return Object.keys(CITY_FEEDS).find(k => CITY_FEEDS[k] === f) || null;
+}
+
+// Reittikohtaiset rajat: ip = pyyntöä / IP / 10 min / isolaatti, all = kaikki IP:t yhteensä / 10 min /
+// isolaatti, body = rungon enimmäiskoko tavuina. Mitoitus oikean käytön mukaan: push-tilaus lähtee
+// jokaisella sovelluksen avauksella ja suosikin muutoksella, sähköpostitilaus ja palaute harvoin.
+// Yhteinen IP (kunnan toimisto, koulu) on syy siihen, että IP-rajat eivät ole tiukempia.
+export const WRITE_LIMITS = Object.freeze({
+  push:     { ip: 60, all: 600, body: 8192 },
+  unsub:    { ip: 30, all: 300, body: 4096 },
+  reminder: { ip: 30, all: 300, body: 4096 },
+  email:    { ip: 10, all: 60,  body: 8192 },
+  feedback: { ip: 10, all: 60,  body: 16384 },
+  reprint:  { ip: 60, all: 300, body: 600000 },
+});
+const WRITE_WINDOW_MS = 10 * 60 * 1000;
+
+function tooMany(origin, retryS) {
+  const h = new Headers(corsHeaders(origin));
+  h.set("Content-Type", "application/json");
+  h.set("Retry-After", String(retryS));
+  return new Response(JSON.stringify({ error: "too_many" }), { status: 429, headers: h });
+}
+
+// Origin + nopeusraja. Palauttaa virhevastauksen tai null.
+async function writeGate(request, env, origin, route) {
+  if (!ALLOWED_ORIGINS.has(origin)) return jsonResponse({ error: "forbidden_origin" }, 403, origin);
+  const lim = WRITE_LIMITS[route];
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  if (!isolateHit("w:" + route, ip, lim.ip, WRITE_WINDOW_MS) ||
+      !isolateHit("w:" + route + ":all", "", lim.all, WRITE_WINDOW_MS) ||
+      !(await bindingAllows(env, "RL_WRITE", route + ":" + ip)))
+    return tooMany(origin, 600);
+  return null;
+}
+
+// Lukee rungon enintään max tavua. Content-Length tarkistetaan ensin, ja ilman sitä (chunked) virta
+// katkaistaan rajalla, ettei iso runko kuluta muistia tai suoritinaikaa.
+export async function readBodyLimited(request, max) {
+  const len = Number(request.headers.get("Content-Length"));
+  if (Number.isFinite(len) && len > max) return { tooLarge: true };
+  if (!request.body) return { text: "" };
+  const reader = request.body.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) { try { await reader.cancel(); } catch (e) { /* ohita */ } return { tooLarge: true }; }
+    chunks.push(value);
+  }
+  const buf = new Uint8Array(size);
+  let off = 0;
+  for (const c of chunks) { buf.set(c, off); off += c.byteLength; }
+  return { text: new TextDecoder().decode(buf) };
+}
+
+async function readJsonLimited(request, max) {
+  const r = await readBodyLimited(request, max);
+  if (r.tooLarge) return { tooLarge: true, body: null };
+  try { return { body: JSON.parse(r.text) }; } catch (e) { return { body: null }; }
+}
+
+const tooLarge = origin => jsonResponse({ error: "too_large" }, 413, origin);
+
+// Merkkijonolista: String, trim, pituusraja, tyhjät ja duplikaatit pois, määräraja (katkaisu, ei hylkäys,
+// jotta käyttäjä jolla on paljon linjoja ei saa virhettä).
+function cleanList(v, maxLen, maxCount, upper) {
+  const out = [];
+  for (const x of (Array.isArray(v) ? v : []).slice(0, maxCount * 4)) {
+    let s = String(x == null ? "" : x).trim().slice(0, maxLen);
+    if (upper) s = s.toUpperCase();
+    if (s && !out.includes(s)) out.push(s);
+    if (out.length >= maxCount) break;
+  }
+  return out;
 }
 
 /* ---------- MML-taustakarttatiilet tulosteiden reittikarttaan (23.9.2026) ---------- */
@@ -239,7 +383,9 @@ export function buildFeedbackRecord(body, ua, nowMs) {
       message: msg.slice(0, 2000),
       contact: String((body && body.contact) || "").slice(0, 120),
       url: String((body && body.url) || "").slice(0, 300),
-      city: String((body && body.city) || "").slice(0, 40),
+      // Tunnettu kaupunkiavain tai tyhjä (sovellus lähettää ?city=-arvon, joka voi olla tuntematon,
+      // jolloin sovellus näyttää Lahden: palaute hyväksytään silti, kaupunki jää tyhjäksi).
+      city: resolveCity(body && body.city) || "",
       ua: String(ua || "").slice(0, 200),
       ts: nowMs,
     },
@@ -247,8 +393,11 @@ export function buildFeedbackRecord(body, ua, nowMs) {
 }
 
 async function handleFeedback(request, env, origin) {
+  const gate = await writeGate(request, env, origin, "feedback");
+  if (gate) return gate;
   if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
-  const body = await request.json().catch(() => null);
+  const { body, tooLarge: big } = await readJsonLimited(request, WRITE_LIMITS.feedback.body);
+  if (big) return tooLarge(origin);
   const { rec, error } = buildFeedbackRecord(body, request.headers.get("User-Agent"), Date.now());
   if (error) return jsonResponse({ error }, 400, origin);
   const id = rec.ts + "-" + crypto.randomUUID().slice(0, 8);
@@ -718,15 +867,66 @@ async function handlePublished(url, env, origin) {
    "ei konfiguroitu" eikä kaada mitään). */
 
 const TRACK_TYPES = new Set(["view", "line", "stop", "search_fail"]);
+// Sovelluksen näkymät (index.html route(): parts[0]). Tuntematon näkymä kirjataan "muu"-arvona eikä
+// vapaana tekstinä, jotta tilastoihin ei voi kirjoittaa mielivaltaisia rivejä (R-07). Uusi näkymä
+// lisätään tähän: write-guard.test.js vertaa listaa index.html:n reitittimeen.
+export const TRACK_VIEWS = new Set(["home", "asetukset", "sahkoposti", "palvelutiski", "saavutettavuus",
+  "tietosuoja", "kayttoehdot", "tilanne", "uusintapainatus", "tulosta", "tulosteet", "reitti", "linja",
+  "linjakartta", "monitori", "kartta", "linjasto", "laiturit", "poikkeukset", "palaute", "liput", "junat",
+  "pysakki", "kaupunki"]);
+const TRACK_ID_RE = /^[A-Za-z0-9_.:+~()-]{1,80}$/;   // linjan tai pysäkin GTFS-tunnus ilman feed-etuliitettä
 
 // Validoi+siistii yhden tapahtuman (puhdas, testattava). Arvo katkaistaan, eikä
-// mitään henkilötietoa talleteta. Tuntematon tyyppi → null (ei kirjoiteta).
+// mitään henkilötietoa talleteta. Tuntematon tyyppi tai kaupunki → null (ei kirjoiteta).
+// Hakutekstistä pudotetaan sähköpostiosoitteelta tai puhelinnumerolta näyttävät.
 export function buildTrackEvent(body) {
   const type = body && String(body.type || "");
   if (!TRACK_TYPES.has(type)) return null;
-  const value = String((body && body.value) || "").trim().slice(0, 80);
-  const city = String((body && body.city) || "lahti").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30) || "lahti";
+  const rawCity = body && body.city != null && String(body.city) !== "" ? body.city : "lahti";
+  const city = resolveCity(rawCity);
+  if (!city) return null;
+  let value = String((body && body.value) || "").trim().slice(0, 80);
+  if (type === "view") value = TRACK_VIEWS.has(value) ? value : "muu";
+  else if (type === "line" || type === "stop") { if (!TRACK_ID_RE.test(value)) return null; }
+  else {
+    value = value.replace(/\s+/g, " ");
+    if (!value || value.includes("@") || /\d{5,}/.test(value.replace(/[\s()+-]/g, ""))) return null;
+  }
   return { type, value, city };
+}
+
+// Kaksoislaskennan ja tulvan esto ilman henkilötietoja ja ilman KV:tä (R-07): sama tapahtuma samalta
+// asiakkaalta 30 s sisällä lasketaan kerran, ja yksi asiakas voi kirjata enintään TRACK_IP_MAX
+// tapahtumaa / 10 min / isolaatti. Asiakas tunnistetaan vain isolaatin muistissa IP:n suolatulla
+// tiivisteellä (suola arvotaan isolaattikohtaisesti, ei tallenneta mihinkään).
+export const TRACK_DEDUP_MS = 30 * 1000;
+export const TRACK_IP_MAX = 120;
+export const TRACK_ALL_MAX = 6000;
+const TRACK_WINDOW_MS = 10 * 60 * 1000;
+const trackSeen = new Map();   // asiakas|tyyppi|kaupunki|arvo -> aika
+let trackSalt = "";
+function fnv1a(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(36);
+}
+export function trackClientKey(ip) {
+  if (!trackSalt) trackSalt = crypto.randomUUID();   // ei globaalissa scopessa: Workers kieltää satunnaisuuden siellä
+  return fnv1a(trackSalt + "|" + String(ip || ""));
+}
+export function trackAccept(clientKey, ev, nowMs) {
+  const now = nowMs ?? Date.now();
+  const dk = clientKey + "|" + ev.type + "|" + ev.city + "|" + ev.value;
+  const prev = trackSeen.get(dk);
+  if (prev !== undefined && now - prev < TRACK_DEDUP_MS) return false;
+  if (!isolateHit("track", clientKey, TRACK_IP_MAX, TRACK_WINDOW_MS, now) ||
+      !isolateHit("track:all", "", TRACK_ALL_MAX, TRACK_WINDOW_MS, now)) return false;
+  if (trackSeen.size > 20000) {
+    for (const [k, t] of trackSeen) if (now - t >= TRACK_DEDUP_MS) trackSeen.delete(k);
+    if (trackSeen.size > 20000) trackSeen.clear();
+  }
+  trackSeen.set(dk, now);
+  return true;
 }
 
 // Vain kuntalaisliikenne kirjataan: suodatetaan botit (UA) ja ei-tuotanto-liikenne (origin/referer).
@@ -740,13 +940,16 @@ export function isAnalyticsClient(ua, origin, referer) {
   return prod(origin) || prod(referer);                             // vain tuotanto-origin (ei localhost/dev)
 }
 
+export const TRACK_MAX_BYTES = 2048;
+
 function handleTrack(request, env, origin) {
-  // fire-and-forget: ei koskaan virhettä clientille
-  return request.json().then(body => {
-    const ev = buildTrackEvent(body);
+  // fire-and-forget: ei koskaan virhettä clientille (sendBeacon ei lue vastausta)
+  return readJsonLimited(request, TRACK_MAX_BYTES).then(({ body }) => {
+    const ev = body ? buildTrackEvent(body) : null;
     const ua = request.headers.get("User-Agent") || "";
     const referer = request.headers.get("Referer") || "";
-    if (ev && env.AE && isAnalyticsClient(ua, origin, referer)) {
+    if (ev && env.AE && isAnalyticsClient(ua, origin, referer) &&
+        trackAccept(trackClientKey(request.headers.get("CF-Connecting-IP")), ev)) {
       try {
         env.AE.writeDataPoint({ indexes: [ev.type], blobs: [ev.type, ev.value, ev.city], doubles: [1] });
       } catch (e) { /* ohita */ }
@@ -842,29 +1045,74 @@ async function handleAdminStats(request, env, url) {
 
 /* ---------- Push: tilausten hallinta (KV) ---------- */
 
-async function handleSubscribe(request, env, origin) {
-  if (!env.PUSH_KV) return jsonResponse({ error: "push_unconfigured" }, 503, origin);
-  const body = await request.json().catch(() => null);
-  const sub = body && body.subscription;
-  if (!sub || !sub.endpoint || !sub.keys) return jsonResponse({ error: "bad_request" }, 400, origin);
-  const rec = {
-    endpoint: sub.endpoint,
-    keys: sub.keys,
-    routes: (body.routes || []).map(r => String(r).toUpperCase()),
-    gtfsRoutes: body.gtfsRoutes || [],
-    feed: body.feed || "",
-    city: body.city || "",
-    lang: body.lang || "fi",
-    ts: Date.now(),
+// Push-kohteen (PushSubscription.toJSON) siivous: vain https-endpoint ja base64url-avaimet, pituusrajat.
+// Tallennetaan vain sendPushin tarvitsemat kentät. Palauttaa { endpoint, keys } tai null.
+export const PUSH_ENDPOINT_MAX = 1024;
+const B64URL_RE = /^[A-Za-z0-9_-]+={0,2}$/;
+export function cleanPushTarget(sub) {
+  const endpoint = sub && typeof sub.endpoint === "string" ? sub.endpoint : "";
+  if (!endpoint || endpoint.length > PUSH_ENDPOINT_MAX || !endpoint.startsWith("https://")) return null;
+  try { new URL(endpoint); } catch (e) { return null; }
+  const k = (sub && sub.keys) || {};
+  const p256dh = typeof k.p256dh === "string" ? k.p256dh : "";
+  const auth = typeof k.auth === "string" ? k.auth : "";
+  if (!B64URL_RE.test(p256dh) || p256dh.length > 200 || !B64URL_RE.test(auth) || auth.length > 100) return null;
+  return { endpoint, keys: { p256dh, auth } };
+}
+
+// Häiriötilauksen kokoaminen (puhdas, testattava). Kaupunki on pakollinen tunnettu kaupunki (sovellus
+// lähettää CONFIG.cityn); puuttuessa se päätellään tunnetusta feedistä. Feed johdetaan aina
+// kaupungista (R-08), selaimen feed-arvoa ei tallenneta. Linjalistat katkaistaan, ei hylätä.
+export const PUSH_MAX_ROUTES = 100;
+export function buildPushSubscription(body, nowMs) {
+  const target = cleanPushTarget(body && body.subscription);
+  if (!target) return { error: "bad_request" };
+  const city = resolveCity(body.city) || (body.city == null || body.city === "" ? cityByFeed(body.feed) : null);
+  if (!city) return { error: "bad_city" };
+  return {
+    rec: {
+      ...target,
+      routes: cleanList(body.routes, 12, PUSH_MAX_ROUTES, true),
+      gtfsRoutes: cleanList(body.gtfsRoutes, 80, PUSH_MAX_ROUTES, false),
+      feed: CITY_FEEDS[city],
+      city,
+      lang: ["fi", "en", "sv"].includes(body.lang) ? body.lang : "fi",
+      ts: nowMs,
+    },
   };
-  await env.PUSH_KV.put("sub:" + await sha256hex(sub.endpoint), JSON.stringify(rec));
+}
+const pushSubSig = o => JSON.stringify([o.endpoint, o.keys && o.keys.p256dh, o.keys && o.keys.auth,
+  o.routes, o.gtfsRoutes, o.feed, o.city, o.lang]);
+
+async function handleSubscribe(request, env, origin) {
+  const gate = await writeGate(request, env, origin, "push");
+  if (gate) return gate;
+  if (!env.PUSH_KV) return jsonResponse({ error: "push_unconfigured" }, 503, origin);
+  const { body, tooLarge: big } = await readJsonLimited(request, WRITE_LIMITS.push.body);
+  if (big) return tooLarge(origin);
+  const { rec, error } = buildPushSubscription(body, Date.now());
+  if (error) return jsonResponse({ error }, 400, origin);
+  const key = "sub:" + await sha256hex(rec.endpoint);
+  // Sovellus synkronoi tilauksen jokaisella avauksella: muuttumaton tilaus = 0 KV-kirjoitusta (R-01).
+  let prev = null;
+  try { const raw = await env.PUSH_KV.get(key); prev = raw ? JSON.parse(raw) : null; } catch (e) { prev = null; }
+  if (prev && pushSubSig(prev) === pushSubSig(rec)) return jsonResponse({ ok: true, unchanged: true }, 200, origin);
+  await env.PUSH_KV.put(key, JSON.stringify(rec));
   return jsonResponse({ ok: true }, 200, origin);
 }
 
 async function handleUnsubscribe(request, env, origin) {
-  const body = await request.json().catch(() => null);
-  if (!body || !body.endpoint) return jsonResponse({ error: "bad_request" }, 400, origin);
-  if (env.PUSH_KV) await env.PUSH_KV.delete("sub:" + await sha256hex(body.endpoint));
+  const gate = await writeGate(request, env, origin, "unsub");
+  if (gate) return gate;
+  const { body, tooLarge: big } = await readJsonLimited(request, WRITE_LIMITS.unsub.body);
+  if (big) return tooLarge(origin);
+  const endpoint = body && typeof body.endpoint === "string" ? body.endpoint : "";
+  if (!endpoint || endpoint.length > PUSH_ENDPOINT_MAX) return jsonResponse({ error: "bad_request" }, 400, origin);
+  if (env.PUSH_KV) {
+    // Poisto vain jos tilaus on olemassa: tuntematon endpoint maksaa lukuoperaation, ei poisto-operaatiota.
+    const key = "sub:" + await sha256hex(endpoint);
+    if ((await env.PUSH_KV.get(key)) !== null) await env.PUSH_KV.delete(key);
+  }
   return jsonResponse({ ok: true }, 200, origin);
 }
 
@@ -889,23 +1137,50 @@ async function writePending(env, pending) {
   await env.PUSH_KV.put("rem:pending", JSON.stringify(pending), { expirationTtl: ttl });
 }
 
+// Lähtömuistutuksen rajat (R-01): sovellus ajastaa muistutuksen tämän päivän seuraavalle lähdölle
+// (liikennöintipäivä voi jatkua yli puolenyön), joten 36 h riittää. Myöhästynyt muistutus hyväksytään
+// 30 min verran kuten runReminderCheck lähettää. Yksi blobi (rem:pending) luetaan joka minuutti, joten
+// sen koko pidetään pienenä: kokonaiskatto ja katto per push-endpoint.
+export const REMINDER_MAX_AHEAD_S = 36 * 3600;
+export const REMINDER_MAX_LATE_S = 1800;
+export const REMINDER_MAX_PENDING = 200;
+export const REMINDER_MAX_PER_ENDPOINT = 5;
+
+export function buildReminder(body, nowSec) {
+  const target = cleanPushTarget(body && body.subscription);
+  const fireAt = Number(body && body.fireAt);
+  if (!target || !Number.isFinite(fireAt)) return { error: "bad_request" };
+  if (fireAt < nowSec - REMINDER_MAX_LATE_S || fireAt > nowSec + REMINDER_MAX_AHEAD_S) return { error: "bad_fire_at" };
+  const url = typeof body.url === "string" && /^\.\/[A-Za-z0-9_\-./?=&#%]{0,200}$/.test(body.url) ? body.url : "./";
+  return {
+    rec: {
+      ...target, fireAt,
+      title: String((body.title || "Lähtömuistutus")).slice(0, 80),
+      body: String((body.body || "")).slice(0, 180),
+      tag: String(body.tag || "").slice(0, 80),
+      url,
+    },
+  };
+}
+
 // Lähtömuistutus: tallenna kertaluonteinen push joka lähetetään fireAt-hetkellä.
 async function handleReminder(request, env, origin) {
+  const gate = await writeGate(request, env, origin, "reminder");
+  if (gate) return gate;
   if (!env.PUSH_KV) return jsonResponse({ error: "push_unconfigured" }, 503, origin);
-  const body = await request.json().catch(() => null);
-  const sub = body && body.subscription;
-  const fireAt = Number(body && body.fireAt);
-  if (!sub || !sub.endpoint || !sub.keys || !Number.isFinite(fireAt))
-    return jsonResponse({ error: "bad_request" }, 400, origin);
-  const id = crypto.randomUUID();
-  const rec = {
-    endpoint: sub.endpoint, keys: sub.keys, fireAt,
-    title: String((body.title || "Lähtömuistutus")).slice(0, 80),
-    body: String((body.body || "")).slice(0, 180),
-    tag: body.tag || ("rem-" + id),
-    url: body.url || "./",
-  };
+  const { body, tooLarge: big } = await readJsonLimited(request, WRITE_LIMITS.reminder.body);
+  if (big) return tooLarge(origin);
+  const { rec, error } = buildReminder(body, Date.now() / 1000);
+  if (error) return jsonResponse({ error }, 400, origin);
   const pending = await readPending(env);
+  const mine = Object.entries(pending).filter(([, r]) => r && r.endpoint === rec.endpoint);
+  // Sama muistutus kahdesti (tuplaklikkaus) = yksi muistutus, ei uutta kirjoitusta.
+  const dup = rec.tag && mine.find(([, r]) => r.tag === rec.tag);
+  if (dup) return jsonResponse({ ok: true, id: dup[0], duplicate: true }, 200, origin);
+  if (mine.length >= REMINDER_MAX_PER_ENDPOINT || Object.keys(pending).length >= REMINDER_MAX_PENDING)
+    return tooMany(origin, 600);
+  const id = crypto.randomUUID();
+  if (!rec.tag) rec.tag = "rem-" + id;
   pending[id] = rec;
   await writePending(env, pending);
   return jsonResponse({ ok: true, id }, 200, origin);
@@ -1097,12 +1372,23 @@ export async function runPushCheck(env) {
   // ko. feedillä ei olisi yhtään web-push-tilaajaa.
   let reg = {};
   try { reg = JSON.parse((await env.PUSH_KV.get(EMAIL_REG_KEY)) || "{}"); } catch (e) { /* tyhjä */ }
-  const feedCity = {};
-  for (const [city, f] of Object.entries(reg)) if (f) feedCity[f] = city;
+  // R-08: tunnetun kaupungin feed johdetaan CITY_FEEDSistä eikä rekisterin arvosta, jonka tilaaja
+  // saattoi ennen 3.10.2026 vaihtaa. Vanha kaupunkiavain (esim. ennen ääkkösten purkua tallennettu)
+  // kelpaa vain jos sen feed on jonkin tunnetun kaupungin feed. Feed -> kaupungit (voi olla useita).
+  const feedCities = new Map();
+  for (const [city, f] of Object.entries(reg)) {
+    const known = resolveCity(city);
+    const feed = known === city ? CITY_FEEDS[known] : (KNOWN_FEEDS.has(f) ? f : "");
+    if (!feed) continue;
+    if (!feedCities.has(feed)) feedCities.set(feed, new Set());
+    feedCities.get(feed).add(city);
+  }
 
+  // Tuntematon feed (vanha tilaus mielivaltaisella arvolla) ohitetaan: se kuluttaisi Digitransit-kutsun
+  // joka ajossa eikä koske yhtään kaupunkia.
   const feeds = [...new Set([
-    ...subs.map(s => s.feed).filter(Boolean),
-    ...Object.values(reg).filter(Boolean),
+    ...subs.map(s => s.feed).filter(f => KNOWN_FEEDS.has(f)),
+    ...feedCities.keys(),
   ])];
   if (!feeds.length) return;
 
@@ -1142,35 +1428,58 @@ export async function runPushCheck(env) {
     }
 
     // Sähköposti (rinnakkainen kanava): vahvistetut, oikean linjan tilaajat
-    const city = feedCity[feed];
-    if (city) await sendEmailAlertsForFeed(env, city, feed, fresh);
+    for (const city of feedCities.get(feed) || []) await sendEmailAlertsForFeed(env, city, feed, fresh);
   }
 }
 
 // Vertaa annettuja häiriöitä seen-karttaan (KV-avain seenKeyName), palauttaa
 // uudet ja päivittää kartan. Ensiajo (ei seen-tietoa) vain seedaa, palauttaa []
 // (ei tulvita nykyisiä). Vanhat, poistuneet avaimet siivotaan 30 vrk jälkeen.
+// KV:hen kirjoitetaan VAIN kun tila muuttuu (3.10.2026, auditointi R-01): uusi häiriö, häiriön
+// poistuminen, takaisin näkyviin tullut häiriö tai siivous. Ennen kartta kirjoitettiin joka ajossa
+// (288 kirjoitusta/vrk jokaiselle feedille, jolla oli yksikin häiriö), mikä yksin kulutti ison osan
+// tilin 1 000 kirjoituksen päiväkiintiöstä. Arvo: positiivinen = näkyvissä (havaintoaika),
+// negatiivinen = poistunut (-poistumisaika). Vanha muoto (kaikki positiivisia) kelpaa sellaisenaan:
+// näkymättömät merkitään poistuneiksi yhdellä kirjoituksella.
 async function freshAlerts(env, seenKeyName, alerts) {
   if (!alerts.length) {
     // ei dataa (esim. haku epäonnistui) → ei muuteta seen-tilaa
     return [];
   }
   const seenRaw = await env.PUSH_KV.get(seenKeyName);
-  const firstRun = !seenRaw;
-  const seenMap = seenRaw ? JSON.parse(seenRaw) : {};
+  let seenMap = null;
+  if (seenRaw) {
+    try { const o = JSON.parse(seenRaw); if (o && typeof o === "object" && !Array.isArray(o)) seenMap = o; }
+    catch (e) { /* rikkinäinen kartta: kylvetään uudelleen eikä kaadeta koko ajoa */ }
+  }
+  const firstRun = !seenMap;
+  if (firstRun) seenMap = {};
+  const has = k => Object.prototype.hasOwnProperty.call(seenMap, k);
   const now = Date.now();
+  const cutoff = now - 30 * 24 * 3600 * 1000;
   const currentKeys = new Set();
   const fresh = [];
+  let changed = firstRun;
   for (const a of alerts) {
     const k = alertKey(a);
+    if (currentKeys.has(k)) continue;           // sama häiriö kahdesti syötteessä = yksi
     currentKeys.add(k);
-    if (!firstRun && !(k in seenMap)) fresh.push(a);
-    seenMap[k] = now;
+    if (!has(k)) {
+      if (!firstRun) fresh.push(a);
+      seenMap[k] = now;
+      changed = true;
+    } else if (!(seenMap[k] > 0)) {
+      seenMap[k] = now;                         // palasi näkyviin säilytysaikana: ei uutta ilmoitusta
+      changed = true;
+    }
   }
-  const cutoff = now - 30 * 24 * 3600 * 1000;
-  for (const k of Object.keys(seenMap))
-    if (seenMap[k] < cutoff && !currentKeys.has(k)) delete seenMap[k];
-  await env.PUSH_KV.put(seenKeyName, JSON.stringify(seenMap));
+  for (const k of Object.keys(seenMap)) {
+    if (currentKeys.has(k)) continue;
+    const v = seenMap[k];
+    if (!(v < 0)) { seenMap[k] = -now; changed = true; }          // poistui juuri syötteestä
+    else if (-v < cutoff) { delete seenMap[k]; changed = true; }   // yli 30 vrk sitten poistunut
+  }
+  if (changed) await env.PUSH_KV.put(seenKeyName, JSON.stringify(seenMap));
   return firstRun ? [] : fresh;
 }
 
@@ -1180,14 +1489,46 @@ async function freshAlerts(env, seenKeyName, alerts) {
 // peruutuslinkki joka viestissä. Lähetys integroitu runPushCheck-croniin.
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const emailCity = c => String(c || "lahti").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30) || "lahti";
 const EMAIL_REC_KEY = (city, hash) => "email:" + city + ":" + hash;        // auktoritatiivinen tietue
 const EMAIL_TOK_KEY = token => "email:tok:" + token;                       // token → "<city>:<hash>"
 const EMAIL_IDX_KEY = city => "email:idx:" + city;                         // vahvistetut, cron lukee 1 get
 const EMAIL_REG_KEY = "email:reg";                                         // { city: feed } cronin feed-joukolle
 const APP_BASE_DEFAULT = "https://veikkoville.github.io/lsl-aikataulut";
 
+// Vahvistusviestien rajat (3.10.2026, auditointi R-02). Ennen 10 min suoja oli avaimella
+// (kaupunki, osoitteen tiiviste), ja jokainen uusi city-arvo lähetti uuden viestin samaan osoitteeseen.
+// Nyt raja on osoitteen tiivisteellä kaupungista riippumatta, lisäksi päiväkatto kaikille osoitteille
+// yhteensä, jotta Resendin päiväkiintiö jää häiriöviesteille. Laskenta on KV:ssä yhdessä päiväavaimessa
+// (email:sent:<UTC-päivä>, TTL 2 vrk), johon kirjoitetaan vain kun viesti oikeasti lähtee. KV on
+// eventually consistent: toinen datakeskus voi minuutin ajan nähdä vanhan laskurin, joten raja on
+// likimääräinen; isolaatin oma muisti kattaa saman isolaatin purskeen.
+export const EMAIL_CONFIRM_GAP_MS = 10 * 60 * 1000;   // sama osoite: enintään 1 viesti / 10 min
+export const EMAIL_CONFIRM_PER_ADDR_DAY = 3;           // sama osoite: enintään 3 viestiä / 24 h
+export const EMAIL_CONFIRM_DAILY_MAX = 50;             // kaikki osoitteet yhteensä / UTC-vrk
+export const EMAIL_PENDING_TTL_S = 7 * 24 * 3600;      // vahvistamaton tilaus ja sen linkki vanhenevat
+const EMAIL_SENT_KEY = day => "email:sent:" + day;
+const utcDay = ms => new Date(ms).toISOString().slice(0, 10);
+const recentConfirmMail = new Map();                   // isolaatti: osoitteen tiiviste -> viimeisin lähetys
+
+// Päätös vahvistusviestistä: "ok", "addr" (osoitteen raja) tai "global" (päiväkatto). Puhdas, testattava.
+// logs = [tämän päivän loki, eilisen loki], muoto { n, h: { <tiiviste>: [ms, ...] } }.
+export function confirmMailDecision(logs, hash, nowMs) {
+  const ts = [];
+  for (const l of logs || []) if (l && l.h && Array.isArray(l.h[hash])) ts.push(...l.h[hash]);
+  const recent = ts.filter(t => nowMs - t < 24 * 3600 * 1000);
+  if (recent.some(t => nowMs - t < EMAIL_CONFIRM_GAP_MS) || recent.length >= EMAIL_CONFIRM_PER_ADDR_DAY) return "addr";
+  if (((logs && logs[0] && logs[0].n) || 0) >= EMAIL_CONFIRM_DAILY_MAX) return "global";
+  return "ok";
+}
+
+async function readSentLog(env, day) {
+  try { const o = JSON.parse((await env.PUSH_KV.get(EMAIL_SENT_KEY(day))) || "null"); return o && typeof o === "object" ? o : null; }
+  catch (e) { return null; }
+}
+
 // Kokoaa ja validoi sähköpostitilauksen. Pure-funktio yksikkötestiä varten.
+// Kaupunki: tunnettu kaupunki (avain tai näyttönimi), puuttuva = lahti, tuntematon = virhe.
+// Feed johdetaan kaupungista (R-08): selaimen feed-arvo ei päädy kaupungin rekisteriin.
 export function buildEmailSubscription(body, nowMs) {
   const email = String((body && body.email) || "").trim().toLowerCase();
   if (!EMAIL_RE.test(email) || email.length > 160) return { error: "bad_email" };
@@ -1197,9 +1538,12 @@ export function buildEmailSubscription(body, nowMs) {
     .map(s => String(s).slice(0, 60)).filter(Boolean).slice(0, 60);
   if (!lines.length && !gtfsRoutes.length) return { error: "no_lines" };
   const lang = ["fi", "en", "sv"].includes(body && body.lang) ? body.lang : "fi";
+  const rawCity = body && body.city != null && String(body.city).trim() !== "" ? body.city : "lahti";
+  const city = resolveCity(rawCity);
+  if (!city) return { error: "bad_city" };
   return {
     rec: {
-      email, city: emailCity(body && body.city), feed: String((body && body.feed) || "").slice(0, 40),
+      email, city, feed: CITY_FEEDS[city],
       lines, gtfsRoutes, lang, confirmed: false, ts: nowMs,
     },
   };
@@ -1267,7 +1611,9 @@ async function emailIndexAdd(env, rec, hash) {
   await env.PUSH_KV.put(idxKey, JSON.stringify(idx));
   let reg = {};
   try { reg = JSON.parse((await env.PUSH_KV.get(EMAIL_REG_KEY)) || "{}"); } catch (e) { /* tyhjä */ }
-  if (reg[rec.city] !== (rec.feed || "")) { reg[rec.city] = rec.feed || ""; await env.PUSH_KV.put(EMAIL_REG_KEY, JSON.stringify(reg)); }
+  // R-08: tunnetun kaupungin feed aina CITY_FEEDSistä, myös ennen korjausta tallennetulle tietueelle.
+  const feed = (resolveCity(rec.city) === rec.city && CITY_FEEDS[rec.city]) || rec.feed || "";
+  if (reg[rec.city] !== feed) { reg[rec.city] = feed; await env.PUSH_KV.put(EMAIL_REG_KEY, JSON.stringify(reg)); }
 }
 
 async function emailIndexRemove(env, city, hash) {
@@ -1308,28 +1654,53 @@ async function sendEmailAlertsForFeed(env, city, feed, fresh) {
 }
 
 async function handleEmailSubscribe(request, env, origin) {
+  const gate = await writeGate(request, env, origin, "email");
+  if (gate) return gate;
   if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
-  const body = await request.json().catch(() => null);
-  const { rec, error } = buildEmailSubscription(body, Date.now());
+  const { body, tooLarge: big } = await readJsonLimited(request, WRITE_LIMITS.email.body);
+  if (big) return tooLarge(origin);
+  const now = Date.now();
+  const { rec, error } = buildEmailSubscription(body, now);
   if (error) return jsonResponse({ error }, 400, origin);
   const hash = await sha256hex(rec.email);
   const recKey = EMAIL_REC_KEY(rec.city, hash);
   let existing = null;
   try { const r = await env.PUSH_KV.get(recKey); existing = r ? JSON.parse(r) : null; } catch (e) { /* tyhjä */ }
-  // Jo vahvistettu → päivitä vain linjat, ei uutta vahvistusta
+  // Jo vahvistettu → päivitä vain linjat, ei uutta vahvistusta. Feed tulee kaupungista (R-08).
+  // Muuttumaton tilaus = 0 KV-kirjoitusta.
   if (existing && existing.confirmed) {
     const upd = { ...existing, lines: rec.lines, gtfsRoutes: rec.gtfsRoutes, feed: rec.feed, lang: rec.lang };
-    await env.PUSH_KV.put(recKey, JSON.stringify(upd));
-    await emailIndexAdd(env, upd, hash);
+    const sig = o => JSON.stringify([o.lines, o.gtfsRoutes, o.feed, o.lang]);
+    if (sig(upd) !== sig(existing)) {
+      await env.PUSH_KV.put(recKey, JSON.stringify(upd));
+      await emailIndexAdd(env, upd, hash);
+    }
     return jsonResponse({ ok: true, updated: true }, 200, origin);
   }
   // Vahvistamaton ja vasta luotu (< 10 min) → ei uutta vahvistusviestiä (anti-roska)
-  if (existing && !existing.confirmed && (Date.now() - (existing.ts || 0)) < 10 * 60 * 1000)
+  if (existing && !existing.confirmed && (now - (existing.ts || 0)) < EMAIL_CONFIRM_GAP_MS)
     return jsonResponse({ ok: true, pending: true }, 200, origin);
+  // Osoitekohtainen raja kaupungista riippumatta + päiväkatto (R-02). Rajan ylitys osoitteelle vastaa
+  // samoin kuin vanha 10 min suoja (pending), jottei vastauksesta näe onko osoite jo tilattu.
+  const last = recentConfirmMail.get(hash);
+  if (last !== undefined && now - last < EMAIL_CONFIRM_GAP_MS) return jsonResponse({ ok: true, pending: true }, 200, origin);
+  const day = utcDay(now);
+  const logs = [await readSentLog(env, day), await readSentLog(env, utcDay(now - 24 * 3600 * 1000))];
+  const decision = confirmMailDecision(logs, hash, now);
+  if (decision === "addr") return jsonResponse({ ok: true, pending: true }, 200, origin);
+  if (decision === "global") return tooMany(origin, 3600);
   const token = (existing && existing.token) || crypto.randomUUID();
   const full = { ...rec, token };
-  await env.PUSH_KV.put(recKey, JSON.stringify(full));
-  await env.PUSH_KV.put(EMAIL_TOK_KEY(token), rec.city + ":" + hash);
+  // Vahvistamaton tilaus ja sen linkki vanhenevat 7 vrk:ssa (vahvistus poistaa vanhenemisen).
+  await env.PUSH_KV.put(recKey, JSON.stringify(full), { expirationTtl: EMAIL_PENDING_TTL_S });
+  await env.PUSH_KV.put(EMAIL_TOK_KEY(token), rec.city + ":" + hash, { expirationTtl: EMAIL_PENDING_TTL_S });
+  const today = logs[0] || { n: 0, h: {} };
+  today.h = today.h && typeof today.h === "object" ? today.h : {};
+  today.n = (Number(today.n) || 0) + 1;
+  today.h[hash] = [...(Array.isArray(today.h[hash]) ? today.h[hash] : []), now].slice(-EMAIL_CONFIRM_PER_ADDR_DAY);
+  await env.PUSH_KV.put(EMAIL_SENT_KEY(day), JSON.stringify(today), { expirationTtl: 2 * 24 * 3600 });
+  recentConfirmMail.set(hash, now);
+  if (recentConfirmMail.size > 5000) recentConfirmMail.clear();
   const linkBase = (env.EMAIL_LINK_BASE || new URL(request.url).origin).replace(/\/$/, "");
   const confirmUrl = linkBase + "/email/confirm?token=" + token;
   const unsubUrl = linkBase + "/email/unsubscribe?token=" + token;
@@ -1348,10 +1719,16 @@ async function handleEmailConfirm(url, env) {
   const recRaw = await env.PUSH_KV.get(EMAIL_REC_KEY(city, hash));
   if (!recRaw) return emailHtmlPage("Tilausta ei löytynyt", "Voit tilata tiedotteet tarvittaessa uudelleen.");
   const rec = JSON.parse(recRaw);
-  rec.confirmed = true;
-  rec.confirmedTs = Date.now();
-  await env.PUSH_KV.put(EMAIL_REC_KEY(city, hash), JSON.stringify(rec));
-  await emailIndexAdd(env, rec, hash);
+  // Jo vahvistettu (linkkiä klikattu uudelleen tai sähköpostiskanneri avasi sen): ei kirjoituksia.
+  // Ennen jokainen GET kirjoitti kaksi avainta, eli linkin toisto kulutti KV-kiintiötä (R-01).
+  if (!rec.confirmed) {
+    rec.confirmed = true;
+    rec.confirmedTs = Date.now();
+    // Ilman expirationTtl:ää: vahvistettu tilaus ja peruutuslinkki eivät vanhene.
+    await env.PUSH_KV.put(EMAIL_REC_KEY(city, hash), JSON.stringify(rec));
+    await env.PUSH_KV.put(EMAIL_TOK_KEY(token), ptr);
+    await emailIndexAdd(env, rec, hash);
+  }
   const lines = escHtml((rec.lines || []).join(", "));
   return emailHtmlPage("Tilaus vahvistettu",
     "Saat nyt häiriötiedotteet sähköpostiisi linjoille " + lines + ". Voit peruuttaa tilauksen milloin tahansa viestin lopussa olevasta linkistä.");
@@ -1509,8 +1886,11 @@ async function handleAdminReprintKeyCreate(request, env) {
 /* ---------- Julkiset päätepisteet (kaupungin omalla avaimella) ---------- */
 
 async function handleReprintBaseline(request, env, origin) {
+  const gate = await writeGate(request, env, origin, "reprint");
+  if (gate) return gate;
   if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
-  const body = await request.json().catch(() => null);
+  const { body, tooLarge: big } = await readJsonLimited(request, WRITE_LIMITS.reprint.body);
+  if (big) return tooLarge(origin);
   const { city, units, error } = buildReprintBaseline(body);
   if (error) return jsonResponse({ error }, 400, origin);
   if (!(await reprintKeyOk(env, city, body && body.key)))
@@ -1680,7 +2060,9 @@ async function handleReprintNotifyConfirm(url, env) {
   const found = await reprintNotifyByToken(env, token, url.searchParams.get("city"));
   if (!found) return emailHtmlPage("Virheellinen linkki", "Vahvistuslinkki ei kelpaa tai se on vanhentunut.");
   const { city, data } = found;
-  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: { ...data.notify, confirmed: true } }));
+  // Toistuva klikkaus ei kirjoita uudelleen (R-01: GET-linkin toisto ei saa kuluttaa KV-kiintiötä).
+  if (!data.notify.confirmed)
+    await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: { ...data.notify, confirmed: true } }));
   return emailHtmlPage("Ilmoitukset vahvistettu",
     "Saat viestin kun painettu tuloste vanhenee. Viesti lähtee vain kun tilanne muuttuu, ei joka päivä samasta asiasta.");
 }
@@ -1837,6 +2219,10 @@ export default {
       }
       const gate = quotaGate(request, origin);
       if (gate) return gate;
+      if (!(await bindingAllows(env, "RL_PROXY", request.headers.get("CF-Connecting-IP") || "")))
+        return new Response("Liikaa pyyntöjä", { status: 429, headers: { ...corsHeaders(origin), "Retry-After": "60" } });
+      if (url.search.length > GEOCODING_MAX_QUERY)
+        return new Response("Liian pitkä haku", { status: 414, headers: corsHeaders(origin) });
       const upstream = await fetch(`${GEOCODING_UPSTREAM}/${geo[1]}${url.search}`, {
         headers: { "digitransit-subscription-key": env.DIGITRANSIT_KEY },
       });
@@ -1851,13 +2237,20 @@ export default {
     }
     const gate = quotaGate(request, origin);
     if (gate) return gate;
+    if (!(await bindingAllows(env, "RL_PROXY", request.headers.get("CF-Connecting-IP") || "")))
+      return new Response("Liikaa pyyntöjä", { status: 429, headers: { ...corsHeaders(origin), "Retry-After": "60" } });
+    // Rungon kokoraja (R-06) ja vain yksittäinen kysely-olio: sovellus ei lähetä eräkyselyjä
+    // ([{...},{...}]), joilla yhdellä pyynnöllä voisi ajaa monta raskasta kyselyä avaimellamme.
+    const gqlBody = await readBodyLimited(request, GRAPHQL_MAX_BYTES);
+    if (gqlBody.tooLarge) return new Response("Liian suuri kysely", { status: 413, headers: corsHeaders(origin) });
+    if (!/^\s*\{/.test(gqlBody.text)) return new Response("Virheellinen kysely", { status: 400, headers: corsHeaders(origin) });
     const upstream = await fetch(routingUpstream(url.searchParams.get("router")), {
       method: "POST",
       headers: {
         "Content-Type": request.headers.get("Content-Type") || "application/json",
         "digitransit-subscription-key": env.DIGITRANSIT_KEY,
       },
-      body: request.body,
+      body: gqlBody.text,
     });
     const headers = new Headers(corsHeaders(origin));
     headers.set("Content-Type", upstream.headers.get("Content-Type") || "application/json");
