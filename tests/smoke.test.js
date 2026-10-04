@@ -625,6 +625,23 @@ async function minuuttiLinjaus(page, rootSel, media) {
     && /^Kainuun keskussairaala/.test(hospE2.kajaani.KAKS) && /^Kainuun keskussairaala/.test(hospE2.kajaani.keskussairaala))
     ? ok("paikkahaku (erä E2): KOKS ja keskussairaala Kotkassa, (keskus)sairaala Mikkelissä, KAKS ja keskussairaala Kajaanissa -> kaupungin oma sairaala")
     : fail("paikkahaku (erä E2): " + JSON.stringify(hospE2));
+  // Yleissana "sairaala" / "keskussairaala" -> kaupungin oma sairaala (pikakohteen koordinaatit, 300 m). Ennen Joensuun
+  // "sairaala" antoi ensin nimettömän kohteen 47,9 km päästä, ja Kuopion ja Kouvolan "keskussairaala" ei antanut mitään.
+  const hospHome = {};
+  for (const c of ["joensuu", "kuopio", "kouvola"]) {
+    await page.goto(BASE + `/?city=${c}#/`, { waitUntil: "networkidle2" });
+    hospHome[c] = await page.evaluate(async () => {
+      const home = (CONFIG.deskQuick || []).find(x => x && x.k === "hospital");
+      const km = p => p && p.lat != null ? Math.hypot((p.lat - home.lat) * 111, (p.lon - home.lon) * 111 * Math.cos(home.lat * Math.PI / 180)) : 999;
+      const out = {};
+      for (const q of ["sairaala", "keskussairaala"]) { const p = (await searchPlaces(q))[0]; out[q] = { name: p?.name || "", km: Math.round(km(p) * 100) / 100 }; }
+      return out;
+    });
+  }
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });   // palauta Lahti
+  (Object.values(hospHome).every(o => o.sairaala.km <= 0.3 && o.keskussairaala.km <= 0.3))
+    ? ok("paikkahaku: 'sairaala' ja 'keskussairaala' -> kaupungin oma sairaala (Joensuu, Kuopio, Kouvola)")
+    : fail("paikkahaku: yleissana sairaala: " + JSON.stringify(hospHome));
 
   // C5: etusivun A->B-kenttiin aikavalinta (Saapumisaika) ja oma sijainti.
   await page.waitForSelector("#homeWhenSel", { timeout: 10000 }).catch(() => {});
