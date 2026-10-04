@@ -878,7 +878,169 @@ async function handleAdminA11ySave(request, env) {
   return adminJson({ ok: true, a11y: rec }, 200);
 }
 
+/* ---------- Ylläpito: tietopankki (D6, 4.10.2026) ----------
+   Kunnan omat vastauskortit palvelutiskille: kysymykset, joihin aikataulu ei vastaa (löytötavarat, kortin
+   lataus ja palautus, lemmikit, polkupyörä, kutsuliikenne, palautteen ohjaus, liityntäpysäköinti).
+   Kirjoitus: sama tunnistautuminen ja kuntarajaus kuin häiriötiedotteilla (isAdmin: pääsalasana, kunnan oma
+   tunnus, Access tai työtilan Reittari.Yllapito-rooli, vain oma kunta), lisäksi rungon kokoraja ja nopeusraja.
+   Luku: julkinen /kb sallituista Origineista. /published kertoo kentällä kb, että päätepiste on olemassa:
+   vanhaa workeria vasten sovellus ei kutsu puuttuvaa reittiä (ei 405-virhettä konsoliin), ja tietopankki
+   pysyy piilossa. Sisältö vanhenee ilman omistajaa, joten jokaisella kortilla on tarkistettu-päivä. */
+const ADMIN_KB_KEY = city => "admin:kb:" + normAdminCity(city);
+export const KB_LIMITS = Object.freeze({ cards: 100, title: 200, text: 2000, keywords: 20, keyword: 40, url: 300, body: 65536 });
+// Nopeusrajat isolaatissa 10 min ikkunalla: ylläpidon kirjoitukset (tallennus, poisto, tarkistusmerkintä
+// yhteensä) ja julkinen luku. Luku tapahtuu kerran tiskin avauksessa, joten raja katkaisee vain silmukan.
+export const KB_RATE = Object.freeze({ adminIp: 120, adminAll: 600, readIp: 300, readAll: 3000 });
+const KB_ID_RE = /^[A-Za-z0-9-]{1,40}$/;
+const KB_URL_RE = /^https?:\/\/[^\s<>"']+$/i;
+
+// Tämä päivä Suomen ajassa (YYYY-MM-DD): tarkistettu-päivä on kalenteripäivä, ei UTC-päivä.
+export function kbToday(nowMs) {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Helsinki", year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(new Date(nowMs ?? Date.now()));
+}
+function kbValidDay(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ""));
+  if (!m) return false;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3];
+}
+
+// Kokoaa ja validoi yhden kortin (puhdas, testattava). Suomenkielinen otsikko ja teksti ovat pakollisia,
+// ruotsi ja englanti valinnaisia kuten häiriötiedotteessa. Liian pitkä teksti hylätään eikä katkaista:
+// katkaistu vastaus voisi jättää asiakkaalle kerrottavasta olennaisen pois. Lähde vain http(s).
+export function buildKbCard(body, nowSec, today) {
+  if (!body || typeof body !== "object") return { error: "bad_request" };
+  const L = KB_LIMITS;
+  const s = k => String(body[k] == null ? "" : body[k]).trim();
+  const title = s("title"), text = s("body");
+  if (!title || !text) return { error: "bad_request" };
+  const titleSv = s("titleSv"), bodySv = s("bodySv"), titleEn = s("titleEn"), bodyEn = s("bodyEn");
+  if ([title, titleSv, titleEn].some(x => x.length > L.title) || [text, bodySv, bodyEn].some(x => x.length > L.text))
+    return { error: "too_long" };
+  if ((bodySv && !titleSv) || (bodyEn && !titleEn)) return { error: "translation_title" };
+  const url = s("url");
+  if (url && (url.length > L.url || !KB_URL_RE.test(url))) return { error: "bad_url" };
+  const kwRaw = Array.isArray(body.keywords) ? body.keywords : s("keywords").split(",");
+  const keywords = cleanList(kwRaw, L.keyword, L.keywords);
+  const day = today || kbToday();
+  let checked = s("checked");
+  if (!checked) checked = day;
+  else if (!kbValidDay(checked) || checked > day) return { error: "bad_date" };
+  const ord = Number(body.order);
+  const order = body.order !== "" && body.order != null && Number.isFinite(ord) ? Math.min(9999, Math.max(0, Math.round(ord))) : 0;
+  return { rec: { title, body: text, titleSv, bodySv, titleEn, bodyEn, keywords, url, checked, order, updatedAt: nowSec } };
+}
+
+// Järjestys: ylläpidon järjestysnumero, sitten otsikko aakkosjärjestyksessä.
+export function sortKb(list) {
+  return (Array.isArray(list) ? list : []).slice()
+    .sort((a, b) => ((a.order || 0) - (b.order || 0)) || String(a.title || "").localeCompare(String(b.title || ""), "fi"));
+}
+// Julkiseen lukuun vain kortin sisältö (ei muokkausaikaa).
+export function kbPublicCard(c) {
+  return { id: c.id, title: c.title, body: c.body, titleSv: c.titleSv || "", bodySv: c.bodySv || "",
+    titleEn: c.titleEn || "", bodyEn: c.bodyEn || "", keywords: Array.isArray(c.keywords) ? c.keywords : [],
+    url: c.url || "", checked: c.checked || "", order: c.order || 0 };
+}
+
+async function readKb(env, city) {
+  if (!env.PUSH_KV) return [];
+  const raw = await env.PUSH_KV.get(ADMIN_KB_KEY(city));
+  if (!raw) return [];
+  try {
+    const a = JSON.parse(raw);
+    return Array.isArray(a) ? a.filter(c => c && typeof c === "object" && c.id && c.title) : [];
+  } catch (e) { return []; }
+}
+
+async function handleAdminKbGet(request, env, url) {
+  if (!(await isAdmin(request, env, url.searchParams.get("city")))) return adminJson({ error: "forbidden" }, 403);
+  return adminJson({ items: sortKb(await readKb(env, url.searchParams.get("city"))), limits: KB_LIMITS }, 200);
+}
+
+// Ylläpidon kirjoitusten yhteinen portti: kokoraja, tunnistautuminen kuntaan, KV ja nopeusraja.
+// Palauttaa { res } (virhevastaus) tai { body, city }.
+async function kbAdminGate(request, env) {
+  const r = await readJsonLimited(request, KB_LIMITS.body);
+  if (r.tooLarge) return { res: adminJson({ error: "too_large" }, 413) };
+  const body = r.body;
+  const city = (body && body.city) || "lahti";
+  if (!(await isAdmin(request, env, city))) return { res: adminJson({ error: "forbidden" }, 403) };
+  if (!env.PUSH_KV) return { res: adminJson({ error: "unconfigured" }, 503) };
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  if (!isolateHit("w:kbadmin", ip, KB_RATE.adminIp, WRITE_WINDOW_MS) ||
+      !isolateHit("w:kbadmin:all", "", KB_RATE.adminAll, WRITE_WINDOW_MS) ||
+      !(await bindingAllows(env, "RL_WRITE", "kbadmin:" + ip)))
+    return { res: adminJson({ error: "too_many" }, 429, { "Retry-After": "600" }) };
+  return { body, city };
+}
+
+async function handleAdminKbSave(request, env) {
+  const g = await kbAdminGate(request, env);
+  if (g.res) return g.res;
+  const { body, city } = g;
+  const { rec, error } = buildKbCard(body, Math.floor(Date.now() / 1000), kbToday());
+  if (error) return adminJson({ error }, 400);
+  const list = await readKb(env, city);
+  const id = KB_ID_RE.test(String(body.id || "")) ? String(body.id) : "";
+  const i = id ? list.findIndex(c => c.id === id) : -1;
+  let savedId = id;
+  if (i >= 0) list[i] = { ...rec, id };
+  else {
+    if (list.length >= KB_LIMITS.cards) return adminJson({ error: "too_many_cards" }, 409);
+    savedId = id || Date.now().toString(36) + "-" + crypto.randomUUID().slice(0, 8);
+    list.push({ ...rec, id: savedId });
+  }
+  const items = sortKb(list);
+  await env.PUSH_KV.put(ADMIN_KB_KEY(city), JSON.stringify(items));
+  return adminJson({ ok: true, id: savedId, items }, 200);
+}
+
+async function handleAdminKbDelete(request, env) {
+  const g = await kbAdminGate(request, env);
+  if (g.res) return g.res;
+  const id = String((g.body && g.body.id) || "");
+  const list = await readKb(env, g.city);
+  const items = list.filter(c => c.id !== id);
+  // Tuntematon id ei kirjoita KV:hen (sama periaate kuin julkisilla reiteillä: kirjoitus vain tilan muuttuessa).
+  if (items.length !== list.length) await env.PUSH_KV.put(ADMIN_KB_KEY(g.city), JSON.stringify(items));
+  return adminJson({ ok: true, items: sortKb(items) }, 200);
+}
+
+// "Merkitse tarkistetuksi tänään": vain päivä muuttuu. Jo tänään tarkistettu ei kirjoita uudelleen.
+async function handleAdminKbChecked(request, env) {
+  const g = await kbAdminGate(request, env);
+  if (g.res) return g.res;
+  const id = String((g.body && g.body.id) || "");
+  const list = await readKb(env, g.city);
+  const c = list.find(x => x.id === id);
+  if (!c) return adminJson({ error: "not_found" }, 404);
+  const today = kbToday();
+  if (c.checked !== today) {
+    c.checked = today;
+    c.updatedAt = Math.floor(Date.now() / 1000);
+    await env.PUSH_KV.put(ADMIN_KB_KEY(g.city), JSON.stringify(list));
+  }
+  return adminJson({ ok: true, items: sortKb(list) }, 200);
+}
+
+// Julkinen luku sovellukselle (CORS, Origin-sallintalista kuten kirjoittavilla reiteillä).
+async function handleKbPublic(request, url, env, origin) {
+  if (!isAllowedOrigin(origin)) return jsonResponse({ error: "forbidden_origin" }, 403, origin);
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  if (!isolateHit("r:kb", ip, KB_RATE.readIp, WRITE_WINDOW_MS) || !isolateHit("r:kb:all", "", KB_RATE.readAll, WRITE_WINDOW_MS))
+    return tooMany(origin, 600);
+  const items = sortKb(await readKb(env, url.searchParams.get("city"))).map(kbPublicCard);
+  const headers = new Headers(corsHeaders(origin));
+  headers.set("Content-Type", "application/json");
+  headers.set("Cache-Control", "public, max-age=60");
+  return new Response(JSON.stringify({ items }), { status: 200, headers });
+}
+
 // Julkinen (CORS): voimassa olevat tiedotteet + julkaistut hinnat + saavutettavuusseloste.
+// kb: true = tämä worker tarjoaa tietopankin (/kb). Kenttä on vakio eikä lue KV:tä, joten jokaisen
+// sovelluksen avauksen /published-kutsu ei kasva; kortit haetaan vasta palvelutiskillä.
 async function handlePublished(url, env, origin) {
   const city = url.searchParams.get("city");
   const list = await readAdminAlerts(env, city);
@@ -888,7 +1050,7 @@ async function handlePublished(url, env, origin) {
   const headers = new Headers(corsHeaders(origin));
   headers.set("Content-Type", "application/json");
   headers.set("Cache-Control", "public, max-age=60");
-  return new Response(JSON.stringify({ alerts: items, fares, a11y }), { status: 200, headers });
+  return new Response(JSON.stringify({ alerts: items, fares, a11y, kb: true }), { status: 200, headers });
 }
 
 /* ---------- Käyttöanalytiikka (#2): Cloudflare Analytics Engine ----------
@@ -2267,6 +2429,15 @@ export default {
       return handleAdminA11ySave(request, env);
     if (url.pathname === "/admin/api/stats" && request.method === "GET")
       return handleAdminStats(request, env, url);
+    // Tietopankki (D6): kunnan vastauskortit palvelutiskille
+    if (url.pathname === "/admin/api/kb" && request.method === "GET")
+      return handleAdminKbGet(request, env, url);
+    if (url.pathname === "/admin/api/kb" && request.method === "POST")
+      return handleAdminKbSave(request, env);
+    if (url.pathname === "/admin/api/kb/delete" && request.method === "POST")
+      return handleAdminKbDelete(request, env);
+    if (url.pathname === "/admin/api/kb/checked" && request.method === "POST")
+      return handleAdminKbChecked(request, env);
     // Uusintapainatusvahti: kaupungin oman avaimen myöntäminen (avain näytetään vain kerran)
     if (url.pathname === "/admin/api/reprint/key" && request.method === "GET")
       return handleAdminReprintKeyGet(request, env, url);
@@ -2277,6 +2448,9 @@ export default {
     // Julkaistut tiedotteet sovellukselle (julkinen, CORS)
     if (url.pathname === "/published" && request.method === "GET")
       return handlePublished(url, env, origin);
+    // Tietopankin kortit sovellukselle (julkinen, CORS, Origin-sallintalista)
+    if (url.pathname === "/kb" && request.method === "GET")
+      return handleKbPublic(request, url, env, origin);
     // Anonyymi käyttöanalytiikka (julkinen, CORS)
     if (url.pathname === "/track" && request.method === "POST")
       return handleTrack(request, env, origin);

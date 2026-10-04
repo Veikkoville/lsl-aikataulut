@@ -93,7 +93,7 @@ export const ADMIN_HTML = `<!doctype html>
   label { display:block; font-size:var(--fs-sm); font-weight:700; margin:0 0 var(--s1); }
   .req { color:var(--danger); margin-left:2px; }
   .hint { font-size:var(--fs-xs); color:var(--muted); margin:var(--s1) 0 0; }
-  input[type=text], input[type=url], input[type=email], input[type=password], input[type=datetime-local], textarea, select {
+  input[type=text], input[type=url], input[type=email], input[type=password], input[type=datetime-local], input[type=date], input[type=number], textarea, select {
     width:100%; min-height:42px; padding:var(--s2) var(--s3); font:inherit; color:var(--ink); background:var(--surface);
     border:1px solid var(--line-strong); border-radius:var(--r-ctl); }
   input:focus, textarea:focus, select:focus { outline:2px solid var(--accent); outline-offset:0; border-color:var(--accent); }
@@ -138,6 +138,11 @@ export const ADMIN_HTML = `<!doctype html>
   .sev-WARNING { background:var(--warn-soft); color:var(--warn); }
   .sev-SEVERE { background:var(--danger-soft); color:var(--danger); }
   .empty { margin:0; color:var(--muted); }
+
+  /* Tietopankki: yli 6 kk sitten tarkistettu kortti saa merkinnän Tarkista ja reunaviivan (ei pelkkä väri). */
+  .b-check { background:var(--warn-soft); color:var(--warn); }
+  .kb-item.stale { border-left:4px solid #c07a12; }
+  .count.warn { background:var(--warn-soft); color:var(--warn); }
 
   /* Yleiskatsaus */
   .tiles { display:grid; gap:var(--s4); grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); }
@@ -211,6 +216,7 @@ export const ADMIN_HTML = `<!doctype html>
     <nav class="side" aria-label="Ylläpidon osiot">
       <a href="#yleiskatsaus" data-sec="yleiskatsaus">Yleiskatsaus</a>
       <a href="#tiedotteet" data-sec="tiedotteet">Häiriötiedotteet <span class="count hide" id="navAlertCount"></span></a>
+      <a href="#tietopankki" data-sec="tietopankki">Tietopankki <span class="count warn hide" id="navKbCount" title="Odottaa tarkistusta"></span></a>
       <a href="#hinnat" data-sec="hinnat">Liput ja hinnat</a>
       <a href="#seloste" data-sec="seloste">Saavutettavuusseloste</a>
       <a href="#vahti" data-sec="vahti">Uusintapainatusvahti</a>
@@ -291,6 +297,69 @@ export const ADMIN_HTML = `<!doctype html>
         <div class="card">
           <h3>Julkaistut tiedotteet</h3>
           <div id="list"><p class="empty">Ladataan…</p></div>
+        </div>
+      </section>
+
+      <section id="sec-tietopankki" class="sec hide" aria-labelledby="h-kb">
+        <div class="sec-head">
+          <h2 id="h-kb" tabindex="-1">Tietopankki</h2>
+          <p class="lead">Kunnan omat vastaukset kysymyksiin, joihin aikataulu ei vastaa: esimerkiksi löytötavarat, kortin lataus ja palautus, lemmikit, polkupyörät, kutsuliikenne, palautteen ohjaus ja liityntäpysäköinti. Kortit näkyvät palvelutiskin haussa ja Tietopankki-välilehdellä, ja asiakaspalvelija löytää ne otsikon tai avainsanan perusteella.</p>
+        </div>
+        <div class="card">
+          <h3 id="kbFormTitle">Uusi vastauskortti</h3>
+          <form id="kbForm">
+            <input type="hidden" id="kbId">
+            <div class="field">
+              <label for="kbTitle">Otsikko<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="kbTitle" maxlength="200" required placeholder="Esim. Löytötavarat">
+            </div>
+            <div class="field">
+              <label for="kbBody">Vastaus<span class="req" aria-hidden="true">*</span></label>
+              <textarea id="kbBody" maxlength="2000" required aria-describedby="kbBodyHint" style="min-height:9rem"></textarea>
+              <p class="hint" id="kbBodyHint">Teksti, jonka asiakaspalvelija kertoo tai kopioi asiakkaalle. Enintään 2 000 merkkiä. Tyhjä rivi aloittaa uuden kappaleen, ja https-osoitteet näkyvät linkkeinä.</p>
+            </div>
+            <details class="sv" id="kbLangDetails">
+              <summary>Ruotsin- ja englanninkielinen versio</summary>
+              <p class="hint" style="margin:0 0 var(--s3)">Valinnaisia. Tiski näyttää kortin käyttöliittymän kielellä. Jos käännös puuttuu, näkyy suomenkielinen teksti.</p>
+              <div class="field"><label for="kbTitleSv">Otsikko ruotsiksi</label><input type="text" id="kbTitleSv" maxlength="200" lang="sv"></div>
+              <div class="field"><label for="kbBodySv">Vastaus ruotsiksi</label><textarea id="kbBodySv" maxlength="2000" lang="sv"></textarea></div>
+              <div class="field"><label for="kbTitleEn">Otsikko englanniksi</label><input type="text" id="kbTitleEn" maxlength="200" lang="en"></div>
+              <div class="field"><label for="kbBodyEn">Vastaus englanniksi</label><textarea id="kbBodyEn" maxlength="2000" lang="en"></textarea></div>
+            </details>
+            <div class="field" style="margin-top:var(--s4)">
+              <label for="kbKeywords">Avainsanat</label>
+              <input type="text" id="kbKeywords" placeholder="löytötavara, unohtunut, kadonnut" aria-describedby="kbKwHint">
+              <p class="hint" id="kbKwHint">Pilkulla erotettuna, enintään 20. Sanat, joilla korttia haetaan, myös arkikielellä ja ruotsiksi.</p>
+            </div>
+            <div class="field">
+              <label for="kbUrl">Lähde</label>
+              <input type="url" id="kbUrl" placeholder="https://" aria-describedby="kbUrlHint">
+              <p class="hint" id="kbUrlHint">Valinnainen. Sivu, josta vastauksen voi tarkistaa.</p>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label for="kbChecked">Tarkistettu</label>
+                <input type="date" id="kbChecked" aria-describedby="kbCheckedHint">
+                <p class="hint" id="kbCheckedHint">Päivä, jolloin sisältö on viimeksi todettu ajan tasalla olevaksi.</p>
+              </div>
+              <div class="field">
+                <label for="kbOrder">Järjestys</label>
+                <input type="number" id="kbOrder" min="0" max="9999" step="1" placeholder="0" aria-describedby="kbOrderHint">
+                <p class="hint" id="kbOrderHint">Pienempi numero näkyy listassa ensin. Samalla numerolla aakkosjärjestys.</p>
+              </div>
+            </div>
+            <div class="msg" id="kbMsg" role="status"></div>
+            <div class="form-acts">
+              <button type="submit" id="kbSaveBtn" class="btn btn-primary">Tallenna kortti</button>
+              <button type="button" id="kbCancelBtn" class="btn btn-ghost hide">Peruuta muokkaus</button>
+            </div>
+          </form>
+        </div>
+        <div class="card">
+          <h3>Vastauskortit <span class="muted" id="kbCount"></span></h3>
+          <p class="muted">Merkitse kortti tarkistetuksi aina, kun olet käynyt sen läpi. Yli puoli vuotta sitten tarkistetut kortit on merkitty sanalla Tarkista. Enintään 100 korttia.</p>
+          <div class="msg" id="kbListMsg" role="status"></div>
+          <div id="kbList"><p class="empty">Ladataan…</p></div>
         </div>
       </section>
 
@@ -434,7 +503,7 @@ const CITY_NAMES = { lahti:"Lahti", kuopio:"Kuopio", salo:"Salo", kajaani:"Kajaa
   raasepori:"Raasepori", kouvola:"Kouvola", mikkeli:"Mikkeli", hameenlinna:"Hämeenlinna", joensuu:"Joensuu",
   jyvaskyla:"Jyväskylä", lappeenranta:"Lappeenranta", oulu:"Oulu", pori:"Pori", rovaniemi:"Rovaniemi", turku:"Turku", inkoo:"Inkoo" };
 const CITY_NAME = CITY_NAMES[CITY] || (CITY.charAt(0).toUpperCase() + CITY.slice(1));
-const SECTIONS = ["yleiskatsaus", "tiedotteet", "hinnat", "seloste", "vahti", "tilastot"];
+const SECTIONS = ["yleiskatsaus", "tiedotteet", "tietopankki", "hinnat", "seloste", "vahti", "tilastot"];
 // Yleiskatsauksen tila: undefined = latautuu.
 const S = {};
 let editing = null;
@@ -513,6 +582,7 @@ function enterAdmin(){
   showSection(false);
   renderOverview();
   loadList();
+  loadKb();
   loadFares();
   loadA11y();
   loadReprintKey();
@@ -535,6 +605,12 @@ function renderOverview(){
     t.push(tile("tiedotteet", a.now ? "st-on" : "", "Häiriötiedotteet", a.now ? a.now + " voimassa" : "Ei voimassa olevia",
       extra || "Julkaise tiedote, kun liikenteessä on poikkeus."));
   }
+  const kb = S.kb;
+  if (!kb) t.push(tile("tietopankki", "", "Tietopankki", L, ""));
+  else if (kb.err) t.push(tile("tietopankki", "st-attn", "Tietopankki", "Ei saatavilla", "Lista ei latautunut."));
+  else if (!kb.n) t.push(tile("tietopankki", "", "Tietopankki", "Ei kortteja", "Lisää vastaukset, joita asiakaspalvelussa kysytään usein."));
+  else t.push(tile("tietopankki", kb.stale ? "st-attn" : "st-ok", "Tietopankki", kb.n + (kb.n === 1 ? " kortti" : " korttia"),
+    kb.stale ? kb.stale + " odottaa tarkistusta" : "Kaikki tarkistettu puolen vuoden sisällä."));
   const f = S.fares;
   if (!f) t.push(tile("hinnat", "", "Liput ja hinnat", L, ""));
   else if (f.published) t.push(tile("hinnat", "st-ok", "Liput ja hinnat", "Julkaistu", f.checked ? "Tarkistettu " + f.checked : "Tarkistuspäivä puuttuu."));
@@ -657,6 +733,137 @@ async function del(id){
   const r = await api("admin/api/alerts/delete", { method:"POST", body: JSON.stringify({ city:CITY, id }) });
   if (r.ok) loadList();
 }
+
+/* ---------- Tietopankki (D6) ----------
+   Kunnan vastauskortit palvelutiskille. Sisältö vanhenee ilman omistajaa, joten yli puoli vuotta sitten
+   tarkistettu kortti näkyy merkinnällä Tarkista, ja määrä näkyy sivunavigaatiossa ja yleiskatsauksessa. */
+let KB = [];
+const KB_ERRORS = {
+  bad_request: "Otsikko ja vastaus ovat pakollisia.",
+  too_long: "Teksti on liian pitkä: otsikko enintään 200 ja vastaus enintään 2 000 merkkiä.",
+  translation_title: "Käännetty vastaus tarvitsee saman kielen otsikon.",
+  bad_url: "Lähteen pitää olla verkko-osoite, joka alkaa https:// tai http://.",
+  bad_date: "Tarkistuspäivä ei voi olla tulevaisuudessa.",
+  too_many_cards: "Tietopankissa on jo 100 korttia. Poista vanhentunut kortti ennen uuden lisäämistä.",
+  too_many: "Liian monta tallennusta lyhyessä ajassa. Yritä hetken kuluttua uudelleen.",
+  too_large: "Kortti on liian suuri tallennettavaksi.",
+  not_found: "Korttia ei löytynyt. Se on ehkä poistettu toisessa ikkunassa.",
+};
+function todayLocal(){ const d = new Date(), p = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
+function kbStale(c){
+  const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec((c && c.checked) || "");
+  if (!m) return true;
+  return new Date(+m[1], +m[2] - 1 + 6, +m[3]) <= new Date();
+}
+function kbHost(u){ try { return new URL(u).hostname.replace(/^www\\./, ""); } catch(e){ return ""; } }
+function kbErr(el, r){
+  if (r.status === 403) msg(el, "Istunto vanheni. Kirjaudu uudelleen.", false);
+  else msg(el, KB_ERRORS[r.data && r.data.error] || "Tallennus epäonnistui.", false);
+}
+async function loadKb(){
+  const r = await api("admin/api/kb?city=" + CITY, { method:"GET" });
+  if (!r.ok){ $("kbList").innerHTML = "<p class='empty'>Lista ei latautunut.</p>"; S.kb = { err:true }; renderOverview(); return; }
+  renderKb((r.data && r.data.items) || []);
+}
+function renderKb(items){
+  KB = items;
+  const stale = items.filter(kbStale).length;
+  S.kb = { n: items.length, stale: stale }; renderOverview();
+  $("navKbCount").textContent = stale; show($("navKbCount"), stale > 0);
+  $("kbCount").textContent = items.length ? "(" + items.length + "/100)" : "";
+  if (!items.length){ $("kbList").innerHTML = "<p class='empty'>Ei vielä kortteja. Aloita yleisimmistä kysymyksistä, esimerkiksi löytötavaroista ja kortin latauksesta.</p>"; return; }
+  const today = todayLocal();
+  $("kbList").innerHTML = items.map(c => {
+    const st = kbStale(c);
+    const ex = c.body.length > 240 ? c.body.slice(0, 240) + "…" : c.body;
+    const meta = ["Tarkistettu " + (c.checked ? fmtDay(c.checked) : "ei tiedossa")];
+    if (c.keywords && c.keywords.length) meta.push("Avainsanat: " + c.keywords.join(", "));
+    if (c.url) meta.push("Lähde: " + kbHost(c.url));
+    if (c.order) meta.push("Järjestys " + c.order);
+    return "<article class='alert-item kb-item" + (st ? " stale" : "") + "'>"
+      + "<div class='alert-head'><h4>" + esc(c.title) + "</h4>"
+      + (st ? "<span class='badge b-check'>Tarkista</span>" : "")
+      + (c.titleSv ? "<span class='badge b-past' title='Ruotsinkielinen versio'>SV</span>" : "")
+      + (c.titleEn ? "<span class='badge b-past' title='Englanninkielinen versio'>EN</span>" : "") + "</div>"
+      + "<p class='alert-body'>" + esc(ex) + "</p>"
+      + "<p class='alert-meta'>" + esc(meta.join(" · ")) + "</p>"
+      + "<div class='alert-acts'><button type='button' class='btn btn-ghost btn-sm' data-kbedit='" + esc(c.id) + "' aria-label='Muokkaa: " + esc(c.title) + "'>Muokkaa</button>"
+      + (c.checked === today ? "" : "<button type='button' class='btn btn-ghost btn-sm' data-kbcheck='" + esc(c.id) + "' aria-label='Merkitse tarkistetuksi tänään: " + esc(c.title) + "'>Merkitse tarkistetuksi tänään</button>")
+      + "<button type='button' class='btn btn-danger btn-sm' data-kbdel='" + esc(c.id) + "' aria-label='Poista: " + esc(c.title) + "'>Poista</button></div></article>";
+  }).join("");
+  $("kbList").querySelectorAll("[data-kbedit]").forEach(b => b.onclick = () => kbEdit(KB.find(x => x.id === b.dataset.kbedit)));
+  $("kbList").querySelectorAll("[data-kbcheck]").forEach(b => b.onclick = () => kbMarkChecked(b.dataset.kbcheck));
+  $("kbList").querySelectorAll("[data-kbdel]").forEach(b => b.onclick = () => kbDelete(b.dataset.kbdel));
+}
+function kbEdit(c){
+  if (!c) return;
+  $("kbId").value = c.id;
+  $("kbTitle").value = c.title || ""; $("kbBody").value = c.body || "";
+  $("kbTitleSv").value = c.titleSv || ""; $("kbBodySv").value = c.bodySv || "";
+  $("kbTitleEn").value = c.titleEn || ""; $("kbBodyEn").value = c.bodyEn || "";
+  $("kbLangDetails").open = !!(c.titleSv || c.bodySv || c.titleEn || c.bodyEn);
+  $("kbKeywords").value = (c.keywords || []).join(", ");
+  $("kbUrl").value = c.url || "";
+  $("kbChecked").value = c.checked || "";
+  $("kbOrder").value = c.order ? String(c.order) : "";
+  $("kbFormTitle").textContent = "Muokkaa vastauskorttia";
+  $("kbSaveBtn").textContent = "Tallenna muutokset";
+  show($("kbCancelBtn"), true);
+  msg($("kbMsg"), "", true);
+  $("kbFormTitle").scrollIntoView({ behavior:"smooth", block:"start" });
+  $("kbTitle").focus({ preventScroll:true });
+}
+function kbReset(){
+  $("kbForm").reset();
+  $("kbId").value = "";
+  $("kbLangDetails").open = false;
+  $("kbChecked").value = todayLocal();
+  $("kbChecked").max = todayLocal();
+  $("kbFormTitle").textContent = "Uusi vastauskortti";
+  $("kbSaveBtn").textContent = "Tallenna kortti";
+  show($("kbCancelBtn"), false);
+}
+$("kbCancelBtn").addEventListener("click", () => { kbReset(); msg($("kbMsg"), "", true); });
+$("kbForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const payload = {
+    city: CITY,
+    id: $("kbId").value || undefined,
+    title: $("kbTitle").value.trim(), body: $("kbBody").value.trim(),
+    titleSv: $("kbTitleSv").value.trim(), bodySv: $("kbBodySv").value.trim(),
+    titleEn: $("kbTitleEn").value.trim(), bodyEn: $("kbBodyEn").value.trim(),
+    keywords: $("kbKeywords").value.split(",").map(s => s.trim()).filter(Boolean),
+    url: $("kbUrl").value.trim(),
+    checked: $("kbChecked").value,
+    order: $("kbOrder").value,
+  };
+  if (!payload.title || !payload.body){ msg($("kbMsg"), KB_ERRORS.bad_request, false); return; }
+  const trMissing = payload.bodySv && !payload.titleSv ? "ruotsiksi" : payload.bodyEn && !payload.titleEn ? "englanniksi" : "";
+  if (trMissing){ $("kbLangDetails").open = true; msg($("kbMsg"), "Kirjoita myös otsikko " + trMissing + ", kun vastaus on " + trMissing + ".", false); return; }
+  const r = await api("admin/api/kb", { method:"POST", body: JSON.stringify(payload) });
+  if (r.ok){
+    kbReset();
+    msg($("kbMsg"), "Kortti tallennettu. Palvelutiskillä muutos näkyy viimeistään 10 minuutin kuluttua, tai noin minuutissa, kun tiskin sivu ladataan uudelleen.", true);
+    setTimeout(() => msg($("kbMsg"), "", true), 6000);
+    renderKb((r.data && r.data.items) || []);
+  } else {
+    if (r.data && r.data.error === "translation_title") $("kbLangDetails").open = true;
+    kbErr($("kbMsg"), r);
+  }
+});
+async function kbMarkChecked(id){
+  const r = await api("admin/api/kb/checked", { method:"POST", body: JSON.stringify({ city: CITY, id }) });
+  if (r.ok){ msg($("kbListMsg"), "Merkitty tarkistetuksi tänään.", true); setTimeout(() => msg($("kbListMsg"), "", true), 2500); renderKb((r.data && r.data.items) || []); }
+  else kbErr($("kbListMsg"), r);
+}
+async function kbDelete(id){
+  const c = KB.find(x => x.id === id);
+  if (!confirm("Poistetaanko kortti" + (c ? " " + c.title : "") + "?")) return;
+  const r = await api("admin/api/kb/delete", { method:"POST", body: JSON.stringify({ city: CITY, id }) });
+  if (r.ok){ if ($("kbId").value === id) kbReset(); renderKb((r.data && r.data.items) || []); }
+  else kbErr($("kbListMsg"), r);
+}
+kbReset();
 
 /* ---------- Liput ja hinnat ----------
    Oletuspohja (Lahti) esitäyttää lomakkeen, kun mitään ei ole vielä julkaistu;

@@ -63,3 +63,9 @@ list-kiintiötä. Julkinen sovellus lukee ne `/published?city=<kaupunki>`
 Hallittavat sisältötyypit nyt: **häiriötiedotteet** (näkyvät etusivun bannerissa)
 ja **lippu-/hintatiedot** (näkyvät "Liput ja hinnat" -sivulla, korvaavat
 CONFIG-oletushinnat).
+
+**Tietopankki (4.10.2026).** Kunnan omat vastauskortit palvelutiskille (`admin:kb:<kaupunki>`, enintään
+100 korttia, teksti enintään 2 000 merkkiä, tarkistettu-päivä). Ylläpito: `admin/api/kb` (GET, POST),
+`admin/api/kb/delete` ja `admin/api/kb/checked`, sama tunnistautuminen ja kuntarajaus kuin tiedotteilla.
+Sovellus lukee kortit julkisesta `/kb?city=<kaupunki>`-päätepisteestä (Origin-sallintalista), ja
+`/published` kertoo tuen kentällä `kb: true`, joten uusi sovellus ei kutsu `/kb`:tä vanhaa workeria vasten.
