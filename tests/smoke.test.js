@@ -457,7 +457,10 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (deskAlertCount === homeDisruptionCount)
     ? ok(`palvelutiski: 'Aktiiviset häiriöt' näyttää vain häiriöt (${deskAlertCount} = etusivun häiriöt, ei tiedotteita)`)
     : fail(`palvelutiski: häiriömäärä ${deskAlertCount} ≠ etusivun häiriölohko ${homeDisruptionCount} (vuotaako tiedotteita?)`);
-  // Näppäinflow: lähtö → Enter (valitsee ylimmän + siirtää määränpäähän) → Enter ajaa haun
+  // Näppäinflow: lähtö → Enter (valitsee ylimmän + siirtää määränpäähän) → Enter ajaa haun.
+  // V1 (4.10.2026): reittihaku on oma korttinsa; tiski avautuu pysäkkikorttiin, joten Reitti-kortti
+  // avataan ensin (piilotettua kenttää ei voi klikata).
+  await page.click('.dcard-tab[data-dcard="route"]');
   await page.click("#deskFrom");
   await page.type("#deskFrom", "Matkakeskus", { delay: 25 });
   if (await expect("#deskFromList button[data-i]", "palvelutiski: lähtö-ehdotus", 15000)) {
@@ -701,6 +704,94 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (dTrains && dTrainInfo.tables === 2 && dTrainInfo.heads === 8 && dTrainInfo.kinds === 2)
     ? ok(`palvelutiski: junien lähdöt ja saapumiset lohkossa (${dTrainInfo.rows} junaa, rata.digitraffic)`)
     : fail("palvelutiski: junalohko ei renderöitynyt lähtevät + saapuvat: " + JSON.stringify(dTrainInfo));
+
+  // --- Palvelutiski V1 (4.10.2026): livekartta, yhteishaku + linjakortti, linkit tiskin sisällä,
+  //     390 px ja hinnat jaetusta lähteestä. Rakenneassertioita; tila palautetaan jokaisen jälkeen. ---
+  // Kartta renderöityy tiskin sisälle (Leaflet-säiliö, korkeus, tiilikerros ja tilarivi).
+  await page.waitForSelector(".desk #deskMap.leaflet-container", { timeout: 15000 }).catch(() => {});
+  const dMap = await page.evaluate(() => {
+    const el = document.querySelector(".desk #deskMap");
+    return { leaflet: !!el && el.classList.contains("leaflet-container"),
+      h: el ? Math.round(el.getBoundingClientRect().height) : 0,
+      tiles: !!el && !!el.querySelector(".leaflet-tile-pane"),
+      status: (document.getElementById("deskMapStatus")?.textContent || "").trim() };
+  });
+  (dMap.leaflet && dMap.h >= 200 && dMap.tiles && dMap.status.length > 0)
+    ? ok(`palvelutiski: livekartta tiskin sisällä (${dMap.h} px, "${dMap.status}")`)
+    : fail("palvelutiski: livekartta puuttuu tiskiltä: " + JSON.stringify(dMap));
+  // Yhteishaku: linjanumero → linjakortti tiskillä, osoite pysyy #/palvelutiski. Näppäimistöllä
+  // (Enter avaa ensimmäisen, tarkka linjatunnus on listan kärjessä).
+  await page.evaluate(() => { document.getElementById("deskStop").value = ""; });
+  await page.click("#deskStop");
+  await page.type("#deskStop", "4", { delay: 25 });
+  if (await expect("#deskStopList button[data-l]", "palvelutiski: yhteishaku löytää linjan", 15000)) {
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => document.querySelectorAll("#deskLineCard .desk-line-stops li a").length > 2,
+      { timeout: 25000 }).catch(() => {});
+    const lc = await page.evaluate(() => ({
+      hash: location.hash,
+      nakyy: document.querySelector('[data-dcard-panel="line"]')?.hidden === false,
+      pysakkiPiilossa: document.querySelector('[data-dcard-panel="stop"]')?.hidden === true,
+      badge: document.querySelector("#deskLineH .badge")?.textContent.trim() || "",
+      pysakit: document.querySelectorAll("#deskLineCard .desk-line-stops li a").length,
+      suunnat: document.querySelectorAll("#deskLineCard .desk-line-dirs .dseg").length,
+      tulosteet: document.querySelectorAll("#deskLineCard .deskLinePrint").length,
+      valilehti: document.querySelector('.dcard-tab[data-dcard="line"]')?.getAttribute("aria-pressed"),
+    }));
+    (lc.hash === "#/palvelutiski" && lc.nakyy && lc.pysakkiPiilossa && lc.badge === "4" && lc.pysakit > 2
+      && lc.suunnat >= 1 && lc.tulosteet === 5 && lc.valilehti === "true")
+      ? ok(`palvelutiski: yhteishaun linja avaa linjakortin tiskillä (${lc.pysakit} pysäkkiä, ${lc.suunnat} suuntaa, hash ennallaan)`)
+      : fail("palvelutiski: linjakortti: " + JSON.stringify(lc));
+    // Linjakortin pysäkkilinkki (#/pysakki/<id>) avaa pysäkkikortin tiskillä eikä vie pois.
+    const linkStop = await page.evaluate(() => {
+      const a = document.querySelectorAll("#deskLineCard .desk-line-stops li a")[1];
+      if (!a) return null;
+      const name = a.textContent.trim();
+      a.click();
+      return name;
+    });
+    const stopOpened = linkStop && await page.waitForFunction(n => document.querySelector('[data-dcard-panel="stop"]')?.hidden === false
+      && !!document.querySelector("#deskDeps .desk-deps-upd")
+      && (document.querySelector("#deskDeps .stophead")?.textContent || "").includes(n), { timeout: 20000 }, linkStop)
+      .then(() => true).catch(() => false);
+    const ls = await page.evaluate(() => ({ hash: location.hash, desk: document.body.classList.contains("desk-mode") }));
+    (stopOpened && ls.hash === "#/palvelutiski" && ls.desk)
+      ? ok(`palvelutiski: pysäkkilinkki avaa pysäkkikortin tiskillä (${linkStop})`)
+      : fail("palvelutiski: pysäkkilinkki vei pois tiskiltä tai kortti ei avautunut: " + JSON.stringify({ linkStop, stopOpened, ...ls }));
+  }
+  // 390 px: tiskissä ei vaakavieritystä (viewport palautetaan heti).
+  await page.setViewport({ width: 390, height: 800 });
+  await sleep(1200);
+  const d390 = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, bw: document.body.scrollWidth,
+    kartta: Math.round(document.getElementById("deskMap")?.getBoundingClientRect().width || 0) }));
+  await page.setViewport({ width: 800, height: 600 });
+  (d390.sw <= 390 && d390.bw <= 390 && d390.kartta > 0 && d390.kartta <= 390)
+    ? ok(`palvelutiski: 390 px ilman vaakavieritystä (scrollWidth ${d390.sw}, kartta ${d390.kartta} px)`)
+    : fail("palvelutiski: 390 px vaakavieritys: " + JSON.stringify(d390));
+  // Hinnat jaetusta lähteestä (loadEffectiveFares): ylläpidon julkaisu korvataan merkkihinnalla, ja
+  // sen on näyttävä sekä #/liput-sivulla että tiskillä. Julkaisun välimuisti nollataan lopuksi.
+  const fz = await page.evaluate(async () => {
+    if (typeof loadEffectiveFares !== "function" || !CONFIG.fares || CONFIG.fares.zones || !CONFIG.fares.single?.cardApp) return { ohita: true };
+    const f = JSON.parse(JSON.stringify(CONFIG.fares));
+    delete f.i18n;
+    f.single.cardApp.adult = "9,87";
+    publishedPromise = Promise.resolve({ alerts: [], fares: f, a11y: null });
+    const jaettu = (await loadEffectiveFares())?.single?.cardApp?.adult;
+    location.hash = "#/liput";
+    return { jaettu };
+  });
+  if (fz.ohita) fail("palvelutiski: hintatarkistus ei voinut ajaa (loadEffectiveFares tai Lahden CONFIG.fares puuttuu)");
+  else {
+    await page.waitForSelector("table.fare", { timeout: 15000 }).catch(() => {});
+    const liput = await page.evaluate(() => (document.getElementById("app")?.innerText || "").includes("9,87"));
+    await page.evaluate(() => { location.hash = "#/palvelutiski"; });
+    await page.waitForSelector("table.desk-fares", { timeout: 15000 }).catch(() => {});
+    const tiski = await page.evaluate(() => (document.querySelector(".desk-fares-wrap table.desk-fares")?.innerText || "").includes("9,87"));
+    await page.evaluate(() => { publishedPromise = null; });
+    (fz.jaettu === "9,87" && liput && tiski)
+      ? ok("palvelutiski: hinnat samasta lähteestä kuin #/liput (ylläpidon julkaisu näkyy tiskillä)")
+      : fail("palvelutiski: tiskin ja hintasivun hinnat eri lähteestä: " + JSON.stringify({ ...fz, liput, tiski }));
+  }
   // Poistuminen purkaa koko ruudun tilan
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   (await page.evaluate(() => document.body.classList.contains("desk-mode")))
@@ -838,6 +929,8 @@ async function minuuttiLinjaus(page, rootSel, media) {
   // (live-lähdöt, viimeinen bussi, aktiiviset häiriöt) on silti renderöidyttävä — vain
   // hintalohko piiloon. Estää regression jossa lohkot riippuisivat kaupungin CONFIGista.
   await page.goto(BASE + "/?city=vaasa#/palvelutiski", { waitUntil: "networkidle2" });
+  // Hintalohko piirtyy vasta kun ylläpidon julkaisu on luettu (loadEffectiveFares, V1 4.10.2026).
+  await page.waitForSelector("table.desk-fares", { timeout: 15000 }).catch(() => {});
   const vBlocks = await page.evaluate(() => ({
     deps: !!document.getElementById("deskStop"), ab: !!document.getElementById("deskFrom"),
     lastBus: !!document.getElementById("deskLastBusBtn"), alerts: !!document.getElementById("deskAlerts"),
