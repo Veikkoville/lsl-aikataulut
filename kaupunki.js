@@ -250,7 +250,7 @@
       if (kaava) kaava.textContent = `Muutosvahti ajetaan kerran viikossa. Luku on niiden pysäkkien määrä, joiden aikataulu muuttuu 5-6 viikon sisällä ja jotka vahti nosti tulostettavaksi ennen muutosta (ajo ${fi(L.ajo)}). Vanhentuneiksi merkittyjä ei lasketa, koska niiden muutos on jo voimassa tai alkaa viimeistään ensi viikolla.`;
     }
     const rjoh = el.querySelector('.sy-nakyma[data-nakyma="raportti"] .sy-nakymapaa .sy-johdanto');
-    if (rjoh) rjoh.textContent = 'Yhden sivun raportti joukkoliikenneyksikön johdolle: julisteiden tila, uusintapainatukset ja säästöarvio. Tulostuu yhdelle A4-sivulle.';
+    if (rjoh) rjoh.textContent = 'Raportti joukkoliikenneyksikön johdolle: julisteiden tila, uusintapainatukset ja säästöarvio yhdellä A4-sivulla.';
     el.querySelectorAll('.sy-raportti').forEach(korvaaRaportti);
   }
 
