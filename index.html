@@ -1890,6 +1890,76 @@
   .plan-sort button { border: none; background: transparent; color: var(--ink-muted); font-size: 13.5px;
     font-weight: 600; border-radius: 8px; padding: 8px 14px; min-height: 40px; }
   .plan-sort button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  /* ---- Erä C (4.10.2026): kuntalaisen reittihaku virallisen oppaan tasolle ----
+     Tiivistetty hakurivi (mobiili haun jälkeen), lisäasetukset, häiriöbanneri, kävely/pyörä siruina,
+     tuloskortin lähtörivi, hinta ja tulostus. */
+  .plan-sumbar { display: none; align-items: center; gap: 10px; background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow-1);
+    padding: 8px 10px 8px 14px; margin: 0 0 12px; }
+  .plan-sumbar .ps-text { flex: 1 1 auto; min-width: 0; }
+  .plan-sumbar .ps-route { display: block; font-weight: 700; color: var(--ink); overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .plan-sumbar .ps-when { display: block; font-size: 13.5px; color: var(--ink-muted); }
+  .plan-sumbar button { flex: none; min-height: 44px; }
+  .plan-direct-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+  .plan-direct-row details.itin.direct { flex: 0 1 auto; margin: 0; padding: 0; box-shadow: none; }
+  .plan-direct-row details.itin.direct[open] { flex-basis: 100%; }
+  .plan-direct-row details.itin.direct > summary { padding: 8px 40px 8px 12px; min-height: 44px; }
+  .plan-direct-row details.itin.direct > summary::after { top: 8px; right: 10px; font-size: 16px; }
+  .plan-direct-row .itin-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+  @media (max-width: 699px) {
+    #planForm.collapsed .searchcard { display: none; }
+    #planForm.collapsed .plan-sumbar { display: flex; }
+    /* Tiivistetyssä tilassa otsikkokaista jää vain ruudunlukijalle (sivun h1 säilyy). */
+    body.plan-mode.plan-collapsed .reila-hero { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .plan-topbar { margin-bottom: 8px; gap: 6px; }
+    /* Reittien määrä on myös otsikossa ja listassa; mobiilissa lajittelu yhdelle riville (vieritys rivin sisällä). */
+    .plan-count { display: none; }
+    .plan-sort { padding: 3px; gap: 2px; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+    .plan-sort button { padding: 6px 9px; font-size: 13px; white-space: nowrap; flex: none; }
+    #planResults .card { padding: 12px; }
+    #planResults .card > h2 { font-size: 1.05rem; margin-bottom: 0.4rem; }
+    /* Kävely ja pyörä siruina: kuvake ja kesto, sana ja matka jäävät ruudunlukijalle ja avattuun siruun. */
+    .plan-direct-row details.itin.direct:not([open]) .itin-head strong,
+    .plan-direct-row details.itin.direct:not([open]) .itin-head .muted { position: absolute; width: 1px; height: 1px;
+      overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .plan-direct-row details.itin.direct > summary { padding: 6px 30px 6px 10px; }
+    .plan-direct-row details.itin.direct > summary::after { right: 8px; top: 7px; }
+    /* Tuloskortti tiiviimmäksi: kellonajat ja kesto samalle riville, vaihdot ja kävely samalle riville. */
+    #planResults .ih-time { flex-direction: row; align-items: baseline; gap: 10px; }
+    #planResults .ih-meta { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+    #planResults details.itin:not(.direct) { padding: 4px 6px; }
+    #planResults details.itin:not(.direct) > summary { padding: 10px 40px 10px 10px; }
+  }
+  .plan-skip { position: absolute; left: -9999px; }
+  .plan-skip:focus { position: static; display: inline-block; margin: 0 0 8px; }
+  details.plan-more { flex-basis: 100%; }
+  details.plan-more > summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--ink);
+    min-height: 44px; display: inline-flex; align-items: center; gap: 6px; }
+  .plan-more-body { display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 4px 0 2px; }
+  .plan-more-body label { display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; font-weight: 600;
+    color: var(--ink-muted); }
+  .plan-more-body select { min-height: 44px; }
+  .plan-alerts:not(:empty) { margin: 14px 0 12px; }
+  .plan-alerts details.alert { margin: 0 0 6px; }
+  .plan-alerts details.alert summary { display: flex; gap: 6px; align-items: flex-start; }
+  .plan-alerts details.alert summary .ic { flex: none; color: var(--sev-severe); margin-top: 2px; }
+  .ih-board { grid-column: 1 / -1; font-size: 14px; font-weight: 600; color: var(--ink); margin: -4px 0 0; }
+  .ih-board .muted { font-weight: 500; }
+  .ih-alert { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700;
+    color: var(--error-text); }
+  .ih-alert .ic { color: var(--sev-severe); }
+  .legbar .seg .seg-warn { display: inline-flex; margin-left: 3px; }
+  .legbar .seg .seg-warn svg { width: 13px; height: 13px; }
+  .itin-extra { padding: 0 0 6px; }
+  .plan-fare { margin: 0.5rem 0; }
+  .itin-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0.5rem 0 0; }
+  #planResults h2[tabindex="-1"]:focus { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .plan-wc-note { margin: 0 0 12px; }
+  .plan-append-err { margin: 0.5rem 0; }
+  .hero-when { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .hero-when select, .hero-when input { min-height: 44px; }
 
   /* ---- Kaksisarakelayout (desktop >=1000px): tulokset + karttasivupalkki ---- */
   /* oletus: sivupalkki piilossa (mobiili/kapea); desktop-sääntö alla nostaa spesifisyyttä
@@ -1916,7 +1986,8 @@
   details.itin { border-radius: var(--radius-card); border: 1px solid var(--line);
     box-shadow: var(--shadow-1); margin: 0 0 14px; transition: box-shadow .15s, border-color .15s; }
   details.itin[open] { border: 2px solid var(--accent); box-shadow: var(--shadow-3); }
-  details.itin > summary { padding: 16px 18px; }
+  /* Oikealle tilaa avausnuolelle (20 px + 16 px reunus): ennen nuoli peitti "ei vaihtoja" -tekstin viimeisen kirjaimen. */
+  details.itin > summary { padding: 16px 46px 16px 18px; }
   details.itin > summary::after { right: 16px; top: 18px; font-size: 20px; color: var(--ink-muted-2); }
   .itin-head { display: grid; grid-template-columns: minmax(96px,auto) 1fr minmax(120px,max-content);
     align-items: center; gap: 18px; }
@@ -2123,6 +2194,9 @@
     .badge { border: 1px solid #000; background: none; color: #000; }
     .timegrid span { background: none; border: 1px solid #ccc; }
     .print-only { display: block !important; }
+    /* Reittikortin Tulosta (erä C): paperille vain koottu reittituloste, ei hakulomaketta eikä tuloslistaa. */
+    body.plan-printing #planForm, body.plan-printing .plan-grid, body.plan-printing #planAlerts,
+    body.plan-printing #planMsg { display: none !important; }
     /* Taulukot mahtuvat aina sivun leveyteen: kiinteä asettelu + rivittyvät
        otsikot, ettei mikään sarake leikkaudu paperin reunan yli */
     .matrix-wrap { overflow: visible; max-height: none; border: none; }
@@ -5007,6 +5081,23 @@ const STRINGS = {
     filterByRoute: "Näytä vain linjan {line} lähdöt",
     showEarlier: "Näytä aikaisempia lähtöjä",
     transferWait: "vaihtoaika {n} min",
+    // reittihaku, erä C (4.10.2026): tuloskortin lähtörivi, häiriöt, hinta, tulostus, lisäasetukset
+    planBoardStop: "{mode} {line} lähtee pysäkiltä {stop} klo {time}",
+    planBoardStation: "{mode} {line} lähtee asemalta {stop} klo {time}",
+    planSrTimes: "Lähtö {dep}, perillä {arr}, matka-aika {dur}.",
+    planLegAlert: "Häiriö linjalla {line}", planLegAlertAny: "Häiriö reitillä",
+    planAlertsAria: "Vakavat häiriöt",
+    planFare: "Kertalippu, aikuinen: {price} ({method})",
+    planFareFrom: "Kertalippu, aikuinen: alkaen {price} ({method})",
+    planPrint: "Tulosta",
+    planEdit: "Muokkaa",
+    planWhenNow: "Lähtö nyt", planWhenDep: "Lähtö {when}", planWhenArr: "Perillä {when}",
+    planSkipResults: "Siirry reittiehdotuksiin",
+    planMoreOpts: "Lisäasetukset",
+    planWalkSpeed: "Kävelynopeus", planWalkNormal: "Normaali", planWalkSlow: "Hidas (0,9 m/s)",
+    planSlack: "Vaihtoaika", planSlackDefault: "Kaupungin oletus ({n} min)", planSlackMin: "{n} min",
+    planWcNoBus: "Esteetöntä bussiyhteyttä ei löytynyt valitulla ajalla.",
+    planAppendErr: "Lisää lähtöjä ei saatu haettua.",
     lastSearch: "Viimeisin haku",
     stopBusesHint: "Oranssit merkit ovat pysäkkiä liikennöivien linjojen busseja reaaliajassa.",
     monitorLink: "Näytä monitorina (koko ruutu)",
@@ -5802,6 +5893,22 @@ const STRINGS = {
     filterByRoute: "Show only route {line} departures",
     showEarlier: "Show earlier departures",
     transferWait: "{n} min transfer time",
+    planBoardStop: "{mode} {line} leaves from {stop} at {time}",
+    planBoardStation: "{mode} {line} leaves from {stop} station at {time}",
+    planSrTimes: "Depart {dep}, arrive {arr}, journey time {dur}.",
+    planLegAlert: "Disruption on line {line}", planLegAlertAny: "Disruption on the route",
+    planAlertsAria: "Major disruptions",
+    planFare: "Single ticket, adult: {price} ({method})",
+    planFareFrom: "Single ticket, adult: from {price} ({method})",
+    planPrint: "Print",
+    planEdit: "Edit",
+    planWhenNow: "Leave now", planWhenDep: "Depart {when}", planWhenArr: "Arrive by {when}",
+    planSkipResults: "Skip to suggested journeys",
+    planMoreOpts: "More options",
+    planWalkSpeed: "Walking speed", planWalkNormal: "Normal", planWalkSlow: "Slow (0.9 m/s)",
+    planSlack: "Transfer time", planSlackDefault: "City default ({n} min)", planSlackMin: "{n} min",
+    planWcNoBus: "No accessible bus connection was found for the selected time.",
+    planAppendErr: "More departures could not be loaded.",
     lastSearch: "Latest search",
     stopBusesHint: "Orange markers are buses of the routes serving this stop, in real time.",
     monitorLink: "Show as monitor (full screen)",
@@ -6599,6 +6706,22 @@ const STRINGS = {
     filterByRoute: "Visa endast linje {line}",
     showEarlier: "Visa tidigare avgångar",
     transferWait: "bytestid {n} min",
+    planBoardStop: "{mode} {line} avgår från hållplatsen {stop} kl. {time}",
+    planBoardStation: "{mode} {line} avgår från stationen {stop} kl. {time}",
+    planSrTimes: "Avgång {dep}, framme {arr}, restid {dur}.",
+    planLegAlert: "Störning på linje {line}", planLegAlertAny: "Störning på rutten",
+    planAlertsAria: "Allvarliga störningar",
+    planFare: "Engångsbiljett, vuxen: {price} ({method})",
+    planFareFrom: "Engångsbiljett, vuxen: från {price} ({method})",
+    planPrint: "Skriv ut",
+    planEdit: "Ändra",
+    planWhenNow: "Avgång nu", planWhenDep: "Avgång {when}", planWhenArr: "Framme {when}",
+    planSkipResults: "Gå till reseförslagen",
+    planMoreOpts: "Fler inställningar",
+    planWalkSpeed: "Promenadhastighet", planWalkNormal: "Normal", planWalkSlow: "Långsam (0,9 m/s)",
+    planSlack: "Bytestid", planSlackDefault: "Stadens standard ({n} min)", planSlackMin: "{n} min",
+    planWcNoBus: "Ingen tillgänglig bussförbindelse hittades för den valda tiden.",
+    planAppendErr: "Fler avgångar kunde inte hämtas.",
     lastSearch: "Senaste sökning",
     stopBusesHint: "Orange markörer är bussar på linjerna som trafikerar hållplatsen, i realtid.",
     monitorLink: "Visa som monitor (helskärm)",
@@ -9076,7 +9199,7 @@ function setView(html) {
   viewSeq++;
   stopRefresh();
   if (window.speechSynthesis) window.speechSynthesis.cancel(); // lopeta ääneenluku
-  document.body.classList.remove("plan-mode"); // REILA F2: reitti-näkymän leveä layout pois muista näkymistä
+  document.body.classList.remove("plan-mode", "plan-collapsed", "plan-printing"); // REILA F2: reitti-näkymän leveä layout pois muista näkymistä
   app.innerHTML = html;
 }
 
@@ -10502,6 +10625,15 @@ function heroFieldsHtml(extraClass = "") {
           <button type="button" id="heroSearch" class="sc-cta">${t("heroSearch")} <span aria-hidden="true">→</span></button>
         </div>
         <div class="sc-extra">
+          <button type="button" id="homeGeoBtn" class="linkish">${icon("pin")} ${t("useMyLocation")}</button>
+          <span class="hero-when">${icon("clock")}
+            <select id="homeWhenSel" aria-label="${t("timeAria")}">
+              <option value="now">${t("planWhenNow")}</option>
+              <option value="dep">${t("departAt")}</option>
+              <option value="arr">${t("arriveBy")}</option>
+            </select>
+            <input type="datetime-local" id="homeWhenInput" aria-label="${t("timeAria")}" hidden>
+          </span>
           <button type="button" id="nearbyBtn2" class="secondary">${icon("pin")} ${t("showNearby")}</button>
           <span class="muted nl-hint">${t("nlHint")}</span>
         </div>
@@ -11213,13 +11345,35 @@ function viewRoutes() {
     setTo: p => { planState.to = p; },
     // Lauseen päivä ja kellonaika (nlWhen); note = näkyvä huomautus reittisivulle, kun haku siirtyi huomiseen.
     setTime: (hhmm, date, note) => { planState.time = (date || todayISO()) + "T" + hhmm; planState.timeMode = "dep"; planState.nlNote = note || ""; },
-    // Lause ilman aikaa = nyt: muuten istunnon aiempi hakuaika jäi voimaan.
-    resetTime: () => { planState.time = ""; planState.timeMode = "dep"; planState.nlNote = ""; },
+    // Lause ilman aikaa = etusivun aikavalinta (oletus "Lähtö nyt"): muuten istunnon aiempi hakuaika jäi voimaan.
+    resetTime: () => { applyHomeWhen(); planState.nlNote = ""; },
     focus: el => el.focus(),
     run: () => { if (planState.from && planState.to) location.hash = planHash(); },
   };
-  bindPlaceInput(homeFrom, document.getElementById("homeFromList"), p => { planState.from = p; });
-  bindPlaceInput(homeTo, document.getElementById("homeToList"), p => { planState.to = p; });
+  // Etusivun aikavalinta (erä C, C5): Lähtö nyt / Lähtöaika / Saapumisaika, kuten virallisen oppaan etusivulla.
+  const whenSel = document.getElementById("homeWhenSel"), whenInput = document.getElementById("homeWhenInput");
+  function applyHomeWhen() {
+    if (!whenSel || whenSel.value === "now") { planState.time = ""; planState.timeMode = "dep"; return; }
+    planState.time = whenInput.value || nowLocalInput();
+    planState.timeMode = whenSel.value === "arr" ? "arr" : "dep";
+  }
+  whenSel?.addEventListener("change", () => {
+    whenInput.hidden = whenSel.value === "now";
+    if (!whenInput.hidden && !whenInput.value) whenInput.value = nowLocalInput();
+  });
+  const runHome = () => {
+    if (planState.from && planState.to) { applyHomeWhen(); location.hash = planHash(); }
+    else { document.getElementById("heroMsg").innerHTML = `<p class="muted">${t("heroNeedBoth")}</p>`; }
+  };
+  // Erä C (C4): Enter valitsee ehdotuksen; Mistä -> Minne, ja kun molemmat on valittu, haku käynnistyy.
+  // Koko lause Mistä-kentässä jää luonnollisen kielen käsittelijälle (skipEnter).
+  bindPlaceInput(homeFrom, document.getElementById("homeFromList"), p => { planState.from = p; }, { selected: () => planState.from,
+    skipEnter: v => { const pp = parseNlTrip(v); return !!(pp.from && pp.to); },
+    onEnter: () => { if (planState.to) runHome(); else homeTo.focus(); },
+  });
+  bindPlaceInput(homeTo, document.getElementById("homeToList"), p => { planState.to = p; }, { selected: () => planState.to,
+    onEnter: () => { if (planState.from) runHome(); else homeFrom.focus(); },
+  });
   // Koko lause Mistä-kentässä (esim. "Matkakeskukselta Kauppatorille") → jäsennä + aja heti
   homeFrom.addEventListener("keydown", e => {
     if (e.key !== "Enter") return;
@@ -11228,9 +11382,20 @@ function viewRoutes() {
     if (parsed.from && parsed.to) { e.preventDefault(); runNlTrip(v, nlCtx); }
   });
   bindNlMic(document.getElementById("homeNlMic"), homeFrom, nlCtx);
-  document.getElementById("heroSearch").addEventListener("click", () => {
-    if (planState.from && planState.to) { location.hash = planHash(); }
-    else { document.getElementById("heroMsg").innerHTML = `<p class="muted">${t("heroNeedBoth")}</p>`; }
+  document.getElementById("heroSearch").addEventListener("click", runHome);
+  // Oma sijainti lähtöpaikaksi (C5), sama tapa kuin reittihakusivun "Käytä omaa sijaintia".
+  document.getElementById("homeGeoBtn")?.addEventListener("click", () => {
+    const msg = document.getElementById("heroMsg");
+    if (!navigator.geolocation) { msg.innerHTML = `<div class="error">${t("geoUnsupported")}</div>`; return; }
+    msg.innerHTML = `<p class="muted">${t("gettingLocation")}</p>`;
+    navigator.geolocation.getCurrentPosition(pos => {
+      planState.from = { name: t("myLocation"), lat: pos.coords.latitude, lon: pos.coords.longitude };
+      homeFrom.value = t("myLocation");
+      msg.innerHTML = "";
+      if (!planState.to) homeTo.focus();
+    }, err => {
+      msg.innerHTML = `<div class="error">${t("geoFail")}${esc(err.message)}</div>`;
+    }, { timeout: 10000 });
   });
   // REILA F2: ⇅ vaihtaa Mistä/Mihin (kentät + planState). Vain UI, ei reititysmuutosta.
   document.getElementById("homeSwapBtn")?.addEventListener("click", () => {
@@ -14651,13 +14816,15 @@ async function geocode(text) {
 
 // bounded=false: sama kysely ilman kuntarajausta (ks. mergeWideHits). focus.point jää
 // molempiin, joten lähellä olevat nousevat myös rajaamattomassa haussa.
-async function geocodeRaw(text, bounded = true) {
+// layers: valinnainen Pelias-kerrosrajaus (esim. "venue": sairaalahaun lisäkysely, searchPlaces).
+async function geocodeRaw(text, bounded = true, layers = "") {
   const params = new URLSearchParams({
     // size 10 (ei 6): uudelleenjarjestys tarvitsee enemman ehdokkaita kuin lopulliset 5-9 rivia.
     text, size: "10", lang,
     "focus.point.lat": String(AREA.focus.lat),
     "focus.point.lon": String(AREA.focus.lon),
   });
+  if (layers) params.set("layers", layers);
   if (bounded) {
     params.set("boundary.rect.min_lat", String(AREA.rect.minLat));
     params.set("boundary.rect.max_lat", String(AREA.rect.maxLat));
@@ -14806,7 +14973,40 @@ async function withAreaStopRoutes(stops) {
     routes: (areaStopRoutesMemo.get(s.gtfsId) || []).filter(r => area.has(r.gtfsId)) }));
 }
 
-async function searchPlaces(q) {
+/* Sairaalahaku (erä C, C4). Auditoinnissa 4.10.2026 TYKS antoi ensin pysäköintitalon, PHKS pysäkin, KYS ja OYS
+   pelkkiä pysäkkejä, ja "keskussairaala" Lahdessa Keskussairaalankadun pysäkin 1 046 m sairaalan pääovelta (myös
+   lauseessa "Matkakeskukselta keskussairaalaan"). Lyhenne tai sana (keskus)sairaala tunnistetaan, sairaalan
+   Pelias-kohde (venue) nostetaan kärkeen (rankPlaceHits), ja jos sitä ei ole tuloksissa, se haetaan erikseen pelkistä
+   kohteista (layers=venue): Lahden rajattu haku palautti "keskussairaala"-sanalla vain kadun osoitteita.
+   Lyhenteen koko nimeä käytetään, kun lyhenne ei löydy Peliaksesta lainkaan (KSKS Jyväskylässä). */
+const HOSPITAL_ABBR = {
+  phks: "Päijät-Hämeen keskussairaala", tyks: "Turun yliopistollinen keskussairaala",
+  kys: "Kuopion yliopistollinen sairaala", oys: "Oulun yliopistollinen sairaala",
+  tays: "Tampereen yliopistollinen sairaala", ksks: "Keski-Suomen keskussairaala",
+  pkks: "Pohjois-Karjalan keskussairaala", khks: "Kanta-Hämeen keskussairaala",
+  sks: "Satakunnan keskussairaala", ekks: "Etelä-Karjalan keskussairaala",
+  lks: "Lapin keskussairaala", vks: "Vaasan keskussairaala", kaks: "Kainuun keskussairaala",
+};
+const HOSPITAL_WORD = /^(keskussairaala|sairaala|yliopistollinen sairaala|centralsjukhus(et)?|sjukhus(et)?|universitetssjukhus(et)?|hospital|central hospital|university hospital)$/;
+function hospitalQuery(q) {
+  const nq = (q || "").toLowerCase().replace(/\s+/g, " ").trim();
+  if (HOSPITAL_ABBR[nq]) return { abbr: nq, full: HOSPITAL_ABBR[nq].toLowerCase(), text: HOSPITAL_ABBR[nq] };
+  if (HOSPITAL_WORD.test(nq)) return { abbr: "", full: "", text: nq };
+  return null;
+}
+// 2 = juuri haettu sairaala (lyhenne suluissa tai nimenä, tai lyhenteen koko nimi), 1 = sairaala, 0 = muu.
+// Pysäköinti ("P-Sairaala", "TYKS Pysäköintitalo 3") ja sairaalan muut rakennukset ("lämpökeskus") eivät ole sairaala.
+function hospitalRank(p, hq) {
+  if (!hq || p.layer !== "venue") return 0;
+  const name = String(p.name || "").toLowerCase();
+  const first = name.split(",")[0].trim();
+  const base = first.replace(/\s*\([^)]*\)\s*$/, "");
+  if (hq.abbr && (name.includes("(" + hq.abbr + ")") || first === hq.abbr)) return 2;
+  if (hq.full && base === hq.full) return 2;
+  return /(sairaala|sjukhus|sjukhuset|hospital)$/.test(base) && !/pysäköinti|parkki|^p-/.test(base) ? 1 : 0;
+}
+
+async function searchPlacesOnce(q) {
   await findFeed();
   const alias = (CONFIG.searchAliases || {})[(q || "").trim().toLowerCase()];
   if (alias) q = alias;
@@ -14819,13 +15019,38 @@ async function searchPlaces(q) {
     ? stopsRes.value
         .map(s => ({ name: s.name + (s.code ? ` (${s.code})` : ""), lat: s.lat, lon: s.lon, layer: "stop" }))
     : [];
-  const places = geoRes.status === "fulfilled" ? geoRes.value : [];
+  let places = geoRes.status === "fulfilled" ? geoRes.value : [];
   if (!stops.length && !places.length &&
       stopsRes.status === "rejected" && geoRes.status === "rejected") {
     throw stopsRes.reason;
   }
   if (CONFIG.areaScoped) return [...stops, ...places].slice(0, 9);
+  const hq = hospitalQuery(q);
+  if (hq && !places.some(p => hospitalRank(p, hq) > 0)) {
+    const extra = await geocodeRaw(hq.text, true, "venue").catch(() => []);
+    const seen = new Set(places.map(p => p.name));
+    places = [...extra.filter(p => hospitalRank(p, hq) > 0 && !seen.has(p.name)).slice(0, 3), ...places];
+  }
   return (await withOutsideLocality(q, rankPlaceHits(q, stopsRes.status === "fulfilled" ? stopsRes.value : [], places))).slice(0, 9);
+}
+
+// Taivutettu hakusana tavallisessa kentässä (erä C, C4): "kauppatorille" ei Turussa löytänyt Kauppatoria lainkaan
+// (ykkösenä Kelan "Kauppatorin Monitori"). Kun yksikään osuma ei ala hakusanalla, haetaan toisen kerran
+// perusmuodolla (trimFiDest/trimFiOrig, samat kuin luonnollisen kielen jäsentimessä), ja sen osumat tulevat ensin.
+async function searchPlaces(q) {
+  const hits = await searchPlacesOnce(q);
+  if (CONFIG.areaScoped) return hits;
+  const words = String(q || "").trim().split(/\s+/);
+  const last = words[words.length - 1] || "";
+  const base = isFiOrig(last) ? trimFiOrig(last) : isFiDest(last) ? trimFiDest(last) : last;
+  if (base.length < 3 || base.toLowerCase() === last.toLowerCase()) return hits;
+  const nq = words.join(" ").toLowerCase();
+  const startsWord = new RegExp(`(^|[\\s,/(-])${nq.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
+  if (hits.some(h => startsWord.test(String(h.name || "").toLowerCase()))) return hits;
+  const more = await searchPlacesOnce([...words.slice(0, -1), base].join(" ")).catch(() => []);
+  if (!more.length) return hits;
+  const seen = new Set(more.map(h => h.name));
+  return [...more, ...hits.filter(h => !seen.has(h.name))].slice(0, 9);
 }
 
 // Waltti-kaupunkien hakutulokset yhdeksi listaksi. Ennen pysäkit tulivat aina ennen paikkoja ja
@@ -14860,6 +15085,8 @@ function rankPlaceHits(q, rawStops, places) {
                         gtfsId: s.gtfsId, code: s.code, stopName: s.name },
       key: full, score: qu * 4 + dist(s.lat, s.lon) });
   }
+  // Sairaalahaku (erä C): haettu sairaala ohittaa samannimiset pysäkit ja pysäköintitalot (ks. hospitalRank).
+  const hq = hospitalQuery(q);
   for (const p of places || []) {
     const first = (p.name || "").split(",")[0].toLowerCase().replace(/\s+/g, " ").trim();
     let qu = quality(p.layer === "stop" ? first.replace(/ [a-zåäö]$/, "") : first);
@@ -14868,7 +15095,9 @@ function rankPlaceHits(q, rawStops, places) {
     // Pyöräparkit ja kaupunkipyöräasemat eivät ole matkan kohteita: "matkakeskus" antoi
     // Lappeenrannassa ensin kolme pyöräparkkia (auditointi 25.9.2026).
     const bike = /^bike/.test(p.layer || "") ? 8 : 0;
-    items.push({ hit: p, key: first, score: qu * 4 + dist(p.lat, p.lon) - bonus + bike });
+    const hr = hospitalRank(p, hq);
+    const hosp = hr === 2 ? 30 : hr === 1 ? 14 : 0;
+    items.push({ hit: p, key: first, score: qu * 4 + dist(p.lat, p.lon) - bonus + bike - hosp });
   }
   items.sort((a, b) => a.score - b.score);
   // Tuplat pois: sama nimi (laiturikirjain mukaan lukien, Kauppatori I ja L ovat eri pysäkit)
@@ -15000,14 +15229,21 @@ async function renderSavedTrips() {
 
 // Yhdistetty osoite-/pysäkkihaku: kirjoitus hakee ehdotukset, valinta antaa
 // koordinaatit onPick-kutsulla. Tekstin muokkaus mitätöi aiemman valinnan.
-function bindPlaceInput(input, listEl, onPick) {
-  let timer = null, seq = 0;
+// opts.onEnter(p): Enter valitsi paikan (tai kenttä oli jo valittu eikä se ole lomakkeessa, esim. etusivu).
+// opts.skipEnter(value): true = Enter kuuluu muulle käsittelijälle (etusivun koko lause, runNlTrip).
+function bindPlaceInput(input, listEl, onPick, opts = {}) {
+  // current = tämän kentän viimeisin valinta; opts.selected() = kentän paikka tilasta (jaettu linkki, suunnan vaihto).
+  let timer = null, seq = 0, current = null, enterWanted = false;
+  const selectedNow = () => { const p = opts.selected ? opts.selected() : current; return p && p.name === input.value ? p : null; };
   const close = () => { listEl.innerHTML = ""; listEl.hidden = true; };
-  const pick = p => {
+  const pick = (p, viaEnter) => {
+    clearTimeout(timer); seq++; enterWanted = false;   // myöhästyvä ehdotushaku ei avaa listaa uudelleen
     input.value = p.name;
     close();
     addRecent(p);
+    current = p;
     onPick(p);
+    if (viaEnter && opts.onEnter) opts.onEnter(p);
   };
   input.addEventListener("focus", () => {
     if (input.value.trim().length >= 3) return;
@@ -15020,30 +15256,37 @@ function bindPlaceInput(input, listEl, onPick) {
     listEl.querySelectorAll("button[data-r]").forEach(btn =>
       btn.addEventListener("click", () => pick(recents[Number(btn.dataset.r)])));
   });
+  const suggest = async q => {
+    const my = ++seq;
+    try {
+      const places = await searchPlaces(q);
+      if (my !== seq) return;
+      // Enter painettiin ennen kuin ehdotukset ehtivät: valitaan ensimmäinen heti kun ne tulevat.
+      if (enterWanted && places.length) { pick(places[0], true); return; }
+      enterWanted = false;
+      listEl.innerHTML = places.length
+        ? places.map((p, i) => `<li><button type="button" class="item" data-i="${i}">
+            ${icon(PLACE_ICONS[p.layer] || "pin")}
+            <span>${esc(p.name)}${placeHint(p)}</span></button></li>`).join("")
+        : `<li><p class="muted" style="padding:0.4rem">${t("noPlacesFor", { q: esc(q) })}</p></li>`;
+      listEl.hidden = false;
+      listEl.querySelectorAll("button[data-i]").forEach(btn =>
+        btn.addEventListener("click", () => pick(places[Number(btn.dataset.i)])));
+    } catch (err) {
+      if (my !== seq) return;
+      enterWanted = false;
+      listEl.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`;
+      listEl.hidden = false;
+    }
+  };
   input.addEventListener("input", () => {
     onPick(null);
+    current = null;
+    enterWanted = false;
     clearTimeout(timer);
     const q = input.value.trim();
     if (q.length < 3) { close(); return; }
-    timer = setTimeout(async () => {
-      const my = ++seq;
-      try {
-        const places = await searchPlaces(q);
-        if (my !== seq) return;
-        listEl.innerHTML = places.length
-          ? places.map((p, i) => `<li><button type="button" class="item" data-i="${i}">
-              ${icon(PLACE_ICONS[p.layer] || "pin")}
-              <span>${esc(p.name)}${placeHint(p)}</span></button></li>`).join("")
-          : `<li><p class="muted" style="padding:0.4rem">${t("noPlacesFor", { q: esc(q) })}</p></li>`;
-        listEl.hidden = false;
-        listEl.querySelectorAll("button[data-i]").forEach(btn =>
-          btn.addEventListener("click", () => pick(places[Number(btn.dataset.i)])));
-      } catch (err) {
-        if (my !== seq) return;
-        listEl.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`;
-        listEl.hidden = false;
-      }
-    }, 300);
+    timer = setTimeout(() => suggest(q), 300);
   });
   // suljetaan vasta kun fokus poistuu koko hakukomponentista, jotta
   // nuolinäppäimillä liikkuminen ehdotuksiin ei sulje listaa
@@ -15057,6 +15300,25 @@ function bindPlaceInput(input, listEl, onPick) {
       if (first) { e.preventDefault(); first.focus(); }
     } else if (e.key === "Escape") {
       close();
+    } else if (e.key === "Enter" && !e.isComposing) {
+      // Erä C (C4): Enter valitsee ehdotuslistan ensimmäisen. Ennen Enter lähetti lomakkeen ja antoi virheen
+      // "Valitse lähtöpaikka ja määränpää ehdotuslistasta" (mitattu 26/26 hakusanalla).
+      const v = input.value.trim();
+      if (opts.skipEnter && opts.skipEnter(v)) return;
+      const first = listEl.hidden ? null : listEl.querySelector("button[data-i]");
+      if (first) { e.preventDefault(); first.click(); if (current && opts.onEnter) opts.onEnter(current); return; }
+      const sel = selectedNow();
+      if (sel) {
+        // Kenttä on jo valittu: lomakkeessa Enter lähettää haun, muualla (etusivu) onEnter jatkaa.
+        if (!input.form && opts.onEnter) { e.preventDefault(); opts.onEnter(sel); }
+        return;
+      }
+      if (v.length >= 3) {
+        e.preventDefault();
+        enterWanted = true;
+        clearTimeout(timer);
+        suggest(v);
+      }
     }
   });
   listEl.addEventListener("keydown", e => {
@@ -17184,6 +17446,26 @@ function planPrefs(base) {
   return { ...b, transit: { ...(b.transit || {}), transfer: { ...((b.transit || {}).transfer || {}), slack: `PT${sec}S` } } };
 }
 
+// Kuntalaisen reittihaun lisäasetukset (erä C, C6): hidas kävely ja vaihtoaika muistetaan selaimessa. Vain
+// kuntalaisen haku käyttää näitä; palvelutiski ja tallennetut matkat pysyvät kaupungin oletuksissa (planPrefs),
+// ettei samalla koneella tehty valinta muuta asiakaspalvelijan vastauksia.
+const PLAN_SLOW_WALK = 0.9;   // m/s; virallisen oppaan "hidas" kävely, oletus 1,2 m/s
+function loadPlanOpts() {
+  try {
+    const o = JSON.parse(localStorage.getItem(ns("planOpts")) || "{}") || {};
+    return { walk: o.walk === "slow" ? "slow" : "normal", slack: [180, 300].includes(o.slack) ? o.slack : 0 };
+  } catch (e) { return { walk: "normal", slack: 0 }; }
+}
+function savePlanOpts(o) {
+  try { localStorage.setItem(ns("planOpts"), JSON.stringify(o)); } catch (e) { /* yksityinen ikkuna: ei muistia */ }
+}
+// Lisäasetukset reitittimen preferensseihin (kävelynopeus, vaihtoaika) planPrefs-pohjan päälle.
+function applyPlanOpts(prefs, o) {
+  if (o.slack) prefs.transit.transfer.slack = `PT${o.slack}S`;
+  if (o.walk === "slow") prefs.street = { ...(prefs.street || {}), walk: { ...((prefs.street || {}).walk || {}), speed: PLAN_SLOW_WALK } };
+  return prefs;
+}
+
 // Reittiehdotusten oletusjärjestys: lähtöaikahaussa aikaisin lähtö ensin, tasapelissä aiemmin perillä ja sitten
 // vähemmän kävelyä; saapumisaikahaussa (arr) myöhäisin perille ehtivä lähtö ensin.
 function planOrder(arr) {
@@ -17214,7 +17496,7 @@ const PLAN_QUERY = `
           intermediateStops { name@L }
           intermediatePlaces { name arrivalTime departureTime stop { name@L } }
           legGeometry { points }
-          alerts { alertHeaderText@L alertSeverityLevel }
+          alerts { alertHeaderText@L alertSeverityLevel alertEffect }
         }
       } }
     }
@@ -17290,6 +17572,30 @@ function fmtKm(m) {
 
 function legTime(lt) { return lt.estimated?.time || lt.scheduledTime; }
 
+// Osuuden häiriöt tiivistelmän merkkiin (erä C, C3). Sama sääntö kuin etusivun häiriölohkossa (isDisruption):
+// liikenne on oikeasti häiriintynyt (poikkeusreitti, pysäkki suljettu tai siirretty, ei liikennettä). GTFS-RT:n
+// vakavuus ei yksin kelpaa, koska osa liikennöitsijöistä merkitsee pysyvät tiedotteet vakaviksi, eikä pelkkä
+// tiedote (Joensuun lipputiedote linjalla 401, INFO + OTHER_EFFECT) ole häiriö.
+function legDisruptions(leg) {
+  return (leg?.alerts || []).filter(a => DISRUPTION_EFFECTS.has(a.alertEffect));
+}
+
+// Tuloskortin lähtörivi (erä C, C1): "Bussi 4 lähtee pysäkiltä Matkakeskus B klo 08:13". Ennen suljetusta
+// kortista ei näkynyt pysäkkiä eikä bussin lähtöaikaa, ja asiakas joutui avaamaan jokaisen vaihtoehdon.
+// Laituri lisätään, kun se ei jo ole pysäkin nimen lopussa (Lahdessa "Matkakeskus B" + laituri B).
+function planBoardText(leg) {
+  const line = leg.route?.shortName || "";
+  const stop = String(leg.from?.name || "").trim();
+  const rail = leg.mode === "RAIL";
+  let s = t(rail ? "planBoardStation" : "planBoardStop",
+    { mode: modeLabel(leg.mode) || t("modeBus"), line, stop, time: fmtClock(legTime(leg.start)) }).replace(/\s+/g, " ");
+  const plat = String(leg.from?.stop?.platformCode || "").trim();
+  if (plat && !stop.toLowerCase().endsWith(" " + plat.toLowerCase())) {
+    s += ", " + (rail ? t("trainsTrack").toLowerCase() + " " + plat : t("platform", { p: plat }));
+  }
+  return s;
+}
+
 // Yhteenvedon matka-aikajana (handoff): leveys = legin kesto (flex-grow). Bussiosuus = täytetty
 // --bus-palkki linjanumerolla; kävely = katkoviiva + minuuttileima. Linjan oma väri näkyy
 // laajennetussa pysäkkiaikajanassa (--rail), ei tässä neutraalissa yleiskatsauspalkissa.
@@ -17309,7 +17615,9 @@ function legBarHtml(node) {
     const inner = leg.route?.shortName
       ? modeIc + esc(leg.route.shortName)
       : (icon(MODE_ICONS[leg.mode] || "bus") || "");
-    return `<span class="seg${cls}" style="flex-grow:${grow.toFixed(3)}">${inner}</span>`;
+    // Häiriömerkki linjan kohdalle (C3), kuten virallisessa oppaassa; sanallinen tieto on ih-alert-rivillä.
+    const warn = legDisruptions(leg).length ? `<span class="seg-warn">${icon("warning")}</span>` : "";
+    return `<span class="seg${cls}" style="flex-grow:${grow.toFixed(3)}">${inner}${warn}</span>`;
   }).join("")}</span>`;
 }
 
@@ -17411,8 +17719,25 @@ function itinSummaryHtml(node) {
   const live = departs
     ? `<span class="live-pill${departs.soon ? " pulse" : ""}"><span class="live-dot"></span><span class="live-text">${departs.label}</span></span>`
     : "";
+  // Erä C (C1, C3): lähtöpysäkki ja bussin lähtöaika näkyvät suljetussakin kortissa, häiriö linjan kohdalla.
+  const board = firstTransit ? planBoardText(firstTransit) : "";
+  const alertTxt = [...new Set(node.legs.filter(l => legDisruptions(l).length)
+    .map(l => (l.route?.shortName ? t("planLegAlert", { line: l.route.shortName }) : t("planLegAlertAny"))))];
+  // Ruudunlukijalle yksi lause (C1): linjapalkki on aria-hidden, joten ennen ruudunlukija kuuli vain
+  // "08:08-08:23 15 min ei vaihtoja kävelyä 375 m" ilman linjaa ja pysäkkiä. Näkyvä osa on aria-hidden,
+  // ja lause alkaa samalla kellonajalla kuin näkyvä teksti (puheohjaus löytää kortin).
+  const xfer = node.numberOfTransfers > 0 ? deskTransfersTxt(node) : "";
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const sr = [
+    esc(t("planSrTimes", { dep: fmtClock(node.start), arr: fmtClock(node.end), dur: fmtDur(durSec) })),
+    board ? esc(board) + "." : "",
+    xfer || esc(cap(transfers)) + ".",
+    esc(cap(t("walkAmount", { n: walk }))) + ".",
+    departs ? esc(cap(departs.label)) + "." : "",
+    ...alertTxt.map(a => esc(a) + "."),
+  ].filter(Boolean).join(" ");
   return `
-    <span class="itin-head">
+    <span class="itin-head" aria-hidden="true">
       <span class="ih-time">
         <span class="times">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
         <span class="ih-dur">${fmtDur(durSec)}</span>
@@ -17420,10 +17745,13 @@ function itinSummaryHtml(node) {
       ${legBarHtml(node)}
       <span class="ih-meta">
         ${live}
+        ${alertTxt.map(a => `<span class="ih-alert">${icon("warning")} ${esc(a)}</span>`).join("")}
         <span class="ih-transfers">${transfers}</span>
         <span class="ih-walk">${t("walkAmount", { n: walk })}</span>
       </span>
-    </span>`;
+      ${board ? `<span class="ih-board">${esc(board)}</span>` : ""}
+    </span>
+    <span class="sr-only">${sr}</span>`;
 }
 
 // CO₂-säästöarvio: bussissa ajettu matka × (auton − bussin päästökerroin).
@@ -17450,15 +17778,45 @@ function co2Html(node) {
 }
 
 function itinHtml(node, idx) {
+  // Erä C (C5): avatussa kortissa kertalipun hinta (täytetään jaetusta hinnastosta, planFareHtml) ja Tulosta.
+  const transit = node.legs.some(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
   return `<details class="itin" data-itin="${idx}">
     <summary>${itinSummaryHtml(node)}</summary>
     ${timelineHtml(node)}
-    ${co2Html(node)}
+    <div class="itin-extra">
+      ${co2Html(node)}
+      ${transit ? `<p class="plan-fare" data-fare hidden></p>` : ""}
+      <p class="itin-actions no-print"><button type="button" class="secondary itin-print-btn" data-print="${idx}">${icon("print")} ${t("planPrint")}</button></p>
+    </div>
     <div id="itinMap${idx}" class="map map-small" aria-label="${t("mapAria")}"></div>
   </details>`;
 }
 
-// Kompakti kävellen/pyörällä-vaihtoehto reittilistan kärkeen
+// Kertalipun hinta reittikorttiin (erä C, C5) samasta lähteestä kuin Liput ja hinnat -sivu ja palvelutiski
+// (loadEffectiveFares: ylläpidossa julkaistu hinta CONFIGin päällä). Vyöhykekaupungissa matkan vyöhykkeitä ei
+// tiedetä, joten näytetään edullisimman vyöhykkeen hinta sanalla "alkaen". Ei hinnastoa -> ei riviä.
+function planFareHtml(f) {
+  if (!f || !f.single) return "";
+  const has = v => v != null && String(v).trim() !== "";
+  const num = s => parseFloat(String(s).replace(",", "."));
+  const method = faresText(f, "methodCardApp", null, "faresMethodCardApp");
+  const zones = Array.isArray(f.zones) && f.zones.length > 1 ? f.zones : null;
+  let txt = "";
+  if (zones) {
+    const vals = zones.map(z => z.single?.cardApp?.adult).filter(has);
+    if (!vals.length) return "";
+    const min = vals.reduce((a, b) => (num(b) < num(a) ? b : a));
+    txt = t("planFareFrom", { price: min + " €", method });
+  } else {
+    const p = f.single.cardApp?.adult;
+    if (!has(p)) return "";
+    txt = t("planFare", { price: p + " €", method });
+  }
+  return `${icon("ticket")} ${esc(txt)} · <a href="#/liput">${esc(t("faresLink"))}</a>`;
+}
+
+// Kompakti kävellen/pyörällä-vaihtoehto reittilistan kärkeen. Erä C (C2): kävely ja pyörä ovat siruja samalla
+// rivillä (.plan-direct-row), eivät kahta täysleveää korttia bussivaihtoehtojen edellä.
 function directHtml(node, key) {
   const leg = node.legs[0];
   const label = key === "walk" ? t("directWalk") : t("directBike");
@@ -17534,14 +17892,22 @@ async function viewPlan(parts) {
   }
   const fromUrl = parts && parts[1] ? parsePlanParams(parts) : false;
   const tmDep = planState.timeMode !== "arr";
+  const popts = loadPlanOpts();
+  const slackDef = Number.isFinite(CONFIG.transferSlack) ? CONFIG.transferSlack : 90;
+  const minTxt = sec => { const m = sec / 60; return lang === "en" ? String(m) : String(m).replace(".", ","); };
   setView(`
     ${crumbHtml()}
     <section class="reila-hero no-print">
       <h1 class="reila-hero-h1">${t("planTitle")}</h1>
       <p class="reila-hero-sub">${t("heroTagline")}</p>
     </section>
+    <button type="button" class="plan-skip linkish no-print" id="planSkip">${t("planSkipResults")}</button>
     <form id="planForm">
-      <div class="searchcard sc-hero">
+      <div class="plan-sumbar" id="planSumbar">
+        <span class="ps-text"><span class="ps-route" id="psRoute"></span><span class="ps-when" id="psWhen"></span></span>
+        <button type="button" class="secondary" id="planEditBtn" aria-controls="planCard" aria-expanded="false">${t("planEdit")}</button>
+      </div>
+      <div class="searchcard sc-hero" id="planCard">
         <div class="sc-row">
           <div class="sc-field">
             <label class="sc-label" for="fromInput">${t("from")}</label>
@@ -17582,16 +17948,33 @@ async function viewPlan(parts) {
           <label class="sc-chip"><input type="checkbox" id="lessWalkBox"${planState.lessWalk ? " checked" : ""}>
             ${t("lessWalk")}</label>
           <button type="button" id="saveTripBtn" class="linkish">${icon("star")} <span id="saveTripLabel">${t("saveTrip")}</span></button>
+          <details class="plan-more" id="planMore">
+            <summary>${icon("settings")} ${t("planMoreOpts")}</summary>
+            <div class="plan-more-body">
+              <label>${t("planWalkSpeed")}
+                <select id="walkSpeedSel">
+                  <option value="normal"${popts.walk !== "slow" ? " selected" : ""}>${t("planWalkNormal")}</option>
+                  <option value="slow"${popts.walk === "slow" ? " selected" : ""}>${t("planWalkSlow")}</option>
+                </select></label>
+              <label>${t("planSlack")}
+                <select id="slackSel">
+                  <option value=""${!popts.slack ? " selected" : ""}>${t("planSlackDefault", { n: minTxt(slackDef) })}</option>
+                  ${[180, 300].map(s => `<option value="${s}"${popts.slack === s ? " selected" : ""}>${t("planSlackMin", { n: minTxt(s) })}</option>`).join("")}
+                </select></label>
+            </div>
+          </details>
         </div>
       </div>
       <div id="planMsg" role="status"></div>
     </form>
+    <div id="planAlerts" class="plan-alerts no-print"></div>
     <div class="plan-grid">
       <div class="plan-results"><div id="planResults"></div></div>
       <aside class="plan-aside" id="planAside">
         <div class="aside-card"><div id="planAsideMap"><div class="aside-empty">${t("mapAria")}</div></div></div>
       </aside>
-    </div>`);
+    </div>
+    <div id="planPrintOut"></div>`);
   // REILA F2: leveä kaksisarakelayout (tulokset + karttasivupalkki) desktopilla.
   // setView() poistaa plan-moden → lisätään VASTA sen jälkeen. Poistuu muihin näkymiin siirryttäessä.
   document.body.classList.add("plan-mode");
@@ -17619,8 +18002,39 @@ async function viewPlan(parts) {
   });
   updateSaveBtn();
 
-  bindPlaceInput(fromInput, document.getElementById("fromList"), p => { planState.from = p; updateSaveBtn(); });
-  bindPlaceInput(toInput, document.getElementById("toList"), p => { planState.to = p; updateSaveBtn(); });
+  // Erä C (C4): Enter valitsee ehdotuslistan ensimmäisen. Mistä-kentästä siirrytään Minne-kenttään, ja kun
+  // molemmat ovat valittuina, haku käynnistyy (virallisen oppaan näppäinpolku: "matkak" Enter, "phks" Enter).
+  bindPlaceInput(fromInput, document.getElementById("fromList"), p => { planState.from = p; updateSaveBtn(); },
+    { selected: () => planState.from, onEnter: () => { if (planState.to) search(false, "submit"); else toInput.focus(); } });
+  bindPlaceInput(toInput, document.getElementById("toList"), p => { planState.to = p; updateSaveBtn(); },
+    { selected: () => planState.to, onEnter: () => { if (planState.from) search(false, "submit"); else fromInput.focus(); } });
+
+  // Erä C (C2): mobiilissa hakulomake tiivistyy haun jälkeen yhdeksi riviksi, jotta ensimmäinen bussivaihtoehto
+  // näkyy ensimmäisellä ruudulla (ennen 1 605 px:n kohdalla, virallisessa 395 px). Muokkaa avaa lomakkeen.
+  const planForm = document.getElementById("planForm");
+  const setCollapsed = on => {
+    planForm.classList.toggle("collapsed", on);
+    document.body.classList.toggle("plan-collapsed", on);
+    document.getElementById("planEditBtn").setAttribute("aria-expanded", String(!on));
+  };
+  const fillSumbar = () => {
+    const r = document.getElementById("psRoute"), w = document.getElementById("psWhen");
+    if (!r || !w || !planState.from || !planState.to) return;
+    r.textContent = `${planState.from.name} → ${planState.to.name}`;
+    let when = t("planWhenNow");
+    if (planState.time) {
+      const [d, hm] = planState.time.split("T");
+      const at = (d && d !== todayISO() ? fmtDayShort(d) + " " : "") + (hm || "");
+      when = t(planState.timeMode === "arr" ? "planWhenArr" : "planWhenDep", { when: at });
+    }
+    w.textContent = when + (planState.wheelchair ? " · " + t("wheelchairRoute") : "");
+  };
+  document.getElementById("planEditBtn").addEventListener("click", () => { setCollapsed(false); fromInput.focus(); });
+  // Ohituslinkki näppäimistölle: hakulomakkeen ohi suoraan tuloslistan otsikkoon.
+  document.getElementById("planSkip").addEventListener("click", () => {
+    const h = document.getElementById("planResultsH");
+    if (h) h.focus(); else document.getElementById("planResults")?.focus?.();
+  });
 
   document.getElementById("swapBtn").addEventListener("click", () => {
     [planState.from, planState.to] = [planState.to, planState.from];
@@ -17664,6 +18078,9 @@ async function viewPlan(parts) {
   const results = document.getElementById("planResults");
   let nodes = [], cursor = null, prevCursor = null, directNodes = {};
   let lastHasNext = false, lastHasPrev = false, mainDone = false;
+  let appendErr = null;           // "more"/"earlier": lisähaun virhe näytetään napin paikalla, tulokset jäävät näkyviin
+  let fares = null;               // jaettu hinnasto (loadEffectiveFares) reittikortin hintariville
+  const pageSeq = viewSeq;
   let planSort = "depart";        // REILA F2: lajittelusegmentti (Lähtöaika/Nopein/Perillä aiemmin/Vähiten kävelyä); oletus = lähtöaika nouseva
   let asideMap = null;            // sivupalkkikartan Leaflet-instanssi (desktop)
 
@@ -17743,7 +18160,51 @@ async function viewPlan(parts) {
     return c;
   };
 
+  // Hintarivi avattuihin kortteihin, kun jaettu hinnasto on ladattu. Alueen ulkopuolinen matka ei ole
+  // kaupungin hinnoissa, joten silloin riviä ei näytetä.
+  const fillFares = () => {
+    const outside = [planState.from, planState.to].some(p => p && outsideAreaRect(p.lat, p.lon));
+    const html = outside ? "" : planFareHtml(fares);
+    results.querySelectorAll(".plan-fare[data-fare]").forEach(p => { p.innerHTML = html; p.hidden = !html; });
+  };
+  loadEffectiveFares().then(f => { if (viewSeq !== pageSeq) return; fares = f; fillFares(); }).catch(() => {});
+
+  // Vakavat häiriöt bannerina reittisivun yläreunassa (erä C, C3), kuten virallisessa oppaassa. Sama lähde ja
+  // luokittelu kuin etusivun häiriölohkossa (loadAllAlerts + classifyAlerts): aito häiriö (isDisruption), jonka
+  // vakavuus on SEVERE. Pysyvät SEVERE-tiedotteet ("Linjasto uudistui") eivät ole häiriöitä, joten ne eivät nouse.
+  loadAllAlerts().then(all => {
+    const box = document.getElementById("planAlerts");
+    if (!box || viewSeq !== pageSeq) return;
+    const severe = classifyAlerts(all).disruptions.filter(a => a.alertSeverityLevel === "SEVERE").slice(0, 3);
+    box.innerHTML = severe.length
+      ? `<section aria-label="${esc(t("planAlertsAria"))}">${severe.map(a =>
+          alertHtml(a, false).replace("<summary>", `<summary>${icon("warning")} `)).join("")}</section>`
+      : "";
+  }).catch(() => { /* häiriöt ovat lisätieto: virhe ei estä reittihakua */ });
+
+  // Tulosta (erä C, C5): sama asiakkaalle ojennettava reittituloste kuin palvelutiskillä (deskItineraryPrintHtml),
+  // QR-koodi samaan hakuun. Paperille menee vain #planPrintOut (body.plan-printing piilottaa lomakkeen ja listan).
+  const printItin = async node => {
+    const po = document.getElementById("planPrintOut");
+    if (!po || !node) return;
+    let qrImg = "";
+    try {
+      const u = await qrDataUrl(appUrl(planHash()), 240);
+      qrImg = `<div class="ip-qr"><img src="${u}" alt="">${esc(t("itinQr"))}</div>`;
+    } catch (e) { /* QR ei ole tulosteelle pakollinen */ }
+    po.innerHTML = deskItineraryPrintHtml(node, sortNodes(nodes), planState.from, planState.to, qrImg);
+    document.body.classList.add("plan-printing");
+    runPrintJob(t("preparingPrint"), () => {
+      setPageOrientation("portrait");
+      const done = () => { hidePrintPrep(); document.body.classList.remove("plan-printing"); window.removeEventListener("afterprint", done); };
+      window.addEventListener("afterprint", done);
+      window.print();
+    });
+  };
+
   const renderResults = () => {
+    // Uudelleenpiirto (kävely/pyörä valmistuu myöhemmin, lajittelu) ei saa pudottaa näppäimistön fokusta otsikolta.
+    const hadFocus = document.activeElement?.id === "planResultsH";
     const directRow = ["walk", "bike"]
       .filter(k => directNodes[k])
       .map(k => directHtml(directNodes[k], k))
@@ -17760,19 +18221,32 @@ async function viewPlan(parts) {
            </div>
          </div>` : "";
     const outside = outsideNoteHtml(planState.from, planState.to, !nodes.length);
+    // Esteetön haku, jossa ei ole yhtään joukkoliikenneosuutta (C6): kerrotaan miksi tuloksena on pelkkä kävely.
+    const hasRide = n => (n.legs || []).some(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
+    const wcNote = planState.wheelchair && mainDone && !nodes.some(hasRide)
+      ? `<p class="plan-when-note plan-wc-note" role="status">${icon("wheelchair")} ${esc(t("planWcNoBus"))}</p>` : "";
+    // Lisähaun virhe (Näytä myöhemmät / aiemmat) napin paikalle: jo näkyvät reitit jäävät näkyviin.
+    const appendErrHtml = m => appendErr === m
+      ? `<div class="error plan-append-err" role="alert">${esc(t("planAppendErr"))} <button type="button" class="secondary plan-append-retry" data-mode="${m}">${esc(t("deskRetry"))}</button></div>` : "";
     results.innerHTML = nodes.length || directRow
-      ? `${topbar}${outside}
+      ? `${topbar}${outside}${wcNote}
          <div class="card">
-           <h2 class="no-print" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${t("itinerariesTitle")}
+           <h2 class="no-print" id="planResultsH" tabindex="-1" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${t("itinerariesTitle")}
              <button id="shareBtn" class="linkish no-print">${icon("link")} ${t("share")}</button></h2>
-           ${directRow}
-           ${lastHasPrev && nodes.length ? `<button id="earlierBtn" class="linkish no-print">↑ ${t("showEarlier")}</button>` : ""}
+           ${directRow ? `<div class="plan-direct-row">${directRow}</div>` : ""}
+           ${appendErrHtml("earlier") || (lastHasPrev && nodes.length ? `<button id="earlierBtn" class="linkish no-print">↑ ${t("showEarlier")}</button>` : "")}
            ${view.map((n, i) => itinHtml(n, i)).join("")}
-           ${lastHasNext ? `<button id="moreBtn" class="no-print">${t("showLater")}</button>` : ""}
+           ${appendErrHtml("more") || (lastHasNext ? `<button id="moreBtn" class="no-print">${t("showLater")}</button>` : "")}
            ${railHintHtml(view)}
          </div>`
-      : `<div class="card"><p class="muted">${t("noItineraries")}</p>${outside}${railHintHtml([])}</div>`;
+      : `<div class="card"><h2 class="sr-only" id="planResultsH" tabindex="-1">${t("itinerariesTitle")}</h2>${wcNote}<p class="muted">${t("noItineraries")}</p>${outside}${railHintHtml([])}</div>`;
     fillRailHints();
+    if (fares) fillFares();
+    if (hadFocus) document.getElementById("planResultsH")?.focus({ preventScroll: true });
+    results.querySelectorAll(".itin-print-btn[data-print]").forEach(b =>
+      b.addEventListener("click", () => printItin(view[Number(b.dataset.print)])));
+    results.querySelectorAll(".plan-append-retry").forEach(b =>
+      b.addEventListener("click", () => search(b.dataset.mode)));
     results.querySelectorAll("details.itin[data-itin]").forEach(d =>
       d.addEventListener("toggle", () => {
         if (!d.open) return;
@@ -17821,14 +18295,18 @@ async function viewPlan(parts) {
     if (mainDone && document.getElementById("planResults") === results) renderResults();
   };
 
-  // mode: false/"new" = uusi haku, "more" = myöhemmät, "earlier" = aikaisemmat
-  const search = async mode => {
+  // mode: false/"new" = uusi haku, "more" = myöhemmät, "earlier" = aikaisemmat.
+  // src: "submit" = käyttäjä käynnisti (Hae, Enter), "url" = jaettu linkki tai paluu näkymään, muu = valinnan
+  // muutos (suunnan vaihto, Lähtö/Perillä). Lomake tiivistyy mobiilissa vain submit- ja url-hauissa, ettei se
+  // katoa kesken valintojen, ja fokus siirtyy tuloslistan otsikkoon vain käyttäjän omassa haussa.
+  const search = async (mode, src) => {
     const msg = document.getElementById("planMsg");
     if (!planState.from || !planState.to) {
       msg.innerHTML = `<div class="error">${t("choosePlaces")}</div>`;
       return;
     }
     const append = mode === "more" || mode === "earlier";
+    appendErr = null;
     if (!append) {
       cursor = null; prevCursor = null; nodes = []; directNodes = {}; mainDone = false;
       results.innerHTML = `<p class="muted">${t("searchingRoutes")}</p>`;
@@ -17846,6 +18324,11 @@ async function viewPlan(parts) {
     planState.lessWalk = document.getElementById("lessWalkBox").checked;
     const preferences = planPrefs({ accessibility: { wheelchair: { enabled: planState.wheelchair } } });
     if (planState.lessWalk) preferences.street = { walk: { reluctance: 3.5 } };
+    // Lisäasetukset (C6): hidas kävely ja vaihtoaika, muistetaan selaimessa.
+    const opts = { walk: document.getElementById("walkSpeedSel").value === "slow" ? "slow" : "normal",
+      slack: Number(document.getElementById("slackSel").value) || 0 };
+    savePlanOpts(opts);
+    applyPlanOpts(preferences, opts);
     const dateTime = planState.time
       ? (planState.timeMode === "arr"
           ? { latestArrival: isoWithOffset(planState.time) }
@@ -17892,16 +18375,25 @@ async function viewPlan(parts) {
       }
       mainDone = true;
       renderResults();
+      if (!append) {
+        fillSumbar();
+        if (src === "submit" || src === "url") setCollapsed(true);
+        // Näppäimistöpolku (erä C): käyttäjän oman haun jälkeen fokus tuloslistan otsikkoon, josta ensimmäinen
+        // reittiehdotus on muutaman Tab-painalluksen päässä (ennen Mistä-kentästä 25 painallusta).
+        if (src === "submit") document.getElementById("planResultsH")?.focus();
+      }
     } catch (err) {
+      // Näytä myöhemmät / aiemmat: virhe ei saa pyyhkiä jo näkyviä reittejä (erän A sivuhavainto).
+      if (append && nodes.length) { appendErr = mode; renderResults(); return; }
       results.innerHTML = `<div class="error">${esc(err.message)}</div>`;
     }
   };
 
-  document.getElementById("planForm").addEventListener("submit", e => { e.preventDefault(); search(false); });
+  document.getElementById("planForm").addEventListener("submit", e => { e.preventDefault(); search(false, "submit"); });
   // Sivupalkkikartan alkutila: kaupungin kartta heti (desktop) — ennen mahdollista hakua.
   initAsideCity().catch(() => {});
   // URL:sta tultaessa (jaettu linkki) tai paluunavigoinnissa haku käynnistyy heti
-  if (planState.from && planState.to) search(false);
+  if (planState.from && planState.to) search(false, "url");
 }
 
 /* ---------- Saavutettavuusseloste ---------- */
