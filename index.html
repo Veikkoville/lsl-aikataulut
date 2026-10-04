@@ -1521,6 +1521,13 @@
   .desk-check { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.8rem; cursor: pointer; font-weight: var(--wmed); }
   .desk-check input { width: 1.4rem; height: 1.4rem; flex: none; }
   .desk-when-used { margin: 0 0 0.4rem; }
+  /* Huomautukset, jotka muuttavat vastauksen tulkintaa (haku siirtyi huomiseen, kohde alueen ulkopuolella,
+     päivitys epäonnistui): reunaviiva ja ikoni, ei pelkkä väri. Sama tyyli tiskillä ja kuntalaisen haussa. */
+  .plan-outside, .plan-when-note, .desk-when-note, .desk-upd-fail { border-left: 4px solid var(--accent);
+    background: var(--chip); color: var(--text); padding: 0.45rem 0.7rem; border-radius: var(--radius-sm); margin: 0.4rem 0; }
+  .desk-upd-fail .linkish, .desk-err .desk-retry, .error .nl-retry { margin-left: 0.4rem; }
+  /* Uusi haku käynnissä: edellinen vastaus himmenee, ettei se näytä ajantasaiselta. */
+  #deskResults.desk-busy { opacity: 0.35; }
   /* Linjakortti: suuntavalinta, lähdöt, pysäkkilista (vierii omassa laatikossaan), tulosteet. */
   #deskLineH { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
   #deskLineH .badge { font-size: 1.05em; padding: 0.2rem 0.6rem; }
@@ -1613,6 +1620,13 @@
   .desk .deps td, .desk .deps th { font-size: 1em; padding: 0.45rem 0.5rem; }
   /* Linjakortin varianttivuoro: lähtöpysäkki omalla rivillään määränpään alla (V2, 4.10.2026). */
   .dep-from { display: block; font-size: 0.88em; color: var(--muted); overflow-wrap: anywhere; }
+  /* Lähtölistan päivämerkintä huomisen ja myöhempien päivien lähdöille ("ma 04:40"). */
+  .dep-day { font-size: 0.85em; font-weight: var(--wmed); }
+  /* Terminaalinäkymän laituri lähtörivillä (tiski, kaikki laiturit yhdessä): kehystetty tunnus, linkki laiturin korttiin. */
+  a.dep-plat { display: inline-block; min-width: 1.7em; text-align: center; border: 2px solid currentColor; border-radius: 0.3rem;
+    padding: 0 0.3rem; margin-right: 0.3rem; font-weight: var(--wmed); text-decoration: none; color: inherit; }
+  .desk-terminal-n { font-size: 0.8em; font-weight: normal; }
+  .desk-terminal-plats { margin: 0 0 0.5rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
   /* Alanauha: häiriöt, junat (jos kaupungissa on rata) ja hinnat rinnakkain leveällä näytöllä,
      pinoon kapealla. min(100%, ...) estää 20rem-minimiä levittämästä 390 px:n näyttöä. */
   .desk-aux { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
@@ -2518,8 +2532,15 @@ const CONFIGS = {
     // Matkakeskus ensin = tiski avautuu sinne missä matkustaja vaihtaa (Matkakeskus A
     // 19 linjaa / 311 lähtöä arkipäivänä). Kauppatori jää toiseksi. Vihon "Keskustan
     // linjat" käyttää molempia nimiä unionina, joten järjestys ei vaikuta siihen.
-    // Sama linjaus kuin Kuopiolla ja Vaasalla.
+    // Sama linjaus kuin Kuopiolla ja Vaasalla. Palvelutiskin oletuksen ratkaisee kuitenkin ensin
+    // deskHomeStop, jos se on asetettu.
     centerStopNames: ["Matkakeskus", "Kauppatori"],
+    // Palvelutiskin oletuspysäkki (deskFindDefaultStop): asiakaspalvelupisteen oma pysäkki ennen
+    // centerStopNamesia. LSL:n asiakaspalvelu on kauppakeskus Triossa (Villen päätökset 4.10.2026).
+    // terminal: true = koko terminaali eli saman emoaseman kaikki laiturit (Trio A-F) yhdessä
+    // lähtölistassa, laituri näkyvissä rivillä. Pelkkä nimi ("Trio") avaisi vilkkaimman laiturin.
+    // Nimi eikä gtfsId, koska id:t vaihtuvat feedin mukana.
+    deskHomeStop: { name: "Trio", terminal: true },
     // Yhdistetyt suunta-aikataulut: pikavalinnat "Yhdistetyt suunnat" -tulostevälilehdelle
     // (malli: LSL:n Laatukäytävät, talvilehtinen 2026). Vain presettejä — mekanismi on
     // yleinen ja käytävä johdetaan datasta; datavarmistus 8.7.2026 (Ahtiala 11 ja
@@ -3827,6 +3848,10 @@ const CONFIGS = {
     feedMatch: /^FOLI$/i,          // ankkuroitu: FUNI (Föri + funikulaari) on eri feed
     rail: "TKU",                    // Turku asema (rata.digitraffic)
     heroEmphasis: "layer",
+    // Vaihtoaika reitittimelle sekunteina (planPrefs). Fölin virallinen reittiopas lähettää 300 s (mitattu
+    // 4.10.2026), muut oppaat 90 s. Ilman tätä Reittari ehdotti Turussa 2 minuutin vaihtoja, joita Fölin
+    // opas ei hyväksy (rautatieasema -> TYKS: 6A+27 vaihto 2,5 min).
+    transferSlack: 300,
     centerStopNames: ["Kauppatori"],
     hubs: [
       { key: "kauppatori", name: "Kauppatori", center: { lat: 60.45100, lon: 22.26750 } },
@@ -4257,6 +4282,8 @@ const STRINGS = {
     nlNeedOrigin: "En saanut kiinni lähtöpaikasta, täydennä tähän.",
     nlNeedDest: "En saanut kiinni määränpäästä, täydennä tähän.",
     nlNeedBoth: "En saanut kiinni lähtöä ja määränpäätä. Kokeile esim. \"{exFrom} → {exTo}\".",
+    nlSearchErr: "Paikkoja ei saatu haettua yhteysvirheen takia.",
+    nlTomorrowNote: "Kello {time} on tänään jo mennyt, joten haku tehtiin huomiselle ({day}).",
     nlMicError: "Puheentunnistus ei onnistunut. Voit kirjoittaa matkan.",
     footerNote: "Tämä on epävirallinen esittelyversio (demo), joka ei ole joukkoliikenneviranomaisen ({operator}) tuottama eikä hyväksymä.",
     footData: 'Aikataulu- ja reaaliaikadata: {operatorShort} / {dataSource} avoin data Digitransit-rajapinnan kautta, lisenssi <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="license noopener" target="_blank">CC BY 4.0</a>.',
@@ -4436,6 +4463,7 @@ const STRINGS = {
     deskKbdHint: "Tai täytä lähtö ja määränpää erikseen ja valitse ehdotus.",
     deskNeedBoth: "Valitse sekä lähtö että määränpää (Enter hyväksyy ehdotuksen).",
     deskSearchErr: "Haku ei onnistunut. Yritä uudelleen.",
+    deskRouteErr: "Reittejä ei saatu haettua.",
     deskTellTitle: "Kerro asiakkaalle",
     navAdmin: "Ylläpito",
     adminLinkDesc: "Häiriötiedotteet, hinnat, saavutettavuusseloste ja uusintapainatusavain. Vaatii kirjautumisen.",
@@ -4444,16 +4472,23 @@ const STRINGS = {
     previewExit: "Näytä koko demo",
     deskTellBoard: "Linja {line} pysäkiltä {stop} klo {time}.",
     deskTellBoardNext: "Linja {line} pysäkiltä {stop} klo {time} (seuraava {next}).",
+    deskTellBoardRail: "{train} asemalta {stop} klo {time}.",
+    deskTellBoardRailNext: "{train} asemalta {stop} klo {time} (seuraava {next}).",
     deskTellArrive: "Jää pois pysäkillä {stop}, perillä klo {time}.",
     deskNoTransfers: "Ei vaihtoja.",
-    deskTransfer1: "1 vaihto, pysäkillä {stop}.",
-    deskTransferN: "{n} vaihtoa ({stop}).",
+    deskTransfer1: "1 vaihto: {list}.",
+    deskTransferN: "{n} vaihtoa: {list}.",
+    deskXferAt: "pysäkillä {stop} {target}, lähtee {time}",
+    deskXferAtStation: "asemalla {stop} {target}, lähtee {time}",
+    deskXferLine: "linjaan {line}", deskXferTrain: "junaan {line}", deskXferTrainAny: "junaan",
+    deskXferBusAny: "bussiin", deskXferFerry: "lauttaan",
     deskWalkOnly: "Koko matka kävellen ({dur}).",
     deskWalkFastest: "Kävely on nyt nopein ({dur}).",
     deskWalkFastestTimed: "Kävely on nopein ({dur}).",
     deskNextBusTitle: "Seuraava bussi",
     deskNextModeTitle: "Seuraava {mode}",
     deskNextBusLine: "Bussi: linja {line} pysäkiltä {stop} klo {dep}, perillä {arr}.",
+    deskNextRailLine: "{train} asemalta {stop} klo {dep}, perillä {arr}.",
     deskNextBusFromTo: "pysäkiltä {stop} klo {dep}, perillä {arr}.",
     deskNoBusToday: "Tänään ei bussivuoroja tälle välille.",
     deskOptionsTitle: "Kaikki vaihtoehdot",
@@ -4482,17 +4517,24 @@ const STRINGS = {
     deskDepsTitle: "Seuraavat lähdöt pysäkiltä",
     deskDepsHint: "Kirjoita pysäkki ja valitse listalta. Näet lähdöt reaaliajassa.",
     deskDepsNone: "Ei tulevia lähtöjä tältä pysäkiltä.",
+    deskTerminalAll: "kaikki pysäkit ({n})", deskTerminalStops: "Pysäkit:",
+    deskTerminalPrintHint: "Yhden pysäkin aikataulun saa tulostettua valitsemalla pysäkin tunnuksen lähtölistasta.",
     deskDepsLines: "Linjat:",
     deskUpdated: "Päivitetty klo {time}",
+    deskRefreshFail: "Päivitys epäonnistui klo {time}.",
+    deskDepsErr: "Lähtöjä ei saatu haettua.",
+    deskRetry: "Yritä uudelleen",
     deskLastBusBtn: "Viimeinen bussi tänään",
     deskLastBusTitle: "Viimeinen bussi tänään",
     deskLastBusNone: "Ei enää busseja tänään tälle välille.",
     deskLastBusDay: "Viimeinen bussi {day}",
     deskLastBusNoneDay: "Ei busseja tälle välille {day}.",
+    deskAtNight: "(yöllä)",
     deskFaresTitle: "Lippujen hinnat",
     deskFaresSingle: "Kertalippu (kortti/sovellus):",
     deskAlertsTitle: "Aktiiviset häiriöt",
     deskNoAlerts: "Ei aktiivisia häiriöitä.",
+    deskAlertsErr: "Häiriötiedotteita ei saatu haettua.",
     notifyTitle: "Ilmoitukset",
     notifyToggle: "Ilmoita suosikkilinjojen uusista häiriöistä",
     notifyHint: "Saat ilmoituksen suosikkilinjojesi uusista häiriöistä myös silloin kun sovellus on suljettuna. Lisää linjoja suosikeiksi tähti-napilla linjasivulla.",
@@ -4598,6 +4640,7 @@ const STRINGS = {
     layerStation: "asema",
     layerArea: "alue",
     layerVenue: "kohde",
+    layerOutside: "kunta, alueen ulkopuolella",
     geoUnsupported: "Selaimesi ei tue paikannusta.",
     geoUnsupportedHint: "Selaimesi ei tue paikannusta. Käytä pysäkkihakua alla.",
     gettingLocation: "Haetaan sijaintia…",
@@ -4944,6 +4987,8 @@ const STRINGS = {
     co2Basis: "Arvio: henkilöauto 0,15 kg/km, bussi 0,04 kg/km matkustajaa kohti.",
     showLater: "Näytä myöhempiä lähtöjä",
     noItineraries: "Reittejä ei löytynyt valitulla ajalla. Kokeile toista aikaa tai tarkista lähtö- ja määräpaikka.",
+    outsideArea: "{place} on {cityGen} joukkoliikennealueen ulkopuolella.",
+    outsideNoRoute: "Paikallisliikenteen reittihaku ei löytänyt sinne yhteyttä. Kaukoliikenteen yhteydet löytyvät VR:n (junat) ja Matkahuollon (linja-autot) palveluista.",
     choosePlaces: "Valitse lähtöpaikka ja määränpää ehdotuslistasta.",
     searchingRoutes: "Haetaan reittejä…",
     walking: "Kävelyä {n} m",
@@ -5059,6 +5104,8 @@ const STRINGS = {
     nlNeedOrigin: "I didn't catch the origin, please add it here.",
     nlNeedDest: "I didn't catch the destination, please add it here.",
     nlNeedBoth: "I couldn't catch the origin and destination. Try e.g. \"from {exFrom} to {exTo}\".",
+    nlSearchErr: "Could not search for places because of a connection error.",
+    nlTomorrowNote: "{time} has already passed today, so the search is for tomorrow ({day}).",
     nlMicError: "Speech recognition failed. You can type the trip instead.",
     footerNote: "This is an unofficial demo, neither produced nor endorsed by the transit authority ({operator}).",
     footData: 'Timetable and real-time data: {operatorShort} / {dataSource} open data via the Digitransit API, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener" target="_blank">CC BY 4.0</a>.',
@@ -5226,6 +5273,7 @@ const STRINGS = {
     deskKbdHint: "Or fill in origin and destination separately and pick a suggestion.",
     deskNeedBoth: "Choose both origin and destination (Enter accepts the suggestion).",
     deskSearchErr: "Search failed. Please try again.",
+    deskRouteErr: "Could not load journeys.",
     deskTellTitle: "Tell the customer",
     navAdmin: "Admin",
     adminLinkDesc: "Disruption notices, fares, accessibility statement and reprint key. Requires sign-in.",
@@ -5234,16 +5282,23 @@ const STRINGS = {
     previewExit: "Show the full demo",
     deskTellBoard: "Line {line} from stop {stop} at {time}.",
     deskTellBoardNext: "Line {line} from stop {stop} at {time} (next {next}).",
+    deskTellBoardRail: "{train} from {stop} station at {time}.",
+    deskTellBoardRailNext: "{train} from {stop} station at {time} (next {next}).",
     deskTellArrive: "Get off at stop {stop}, arriving by {time}.",
     deskNoTransfers: "No transfers.",
-    deskTransfer1: "1 transfer, at stop {stop}.",
-    deskTransferN: "{n} transfers ({stop}).",
+    deskTransfer1: "1 transfer: {list}.",
+    deskTransferN: "{n} transfers: {list}.",
+    deskXferAt: "at stop {stop} {target}, departs {time}",
+    deskXferAtStation: "at {stop} station {target}, departs {time}",
+    deskXferLine: "to line {line}", deskXferTrain: "to train {line}", deskXferTrainAny: "to the train",
+    deskXferBusAny: "to the bus", deskXferFerry: "to the ferry",
     deskWalkOnly: "Whole trip on foot ({dur}).",
     deskWalkFastest: "Walking is fastest right now ({dur}).",
     deskWalkFastestTimed: "Walking is fastest ({dur}).",
     deskNextBusTitle: "Next bus",
     deskNextModeTitle: "Next {mode}",
     deskNextBusLine: "Bus: line {line} from {stop} at {dep}, arriving {arr}.",
+    deskNextRailLine: "{train} from {stop} station at {dep}, arriving {arr}.",
     deskNextBusFromTo: "from {stop} at {dep}, arriving {arr}.",
     deskNoBusToday: "No bus departures for this route today.",
     deskOptionsTitle: "All options",
@@ -5272,17 +5327,24 @@ const STRINGS = {
     deskDepsTitle: "Next departures from stop",
     deskDepsHint: "Type a stop and pick it. Departures are shown in real time.",
     deskDepsNone: "No upcoming departures from this stop.",
+    deskTerminalAll: "all stops ({n})", deskTerminalStops: "Stops:",
+    deskTerminalPrintHint: "To print one stop's timetable, choose the stop code in the departure list.",
     deskDepsLines: "Lines:",
     deskUpdated: "Updated {time}",
+    deskRefreshFail: "Update failed at {time}.",
+    deskDepsErr: "Could not load departures.",
+    deskRetry: "Try again",
     deskLastBusBtn: "Last bus today",
     deskLastBusTitle: "Last bus today",
     deskLastBusNone: "No more buses today for this trip.",
     deskLastBusDay: "Last bus on {day}",
     deskLastBusNoneDay: "No buses for this trip on {day}.",
+    deskAtNight: "(at night)",
     deskFaresTitle: "Ticket prices",
     deskFaresSingle: "Single ticket (card/app):",
     deskAlertsTitle: "Active disruptions",
     deskNoAlerts: "No active disruptions.",
+    deskAlertsErr: "Could not load disruption notices.",
     notifyTitle: "Notifications",
     notifyToggle: "Notify about new disruptions on favourite routes",
     notifyHint: "You'll get a notification about new disruptions on your favourite routes even when the app is closed. Add favourite routes with the star button on a route page.",
@@ -5386,6 +5448,7 @@ const STRINGS = {
     layerStation: "station",
     layerArea: "area",
     layerVenue: "place",
+    layerOutside: "municipality, outside the area",
     geoUnsupported: "Your browser does not support geolocation.",
     geoUnsupportedHint: "Your browser does not support geolocation. Use the stop search below.",
     gettingLocation: "Getting location…",
@@ -5719,6 +5782,8 @@ const STRINGS = {
     co2Basis: "Estimate: car 0.15 kg/km, bus 0.04 kg/km per passenger.",
     showLater: "Show later departures",
     noItineraries: "No journeys found for the selected time. Try another time or check the origin and destination.",
+    outsideArea: "{place} is outside the {city} public transport area.",
+    outsideNoRoute: "The local journey planner found no connection there. For long-distance trips, see VR (trains) and Matkahuolto (coaches).",
     choosePlaces: "Select the origin and destination from the suggestion list.",
     searchingRoutes: "Searching for journeys…",
     walking: "Walking {n} m",
@@ -5834,6 +5899,8 @@ const STRINGS = {
     nlNeedOrigin: "Jag uppfattade inte startplatsen, fyll i den här.",
     nlNeedDest: "Jag uppfattade inte destinationen, fyll i den här.",
     nlNeedBoth: "Jag uppfattade inte start och destination. Försök t.ex. \"från {exFrom} till {exTo}\".",
+    nlSearchErr: "Det gick inte att söka platser på grund av ett anslutningsfel.",
+    nlTomorrowNote: "Kl. {time} har redan passerat i dag, så sökningen gäller i morgon ({day}).",
     nlMicError: "Taligenkänningen misslyckades. Du kan skriva resan istället.",
     footerNote: "Detta är en inofficiell demoversion som varken har producerats eller godkänts av kollektivtrafikmyndigheten ({operator}).",
     footData: 'Tidtabells- och realtidsdata: {operatorShort} / {dataSource} öppna data via Digitransit-gränssnittet, licens <a href="https://creativecommons.org/licenses/by/4.0/deed.sv" rel="license noopener" target="_blank">CC BY 4.0</a>.',
@@ -6003,6 +6070,7 @@ const STRINGS = {
     deskKbdHint: "Eller fyll i startplats och destination var för sig och välj ett förslag.",
     deskNeedBoth: "Välj både startplats och destination (Enter väljer förslaget).",
     deskSearchErr: "Sökningen misslyckades. Försök igen.",
+    deskRouteErr: "Det gick inte att hämta resor.",
     deskTellTitle: "Berätta för kunden",
     navAdmin: "Administration",
     adminLinkDesc: "Störningsmeddelanden, priser, tillgänglighetsutlåtande och nyckel för omtryck. Kräver inloggning.",
@@ -6011,16 +6079,23 @@ const STRINGS = {
     previewExit: "Visa hela demon",
     deskTellBoard: "Linje {line} från hållplats {stop} kl. {time}.",
     deskTellBoardNext: "Linje {line} från hållplats {stop} kl. {time} (nästa {next}).",
+    deskTellBoardRail: "{train} från {stop} station kl. {time}.",
+    deskTellBoardRailNext: "{train} från {stop} station kl. {time} (nästa {next}).",
     deskTellArrive: "Stig av vid hållplats {stop}, framme kl. {time}.",
     deskNoTransfers: "Inga byten.",
-    deskTransfer1: "1 byte, vid hållplats {stop}.",
-    deskTransferN: "{n} byten ({stop}).",
+    deskTransfer1: "1 byte: {list}.",
+    deskTransferN: "{n} byten: {list}.",
+    deskXferAt: "vid hållplats {stop} {target}, avgår {time}",
+    deskXferAtStation: "vid stationen {stop} {target}, avgår {time}",
+    deskXferLine: "till linje {line}", deskXferTrain: "till tåg {line}", deskXferTrainAny: "till tåget",
+    deskXferBusAny: "till bussen", deskXferFerry: "till färjan",
     deskWalkOnly: "Hela resan till fots ({dur}).",
     deskWalkFastest: "Att gå är snabbast just nu ({dur}).",
     deskWalkFastestTimed: "Att gå är snabbast ({dur}).",
     deskNextBusTitle: "Nästa buss",
     deskNextModeTitle: "Nästa {mode}",
     deskNextBusLine: "Buss: linje {line} från {stop} kl. {dep}, framme {arr}.",
+    deskNextRailLine: "{train} från {stop} station kl. {dep}, framme {arr}.",
     deskNextBusFromTo: "från {stop} kl. {dep}, framme {arr}.",
     deskNoBusToday: "Inga bussturer för den här sträckan idag.",
     deskOptionsTitle: "Alla alternativ",
@@ -6049,17 +6124,24 @@ const STRINGS = {
     deskDepsTitle: "Nästa avgångar från hållplats",
     deskDepsHint: "Skriv en hållplats och välj den. Avgångarna visas i realtid.",
     deskDepsNone: "Inga kommande avgångar från denna hållplats.",
+    deskTerminalAll: "alla hållplatser ({n})", deskTerminalStops: "Hållplatser:",
+    deskTerminalPrintHint: "Välj hållplatsens beteckning i avgångslistan för att skriva ut dess tidtabell.",
     deskDepsLines: "Linjer:",
     deskUpdated: "Uppdaterad {time}",
+    deskRefreshFail: "Uppdateringen misslyckades kl. {time}.",
+    deskDepsErr: "Det gick inte att hämta avgångarna.",
+    deskRetry: "Försök igen",
     deskLastBusBtn: "Sista bussen idag",
     deskLastBusTitle: "Sista bussen idag",
     deskLastBusNone: "Inga fler bussar idag för denna resa.",
     deskLastBusDay: "Sista bussen {day}",
     deskLastBusNoneDay: "Inga bussar för denna resa {day}.",
+    deskAtNight: "(på natten)",
     deskFaresTitle: "Biljettpriser",
     deskFaresSingle: "Engångsbiljett (kort/app):",
     deskAlertsTitle: "Aktiva störningar",
     deskNoAlerts: "Inga aktiva störningar.",
+    deskAlertsErr: "Det gick inte att hämta störningsmeddelandena.",
     notifyTitle: "Aviseringar",
     notifyToggle: "Meddela om nya störningar på favoritlinjer",
     notifyHint: "Du får en avisering om nya störningar på dina favoritlinjer även när appen är stängd. Lägg till favoritlinjer med stjärnknappen på linjesidan.",
@@ -6163,6 +6245,7 @@ const STRINGS = {
     layerStation: "station",
     layerArea: "område",
     layerVenue: "plats",
+    layerOutside: "kommun, utanför området",
     geoUnsupported: "Din webbläsare stöder inte positionering.",
     geoUnsupportedHint: "Din webbläsare stöder inte positionering. Använd hållplatssökningen nedan.",
     gettingLocation: "Hämtar position…",
@@ -6496,6 +6579,8 @@ const STRINGS = {
     co2Basis: "Uppskattning: bil 0,15 kg/km, buss 0,04 kg/km per passagerare.",
     showLater: "Visa senare avgångar",
     noItineraries: "Inga resor hittades för den valda tiden. Prova en annan tid eller kontrollera start- och målplatsen.",
+    outsideArea: "{place} ligger utanför kollektivtrafikområdet i {city}.",
+    outsideNoRoute: "Den lokala reseplaneraren hittade ingen förbindelse dit. Fjärrtrafikens förbindelser finns hos VR (tåg) och Matkahuolto (långfärdsbussar).",
     choosePlaces: "Välj startplats och destination i förslagslistan.",
     searchingRoutes: "Söker resor…",
     walking: "Promenad {n} m",
@@ -7076,13 +7161,23 @@ function fmtSec(sec) {
   return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
 }
 
-// Lähtöajan esitys: "nyt" / "5 min" / "14:32"; rt = reaaliaikainen arvio
+// Lähtöajan esitys: "nyt" / "5 min" / "14:32"; rt = reaaliaikainen arvio.
+// day = päivämerkintä, kun kellonaikana näytettävä lähtö on muuna kuin tänä päivänä ("ma" huomenna,
+// "ti 6.10." myöhemmin). Ilman sitä huomisaamun 04:40 näytti tämän illan lähdöltä (auditointi 4.10.2026, M4).
 function depInfo(st) {
   const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
   const epoch = (st.serviceDay + dep) * 1000;
   const mins = Math.round((epoch - Date.now()) / 60000);
   const when = mins <= 0 ? t("depNow") : mins < 60 ? t("depMin", { n: mins }) : fmtSec(dep);
-  return { when, rt: !!st.realtime };
+  return { when, rt: !!st.realtime, day: mins < 60 ? "" : depDayLabel(epoch) };
+}
+function depDayLabel(epoch) {
+  const d = new Date(epoch), now = new Date();
+  const days = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) -
+    new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+  if (days <= 0) return "";
+  const loc = lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI";
+  return d.toLocaleDateString(loc, days === 1 ? { weekday: "short" } : { weekday: "short", day: "numeric", month: "numeric" });
 }
 
 function todayISO() {
@@ -10229,6 +10324,11 @@ function badgeHtml(route, fallback) {
   return `<span class="badge"${style}>${esc(route?.shortName || fallback || "")}</span>`;
 }
 
+// Laiturin tunnus linkkinä laiturin omaan korttiin ({ id, name, code }), tiskin terminaalinäkymässä.
+function platChipHtml(p) {
+  return `<a class="dep-plat" href="#/pysakki/${encodeURIComponent(p.id)}" title="${esc(p.name)}" aria-label="${esc(p.name)}">${esc(p.code || p.name)}</a>`;
+}
+
 function depTableRows(stoptimes) {
   // Poista feed-duplikaatit (sama linja kahdesti eri liikennöitsijällä → tuplalähdöt)
   const seen = new Set();
@@ -10249,10 +10349,13 @@ function depTableRows(stoptimes) {
     // _from: vuoro lähtee eri pysäkiltä kuin muut (tiskin linjakortti, lineDirDeps). Tekstinä eikä
     // pelkkänä merkkinä tai värinä, jotta ruudunlukija lukee sen rivin osana.
     const from = st._from ? `<span class="dep-from">${esc(t("deskLineDepFrom", { stop: st._from }))}</span>` : "";
+    // _plat: tiskin terminaalinäkymän rivin laituri (kaikki laiturit yhdessä listassa). Linkki avaa laiturin oman
+    // kortin, josta saa myös sen pysäkin tulosteen.
+    const plat = st._plat ? platChipHtml(st._plat) + " " : "";
     return `<tr>
       <td>${badge}</td>
-      <td>${esc(st.headsign || "")}${acc}${occupancyHtml(st.trip)}${from}</td>
-      <td class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</td>
+      <td>${plat}${esc(st.headsign || "")}${acc}${occupancyHtml(st.trip)}${from}</td>
+      <td class="${d.rt ? "rt" : ""}">${d.day ? `<span class="dep-day">${esc(d.day)}</span> ` : ""}${d.when}${d.rt ? " ●" : ""}</td>
     </tr>`;
   }).join("");
 }
@@ -11108,7 +11211,10 @@ function viewRoutes() {
     fromInput: homeFrom, toInput: homeTo,
     setFrom: p => { planState.from = p; },
     setTo: p => { planState.to = p; },
-    setTime: hhmm => { planState.time = todayISO() + "T" + hhmm; planState.timeMode = "dep"; },
+    // Lauseen päivä ja kellonaika (nlWhen); note = näkyvä huomautus reittisivulle, kun haku siirtyi huomiseen.
+    setTime: (hhmm, date, note) => { planState.time = (date || todayISO()) + "T" + hhmm; planState.timeMode = "dep"; planState.nlNote = note || ""; },
+    // Lause ilman aikaa = nyt: muuten istunnon aiempi hakuaika jäi voimaan.
+    resetTime: () => { planState.time = ""; planState.timeMode = "dep"; planState.nlNote = ""; },
     focus: el => el.focus(),
     run: () => { if (planState.from && planState.to) location.hash = planHash(); },
   };
@@ -12276,7 +12382,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
         nextDep = depEpoch(upcoming[0]);
         nextHtml = `<p>${t("nextDeps")} ${upcoming.map(st => {
           const d = depInfo(st);
-          return `<strong class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</strong>`;
+          return `<strong class="${d.rt ? "rt" : ""}">${d.day ? esc(d.day) + " " : ""}${d.when}${d.rt ? " ●" : ""}</strong>`;
         }).join(" · ")}</p>`;
         if (pushSupported()) {
           remindHtml = `<div class="remind no-print" id="remindBox">
@@ -12964,7 +13070,7 @@ async function viewMonitor(stopId) {
       return `<tr>
         <td class="m-line"><span class="badge"${style}>${esc(r.shortName || "")}</span></td>
         <td class="m-dest">${esc(st.headsign || "")}</td>
-        <td class="m-when${d.rt ? " rt" : ""}">${esc(d.when)}${d.rt ? " ●" : ""}</td>
+        <td class="m-when${d.rt ? " rt" : ""}">${d.day ? esc(d.day) + " " : ""}${esc(d.when)}${d.rt ? " ●" : ""}</td>
       </tr>`;
     }).join("");
   };
@@ -14588,6 +14694,67 @@ async function geocodeRaw(text, bounded = true) {
     || (a.dist - b.dist));
 }
 
+/* Toisen kunnan nimi haussa (auditointi 4.10.2026, K4). Waltti-kaupungin osoitehaku on rajattu kaupungin
+   suorakaiteeseen, joten Lahdessa "Helsinkiin" ratkesi Helsingintieksi ja tiski kertoi 9 minuutin bussimatkan.
+   Kun rajatussa haussa ei ole hakusanan tarkkaa osumaa, kysytään rajaamattomasti pelkkiä kuntia (layers
+   locality,localadmin: kylät ja kadut eivät tule mukaan, mitattu 4.10.2026) ja hyväksytään vain alueen
+   ulkopuolinen kunta, jonka nimi on hakusana. Taivutuksen jäämä sallitaan lopusta (enintään 2 merkkiä, nimessä
+   vähintään 4 merkkiä): "Tampereelle" jää jäsennyksessä muotoon "Tamperee". areaScoped-kaupungit (Inkoo) hakevat
+   jo rajaamattomasti (mergeWideHits) omalla järjestyksellään, joten niissä tätä ei tehdä. */
+const outsideMemo = new Map();
+function outsideAreaRect(lat, lon) {
+  const r = AREA && AREA.rect;
+  return !!r && lat != null && lon != null &&
+    !(lat >= r.minLat && lat <= r.maxLat && lon >= r.minLon && lon <= r.maxLon);
+}
+// Osuman vertailunimi: pysäkiltä laituritunnus ja koodi pois ("Kauppatori E (123)" -> "kauppatori"), paikalta
+// ensimmäinen osa ("Mukkulankatu 2, Lahti" -> "mukkulankatu 2").
+function placeKey(p) {
+  return String(p.stopName || (p.name || "").split(",")[0]).toLowerCase()
+    .replace(/\s*\([^)]*\)\s*$/, "").replace(/ [a-zåäö]$/, "").replace(/\s+/g, " ").trim();
+}
+function outsideLocality(q) {
+  const nq = (q || "").toLowerCase().replace(/\s+/g, " ").trim();
+  if (CONFIG.areaScoped || !AREA?.rect || nq.length < 3 || /\d/.test(nq)) return Promise.resolve(null);
+  if (!outsideMemo.has(nq)) {
+    const params = new URLSearchParams({ text: nq, size: "5", lang, layers: "locality,localadmin",
+      "focus.point.lat": String(AREA.focus.lat), "focus.point.lon": String(AREA.focus.lon) });
+    if (!PROXY_URL) params.set("digitransit-subscription-key", apiKey);
+    outsideMemo.set(nq, fetch(`${GEOCODING_URL}/search?${params}`)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
+      .then(json => {
+        for (const f of json.features || []) {
+          const c = f.geometry?.coordinates, n = String(f.properties?.name || "").toLowerCase();
+          if (!c || !n) continue;
+          const nameOk = n === nq || (n.length >= 4 && nq.startsWith(n) && nq.length - n.length <= 2
+            && (f.properties.confidence ?? 0) >= 0.9);
+          if (nameOk && outsideAreaRect(c[1], c[0]))
+            return { name: f.properties.name, lat: c[1], lon: c[0], layer: f.properties.layer || "localadmin", outside: true };
+        }
+        return null;
+      })
+      .catch(() => { outsideMemo.delete(nq); return null; }));   // lisätieto: virhe ei kaada hakua
+  }
+  return outsideMemo.get(nq);
+}
+// Rajatun haun osumat + alueen ulkopuolinen kunta kärkeen, kun hakusanalla ei ole tarkkaa paikallista osumaa.
+async function withOutsideLocality(q, hits) {
+  const nq = (q || "").toLowerCase().replace(/\s+/g, " ").trim();
+  if (CONFIG.areaScoped || hits.some(h => placeKey(h) === nq)) return hits;
+  const o = await outsideLocality(q);
+  return o ? [o, ...hits.filter(h => h.name !== o.name)] : hits;
+}
+// Huomautus alueen ulkopuolisesta lähdöstä tai määränpäästä reittivastaukseen (tiski ja kuntalaisen haku).
+// noRoute: reititin ei löytänyt yhteyttä, joten ohjataan kaukoliikenteeseen (ei linkkiä).
+function outsideNoteHtml(from, to, noRoute) {
+  if (CONFIG.areaScoped) return "";
+  const out = [from, to].filter(p => p && outsideAreaRect(p.lat, p.lon));
+  if (!out.length) return "";
+  const txt = out.map(p => t("outsideArea", { place: (p.name || "").split(",")[0] })).join(" ")
+    + (noRoute ? " " + t("outsideNoRoute") : "");
+  return `<p class="plan-outside" role="status">${icon("warning")} ${esc(txt)}</p>`;
+}
+
 // stops(name:) hakee koko routerin alueelta. Waltti-kaupungeissa feed-etuliite on kaytannossa
 // myos maantieteellinen rajaus, mutta valtakunnallisessa feedissa (MATKA) se ei rajaa mitaan:
 // Inkoossa haku "koulu" tarjosi pysakkeja 137-483 km paasta. areaScoped-kaupungeissa tulokset
@@ -14658,7 +14825,7 @@ async function searchPlaces(q) {
     throw stopsRes.reason;
   }
   if (CONFIG.areaScoped) return [...stops, ...places].slice(0, 9);
-  return rankPlaceHits(q, stopsRes.status === "fulfilled" ? stopsRes.value : [], places).slice(0, 9);
+  return (await withOutsideLocality(q, rankPlaceHits(q, stopsRes.status === "fulfilled" ? stopsRes.value : [], places))).slice(0, 9);
 }
 
 // Waltti-kaupunkien hakutulokset yhdeksi listaksi. Ennen pysäkit tulivat aina ennen paikkoja ja
@@ -14724,7 +14891,7 @@ const PLACE_ICONS = { stop: "pin", address: "home", street: "home", venue: "pin"
 const PLACE_LAYER_KEYS = { stop: "layerStop", station: "layerStation", localadmin: "layerArea",
   locality: "layerArea", neighbourhood: "layerArea", venue: "layerVenue" };
 function placeHint(p) {
-  const key = PLACE_LAYER_KEYS[p.layer];
+  const key = p.outside ? "layerOutside" : PLACE_LAYER_KEYS[p.layer];
   return key ? ` <span class="muted">${esc(t(key))}</span>` : "";
 }
 
@@ -14773,8 +14940,8 @@ function tripHash(from, to) {
 
 // Kevyt seuraavien yhteyksien kysely etusivun korttiin (vain ensimmäinen bussi)
 const SAVED_CONN_QUERY = `
-  query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!) {
-    planConnection(origin: $origin, destination: $destination, first: 2, searchWindow: "PT3H") {
+  query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!, $preferences: PlanPreferencesInput) {
+    planConnection(origin: $origin, destination: $destination, first: 2, searchWindow: "PT3H", preferences: $preferences) {
       edges { node { legs {
         mode start { scheduledTime estimated { time } } route { shortName color textColor }
       } } }
@@ -14817,6 +14984,7 @@ async function renderSavedTrips() {
       const data = await gql(SAVED_CONN_QUERY, {
         origin: { location: { coordinate: { latitude: tr.from.lat, longitude: tr.from.lon } } },
         destination: { location: { coordinate: { latitude: tr.to.lat, longitude: tr.to.lon } } },
+        preferences: planPrefs(),
       });
       if (mySeq !== viewSeq) return;
       const el = document.getElementById("savedNext" + i);
@@ -14926,9 +15094,25 @@ function trimFiDest(w) {
 const isFiOrig = w => /:?(sta|stä|lta|ltä)$/i.test(w);
 const isFiDest = w => /:?(lle|seen)$/i.test(w) || /:?([aeiouyåäö])\1n$/i.test(w) || /:?h([aeiouyåäö])n$/i.test(w);
 
-// Jäsentää matkalauseen → { from, to, time } (merkkijonoina; paikat resolvoidaan geocodella).
+// Päivä lauseesta (auditointi 4.10.2026, K3): ennen "huomenna klo 7" haki tämän päivän klo 7, ja sana jäi
+// lähtöpaikan nimeen ("huomenna Matkakeskus"). offset = päiviä tästä päivästä, weekday = 0 (su) ... 6 (la).
+// Vuorokaudenaika ("aamulla", "morning", "på kvällen") poistetaan päivän perästä: se ei ole paikka.
+const NL_PART = "(?:\\s+(?:aamulla|aamupäivällä|päivällä|iltapäivällä|illalla|yöllä|morning|afternoon|evening|night|på morgonen|på förmiddagen|på eftermiddagen|på kvällen))?";
+const NL_DAYS = [
+  { re: "ylihuomenna|i\\s*övermorgon|övermorgon|(?:the\\s+)?day\\s+after\\s+tomorrow", offset: 2 },
+  { re: "huomenna|huomenaamulla|huomisaamuna|huomenillalla|huomisiltana|i\\s*morgon|tomorrow", offset: 1 },
+  { re: "tänään|tänä\\s+iltana|tänä\\s+aamuna|i\\s*dag|i\\s*kväll|today|tonight", offset: 0 },
+  { re: "(?:ensi\\s+)?(sunnuntai|maanantai|tiistai|keskiviikko|torstai|perjantai|lauantai)(?:na)?" },
+  { re: "(?:på\\s+|nästa\\s+)?(söndag|måndag|tisdag|onsdag|torsdag|fredag|lördag)(?:en)?" },
+  { re: "(?:on\\s+|next\\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)" },
+];
+const NL_WEEKDAY = { sunnuntai: 0, maanantai: 1, tiistai: 2, keskiviikko: 3, torstai: 4, perjantai: 5, lauantai: 6,
+  söndag: 0, måndag: 1, tisdag: 2, onsdag: 3, torsdag: 4, fredag: 5, lördag: 6,
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+
+// Jäsentää matkalauseen → { from, to, time, day, dayText } (merkkijonoina; paikat resolvoidaan geocodella).
 function parseNlTrip(raw) {
-  const out = { from: null, to: null, time: null };
+  const out = { from: null, to: null, time: null, day: null, dayText: "" };
   let s = String(raw || "").trim().replace(/\s+/g, " ");
   if (!s) return out;
   // Aika: klo/kello/kl./at HH(.MM/:MM); nyt/now/nu poistetaan (oletus = nyt)
@@ -14937,6 +15121,16 @@ function parseNlTrip(raw) {
     out.time = String(Math.min(23, parseInt(tm[1], 10))).padStart(2, "0") + ":" + (tm[2] || "00");
     s = s.replace(tm[0], " ");
   }
+  // \b ei toimi ä/ö-alkuisissa ja -loppuisissa sanoissa ("tänään", "övermorgon"), joten rajat ovat välilyöntejä.
+  for (const d of NL_DAYS) {
+    const m = s.match(new RegExp(`(^|[\\s,;])(${d.re})${NL_PART}(?=$|[\\s,;.!?])`, "i"));
+    if (!m) continue;
+    out.day = d.offset != null ? { offset: d.offset } : { weekday: NL_WEEKDAY[m[3].toLowerCase()] };
+    out.dayText = m[0].replace(/^[\s,;]+/, "").trim();
+    s = s.slice(0, m.index) + m[1] + " " + s.slice(m.index + m[0].length);
+    break;
+  }
+  s = s.replace(/(^|\s)(aamulla|aamupäivällä|iltapäivällä|illalla)(?=\s|$)/gi, " ");
   s = s.replace(/\b(nyt|now|nu|please|tack|kiitos)\b/gi, " ").replace(/\s+/g, " ").trim();
   // Intent-/verbietuliitteet pois (puhutut muodot: "how do I get to", "hur kommer jag till",
   // "I need to get", "jag ska åka", "take me", "vi ska")
@@ -14979,19 +15173,58 @@ function parseNlTrip(raw) {
   return out;
 }
 
+// Lauseen päivä ja kellonaika hakuhetkeksi → { date: "YYYY-MM-DD", time: "HH:MM", bumped } tai null (= nyt).
+// Kellonaika ilman päivää, joka on yli 30 min menneisyydessä, tarkoittaa huomista (bumped: kerrotaan näkyvästi).
+// Viikonpäivä on seuraava sellainen päivä, tänään mukaan lukien; jos se on tänään ja kello on jo mennyt, ensi viikko.
+// Päivä ilman kellonaikaa = sama kellonaika sinä päivänä; "tänään" ilman kellonaikaa = nyt.
+function nlWhen(p, now = new Date()) {
+  if (!p || (!p.time && !p.day)) return null;
+  const hm = p.time ? p.time.split(":").map(Number) : null;
+  const past = !!hm && hm[0] * 60 + hm[1] < now.getHours() * 60 + now.getMinutes() - 30;
+  let off = 0, bumped = false;
+  if (p.day && p.day.offset != null) off = p.day.offset;
+  else if (p.day && p.day.weekday != null) {
+    off = (p.day.weekday - now.getDay() + 7) % 7;
+    if (off === 0 && past) off = 7;
+  } else if (past) { off = 1; bumped = true; }
+  if (!hm && off === 0) return null;
+  const pad = n => String(n).padStart(2, "0");
+  return { date: isoOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() + off)),
+    time: p.time || pad(now.getHours()) + ":" + pad(now.getMinutes()), bumped };
+}
+
+// Lyhyt päivä viikonpäivineen ("ma 5.10.") valitulla kielellä.
+function fmtDayShort(iso) {
+  const [y, m, d] = (iso || "").split("-").map(Number);
+  const loc = lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI";
+  return new Date(y, m - 1, d, 12).toLocaleDateString(loc, { weekday: "short", day: "numeric", month: "numeric" });
+}
+
 // Jäsennä → geocode (ylin ehdotus) → täytä kentät → jos MOLEMMAT paikat saatiin: aja haku;
 // muuten täytä saatu, kohdista puuttuvaan kenttään + lempeä vihje (ei kovaa virhettä).
+// Yhteysvirhe paikkahaussa näytetään virheenä Yritä uudelleen -napilla eikä vihjeenä "en saanut kiinni",
+// joka sai verkkokatkon näyttämään kirjoitusvirheeltä (auditointi 4.10.2026, K5).
 async function runNlTrip(text, c) {
   const p = parseNlTrip(text);
   const hint = msg => { c.msg.innerHTML = msg ? `<p class="muted">${esc(msg)}</p>` : ""; };
   if (!p.from && !p.to) { hint(t("nlNeedBoth")); c.focus(c.fromInput); return; }
+  if (c.busy) c.busy();
   hint(t("searchingRoutes"));
-  const top = async q => { try { const r = await searchPlaces(q); return r[0] || null; } catch (e) { return null; } };
+  let failed = false;
+  const top = async q => { try { const r = await searchPlaces(q); return r[0] || null; } catch (e) { failed = true; return null; } };
   const [fp, tp] = await Promise.all([p.from ? top(p.from) : Promise.resolve(null), p.to ? top(p.to) : Promise.resolve(null)]);
   if (fp) { c.setFrom(fp); c.fromInput.value = fp.name; }
   if (tp) { c.setTo(tp); c.toInput.value = tp.name; }
-  if (p.time && c.setTime) c.setTime(p.time);
-  else if (!p.time && c.resetTime) c.resetTime();   // tiski: lause ilman aikaa = nyt
+  const when = nlWhen(p);
+  if (when && c.setTime) c.setTime(when.time, when.date,
+    when.bumped ? t("nlTomorrowNote", { time: when.time, day: fmtDayShort(when.date) }) : "");
+  else if (!when && c.resetTime) c.resetTime();   // lause ilman aikaa ja päivää = nyt
+  if (failed && !(fp && tp)) {
+    c.msg.innerHTML = `<div class="error" role="alert">${esc(t("nlSearchErr"))} ` +
+      `<button type="button" class="secondary nl-retry">${esc(t("deskRetry"))}</button></div>`;
+    c.msg.querySelector(".nl-retry")?.addEventListener("click", () => runNlTrip(text, c));
+    return;
+  }
   if (fp && tp) { hint(""); c.run(); }                                   // molemmat varmasti → aja heti
   else if (fp && !tp) { hint(t("nlNeedDest")); c.focus(c.toInput); }
   else if (!fp && tp) { hint(t("nlNeedOrigin")); c.focus(c.fromInput); }
@@ -15058,7 +15291,7 @@ function exitDeskMode() {
 // Pysäkkihaku linjoineen (feed-rajattu): stops(name:) palauttaa pysäkit + linjat yhdellä kyselyllä.
 // Sijainti kartan keskitystä varten, linjan gtfsId linjamerkin linkkiä (linjakortti) varten.
 const DESK_STOP_QUERY = `query ($name: String!) {
-  stops(name: $name) { gtfsId name@L code lat lon routes { gtfsId shortName longName@L } }
+  stops(name: $name) { gtfsId name@L code lat lon routes { gtfsId shortName longName@L } parentStation { gtfsId name@L lat lon } }
 }`;
 const DESK_STOPS_BY_IDS = `query ($ids: [String]) {
   stops(ids: $ids) { gtfsId name@L code lat lon routes { gtfsId shortName longName@L } }
@@ -15131,19 +15364,61 @@ const DESK_DEPS_QUERY = `query ($id: String!) {
   }
 }`;
 
-// "Viimeinen bussi X→Y": pakotettu bussiyhteys, latestArrival = haun päivän loppu,
-// taaksepäin haku (last) → tulokset laskevassa lähtöaikajärjestyksessä; nodes[0] = viimeisin.
-// $preferences = tiskin Esteetön reitti -valinta (sama kuin reittihaussa).
+// Terminaalinäkymä (CONFIG.deskHomeStop.terminal): emoaseman kaikkien laitureiden lähdöt yhdellä kyselyllä.
+const DESK_STATION_DEPS_QUERY = `query ($id: String!) {
+  station(id: $id) {
+    gtfsId name@L lat lon
+    stops { gtfsId name@L platformCode routes { gtfsId shortName } }
+    stoptimesWithoutPatterns(numberOfDepartures: 16, omitNonPickups: true) {
+      scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
+      stop { gtfsId name@L platformCode }
+      trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } ${TRIP_ENDS_FIELDS} }
+    }
+  }
+}`;
+// Aseman vastaus pysäkin muotoon: saapuvat vuorot suodatetaan laitureittain (dropArrivals vertaa laiturin omaan
+// id:hen ja nimeen), lähdöt yhdeksi aikajärjestykseen, ja jokaiselle riville sen laituri (_plat, depTableRows).
+function terminalStopOf(st) {
+  const groups = new Map();
+  for (const x of st.stoptimesWithoutPatterns || []) {
+    const id = x.stop?.gtfsId || "";
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id).push(x);
+  }
+  const at = x => x.serviceDay + (x.realtime ? x.realtimeDeparture : x.scheduledDeparture);
+  const rows = [];
+  for (const [id, sts] of groups) {
+    const one = { gtfsId: id, name: sts[0].stop?.name || st.name, stoptimesWithoutPatterns: sts };
+    cleanStopDepartures(one, id);
+    for (const x of one.stoptimesWithoutPatterns)
+      rows.push({ ...x, _plat: { id, name: x.stop?.name || "", code: x.stop?.platformCode || "" } });
+  }
+  rows.sort((a, b) => at(a) - at(b));
+  const seen = new Set(), routes = [];
+  for (const p of st.stops || []) for (const r of p.routes || []) if (r.gtfsId && !seen.has(r.gtfsId)) { seen.add(r.gtfsId); routes.push(r); }
+  const plats = (st.stops || []).filter(p => (p.routes || []).length)
+    .map(p => ({ id: p.gtfsId, name: p.name, code: p.platformCode || "" }))
+    .sort((a, b) => a.code.localeCompare(b.code, "fi", { numeric: true }));
+  return { gtfsId: st.gtfsId, name: st.name, code: "", lat: st.lat, lon: st.lon, terminal: true,
+    platforms: plats.length, plats, routes, stoptimesWithoutPatterns: rows.slice(0, 12) };
+}
+
+// "Viimeinen bussi X→Y": pakotettu bussiyhteys, taaksepäin haku (last). latestArrival = haun päivää seuraava
+// aamu klo 4.30, ja kutsuja hyväksyy vain vuorot, joiden liikennöintipäivä (serviceDate) on haun päivä: yövuorot
+// (Lahden 98 klo 24:35 ja 25:35) kuuluvat edellisen päivän liikenteeseen, seuraavan aamun ensimmäinen vuoro ei.
+// Ikkuna 12 h: 6 h ikkunalla aamuyön rajasta taaksepäin Inkoon Helsingin-yhteys (viimeinen klo 21.26) ei löytynyt.
+// $preferences = tiskin Esteetön reitti -valinta ja vaihtoaika (sama kuin reittihaussa).
 const DESK_LASTBUS_QUERY = `
   query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!, $dateTime: PlanDateTimeInput,
          $preferences: PlanPreferencesInput) {
     planConnection(origin: $origin, destination: $destination, last: 5, dateTime: $dateTime,
-                   searchWindow: "PT6H", preferences: $preferences,
+                   searchWindow: "PT12H", preferences: $preferences,
                    modes: { transitOnly: true, transit: { transit: [{ mode: BUS }] } }) {
       edges { node {
         start end numberOfTransfers
         legs {
-          mode start { scheduledTime estimated { time } } end { scheduledTime estimated { time } }
+          mode serviceDate interlineWithPreviousLeg
+          start { scheduledTime estimated { time } } end { scheduledTime estimated { time } }
           from { name stop { platformCode name@L } } to { name stop { name@L } } route { gtfsId shortName color textColor }
         }
       } }
@@ -15291,19 +15566,39 @@ function soonestBusNode(nodes) {
   return withBus.reduce((a, b) =>
     new Date(legTime(firstTransitLeg(a).start)) <= new Date(legTime(firstTransitLeg(b).start)) ? a : b);
 }
-// Vaihdot-teksti nodelle (jaettu tell + kortti).
-function deskTransfersTxt(node) {
-  const tr = node.numberOfTransfers;
-  if (!tr) return "";
-  const tStops = node.legs.filter((l, i) => i > 0 && l.mode !== "WALK" && l.mode !== "BICYCLE").map(l => l.from.name);
-  return tr === 1 ? t("deskTransfer1", { stop: esc(tStops[0] || "") }) : t("deskTransferN", { n: tr, stop: esc(tStops.join(", ")) });
+// Kellonaika tiskin lauseeseen. dayIso = haun päivä: sitä seuraavan yön hetki saa perään "(yöllä)", jotta
+// viimeisen bussin 00:35 ei kuulosta saman päivän aamulta.
+function deskClockOn(iso, dayIso) {
+  const s = fmtClock(iso);
+  return dayIso && isoOf(new Date(iso)) > dayIso ? s + " " + t("deskAtNight") : s;
+}
+// Vaihdot lauseena (jaettu tell, viimeinen bussi ja "Seuraava bussi" -kortti): kulkuneuvo-osuudet toisesta alkaen,
+// eli vaihtopysäkki, jatkolinja ja sen lähtöaika. Ennen suodatus käytti kaikkien osuuksien indeksiä, joten kävelyllä
+// alkavan matkan ensimmäinen bussi luettiin vaihdoksi ("1 vaihto, pysäkillä Harjutie L", vaikka vaihto on
+// Kansanopisto P:llä linjaan 32; auditointi 4.10.2026, K1). Samassa autossa jatkuva osuus ei ole vaihto.
+function deskTransfersTxt(node, dayIso) {
+  const ride = (node.legs || []).filter(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
+  const xfers = ride.slice(1).filter(l => !l.interlineWithPreviousLeg);
+  if (!xfers.length || node.numberOfTransfers === 0) return "";
+  const list = xfers.map(l => {
+    const line = l.route?.shortName || "";
+    const target = l.mode === "RAIL" ? (line ? t("deskXferTrain", { line: esc(line) }) : t("deskXferTrainAny"))
+      : l.mode === "FERRY" ? t("deskXferFerry")
+      : line ? t("deskXferLine", { line: esc(line) }) : t("deskXferBusAny");
+    return t(l.mode === "RAIL" ? "deskXferAtStation" : "deskXferAt",
+      { stop: esc(l.from?.name || ""), target, time: deskClockOn(legTime(l.start), dayIso) });
+  }).join("; ");
+  return xfers.length === 1 ? t("deskTransfer1", { list }) : t("deskTransferN", { n: xfers.length, list });
 }
 // "Bussi: linja Y pysäkiltä Z klo HH:MM, perillä HH:MM." (+ vaihdot) — luettavaksi ääneen tellissä.
-function deskBusSentence(node) {
+function deskTrainName(line) { return line ? t("trainsTrain") + " " + line : t("trainsTrain"); }
+function deskBusSentence(node, dayIso) {
   const ft = firstTransitLeg(node);
-  const s = t("deskNextBusLine", { line: esc(ft.route?.shortName || ""), stop: esc(ft.from.name),
-    dep: fmtClock(legTime(ft.start)), arr: fmtClock(node.end) });
-  const tr = deskTransfersTxt(node);
+  const dep = deskClockOn(legTime(ft.start), dayIso), arr = deskClockOn(node.end, dayIso);
+  const s = ft.mode === "RAIL"
+    ? t("deskNextRailLine", { train: esc(deskTrainName(ft.route?.shortName || "")), stop: esc(ft.from.name), dep, arr })
+    : t("deskNextBusLine", { line: esc(ft.route?.shortName || ""), stop: esc(ft.from.name), dep, arr });
+  const tr = deskTransfersTxt(node, dayIso);
   return tr ? s + " " + tr : s;
 }
 // Korostettu "Seuraava bussi" -kortti (näytetään VAIN kun kävely on nopein). busNode null → ei bussia tänään.
@@ -15341,22 +15636,24 @@ function deskTellHtml(nodes, busNode, timed) {
   // perilläoloaika = koko matkan loppu (sisältää mahd. loppukävelyn).
   const lastTransit = transit[transit.length - 1];
   const arrStop = lastTransit.to.name, arr = fmtClock(node.end);
+  // Seuraava = sama linja samalta pysäkiltä MYÖHEMMIN. Samaan aikaan lähtevä vaihtoehto on sama vuoro eri jatkolla,
+  // ja lause kuului "klo 19:50 (seuraava 19:50)".
   let next = "";
+  const t0 = new Date(legTime(first.start)).getTime();
   for (let i = 1; i < nodes.length; i++) {
     const ft = nodes[i].legs.find(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
-    if (ft && (ft.route?.shortName || "") === line && ft.from.name === board) { next = fmtClock(legTime(ft.start)); break; }
+    if (ft && (ft.route?.shortName || "") === line && ft.from.name === board && new Date(legTime(ft.start)).getTime() > t0) {
+      next = fmtClock(legTime(ft.start)); break;
+    }
   }
-  const boardTxt = next
+  // Junalla alkava matka kerrotaan junana asemalta, ei "Linja R pysäkiltä Nastola".
+  const train = first.mode === "RAIL" ? deskTrainName(line) : "";
+  const boardTxt = train
+    ? t(next ? "deskTellBoardRailNext" : "deskTellBoardRail", { train: esc(train), stop: esc(board), time: dep, next })
+    : next
     ? t("deskTellBoardNext", { line: esc(line), stop: esc(board), time: dep, next })
     : t("deskTellBoard", { line: esc(line), stop: esc(board), time: dep });
-  const tr = node.numberOfTransfers;
-  let transferTxt;
-  if (tr === 0) transferTxt = t("deskNoTransfers");
-  else {
-    const tStops = node.legs.filter((l, i) => i > 0 && l.mode !== "WALK" && l.mode !== "BICYCLE").map(l => l.from.name);
-    transferTxt = tr === 1 ? t("deskTransfer1", { stop: esc(tStops[0] || "") })
-                           : t("deskTransferN", { n: tr, stop: esc(tStops.join(", ")) });
-  }
+  const transferTxt = deskTransfersTxt(node) || t("deskNoTransfers");
   return `<div class="desk-tell">${head}
     <p class="desk-tell-body">${boardTxt} ${t("deskTellArrive", { stop: esc(arrStop), time: arr })} ${transferTxt}</p></div>`;
 }
@@ -15375,8 +15672,12 @@ function deskStopsListHtml(node) {
 }
 
 // Yhden yhteyden tiivistelmä (iso): ajat, kesto, linjabadget, vaihdot + pysäkit reitillä.
-function deskOptionHtml(node, i) {
+// dayIso (viimeinen bussi): haun päivää seuraavan yön vuoro saa merkinnän "(yöllä)".
+function deskOptionHtml(node, i, dayIso) {
   const dur = fmtDur((new Date(node.end) - new Date(node.start)) / 1000);
+  const ft = firstTransitLeg(node);
+  const night = dayIso && isoOf(new Date(ft ? legTime(ft.start) : node.start)) > dayIso
+    ? ` <span class="muted">${t("deskAtNight")}</span>` : "";
   const tr = node.numberOfTransfers === 0 ? t("transfers0")
     : node.numberOfTransfers === 1 ? t("transfers1") : t("transfersN", { n: node.numberOfTransfers });
   // Numeroton vuoro (MATKA-feedin ELY-linja "Karjaa - Inkoo") ei saa badgea, joten tyhja
@@ -15386,7 +15687,7 @@ function deskOptionHtml(node, i) {
     || `<span class="badge">${esc(modeLabel(l.mode) || t("modeBus"))}</span>`).join(" ");
   return `<div class="desk-opt">
     <div class="desk-opt-top">
-      <span class="desk-opt-time">${fmtClock(node.start)}–${fmtClock(node.end)}</span>
+      <span class="desk-opt-time">${fmtClock(node.start)}–${fmtClock(node.end)}${night}</span>
       <span class="desk-opt-dur">${dur}</span>
       <span class="muted">${tr}</span>
     </div>
@@ -15464,7 +15765,8 @@ async function deskPrintItinerary(node, nodes, from, to, stEl) {
 
 /* Palvelutiskin oletuspysäkki. Tiskillä ei ehditä kirjoittaa pysäkin nimeä joka asiakkaan
    kohdalla, joten näkymä avautuu valmiiksi yhteen pysäkkiin ja päivittyy itsestään (30 s,
-   ks. pickStop). Järjestys: käyttäjän kiinnittämä > CONFIG.centerStopNames > CONFIG.hubs.
+   ks. pickStop). Järjestys: käyttäjän kiinnittämä > CONFIG.deskHomeStop (asiakaspalvelupisteen
+   oma pysäkki tai koko terminaali, Lahdessa Trion kaikki laiturit) > CONFIG.centerStopNames > CONFIG.hubs.
    Nimihaku eikä kova gtfsId, koska pysäkki-id:t vaihtuvat feedin mukana. */
 function deskPinKey() { return "deskPinnedStop:" + cityKey; }
 function deskPinnedStop() {
@@ -15473,16 +15775,34 @@ function deskPinnedStop() {
 }
 async function deskFindDefaultStop() {
   const pin = deskPinnedStop();
-  const names = [pin?.name, ...(CONFIG.centerStopNames || []), ...((CONFIG.hubs || []).map(h => h.name))]
+  // deskHomeStop: "Nimi" = nimen vilkkain laituri, { name, terminal: true } = saman emoaseman kaikki laiturit.
+  const homeCfg = typeof CONFIG.deskHomeStop === "string" ? { name: CONFIG.deskHomeStop } : (CONFIG.deskHomeStop || {});
+  const home = homeCfg.name || "";
+  const names = [pin?.name, home, ...(CONFIG.centerStopNames || []), ...((CONFIG.hubs || []).map(h => h.name))]
     .filter(Boolean);
   const pref = feedId ? feedId + ":" : "";
   for (const name of names) {
     let data;
     try { data = await gql(DESK_STOP_QUERY, { name }); } catch (e) { continue; }
+    // deskHomeStop: vain sen nimiset laiturit ("Trio" tai "Trio D"), ei nimen sisältäviä muita pysäkkejä.
+    const own = s => { const n = String(s.name || "").toLowerCase(), h = home.toLowerCase(); return n === h || n.startsWith(h + " "); };
     const list = (data.stops || [])
       .filter(s => !pref || String(s.gtfsId).startsWith(pref))
-      .filter(s => (s.routes || []).length);
+      .filter(s => (s.routes || []).length)
+      .filter(s => name !== home || name === pin?.name || own(s));
     if (!list.length) continue;
+    // Terminaali = emoasema, jonka laitureita listassa on (kiinnitetty terminaali id:llä, kotipysäkki nimellä).
+    const terminal = id => {
+      const members = list.filter(s => s.parentStation?.gtfsId && (!id || s.parentStation.gtfsId === id));
+      const ps = members[0]?.parentStation;
+      if (!ps) return null;
+      const mine = members.filter(s => s.parentStation.gtfsId === ps.gtfsId);
+      const seen = new Set(), routes = [];
+      for (const s of mine) for (const r of s.routes || []) if (r.gtfsId && !seen.has(r.gtfsId)) { seen.add(r.gtfsId); routes.push(r); }
+      return { gtfsId: ps.gtfsId, name: ps.name, code: "", lat: ps.lat, lon: ps.lon, terminal: true, platforms: mine.length, routes };
+    };
+    if (pin?.terminal && name === pin.name) { const tm = terminal(pin.gtfsId); if (tm) return tm; }
+    if (homeCfg.terminal && name === home && !(pin?.name === home && !pin.terminal)) { const tm = terminal(); if (tm) return tm; }
     // Kiinnitetty pysäkki tunnistetaan id:llä ja käytetään sellaisenaan.
     if (pin?.gtfsId) {
       const exact = list.find(s => s.gtfsId === pin.gtfsId);
@@ -15892,9 +16212,13 @@ async function viewServiceDesk() {
 
   // Haun aika: "now" = hakuhetki (kentät näyttävät kellon, mutta niitä ei käytetä).
   let whenMode = "now";
+  // whenNote: luonnollisen kielen lauseen huomautus ("kello 7 on jo mennyt, haku huomiselle"). Näkyy hakutuloksen
+  // yllä niin kauan kuin lauseen asettama aika on voimassa; ajan muokkaus tai tilan vaihto poistaa sen.
+  let whenNote = "";
   const fillNow = () => { const v = nowLocalInput(); dateEl.value = v.slice(0, 10); timeEl.value = v.slice(11, 16); };
   const setWhen = mode => {
     whenMode = mode;
+    whenNote = "";
     document.querySelectorAll(".desk-when .dseg").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tm === mode)));
     if (mode === "now" || !dateEl.value || !timeEl.value) fillNow();
     syncLastBusBtn();
@@ -15923,8 +16247,26 @@ async function viewServiceDesk() {
     if (b) b.innerHTML = `${icon("clock")} ${esc(lastBusText("deskLastBusBtn", "deskLastBusDay"))}`;
   };
 
-  // Esteetön reitti: sama valinta reittihakuun ja viimeiseen bussiin.
-  const deskPrefs = () => ({ accessibility: { wheelchair: { enabled: !!document.getElementById("deskWheelchair")?.checked } } });
+  // Esteetön reitti: sama valinta reittihakuun ja viimeiseen bussiin; vaihtoaika kaupungin mukaan (planPrefs).
+  const deskPrefs = () => planPrefs({ accessibility: { wheelchair: { enabled: !!document.getElementById("deskWheelchair")?.checked } } });
+  // Verkkovirhe näkyy virheenä eikä tyhjänä vastauksena (auditointi 4.10.2026, K5): teksti ja Yritä uudelleen -nappi.
+  const showErr = (el, key, retry) => {
+    if (!el) return;
+    el.innerHTML = `<div class="error desk-err" role="alert">${esc(t(key))} ` +
+      `<button type="button" class="secondary desk-retry">${esc(t("deskRetry"))}</button></div>`;
+    el.querySelector(".desk-retry")?.addEventListener("click", retry);
+  };
+  // Jo näkyvä tieto jää näkyviin, kun päivitys epäonnistuu, ja sen alle merkintä epäonnistumisen kellonajasta.
+  const failNoteHtml = () => `<p class="desk-upd-fail" role="status">${icon("warning")} ` +
+    `${esc(t("deskRefreshFail", { time: fmtClock(new Date().toISOString()) }))} ` +
+    `<button type="button" class="linkish desk-retry">${esc(t("deskRetry"))}</button></p>`;
+  // Uusi haku käynnissä: edellinen vastaus himmennetään, ettei se näytä ajantasaiselta (auditointi 4.10.2026, M10).
+  const setBusy = on => {
+    const el = document.getElementById("deskResults");
+    if (!el) return;
+    el.classList.toggle("desk-busy", on);
+    if (on) el.setAttribute("aria-busy", "true"); else el.removeAttribute("aria-busy");
+  };
   // Reittihaku ja viimeinen bussi kirjoittavat samaan tuloslohkoon. Vain viimeksi käynnistetty haku piirtää,
   // ettei hitaampi vanha vastaus korvaa uudempaa tulosta (esim. Nyt-nappi ja heti perään viimeinen bussi).
   let deskResSeq = 0;
@@ -15934,6 +16276,7 @@ async function viewServiceDesk() {
     const stale = () => !live() || my !== deskResSeq;
     if (!dFrom || !dTo) { msg.innerHTML = `<p class="muted">${t("deskNeedBoth")}</p>`; return; }
     msg.innerHTML = `<p class="muted">${t("searchingRoutes")}</p>`;
+    setBusy(true);
     const origin = { location: { coordinate: { latitude: dFrom.lat, longitude: dFrom.lon } } };
     const destination = { location: { coordinate: { latitude: dTo.lat, longitude: dTo.lon } } };
     const dateTime = whenVars();
@@ -15942,34 +16285,44 @@ async function viewServiceDesk() {
     // Junavinkki ("Asemalta seuraavaksi") haun ajasta ja määränpäästä, ei reittihaun (planState) eikä
     // nykyhetken junista. Jos haun ajalle ei ole junadataa, vinkki piilotetaan (fillRailHints).
     const railCtx = { time: dateTime ? dateEl.value + "T" + timeEl.value.slice(0, 5) : "", timeMode: arr ? "arr" : "dep", to: dTo };
+    const res = document.getElementById("deskResults");
     let data;
     try { data = await gql(PLAN_QUERY, { origin, destination, first: 5, dateTime, preferences }); }
-    catch (e) { if (!stale()) msg.innerHTML = `<div class="error">${t("deskSearchErr")}</div>`; return; }
+    catch (e) {
+      // Virhe ei saa jättää edellisen asiakkaan vastausta näkyviin ajantasaisen näköisenä.
+      if (!stale()) { showErr(msg, "deskRouteErr", runSearch); res.innerHTML = ""; setBusy(false); }
+      return;
+    }
     if (stale()) return;
     msg.innerHTML = "";
     const nodes = (data.planConnection?.edges || []).map(e => localizePlanNode(e.node));
-    const res = document.getElementById("deskResults");
-    const usedHtml = dateTime
-      ? `<p class="muted desk-when-used">${t(arr ? "deskSearchedArr" : "deskSearchedDep", { when: esc(whenText()) })}</p>` : "";
+    const usedHtml = (dateTime
+      ? `<p class="muted desk-when-used">${t(arr ? "deskSearchedArr" : "deskSearchedDep", { when: esc(whenText()) })}</p>` : "")
+      + (whenNote ? `<p class="desk-when-note" role="status">${icon("clock")} ${esc(whenNote)}</p>` : "")
+      + outsideNoteHtml(dFrom, dTo, !nodes.length);
     if (!nodes.length) {
+      setBusy(false);
       res.innerHTML = usedHtml + `<p class="muted">${t("noItineraries")}</p>` + railHintHtml([]);
       fillRailHints(railCtx); return;
     }
-    // Saapumisaikahaussa asiakkaalle kerrotaan myöhäisin lähtö, joka ehtii perille;
-    // vaihtoehdot lähtöajan mukaan.
-    if (arr) nodes.sort((a, b) => new Date(a.start) - new Date(b.start));
-    const tellNodes = arr ? [nodes[nodes.length - 1]] : nodes;
+    // Saapumisaikahaussa asiakkaalle kerrotaan myöhäisin lähtö, joka ehtii perille, ja vaihtoehdot ovat samassa
+    // järjestyksessä (planOrder): ensimmäinen vaihtoehto ja sen tulostenappi ovat sama vuoro kuin kerrottu. Ennen
+    // vaihtoehdot olivat lähtöajan mukaan nousevasti, ja ylin tulostenappi tulosti tuntia aiemman vuoron (M9).
+    if (arr) nodes.sort(planOrder(true));
+    const tellNodes = arr ? [nodes[0]] : nodes;
     // Aina seuraava bussi näkyviin: jos ensisijaisessa haussa ei ole bussia (kävely voittaa tai
     // vuoroja ei juuri nyt aja), aja pakotettu bussikysely leveällä ikkunalla.
     const fastestHasBus = !!firstTransitLeg(tellNodes[0]);
-    let busNode = arr ? (nodes.filter(firstTransitLeg).pop() || null) : soonestBusNode(nodes);
+    let busNode = arr ? (nodes.find(firstTransitLeg) || null) : soonestBusNode(nodes);
     if (!busNode) {
       try {
-        const nb = await gql(NEXT_BUS_QUERY, { origin, destination, dateTime });
+        // deskPrefs = vaihtoaika + Esteetön reitti: pyörätuoliasiakkaalle ei saa tarjota ei-esteetöntä vuoroa.
+        const nb = await gql(NEXT_BUS_QUERY, { origin, destination, dateTime, preferences: deskPrefs() });
         busNode = (nb.planConnection?.edges || []).map(e => localizePlanNode(e.node)).find(firstTransitLeg) || null;
       } catch (e) { busNode = null; }
     }
     if (stale()) return;
+    setBusy(false);
     res.innerHTML = usedHtml + deskTellHtml(tellNodes, busNode, !!dateTime)
       + (fastestHasBus ? "" : deskNextBusHtml(busNode))   // erillinen "Seuraava bussi" -kortti vain kun kävely voittaa
       + `<h3 class="desk-h3">${t("deskOptionsTitle")}</h3>`
@@ -15989,8 +16342,11 @@ async function viewServiceDesk() {
     fromInput: fromEl, toInput: toEl,
     setFrom: p => { dFrom = p; fromCtl.set(p); },
     setTo: p => { dTo = p; toCtl.set(p); },
-    setTime: hhmm => { setWhen("dep"); dateEl.value = todayISO(); timeEl.value = hhmm; syncLastBusBtn(); },
+    // Lauseen päivä ja kellonaika (nlWhen): "huomenna klo 7" asettaa päiväkenttään huomisen. note = näkyvä
+    // huomautus, kun mennyt kellonaika siirsi haun huomiseen.
+    setTime: (hhmm, date, note) => { setWhen("dep"); dateEl.value = date || todayISO(); timeEl.value = hhmm; whenNote = note || ""; syncLastBusBtn(); },
     resetTime: () => setWhen("now"),
+    busy: () => setBusy(true),
     focus: el => el.focus(),
     run: () => runSearch(),
   };
@@ -16173,17 +16529,32 @@ async function viewServiceDesk() {
   const syncPrintsStop = () => {
     deskStopObj = curStopObj;
     const psEl = document.getElementById("deskPrintsStop");
-    if (psEl && curStopObj && curStopObj.name) psEl.textContent = curStopObj.name + (curStopObj.code ? " (" + curStopObj.code + ")" : "");
+    const tm = !!(curStopObj && curStopObj.terminal);
+    if (psEl && curStopObj && curStopObj.name) psEl.textContent = curStopObj.name + (tm
+      ? " (" + t("deskTerminalAll", { n: curStopObj.platforms || "" }) + ")" : curStopObj.code ? " (" + curStopObj.code + ")" : "");
+    // Terminaalin juliste olisi kaikkien laitureiden yhteinen: tulostetaan laituri kerrallaan (laiturin kortilta).
     const spBtn = document.getElementById("deskStopPosterBtn");
-    if (spBtn) spBtn.disabled = !(curStopObj && curStopObj.gtfsId);
+    if (spBtn) spBtn.disabled = !(curStopObj && curStopObj.gtfsId) || tm;
+    const spSt = document.getElementById("deskStopPosterStatus");
+    if (spSt) spSt.textContent = tm ? t("deskTerminalPrintHint") : "";
   };
-  const renderDeskDeps = (stop) => {
+  // opts.at = onnistuneen haun hetki (Päivitetty klo), opts.failed = tämä piirto on epäonnistuneen päivityksen
+  // jälkeen: lista on viimeksi onnistuneesta hausta, ja sen alle tulee merkintä epäonnistumisesta.
+  const renderDeskDeps = (stop, opts) => {
     const dep = document.getElementById("deskDeps");
     if (!dep) return;
-    const deps = stopDepGroupHtml(stop, "")
-      || `<h3 class="stophead">${esc(stop.name || "")}</h3><p class="muted">${t("deskDepsNone")}</p>`;
+    // Terminaali: otsikkona aseman nimi ja laitureiden määrä, rivillä laituri (linkki laiturin omaan korttiin).
+    const rows = stop.terminal ? depTableRows(stop.stoptimesWithoutPatterns) : "";
+    const deps = stop.terminal
+      ? `<h3 class="stophead">${esc(stop.name || "")} <span class="muted desk-terminal-n">${esc(t("deskTerminalAll", { n: stop.platforms || "" }))}</span></h3>`
+        + ((stop.plats || []).length ? `<p class="desk-terminal-plats">${t("deskTerminalStops")} ${stop.plats.map(platChipHtml).join(" ")}</p>` : "")
+        + (rows ? `<table class="deps"><tbody>${rows}</tbody></table>` : `<p class="muted">${t("deskDepsNone")}</p>`)
+      : stopDepGroupHtml(stop, "")
+        || `<h3 class="stophead">${esc(stop.name || "")}</h3><p class="muted">${t("deskDepsNone")}</p>`;
     dep.innerHTML = deps
-      + `<p class="muted desk-deps-upd">${CONFIG.departureRealtime === false ? "" : `<span class="rt">●</span> ${t("rtLegend")} · `}${t("deskUpdated", { time: fmtClock(new Date().toISOString()) })}</p>`;
+      + `<p class="muted desk-deps-upd">${CONFIG.departureRealtime === false ? "" : `<span class="rt">●</span> ${t("rtLegend")} · `}${t("deskUpdated", { time: fmtClock((opts && opts.at || new Date()).toISOString()) })}</p>`
+      + (opts && opts.failed ? failNoteHtml() : "");
+    dep.querySelector(".desk-upd-fail .desk-retry")?.addEventListener("click", () => loadDeskDeps(stop.gtfsId || curStop));
     // Päivitä linjat täydemmästä reittilistasta jos saatavilla (ei pakollinen, lines jo näkyvissä)
     const ln = document.getElementById("deskLines");
     if (ln && (stop.routes || []).length) ln.innerHTML = stopLinesHtml(stop.routes);
@@ -16191,21 +16562,39 @@ async function viewServiceDesk() {
     deskStopRouteIds = new Set((stop.routes || []).filter(r => r && r.gtfsId).map(r => r.gtfsId));
     renderDeskLines();
   };
+  // Viimeksi onnistunut lähtölista: verkkohikka (30 s päivitys) ei korvaa sitä tekstillä "Ei tulevia lähtöjä"
+  // (auditointi 4.10.2026, K5). Lista piirretään uudelleen ilman jo lähteneitä, jotta minuutit pysyvät oikein.
+  let depsShown = null;
   const loadDeskDeps = async (gtfsId) => {
     try {
-      const d = await gql(DESK_DEPS_QUERY, { id: gtfsId });
-      if (!live() || !d.stop || curStop !== gtfsId) return;   // pysäkki vaihtui haun aikana → hylkää tulos
-      cleanStopDepartures(d.stop, gtfsId);
+      const terminal = !!(curStopObj && curStopObj.terminal && curStopObj.gtfsId === gtfsId);
+      const d = await gql(terminal ? DESK_STATION_DEPS_QUERY : DESK_DEPS_QUERY, { id: gtfsId });
+      if (!live() || curStop !== gtfsId) return;   // pysäkki vaihtui haun aikana → hylkää tulos
+      if (!(terminal ? d.station : d.stop)) throw new Error(t("errStopNotFound") + gtfsId);
+      const stop = terminal ? terminalStopOf(d.station) : d.stop;
+      if (!terminal) cleanStopDepartures(stop, gtfsId);
+      depsShown = { gtfsId, stop, at: new Date() };
       // Linkistä (#/pysakki/<id>) avatulla pysäkillä nimi ja sijainti tulevat vasta tästä.
       const hadPos = !!(curStopObj && curStopObj.lat != null);
-      curStopObj = { ...curStopObj, gtfsId, name: d.stop.name, code: d.stop.code, lat: d.stop.lat, lon: d.stop.lon,
-        routes: (curStopObj && (curStopObj.routes || []).length) ? curStopObj.routes : d.stop.routes };
+      curStopObj = { ...curStopObj, gtfsId, name: stop.name, code: stop.code, lat: stop.lat, lon: stop.lon,
+        routes: (curStopObj && (curStopObj.routes || []).length) ? curStopObj.routes : stop.routes,
+        ...(terminal ? { platforms: stop.platforms } : {}) };
       syncPrintsStop();
-      renderDeskDeps(d.stop);
+      renderDeskDeps(stop);
       if (!hadPos && card === "stop") deskMap.stop(curStopObj);
     } catch (e) {
       const dep = document.getElementById("deskDeps");
-      if (dep && curStop === gtfsId && live()) dep.innerHTML = `<p class="muted">${t("deskDepsNone")}</p>`;
+      if (!dep || curStop !== gtfsId || !live()) return;
+      const shown = depsShown && depsShown.gtfsId === gtfsId ? depsShown : null;
+      const ahead = st => (st.serviceDay + (st.realtime ? st.realtimeDeparture : st.scheduledDeparture)) * 1000 >= Date.now() - 60000;
+      const kept = shown ? { ...shown.stop, stoptimesWithoutPatterns: (shown.stop.stoptimesWithoutPatterns || []).filter(ahead) } : null;
+      if (kept && kept.stoptimesWithoutPatterns.length) { renderDeskDeps(kept, { at: shown.at, failed: true }); return; }
+      const name = curStopObj && curStopObj.name;
+      dep.innerHTML = (name ? `<h3 class="stophead">${esc(name)}</h3>` : "") + `<div class="desk-deps-err"></div>`;
+      showErr(dep.querySelector(".desk-deps-err"), "deskDepsErr", () => {
+        dep.innerHTML = `<p class="muted">${t("loadingStopDeps")}</p>`;
+        loadDeskDeps(gtfsId);
+      });
     }
   };
   const startDepTimer = () => {
@@ -16229,8 +16618,9 @@ async function viewServiceDesk() {
       `<div id="deskDeps"><p class="muted">${t("loadingStopDeps")}</p></div>` +
       `<p class="desk-pin-row"><button type="button" id="deskPinBtn" class="linkish">${
         isPinned ? t("deskPinned") : t("deskPinBtn")}</button>
-        <button type="button" id="deskPrintBtn" class="secondary">${icon("print")} ${t("deskPrintBtn")}</button>
-        ${printLargeOptHtml()}
+        ${s.terminal ? `<span class="muted">${t("deskTerminalPrintHint")}</span>`
+          : `<button type="button" id="deskPrintBtn" class="secondary">${icon("print")} ${t("deskPrintBtn")}</button>
+        ${printLargeOptHtml()}`}
         <span id="deskPrintStatus" class="muted" role="status"></span></p>`;
     // Sama pysäkkijuliste kuin Tulosteet-välilehdellä (deskPrintStopPoster): pysäkin
     // kohdalla oleva nappi on nopein reitti, kun pysäkki on juuri valittu.
@@ -16239,7 +16629,8 @@ async function viewServiceDesk() {
     // Kiinnitys = tämä pysäkki avautuu jatkossa valmiiksi kun palvelutiski avataan.
     document.getElementById("deskPinBtn")?.addEventListener("click", (e) => {
       if (!curStopObj || !curStopObj.name) return;
-      try { localStorage.setItem(deskPinKey(), JSON.stringify({ gtfsId: curStopObj.gtfsId, name: curStopObj.name })); }
+      try { localStorage.setItem(deskPinKey(), JSON.stringify({ gtfsId: curStopObj.gtfsId, name: curStopObj.name,
+        ...(curStopObj.terminal ? { terminal: true } : {}) })); }
       catch (err) { /* kiintiö täynnä: kiinnitys ei säily, näkymä toimii silti */ }
       e.target.textContent = t("deskPinned");
     });
@@ -16306,7 +16697,13 @@ async function viewServiceDesk() {
            <p class="muted desk-deps-upd">${t("deskUpdated", { time: fmtClock(new Date().toISOString()) })}</p>`
         : `<p class="muted">${t("deskLineDepsNone")}</p>`;
     } catch (e) {
-      if (curLine === cl && box() && live()) box().innerHTML = `<p class="muted">${t("deskSearchErr")}</p>`;
+      if (curLine !== cl || cl.dirIdx !== i || !box() || !live()) return;
+      // Jo näkyvä lähtölista jää näkyviin merkinnällä; ensimmäinen epäonnistunut haku näkyy virheenä.
+      if (box().querySelector("table.deps")) {
+        box().querySelector(".desk-upd-fail")?.remove();
+        box().insertAdjacentHTML("beforeend", failNoteHtml());
+        box().querySelector(".desk-upd-fail .desk-retry")?.addEventListener("click", () => loadLineDeps());
+      } else showErr(box(), "deskDepsErr", () => loadLineDeps());
     }
   };
   const renderLine = () => {
@@ -16488,7 +16885,7 @@ async function viewServiceDesk() {
       inner = `${icon(PLACE_ICONS[it.place.layer] || "pin")}<span>${esc(it.place.name)}${placeHint(it.place)}</span>`;
     } else {
       const nl = it.nl;
-      const txt = `${nl.from || "…"} → ${nl.to || "…"}${nl.time ? ", " + nl.time : ""}`;
+      const txt = `${nl.from || "…"} → ${nl.to || "…"}${nl.dayText ? ", " + nl.dayText : ""}${nl.time ? ", " + nl.time : ""}`;
       inner = `${icon("route")}<span>${t("deskOptRoute", { q: esc(txt) })}</span>`;
     }
     return `<li role="presentation"><button type="button" role="option" id="${id}" class="item" tabindex="-1" aria-selected="false" ${attr}="1">${inner}</button></li>`;
@@ -16529,7 +16926,7 @@ async function viewServiceDesk() {
   const searchDeskPlaces = async q => {
     const alias = (CONFIG.searchAliases || {})[q.trim().toLowerCase()];
     const hits = (await geocode(alias || q)).filter(p => p.layer !== "stop");
-    return (CONFIG.areaScoped ? hits : rankPlaceHits(q, [], hits)).slice(0, 5);
+    return (CONFIG.areaScoped ? hits : await withOutsideLocality(alias || q, rankPlaceHits(q, [], hits))).slice(0, 5);
   };
   const deskSearch = async q => {
     const my = ++US.seq;
@@ -16628,32 +17025,45 @@ async function viewServiceDesk() {
 
   // "Viimeinen bussi X→Y": käyttää A→B-kenttien valintoja (dFrom/dTo), haun päivää (searchDay: "nyt" =
   // tänään, muuten päiväkenttä) ja Esteetön reitti -valintaa. Otsikko kertoo päivän, jos se ei ole tänään.
-  document.getElementById("deskLastBusBtn")?.addEventListener("click", async () => {
+  // Liikennöintivuorokausi jatkuu yli puolenyön (auditointi 4.10.2026, K2): Lahden linja 98 lähtee Kauppatorilta
+  // vielä 24:35 ja 25:35, mutta haku päättyi haun päivän klo 23.59, joten tiski sanoi viimeiseksi 23.35. Nyt haetaan
+  // seuraavan aamun klo 4.30 asti ja hyväksytään vain haun päivän liikennöintipäivän vuorot (serviceDate), jottei
+  // seuraavan aamun ensimmäinen vuoro näy viimeisenä. Yövuoron kellonaika saa perään "(yöllä)".
+  const runLastBus = async () => {
     const msg = document.getElementById("deskMsg");
     const res = document.getElementById("deskResults");
     const my = ++deskResSeq;
     const stale = () => !live() || my !== deskResSeq;
     if (!dFrom || !dTo) { msg.innerHTML = `<p class="muted">${t("deskNeedBoth")}</p>`; return; }
     msg.innerHTML = `<p class="muted">${t("searchingRoutes")}</p>`;
+    setBusy(true);
     const origin = { location: { coordinate: { latitude: dFrom.lat, longitude: dFrom.lon } } };
     const destination = { location: { coordinate: { latitude: dTo.lat, longitude: dTo.lon } } };
-    const [y, mo, d] = searchDay().split("-").map(Number);
-    const eod = new Date(y, mo - 1, d, 23, 59, 0, 0);  // haun päivän loppu; toISOString → DST-turvallinen
+    const day = searchDay();
+    const [y, mo, d] = day.split("-").map(Number);
+    const until = new Date(y, mo - 1, d + 1, 4, 30, 0, 0);  // seuraava aamu; toISOString → DST-turvallinen
     const title = esc(lastBusText("deskLastBusTitle", "deskLastBusDay"));
     const none = esc(lastBusText("deskLastBusNone", "deskLastBusNoneDay"));
     let data;
-    try { data = await gql(DESK_LASTBUS_QUERY, { origin, destination, dateTime: { latestArrival: eod.toISOString() }, preferences: deskPrefs() }); }
-    catch (e) { if (!stale()) msg.innerHTML = `<div class="error">${t("deskSearchErr")}</div>`; return; }
+    try { data = await gql(DESK_LASTBUS_QUERY, { origin, destination, dateTime: { latestArrival: until.toISOString() }, preferences: deskPrefs() }); }
+    catch (e) {
+      if (!stale()) { showErr(msg, "deskRouteErr", runLastBus); res.innerHTML = ""; setBusy(false); }
+      return;
+    }
     if (stale()) return;
     msg.innerHTML = "";
-    const nodes = (data.planConnection?.edges || []).map(e => localizePlanNode(e.node)).filter(firstTransitLeg);
+    setBusy(false);
+    const want = day.replace(/-/g, "");
+    const sameServiceDay = n => { const sd = String(firstTransitLeg(n).serviceDate || "").replace(/-/g, ""); return !sd || sd === want; };
+    const nodes = (data.planConnection?.edges || []).map(e => localizePlanNode(e.node)).filter(firstTransitLeg).filter(sameServiceDay);
     if (!nodes.length) { res.innerHTML = `<p class="muted">${none}</p>`; return; }
     // viimeisin = myöhäisin ensimmäisen bussilegin lähtöaika
     const last = nodes.reduce((a, b) =>
       new Date(legTime(firstTransitLeg(a).start)) >= new Date(legTime(firstTransitLeg(b).start)) ? a : b);
     res.innerHTML = `<div class="desk-tell"><div class="desk-tell-h">${title}</div>
-        <p class="desk-tell-body">${deskBusSentence(last)}</p></div>` + deskOptionHtml(last);
-  });
+        <p class="desk-tell-body">${deskBusSentence(last, day)}</p></div>` + deskOptionHtml(last, null, day);
+  };
+  document.getElementById("deskLastBusBtn")?.addEventListener("click", runLastBus);
 
   // Aktiiviset häiriöt: VAIN HÄIRIÖ-luokka (ei informatiivisia tiedotteita). Samat lähteet
   // kuin etusivun banneri (GTFS-RT + CMS + ylläpito); tyhjä tila "Ei aktiivisia häiriöitä".
@@ -16667,11 +17077,20 @@ async function viewServiceDesk() {
       html = disruptions.length ? disruptions.map(a => alertHtml(a, false)).join("")
         : `<p class="muted">${t("deskNoAlerts")}</p>`;
     } catch (e) {
-      if (alertsShown != null) return;   // verkkohikka ei pyyhi jo näkyviä häiriöitä
-      html = `<p class="muted">${t("deskNoAlerts")}</p>`;
+      // Ennen ensimmäinen virhe näytti "Ei aktiivisia häiriöitä" (auditointi 4.10.2026, K5). Nyt virhe näkyy
+      // virheenä, ja verkkohikka ei pyyhi jo näkyviä häiriöitä vaan lisää niiden alle merkinnän.
+      const box = document.getElementById("deskAlerts");
+      if (!box || !live()) return;
+      if (alertsShown != null) {
+        box.querySelector(".desk-upd-fail")?.remove();
+        box.insertAdjacentHTML("beforeend", failNoteHtml());
+        box.querySelector(".desk-upd-fail .desk-retry")?.addEventListener("click", () => drawAlerts(true));
+      } else showErr(box, "deskAlertsErr", () => { box.innerHTML = `<p class="muted">${t("loadingAlerts")}</p>`; drawAlerts(true); });
+      return;
     }
     const el = document.getElementById("deskAlerts");
-    if (!el || !live() || html === alertsShown) return;
+    if (!el || !live()) return;
+    if (html === alertsShown) { el.querySelector(".desk-upd-fail")?.remove(); return; }
     const open = new Set([...el.querySelectorAll("details.alert[open] > summary")].map(s => s.textContent));
     el.innerHTML = html;
     alertsShown = html;
@@ -16684,7 +17103,7 @@ async function viewServiceDesk() {
 /* ---------- A→B-reitinhaku (planConnection) ---------- */
 
 // Säilyy istunnon ajan, jotta paluu näkymään ei tyhjennä kenttiä
-const planState = { from: null, to: null, timeMode: "dep", time: "", wheelchair: false, lessWalk: false };
+const planState = { from: null, to: null, timeMode: "dep", time: "", wheelchair: false, lessWalk: false, nlNote: "" };
 
 function fmtClock(iso) {
   const d = new Date(iso);
@@ -16756,6 +17175,23 @@ function localizePlanNode(node) {
   return node;
 }
 
+// Reitittimen preferenssit kaikkiin joukkoliikennehakuihin (tiski ja kuntalainen): vaihtoaika samaksi kuin kaupungin
+// virallisessa reittioppaassa (auditointi 4.10.2026, R5). Waltti-oppaat lähettävät 90 s (mitattu Lahti, Joensuu,
+// Hämeenlinna ja Kuopio), Fölin opas 300 s (CONFIG.transferSlack). Ilman tätä Turussa ehdotettiin 2 minuutin vaihtoja.
+function planPrefs(base) {
+  const sec = Number.isFinite(CONFIG.transferSlack) ? CONFIG.transferSlack : 90;
+  const b = base || {};
+  return { ...b, transit: { ...(b.transit || {}), transfer: { ...((b.transit || {}).transfer || {}), slack: `PT${sec}S` } } };
+}
+
+// Reittiehdotusten oletusjärjestys: lähtöaikahaussa aikaisin lähtö ensin, tasapelissä aiemmin perillä ja sitten
+// vähemmän kävelyä; saapumisaikahaussa (arr) myöhäisin perille ehtivä lähtö ensin.
+function planOrder(arr) {
+  const ms = x => new Date(x).getTime();
+  return (a, b) => (arr ? ms(b.start) - ms(a.start) : ms(a.start) - ms(b.start))
+    || (ms(a.end) - ms(b.end)) || ((a.walkDistance || 0) - (b.walkDistance || 0));
+}
+
 const PLAN_QUERY = `
   query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!,
          $first: Int, $after: String, $last: Int, $before: String,
@@ -16768,7 +17204,7 @@ const PLAN_QUERY = `
       edges { node {
         start end numberOfTransfers walkDistance
         legs {
-          mode duration distance realtimeState
+          mode duration distance realtimeState interlineWithPreviousLeg
           start { scheduledTime estimated { time } }
           end { scheduledTime estimated { time } }
           from { name lat lon stop { code platformCode name@L } }
@@ -16790,16 +17226,17 @@ const PLAN_QUERY = `
 // $dateTime = tiskin valitsema lähtö- tai saapumisaika (null = nyt), jotta varahaku katsoo
 // samaa hetkeä kuin päähaku.
 const NEXT_BUS_QUERY = `
-  query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!, $dateTime: PlanDateTimeInput) {
+  query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!, $dateTime: PlanDateTimeInput,
+         $preferences: PlanPreferencesInput) {
     planConnection(origin: $origin, destination: $destination, first: 3, dateTime: $dateTime,
-                   searchWindow: "PT16H",
+                   searchWindow: "PT16H", preferences: $preferences,
                    # Tiskin "seuraava vuoro" sallii myös junan ja lossin: Inkoossa juna on
                    # usein ainoa yhteys, eikä pelkkä bussikysely löydä sitä.
                    modes: { transitOnly: true, transit: { transit: [{ mode: BUS }, { mode: RAIL }, { mode: FERRY }] } }) {
       edges { node {
         start end numberOfTransfers
         legs {
-          mode duration
+          mode duration interlineWithPreviousLeg
           start { scheduledTime estimated { time } }
           end { scheduledTime estimated { time } }
           from { name stop { platformCode name@L } }
@@ -17297,7 +17734,9 @@ async function viewPlan(parts) {
   };
   const sortNodes = arr => {
     const c = arr.slice();
-    if (planSort === "depart") c.sort((a, b) => (new Date(a.start) - new Date(b.start)) || ((new Date(a.end) - new Date(a.start)) - (new Date(b.end) - new Date(b.start))));
+    // Oletusjärjestys planOrder: saapumisaikahaussa myöhäisin perille ehtivä lähtö ensin (ennen paras oli
+    // listan viimeisenä, auditointi 4.10.2026), lähtöaikahaussa tasapelissä aiemmin perillä ja vähemmän kävelyä.
+    if (planSort === "depart") c.sort(planOrder(planState.timeMode === "arr"));
     else if (planSort === "fast") c.sort((a, b) => (new Date(a.end) - new Date(a.start)) - (new Date(b.end) - new Date(b.start)));
     else if (planSort === "arrive") c.sort((a, b) => new Date(a.end) - new Date(b.end));
     else if (planSort === "walk") c.sort((a, b) => (a.walkDistance || 0) - (b.walkDistance || 0));
@@ -17320,8 +17759,9 @@ async function viewPlan(parts) {
              <button type="button" data-sort="walk" aria-pressed="${planSort === "walk"}">${t("sortWalk")}</button>
            </div>
          </div>` : "";
+    const outside = outsideNoteHtml(planState.from, planState.to, !nodes.length);
     results.innerHTML = nodes.length || directRow
-      ? `${topbar}
+      ? `${topbar}${outside}
          <div class="card">
            <h2 class="no-print" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${t("itinerariesTitle")}
              <button id="shareBtn" class="linkish no-print">${icon("link")} ${t("share")}</button></h2>
@@ -17331,7 +17771,7 @@ async function viewPlan(parts) {
            ${lastHasNext ? `<button id="moreBtn" class="no-print">${t("showLater")}</button>` : ""}
            ${railHintHtml(view)}
          </div>`
-      : `<div class="card"><p class="muted">${t("noItineraries")}</p>${railHintHtml([])}</div>`;
+      : `<div class="card"><p class="muted">${t("noItineraries")}</p>${outside}${railHintHtml([])}</div>`;
     fillRailHints();
     results.querySelectorAll("details.itin[data-itin]").forEach(d =>
       d.addEventListener("toggle", () => {
@@ -17395,11 +17835,16 @@ async function viewPlan(parts) {
       fetchDirects().catch(() => {});
     }
     msg.innerHTML = "";
+    // Luonnollisen kielen lause siirsi haun huomiseen (kellonaika oli jo mennyt): kerrotaan se kerran näkyvästi.
+    if (!append && planState.nlNote) {
+      msg.innerHTML = `<p class="plan-when-note" role="status">${icon("clock")} ${esc(planState.nlNote)}</p>`;
+      planState.nlNote = "";
+    }
     planState.timeMode = document.getElementById("timeMode").value;
     planState.time = document.getElementById("timeInput").value;
     planState.wheelchair = document.getElementById("wheelchairBox").checked;
     planState.lessWalk = document.getElementById("lessWalkBox").checked;
-    const preferences = { accessibility: { wheelchair: { enabled: planState.wheelchair } } };
+    const preferences = planPrefs({ accessibility: { wheelchair: { enabled: planState.wheelchair } } });
     if (planState.lessWalk) preferences.street = { walk: { reluctance: 3.5 } };
     const dateTime = planState.time
       ? (planState.timeMode === "arr"

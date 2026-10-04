@@ -311,6 +311,15 @@ async function minuuttiLinjaus(page, rootSel, media) {
   await expect('#searchResults a[href^="#/linja/"]', "yhdistetty haku: linjanumero löytää linjan", 15000);
 
   // --- Reittihaku: kirjoita, valitse ehdotus, hae ---
+  // Erä A (4.10.2026), A8: reittihaun kysely kertoo reitittimelle kaupungin vaihtoajan (planPrefs). Kuuntelija
+  // kerää reittikyselyjen (searchWindow PT2H) muuttujat tästä hausta; tarkistus jaetun linkin jälkeen.
+  const slackOf = vars => vars.map(v => v?.preferences?.transit?.transfer?.slack || null);
+  const planVars = [];
+  const planVarListener = req => {
+    const pd = req.method() === "POST" ? (req.postData() || "") : "";
+    if (pd.includes('searchWindow: \\"PT2H\\"')) { try { planVars.push(JSON.parse(pd).variables); } catch (e) { /* ei JSONia */ } }
+  };
+  page.on("request", planVarListener);
   await page.goto(BASE + "/#/reitti", { waitUntil: "networkidle2" });
   await page.type("#fromInput", "Matkakeskus", { delay: 25 });
   if (await expect("#fromList button[data-i]", "reittihaku: pysäkkiehdotus", 15000)) {
@@ -353,6 +362,54 @@ async function minuuttiLinjaus(page, rootSel, media) {
     encodeURIComponent("60.99653,25.66417,Mukkulankatu 2");
   await page.goto(shared, { waitUntil: "networkidle2" });
   await expect("details.itin[data-itin]", "jaettu reittilinkki: haku käynnistyy URL:sta");
+  // A8: Lahden virallinen opas lähettää vaihtoajaksi 90 s ja Fölin 300 s (mitattu 4.10.2026). Ilman vaihtoaikaa
+  // Reittari ehdotti Turussa 2 minuutin vaihtoja, joita Fölin opas ei hyväksy.
+  const slackLahti = slackOf(planVars);
+  planVars.length = 0;
+  await page.goto(BASE + "/?city=turku#/reitti/" + encodeURIComponent("60.45597,22.25911,Turun rautatieasema") + "/" +
+    encodeURIComponent("60.45290,22.29451,TYKS"), { waitUntil: "networkidle2" });
+  await page.waitForFunction(() => document.querySelector("details.itin[data-itin]") || document.querySelector("#planResults .card"),
+    { timeout: 25000 }).catch(() => {});
+  const slackTurku = slackOf(planVars);
+  page.off("request", planVarListener);
+  (slackLahti.length > 0 && slackLahti.every(x => x === "PT90S") && slackTurku.length > 0 && slackTurku.every(x => x === "PT300S"))
+    ? ok(`reittihaku: vaihtoaika reitittimelle kaupungin oppaan mukaan (Lahti ${slackLahti[0]}, Turku ${slackTurku[0]})`)
+    : fail("reittihaku: vaihtoaika puuttuu tai väärä: " + JSON.stringify({ slackLahti, slackTurku }));
+  // A6: reittiehdotusten oletusjärjestys. Saapumisaikahaussa myöhäisin perille ehtivä lähtö ensin (ennen paras oli
+  // viimeisenä), lähtöaikahaussa tasapelissä aiemmin perillä ja sitten vähemmän kävelyä. Synteettinen vastaus
+  // (gql kääritään hetkeksi, palautetaan aina), jotta järjestys ei riipu päivän aikataulusta.
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  const sortChk = await page.evaluate(async () => {
+    const orig = gql, wait = ms => new Promise(r => setTimeout(r, ms));
+    const n = new Date(), day = isoOf(new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1));
+    const at = hm => isoWithOffset(day + "T" + hm);
+    const node = (dep, arr, line, walk) => ({ start: at(dep), end: at(arr), numberOfTransfers: 0, walkDistance: walk, legs: [
+      { mode: "BUS", duration: 600, distance: 3000, realtimeState: "SCHEDULED", start: { scheduledTime: at(dep) }, end: { scheduledTime: at(arr) },
+        from: { name: "Hennala", lat: 60.970, lon: 25.624, stop: { code: "1", platformCode: "" } }, to: { name: "LAB Niemi", lat: 61.006, lon: 25.656, stop: { code: "2" } },
+        route: { gtfsId: "SMOKEA:" + line, shortName: line }, trip: { tripHeadsign: "LAB Niemi" }, intermediateStops: [], intermediatePlaces: [],
+        legGeometry: { points: "" }, alerts: [] }] });
+    const arrNodes = [node("06:48", "07:20", "3", 792), node("07:03", "07:26", "32", 500), node("07:34", "08:01", "32", 506), node("07:19", "07:53", "3", 600)];
+    const depNodes = [node("08:00", "08:30", "A", 900), node("08:00", "08:30", "B", 200), node("08:00", "08:25", "C", 500), node("07:55", "08:40", "D", 300)];
+    gql = async (q, v, o) => q === PLAN_QUERY
+      ? { planConnection: { pageInfo: { hasNextPage: false, hasPreviousPage: false }, edges: (v.dateTime && v.dateTime.latestArrival ? arrNodes : depNodes).map(node => ({ node })) } }
+      : orig(q, v, o);
+    const enc = x => encodeURIComponent(x);
+    const show = async (m, first) => {
+      location.hash = "#/reitti/" + enc("60.97005,25.62364,Hennala") + "/" + enc("61.00611,25.65579,LAB Niemi") + "/" + enc("t=" + day + "T08:15" + m);
+      for (let i = 0; i < 100 && !(document.querySelector("details.itin[data-itin] .times")?.textContent || "").startsWith(first); i++) await wait(100);
+      return [...document.querySelectorAll("details.itin[data-itin]")].map(d => d.querySelector(".times").textContent.trim() + " " +
+        [...d.querySelectorAll(".legbar .seg:not(.walk)")].map(x => x.textContent.trim()).join("+"));
+    };
+    try {
+      const arr = await show("&m=arr", "07:34");
+      const dep = await show("", "07:55");
+      return { arr, dep };
+    } finally { gql = orig; planState.time = ""; planState.timeMode = "dep"; }
+  });
+  (sortChk.arr.map(x => x.slice(0, 5)).join(" ") === "07:34 07:19 07:03 06:48"
+    && sortChk.dep.join(" | ") === "07:55–08:40 D | 08:00–08:25 C | 08:00–08:30 B | 08:00–08:30 A")
+    ? ok("reittihaku: saapumisaikahaussa myöhäisin perille ehtivä ensin, lähtöaikahaun tasapelissä aiemmin perillä ja vähemmän kävelyä")
+    : fail("reittihaku: oletusjärjestys: " + JSON.stringify(sortChk));
 
   // --- Etusivun hero-reittihaku: Mistä/Minne → "Hae yhteydet" → reittinäkymä ---
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
@@ -383,6 +440,11 @@ async function minuuttiLinjaus(page, rootSel, media) {
     ["I need to get from Matkakeskus to Kauppatori please", "Matkakeskus", "Kauppatori", null],
     ["hur kommer jag till Kauppatori från Matkakeskus", "Matkakeskus", "Kauppatori", null],
     ["jag ska åka från Matkakeskus till Kauppatori tack", "Matkakeskus", "Kauppatori", null],
+    // Erä A, A3: päivä lauseessa. Sana ei saa jäädä paikan nimeen ("huomenna Matkakeskus").
+    ["huomenna klo 7 Matkakeskukselta Kauppatorille", "Matkakeskus", "Kauppatori", "07:00"],
+    ["Matkakeskukselta Kauppatorille ensi maanantaina aamulla klo 8.15", "Matkakeskus", "Kauppatori", "08:15"],
+    ["från Matkakeskus till Kauppatori i morgon kl 8", "Matkakeskus", "Kauppatori", "08:00"],
+    ["from Matkakeskus to Kauppatori on Friday at 9", "Matkakeskus", "Kauppatori", "09:00"],
   ];
   let nlPass = 0;
   for (const [snt, ef, et, etime] of nlCases) {
@@ -392,6 +454,23 @@ async function minuuttiLinjaus(page, rootSel, media) {
   }
   nlPass === nlCases.length ? ok(`NL-jäsennys: ${nlPass}/${nlCases.length} lausetta oikein (FI/EN/SV + aika)`)
                             : fail(`NL-jäsennys: vain ${nlPass}/${nlCases.length} oikein`);
+  // A3: päivä ja kellonaika hakuhetkeksi kiinteällä "nyt"-hetkellä (su 4.10.2026 klo 17.26), jotta tulos ei riipu
+  // ajohetkestä. Mennyt kellonaika ilman päivää siirtyy huomiseen ja merkitään (bumped).
+  const nlw = await page.evaluate(() => {
+    if (typeof nlWhen !== "function") return { puuttuu: true };
+    const now = new Date(2026, 9, 4, 17, 26);
+    const w = s => nlWhen(parseNlTrip(s), now);
+    return { huom: w("huomenna klo 7 Matkakeskukselta Kauppatorille"), yli: w("ylihuomenna klo 9 Matkakeskukselta Kauppatorille"),
+      ma: w("maanantaina klo 8 Matkakeskukselta Kauppatorille"), su: w("sunnuntaina klo 9 Matkakeskukselta Kauppatorille"),
+      mennyt: w("klo 7 Matkakeskukselta Kauppatorille"), tuleva: w("klo 18 Matkakeskukselta Kauppatorille"),
+      sv: w("från Matkakeskus till Kauppatori i morgon kl 8"), nyt: w("Matkakeskukselta Kauppatorille") };
+  });
+  const nlwOk = !nlw.puuttuu && nlw.huom?.date === "2026-10-05" && nlw.huom.time === "07:00" && !nlw.huom.bumped
+    && nlw.yli?.date === "2026-10-06" && nlw.ma?.date === "2026-10-05" && nlw.su?.date === "2026-10-11"
+    && nlw.mennyt?.date === "2026-10-05" && nlw.mennyt.bumped === true && nlw.tuleva?.date === "2026-10-04" && !nlw.tuleva.bumped
+    && nlw.sv?.date === "2026-10-05" && nlw.nyt === null;
+  nlwOk ? ok("NL: päivä lauseesta (huomenna, ylihuomenna, viikonpäivä, i morgon; mennyt kellonaika huomiseen merkinnällä)")
+        : fail("NL: päivän tulkinta: " + JSON.stringify(nlw));
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   // Yhtenäinen haku: ei erillistä NL-lohkoa eikä "— tai —"; mic on Mistä-kentän sisällä
   const unified = await page.evaluate(() => !document.getElementById("homeNlInput") && !document.querySelector(".nl-sep")
@@ -407,6 +486,22 @@ async function minuuttiLinjaus(page, rootSel, media) {
   await page.type("#homeFromInput", "from Matkakeskus to Mukkulankatu 2", { delay: 20 });
   await page.keyboard.press("Enter");
   await expect("details.itin[data-itin]", "etusivu: koko lause Mistä-kentässä ajaa reittihaun", 20000);
+  // A3 kuntalaisen haussa: "huomenna klo 7" hakee huomiselle (osoitteen t-parametri). Tila palautetaan: hakuaika nyt.
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  await page.waitForSelector("#homeFromInput", { timeout: 10000 }).catch(() => {});
+  // Mistä-kentässä on edellisen haun lähtö (planState): tyhjennetään, ettei lause liity sen perään.
+  await page.evaluate(() => { document.getElementById("homeFromInput").value = ""; });
+  await page.type("#homeFromInput", "huomenna klo 7 Matkakeskukselta Mukkulaan", { delay: 10 });
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => /^#\/reitti\//.test(location.hash), { timeout: 20000 }).catch(() => {});
+  const nlHome = await page.evaluate(() => {
+    const n = new Date(), tomorrow = isoOf(new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1));
+    const h = decodeURIComponent(decodeURIComponent(location.hash));
+    planState.time = ""; planState.timeMode = "dep"; planState.nlNote = "";
+    return { ok: h.includes("t=" + tomorrow + "T07:00") && !/huomenna/i.test(h), h: h.slice(0, 140) };
+  });
+  nlHome.ok ? ok("etusivu: lauseen 'huomenna klo 7' haku tehdään huomiselle")
+            : fail("etusivu: 'huomenna klo 7' ei hakenut huomiselle: " + nlHome.h);
 
   const deskAccent = () => page.evaluate(() => {
     const el = document.querySelector(".desk");
@@ -423,6 +518,26 @@ async function minuuttiLinjaus(page, rootSel, media) {
     !!document.getElementById("deskFrom") && !!document.getElementById("deskTo") && !!document.getElementById("deskStop"));
   deskOk ? ok("palvelutiski: koko ruudun näkymä + kentät latautuvat")
          : fail("palvelutiski: näkymä/kentät puuttuvat");
+  // Erä A (4.10.2026), A10: Lahden tiski avautuu asiakaspalvelupisteen terminaaliin, Trion kaikkiin laitureihin
+  // (CONFIG.deskHomeStop { terminal: true }), ei Matkakeskus D:lle. Lähdöt ovat yhdessä listassa, ja jokaisella rivillä
+  // on laiturin tunnus. Tunnuksia ei kovakoodata; lähtöjen määrä riippuu kellonajasta, joten rivejä ei vaadita.
+  await page.waitForFunction(() => document.querySelector("#deskDeps .desk-deps-upd, #deskDeps .error"), { timeout: 30000 }).catch(() => {});
+  const home = await page.evaluate(() => ({
+    otsikko: (document.querySelector("#deskDeps .stophead")?.textContent || "").replace(/\s+/g, " ").trim(),
+    laiturit: [...document.querySelectorAll("#deskDeps .desk-terminal-plats a.dep-plat")].map(a => a.textContent.trim()),
+    rivit: document.querySelectorAll("#deskDeps table.deps tbody tr").length,
+    rivitLaiturilla: document.querySelectorAll("#deskDeps table.deps tbody tr a.dep-plat").length,
+    tulostusvihje: !document.getElementById("deskPrintBtn") && /tunnuksen/.test(document.querySelector("#deskStopResults .desk-pin-row")?.textContent || ""),
+  }));
+  (/^Trio kaikki pysäkit \(\d+\)$/.test(home.otsikko) && home.laiturit.length >= 2 && home.rivit === home.rivitLaiturilla && home.tulostusvihje)
+    ? ok(`palvelutiski (Lahti): oletuksena Trion terminaali (${home.laiturit.join(" ")}, ${home.rivit} lähtöä laitureineen)`)
+    : fail("palvelutiski (Lahti): oletuksena ei Trion terminaalia: " + JSON.stringify(home));
+  // Laiturin tunnus avaa laiturin oman kortin, jossa on tulostusnappi (tulostus laituri kerrallaan).
+  await page.evaluate(() => document.querySelector("#deskDeps .desk-terminal-plats a.dep-plat")?.click());
+  const platCard = await page.waitForFunction(() => /^Trio \S+$/.test((document.querySelector("#deskDeps .stophead")?.textContent || "").trim())
+    && !!document.getElementById("deskPrintBtn"), { timeout: 20000 }).then(() => true).catch(() => false);
+  platCard ? ok("palvelutiski (Lahti): terminaalin laiturin tunnus avaa laiturin kortin tulostusnappeineen")
+           : fail("palvelutiski (Lahti): laiturin kortti ei avautunut: " + await page.evaluate(() => (document.getElementById("deskStopResults")?.textContent || "").replace(/\s+/g, " ").slice(0, 120)));
   // Puheen kieli FI/SV/EN: valinta muistetaan ja ohjaa mikrofonin localea + ääneenluvun kieltä
   const sl = await page.evaluate(() => {
     const btns = [...document.querySelectorAll(".desk .nl-field .nl-langs button")];
@@ -791,6 +906,52 @@ async function minuuttiLinjaus(page, rootSel, media) {
     && /(ei bussivuoroja|no bus|inga bussturer)/i.test(nb.cardNoBus);
   nbPass ? ok("palvelutiski: 'seuraava bussi' -logiikka (kävely voittaa → bussi näkyy; ei bussia → selkeä viesti)")
          : fail("palvelutiski: 'seuraava bussi' -logiikka virheellinen: " + JSON.stringify(nb).slice(0, 300));
+  // Erä A (4.10.2026), A1: vaihdot = kulkuneuvo-osuudet toisesta alkaen. Matka alkaa kävelyllä, joten ennen ensimmäinen
+  // bussi luettiin vaihdoksi ("1 vaihto, pysäkillä Harjutie L"). Sama lause Kerro asiakkaalle-, viimeinen bussi- ja
+  // Seuraava bussi -kohdissa; junaosuus kerrotaan asemana ja junana.
+  const xf = await page.evaluate(() => {
+    const L = (mode, from, to, s, e, line) => ({ mode, start: { scheduledTime: "2026-06-23T" + s + ":00+03:00" },
+      end: { scheduledTime: "2026-06-23T" + e + ":00+03:00" }, from: { name: from }, to: { name: to }, route: line ? { shortName: line } : null });
+    const bus = { start: "2026-06-23T18:10:00+03:00", end: "2026-06-23T19:09:00+03:00", numberOfTransfers: 1, legs: [
+      L("WALK", "Origin", "Harjutie L", "18:10", "18:18"), L("BUS", "Harjutie L", "Kansanopisto P", "18:18", "18:40", "9"),
+      L("BUS", "Kansanopisto P", "Mukkula", "18:45", "19:05", "32"), L("WALK", "Mukkula", "Destination", "19:05", "19:09")] };
+    const rail = { start: "2026-06-23T07:55:00+03:00", end: "2026-06-23T09:20:00+03:00", numberOfTransfers: 1, legs: [
+      L("WALK", "Origin", "Kirkkoherranvirasto P", "07:55", "08:00"), L("BUS", "Kirkkoherranvirasto P", "Karjaa", "08:00", "08:20", "192"),
+      L("RAIL", "Karjaa", "Helsinki", "08:31", "09:20", "")] };
+    const txt = h => { const d = document.createElement("div"); d.innerHTML = h; return d.textContent.replace(/\s+/g, " ").trim(); };
+    // Sama vuoro eri jatkolla (lähtee samaan aikaan) ei ole "seuraava"; myöhempi on.
+    const same = JSON.parse(JSON.stringify(bus));
+    const later = { ...JSON.parse(JSON.stringify(bus)), legs: [L("WALK", "Origin", "Harjutie L", "18:40", "18:48"),
+      L("BUS", "Harjutie L", "Kansanopisto P", "18:48", "19:10", "9"), L("BUS", "Kansanopisto P", "Mukkula", "19:15", "19:35", "32")] };
+    const railFirst = { start: "2026-06-23T07:05:00+03:00", end: "2026-06-23T07:30:00+03:00", numberOfTransfers: 0, legs: [
+      L("WALK", "Origin", "Nastola", "07:05", "07:10"), L("RAIL", "Nastola", "Lahti", "07:10", "07:30", "R")] };
+    return { tell: txt(deskTellHtml([bus], bus, true)), last: txt(deskBusSentence(bus)), card: txt(deskNextBusHtml(bus)),
+      rail: txt(deskTellHtml([rail], rail, true)), same: txt(deskTellHtml([bus, same], bus, true)),
+      later: txt(deskTellHtml([bus, later], bus, true)), railTell: txt(deskTellHtml([railFirst], railFirst, true)),
+      railLine: txt(deskBusSentence(railFirst)) };
+  });
+  ([xf.tell, xf.last, xf.card].every(x => /1 vaihto: pysäkillä Kansanopisto P linjaan 32, lähtee 18:45\./.test(x) && !/Harjutie L\./.test(x))
+    && /1 vaihto: asemalla Karjaa junaan, lähtee 08:31\./.test(xf.rail) && !/Kirkkoherranvirasto P\./.test(xf.rail))
+    ? ok("palvelutiski: vaihto kerrotaan oikealla pysäkillä jatkolinjoineen (Kerro asiakkaalle, viimeinen ja seuraava bussi)")
+    : fail("palvelutiski: vaihtolause: " + JSON.stringify(xf));
+  (!/seuraava/.test(xf.same) && /klo 18:18 \(seuraava 18:48\)/.test(xf.later)
+    && /Juna R asemalta Nastola klo 07:10\./.test(xf.railTell) && !/Linja R/.test(xf.railTell)
+    && /^Juna R asemalta Nastola klo 07:10, perillä 07:30\./.test(xf.railLine))
+    ? ok("palvelutiski: 'seuraava' vain myöhemmästä vuorosta, ja junalla alkava matka kerrotaan junana asemalta")
+    : fail("palvelutiski: seuraava/juna-lause: " + JSON.stringify({ same: xf.same, later: xf.later, railTell: xf.railTell, railLine: xf.railLine }));
+  // A9: huomisen (ja myöhemmän päivän) lähtö lähtölistassa päivämerkinnällä, tämän päivän lähtö ilman.
+  const dd = await page.evaluate(() => {
+    const n = new Date(), sd = o => Math.floor(new Date(n.getFullYear(), n.getMonth(), n.getDate() + o).getTime() / 1000);
+    const st = (o, sec) => ({ serviceDay: sd(o), scheduledDeparture: sec, realtimeDeparture: sec, realtime: false, headsign: "Mukkula",
+      trip: { route: { gtfsId: "Lahti:32", shortName: "32" } } });
+    const tb = document.createElement("table");
+    tb.innerHTML = depTableRows([st(1, 4 * 3600 + 40 * 60), st(2, 6 * 3600)]);
+    const wd = o => new Date((sd(o) + 12 * 3600) * 1000).toLocaleDateString("fi-FI", { weekday: "short" });
+    return { cells: [...tb.querySelectorAll("td:last-child")].map(td => td.textContent.trim()), wd1: wd(1), wd2: wd(2) };
+  });
+  (dd.cells[0] === dd.wd1 + " 04:40" && dd.cells[1].startsWith(dd.wd2 + " ") && dd.cells[1].endsWith(" 06:00"))
+    ? ok(`lähtölista: muun päivän lähtö päivämerkinnällä (${dd.cells.join(", ")})`)
+    : fail("lähtölista: päivämerkintä puuttuu: " + JSON.stringify(dd));
 
   // Pysäkin lähdöt nyt (live) + linjat -pikahaku
   await page.click("#deskStop");
@@ -950,13 +1111,14 @@ async function minuuttiLinjaus(page, rootSel, media) {
   const v2Vars = [];
   const v2Listener = req => {
     const pd = req.method() === "POST" ? (req.postData() || "") : "";
-    if (pd.includes('searchWindow: \\"PT6H\\"')) { try { v2Vars.push(JSON.parse(pd).variables); } catch (e) { /* ei JSONia */ } }
+    if (pd.includes('searchWindow: \\"PT12H\\"')) { try { v2Vars.push(JSON.parse(pd).variables); } catch (e) { /* ei JSONia */ } }
   };
   page.on("request", v2Listener);
   await page.click('.dcard-tab[data-dcard="route"]');
   const v2Day = await page.evaluate(() => {
     const n = new Date(), d = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
-    return { iso: isoOf(d), label: d.toLocaleDateString("fi-FI", { weekday: "short", day: "numeric", month: "numeric" }) };
+    return { iso: isoOf(d), next: isoOf(new Date(n.getFullYear(), n.getMonth(), n.getDate() + 2)),
+      label: d.toLocaleDateString("fi-FI", { weekday: "short", day: "numeric", month: "numeric" }) };
   });
   // Kenttien input vaihtaa Nyt-tilan lähtöajaksi käynnistämättä hakua (napin klikkaus hakisi, ja
   // myöhästyvä reittitulos voisi korvata viimeisen bussin tuloksen kesken tarkistuksen).
@@ -981,7 +1143,8 @@ async function minuuttiLinjaus(page, rootSel, media) {
   const la = new Date(lv.dateTime?.latestArrival || 0);
   const laOk = await page.evaluate(ms => { const d = new Date(ms); return isoOf(d) + " " + d.getHours() + ":" + d.getMinutes(); }, la.getTime());
   (v2Last.otsikko === "Viimeinen bussi " + v2Day.label && v2Last.nappi === v2Last.otsikko && v2Last.runko && v2Last.vaihtoehto
-    && laOk === v2Day.iso + " 23:59" && lv.preferences?.accessibility?.wheelchair?.enabled === true)
+    // Haku jatkuu haun päivää seuraavaan aamuun klo 4.30 (liikennöintivuorokauden yövuorot, erä A / A2).
+    && laOk === v2Day.next + " 4:30" && lv.preferences?.accessibility?.wheelchair?.enabled === true)
     ? ok(`palvelutiski V2: viimeinen bussi haun päivälle (${v2Last.otsikko}) esteettömyysvalinnalla`)
     : fail("palvelutiski V2: viimeinen bussi: " + JSON.stringify({ ...v2Last, odotettu: v2Day.label, laOk, wc: lv.preferences }));
   page.off("request", v2Listener);
@@ -1047,6 +1210,281 @@ async function minuuttiLinjaus(page, rootSel, media) {
     document.querySelector('.desk-when .dseg[data-tm="now"]').click();
   });
   await sleep(500);
+
+  // --- Erä A (4.10.2026): tiski ei anna itsevarmaa väärää vastausta ---
+  // Tiskin omat tarkistukset synteettisellä reitittimellä: gql (tai fetch) kääritään hetkeksi ja palautetaan aina
+  // finally-lohkossa. Lähtö ja määränpää ovat yllä haetut (Matkakeskus → Mukkulankatu 2), ellei lause vaihda niitä.
+  const deskAt = () => page.evaluate(() => {
+    const n = new Date(), f = o => isoOf(new Date(n.getFullYear(), n.getMonth(), n.getDate() + o));
+    return { today: f(0), tomorrow: f(1), after: f(2), h: n.getHours() };
+  });
+  const dA = await deskAt();
+  // A2: viimeinen bussi näkee haun päivän liikennöintivuorokauden yövuorot. Synteettinen reititin antaa vain vuorot,
+  // jotka ovat perillä ennen kyselyn latestArrivalia: haun päivän 23:35, sen jälkeisen yön 00:35 (liikennöintipäivä
+  // = haun päivä) ja seuraavan päivän 04:10 (eri liikennöintipäivä, ei saa näkyä viimeisenä).
+  const lb = await page.evaluate(async (dayIso, nextIso) => {
+    const orig = gql, wait = ms => new Promise(r => setTimeout(r, ms));
+    const at = (d, hm) => isoWithOffset(d + "T" + hm);
+    const node = (dep, arr, d, sd) => ({ start: at(d, dep), end: at(d, arr), numberOfTransfers: 0, legs: [
+      { mode: "BUS", serviceDate: sd, start: { scheduledTime: at(d, dep) }, end: { scheduledTime: at(d, arr) },
+        from: { name: "Kauppatori E", stop: { platformCode: "E" } }, to: { name: "Jalkaranta", stop: {} },
+        route: { gtfsId: "SMOKEA:98", shortName: "98" }, intermediateStops: [] }] });
+    const all = [node("23:35", "23:46", dayIso, dayIso), node("00:35", "00:46", nextIso, dayIso), node("04:10", "04:21", nextIso, nextIso)];
+    gql = async (q, v, o) => q !== DESK_LASTBUS_QUERY ? orig(q, v, o)
+      : { planConnection: { edges: all.filter(x => new Date(x.end) <= new Date(v.dateTime.latestArrival)).map(node => ({ node })) } };
+    try {
+      document.querySelector('.dcard-tab[data-dcard="route"]')?.click();
+      const de = document.getElementById("deskDate"), te = document.getElementById("deskTime");
+      de.value = dayIso; de.dispatchEvent(new Event("input", { bubbles: true }));
+      te.value = "12:00"; te.dispatchEvent(new Event("input", { bubbles: true }));
+      const res = document.getElementById("deskResults");
+      res.innerHTML = "";
+      document.getElementById("deskLastBusBtn").click();
+      for (let i = 0; i < 100 && !res.querySelector(".desk-tell-body, p.muted"); i++) await wait(100);
+      return (res.querySelector(".desk-tell-body")?.textContent || res.textContent).replace(/\s+/g, " ").trim();
+    } finally { gql = orig; }
+  }, dA.tomorrow, dA.after);
+  (/linja 98 pysäkiltä Kauppatori E klo 00:35 \(yöllä\)/.test(lb) && !/23:35|04:10/.test(lb))
+    ? ok(`palvelutiski: viimeinen bussi näkee puolenyön jälkeisen yövuoron (${lb})`)
+    : fail("palvelutiski: viimeinen bussi yövuoro: " + lb);
+
+  // A6 + A7: saapumisaikahaussa vaihtoehdot myöhäisin lähtö ensin, joten ylin tulostenappi tulostaa saman vuoron kuin
+  // Kerro asiakkaalle (ennen tulostui tuntia aiempi vuoro).
+  const arrDesk = await page.evaluate(async dayIso => {
+    const orig = gql, wait = ms => new Promise(r => setTimeout(r, ms));
+    const at = hm => isoWithOffset(dayIso + "T" + hm);
+    const node = (dep, arr, line) => ({ start: at(dep), end: at(arr), numberOfTransfers: 0, walkDistance: 300, legs: [
+      { mode: "BUS", duration: 600, distance: 3000, start: { scheduledTime: at(dep) }, end: { scheduledTime: at(arr) },
+        from: { name: "Matkakeskus B", lat: 60.977, lon: 25.658, stop: { platformCode: "B" } },
+        to: { name: "Keskussairaala", lat: 60.99, lon: 25.68, stop: {} }, route: { gtfsId: "SMOKEA:" + line, shortName: line },
+        trip: { tripHeadsign: "Keskussairaala" }, intermediateStops: [], intermediatePlaces: [], legGeometry: { points: "" }, alerts: [] }] });
+    const nodes = [node("05:49", "06:00", "4"), node("06:48", "06:57", "14"), node("06:18", "06:30", "4")];
+    gql = async (q, v, o) => q === PLAN_QUERY ? { planConnection: { pageInfo: {}, edges: nodes.map(node => ({ node })) } } : orig(q, v, o);
+    window.print = () => {};   // tulostusdialogi pois (sama kuin pysäkkiaikataulun tarkistuksessa)
+    try {
+      document.querySelector('.desk-when .dseg[data-tm="arr"]').click();
+      const de = document.getElementById("deskDate"), te = document.getElementById("deskTime");
+      de.value = dayIso; de.dispatchEvent(new Event("input", { bubbles: true }));
+      te.value = "07:00"; te.dispatchEvent(new Event("input", { bubbles: true }));
+      const res = document.getElementById("deskResults");
+      await wait(300);
+      res.innerHTML = "";
+      document.getElementById("deskRouteBtn").click();
+      for (let i = 0; i < 100 && !res.querySelector(".deskOptPrint"); i++) await wait(100);
+      const tell = (res.querySelector(".desk-tell-body")?.textContent || "").replace(/\s+/g, " ").trim();
+      const opts = [...res.querySelectorAll(".desk-opt .desk-opt-time")].map(e => e.textContent.trim());
+      document.getElementById("deskPrintOut").innerHTML = "";
+      res.querySelector(".deskOptPrint")?.click();
+      for (let i = 0; i < 50 && !document.querySelector("#deskPrintOut .itin-print"); i++) await wait(100);
+      return { tell, opts, print: (document.querySelector("#deskPrintOut .itin-print .ip-sum")?.textContent || "").replace(/\s+/g, " ").trim() };
+    } finally { gql = orig; }
+  }, dA.tomorrow);
+  (/Linja 14 pysäkiltä Matkakeskus B klo 06:48/.test(arrDesk.tell) && /^06:48/.test(arrDesk.opts[0] || "")
+    && arrDesk.opts.map(x => x.slice(0, 5)).join(" ") === "06:48 06:18 05:49" && /Lähtö 06:48, perillä 06:57/.test(arrDesk.print))
+    ? ok("palvelutiski: saapumisaikahaussa kerrottu vuoro on ensimmäinen vaihtoehto ja sen tulosteessa")
+    : fail("palvelutiski: saapumisaikahaun järjestys/tuloste: " + JSON.stringify(arrDesk));
+
+  // Kun kävely voittaa, tiski hakee seuraavan bussin erikseen (NEXT_BUS_QUERY). Varahaku välittää Esteetön reitti
+  // -valinnan, ettei pyörätuoliasiakkaalle tarjota ei-esteetöntä vuoroa (ennen vain vaihtoajan). Valinta palautetaan.
+  const wcFb = await page.evaluate(async dayIso => {
+    const orig = gql, wait = ms => new Promise(r => setTimeout(r, ms));
+    const at = hm => isoWithOffset(dayIso + "T" + hm);
+    const walkOnly = { start: at("10:00"), end: at("10:12"), numberOfTransfers: 0, walkDistance: 900, legs: [
+      { mode: "WALK", duration: 720, distance: 900, start: { scheduledTime: at("10:00") }, end: { scheduledTime: at("10:12") },
+        from: { name: "Origin", lat: 60.977, lon: 25.658 }, to: { name: "Destination", lat: 60.98, lon: 25.66 },
+        intermediateStops: [], intermediatePlaces: [], legGeometry: { points: "" }, alerts: [] }] };
+    let seen = null;
+    gql = async (q, v, o) => {
+      if (q === PLAN_QUERY) return { planConnection: { pageInfo: {}, edges: [{ node: walkOnly }] } };
+      if (q === NEXT_BUS_QUERY) { seen = (v && v.preferences) || {}; return { planConnection: { edges: [] } }; }
+      return orig(q, v, o);
+    };
+    const wc = document.getElementById("deskWheelchair");
+    try {
+      wc.checked = true;   // ilman change-tapahtumaa: ei käynnistä omaa hakua
+      const res = document.getElementById("deskResults");
+      res.innerHTML = "";
+      document.getElementById("deskRouteBtn").click();
+      for (let i = 0; i < 100 && !seen; i++) await wait(100);
+      await wait(200);
+      return { haettu: !!seen, esteeton: seen?.accessibility?.wheelchair?.enabled === true, vaihtoaika: seen?.transit?.transfer?.slack || null };
+    } finally { gql = orig; wc.checked = false; }
+  }, dA.tomorrow);
+  (wcFb.haettu && wcFb.esteeton && /^PT\d+S$/.test(wcFb.vaihtoaika || ""))
+    ? ok(`palvelutiski: seuraavan bussin varahaku välittää Esteetön reitti -valinnan ja vaihtoajan (${wcFb.vaihtoaika})`)
+    : fail("palvelutiski: varahaun preferenssit: " + JSON.stringify(wcFb));
+
+  // A3 tiskillä: "huomenna klo 7" asettaa päiväkenttään huomisen, ja mennyt kellonaika ilman päivää siirtyy huomiseen
+  // näkyvällä huomautuksella. Reittivastaus synteettinen; paikat haetaan oikeasta geokooderista.
+  const nlDesk = await page.evaluate(async h => {
+    const orig = gql, wait = ms => new Promise(r => setTimeout(r, ms));
+    const at = hm => isoWithOffset(isoOf(new Date()) + "T" + hm);
+    const one = { start: at("23:00"), end: at("23:20"), numberOfTransfers: 0, walkDistance: 100, legs: [
+      { mode: "BUS", duration: 1200, distance: 5000, start: { scheduledTime: at("23:00") }, end: { scheduledTime: at("23:20") },
+        from: { name: "Matkakeskus C", lat: 60.977, lon: 25.658, stop: { platformCode: "C" } }, to: { name: "Mukkula", lat: 61.01, lon: 25.66, stop: {} },
+        route: { gtfsId: "SMOKEA:32", shortName: "32" }, trip: {}, intermediateStops: [], intermediatePlaces: [], legGeometry: { points: "" }, alerts: [] }] };
+    gql = async (q, v, o) => q === PLAN_QUERY ? { planConnection: { pageInfo: {}, edges: [{ node: one }] } } : orig(q, v, o);
+    const input = document.getElementById("deskNlInput"), res = document.getElementById("deskResults");
+    const run = async txt => {
+      res.innerHTML = "";
+      input.value = txt;
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      for (let i = 0; i < 150 && !res.querySelector(".desk-tell-body"); i++) await wait(100);
+      return { date: document.getElementById("deskDate").value, time: document.getElementById("deskTime").value,
+        from: document.getElementById("deskFrom").value, note: (res.querySelector(".desk-when-note")?.textContent || "").trim() };
+    };
+    try {
+      const a = await run("huomenna klo 7 Matkakeskukselta Mukkulaan");
+      const b = h >= 2 ? await run(`klo ${String(h - 2).padStart(2, "0")} Matkakeskukselta Mukkulaan`) : null;
+      return { a, b };
+    } finally { gql = orig; }
+  }, dA.h);
+  (nlDesk.a.date === dA.tomorrow && nlDesk.a.time === "07:00" && !/huomenna/i.test(nlDesk.a.from) && !nlDesk.a.note)
+    ? ok("palvelutiski: lauseen 'huomenna klo 7' haku tehdään huomiselle")
+    : fail("palvelutiski: 'huomenna klo 7': " + JSON.stringify({ ...nlDesk.a, odotettu: dA.tomorrow }));
+  if (!nlDesk.b) info("palvelutiski: mennyt kellonaika -tarkistus ohitettu (kello alle 2, ei aiempaa tuntia tälle päivälle)");
+  else (nlDesk.b.date === dA.tomorrow && /huomise/.test(nlDesk.b.note))
+    ? ok(`palvelutiski: mennyt kellonaika siirtyy huomiseen ja se kerrotaan ("${nlDesk.b.note}")`)
+    : fail("palvelutiski: mennyt kellonaika: " + JSON.stringify({ ...nlDesk.b, odotettu: dA.tomorrow }));
+
+  // A4: toisen kunnan nimi ei ratkea hiljaa kaupungin kaduksi ("Helsinkiin" -> Helsingintie 15). Kohde näytetään,
+  // ja alueen ulkopuolisuus ja kaukoliikenne kerrotaan. Oikea geokooderi ja reititin (Lahdesta ei paikallisyhteyttä).
+  const outA = await page.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const input = document.getElementById("deskNlInput"), res = document.getElementById("deskResults");
+    res.innerHTML = "";
+    input.value = "Matkakeskukselta Helsinkiin";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    for (let i = 0; i < 250 && !(res.textContent || "").trim(); i++) await wait(100);
+    return { to: document.getElementById("deskTo").value, note: (res.querySelector(".plan-outside")?.textContent || "").trim() };
+  });
+  (/^Helsinki\b/.test(outA.to) && !/tie/.test(outA.to) && /Helsinki on Lahden joukkoliikennealueen ulkopuolella/.test(outA.note) && /VR/.test(outA.note))
+    ? ok("palvelutiski: 'Helsinkiin' ratkeaa Helsingiksi, ja alueen ulkopuolisuus ja kaukoliikenne kerrotaan")
+    : fail("palvelutiski: kunnan ulkopuolinen kohde: " + JSON.stringify(outA));
+
+  // A5 (reittihaku): uusi haku himmentää edellisen vastauksen (M10), ja virhe näkyy virheenä Yritä uudelleen
+  // -napilla eikä vanha vastaus jää näkyviin. Lähtö ja määränpää palautetaan paikallisiksi synteettisellä haulla.
+  const rErr = await page.evaluate(async () => {
+    const orig = gql, wait = ms => new Promise(r => setTimeout(r, ms));
+    const at = hm => isoWithOffset(isoOf(new Date()) + "T" + hm);
+    const one = { start: at("23:00"), end: at("23:20"), numberOfTransfers: 0, walkDistance: 100, legs: [
+      { mode: "BUS", duration: 1200, distance: 5000, start: { scheduledTime: at("23:00") }, end: { scheduledTime: at("23:20") },
+        from: { name: "Kauppatori E", lat: 60.98, lon: 25.65, stop: { platformCode: "E" } }, to: { name: "Ahtiala", lat: 61.0, lon: 25.79, stop: {} },
+        route: { gtfsId: "SMOKEA:4", shortName: "4" }, trip: {}, intermediateStops: [], intermediatePlaces: [], legGeometry: { points: "" }, alerts: [] }] };
+    let mode = "ok";
+    gql = async (q, v, o) => {
+      if (q !== PLAN_QUERY) return orig(q, v, o);
+      if (mode === "slow") await wait(2500);
+      if (mode === "fail") throw new TypeError("Failed to fetch");
+      return { planConnection: { pageInfo: {}, edges: [{ node: one }] } };
+    };
+    const res = document.getElementById("deskResults"), msg = document.getElementById("deskMsg");
+    try {
+      document.querySelector('.desk-when .dseg[data-tm="now"]').click();
+      const input = document.getElementById("deskNlInput");
+      res.innerHTML = "";
+      input.value = "Kauppatorilta Ahtialaan";
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      for (let i = 0; i < 150 && !res.querySelector(".desk-tell-body"); i++) await wait(100);
+      const told = !!res.querySelector(".desk-tell-body");
+      mode = "slow";
+      document.getElementById("deskRouteBtn").click();
+      await wait(600);
+      const kesken = { himmea: res.classList.contains("desk-busy") && Number(getComputedStyle(res).opacity) < 0.6, vanha: !!res.querySelector(".desk-tell-body") };
+      await wait(2600);
+      mode = "fail";
+      document.getElementById("deskRouteBtn").click();
+      for (let i = 0; i < 50 && !msg.querySelector(".error"); i++) await wait(100);
+      return { told, kesken, virhe: (msg.querySelector(".error")?.textContent || "").trim(), nappi: !!msg.querySelector(".desk-retry"),
+        vanhaJai: !!res.querySelector(".desk-tell-body") };
+    } finally { gql = orig; }
+  });
+  (rErr.told && (rErr.kesken.himmea || !rErr.kesken.vanha) && /Reittejä ei saatu haettua/.test(rErr.virhe) && rErr.nappi && !rErr.vanhaJai)
+    ? ok("palvelutiski: uusi reittihaku himmentää vanhan vastauksen, ja hakuvirhe näkyy virheenä Yritä uudelleen -napilla")
+    : fail("palvelutiski: reittihaun virhetila: " + JSON.stringify(rErr));
+
+  // A5 (paikkahaku): verkkokatko luonnollisen kielen haussa näkyy virheenä, ei kirjoitusvirheen vihjeenä
+  // ("En saanut kiinni lähtöä ja määränpäätä"). fetch palautetaan finallyssä.
+  const nlErr = await page.evaluate(async () => {
+    const of = window.fetch, wait = ms => new Promise(r => setTimeout(r, ms));
+    window.fetch = (u, o) => /workers\.dev|digitransit/.test(String(u)) ? Promise.reject(new TypeError("Failed to fetch")) : of(u, o);
+    try {
+      const input = document.getElementById("deskNlInput"), m = document.getElementById("deskNlMsg");
+      m.innerHTML = "";
+      input.value = "Kauppatorilta Mukkulaan";
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      for (let i = 0; i < 50 && !/[.]$|uudelleen/.test((m.textContent || "").trim()); i++) await wait(100);
+      return { txt: (m.textContent || "").trim(), virhe: !!m.querySelector(".error"), nappi: !!m.querySelector(".nl-retry") };
+    } finally { window.fetch = of; }
+  });
+  (nlErr.virhe && nlErr.nappi && !/En saanut kiinni/.test(nlErr.txt))
+    ? ok("palvelutiski: paikkahaun yhteysvirhe näkyy virheenä Yritä uudelleen -napilla")
+    : fail("palvelutiski: paikkahaun yhteysvirhe: " + JSON.stringify(nlErr));
+
+  // A5 (pysäkin lähdöt): päivityksen verkkovirhe jättää näkyvän listan näkyviin merkinnällä "Päivitys epäonnistui",
+  // ja ensimmäisen haun virhe näkyy virheenä (ei "Ei tulevia lähtöjä"). Synteettinen pysäkki linkin kautta.
+  const depErr = await page.evaluate(async () => {
+    const orig = gql, wait = ms => new Promise(r => setTimeout(r, ms));
+    const n = new Date(), sd = Math.floor(new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime() / 1000);
+    const t0 = Math.floor(n.getTime() / 1000) - sd;
+    const stop = id => ({ gtfsId: id, name: "Smoketesti " + id.slice(-1), code: "S1", lat: 60.98, lon: 25.66, wheelchairBoarding: "NO_INFORMATION",
+      routes: [{ gtfsId: "SMOKEA:r", shortName: "S1" }],
+      stoptimesWithoutPatterns: [600, 1500, 2400].map(d => ({ scheduledDeparture: t0 + d, realtimeDeparture: t0 + d, realtime: false, serviceDay: sd,
+        headsign: "Testikylä", trip: { wheelchairAccessible: "NO_INFORMATION", occupancy: null, route: { gtfsId: "SMOKEA:r", shortName: "S1" } } })) });
+    let mode = "ok";
+    gql = async (q, v, o) => {
+      if (q !== DESK_DEPS_QUERY || !/^SMOKEA:/.test(v.id)) return orig(q, v, o);
+      if (mode === "fail") throw new TypeError("Failed to fetch");
+      return { stop: stop(v.id) };
+    };
+    const open = id => { const a = document.createElement("a"); a.href = "#/pysakki/" + encodeURIComponent(id);
+      document.querySelector(".desk").appendChild(a); a.click(); a.remove(); };
+    const dep = () => document.getElementById("deskDeps");
+    try {
+      open("SMOKEA:a");
+      for (let i = 0; i < 50 && !dep()?.querySelector("table.deps tbody tr"); i++) await wait(100);
+      const rivit = dep()?.querySelectorAll("table.deps tbody tr").length || 0;
+      mode = "fail";
+      document.querySelector('.dcard-tab[data-dcard="stop"]').click();   // päivitys (loadDeskDeps)
+      for (let i = 0; i < 50 && !dep()?.querySelector(".desk-upd-fail"); i++) await wait(100);
+      const paivitys = { rivit: dep()?.querySelectorAll("table.deps tbody tr").length || 0,
+        merkinta: (dep()?.querySelector(".desk-upd-fail")?.textContent || "").trim() };
+      open("SMOKEA:b");
+      for (let i = 0; i < 50 && !dep()?.querySelector(".error"); i++) await wait(100);
+      const eka = { virhe: (dep()?.querySelector(".error")?.textContent || "").trim(), nimi: (dep()?.querySelector(".stophead")?.textContent || "").trim(),
+        tyhja: /Ei tulevia lähtöjä/.test(dep()?.textContent || ""), nappi: !!dep()?.querySelector(".desk-retry") };
+      mode = "ok";
+      dep()?.querySelector(".desk-retry")?.click();
+      for (let i = 0; i < 50 && !dep()?.querySelector("table.deps tbody tr"); i++) await wait(100);
+      return { rivit, paivitys, eka, uudelleen: dep()?.querySelectorAll("table.deps tbody tr").length || 0 };
+    } finally { gql = orig; }
+  });
+  (depErr.rivit === 3 && depErr.paivitys.rivit === 3 && /Päivitys epäonnistui klo \d\d:\d\d/.test(depErr.paivitys.merkinta)
+    && /Lähtöjä ei saatu haettua/.test(depErr.eka.virhe) && depErr.eka.nappi && !depErr.eka.tyhja && depErr.uudelleen === 3)
+    ? ok("palvelutiski: lähtöjen päivitysvirhe säilyttää listan merkinnällä, ensimmäisen haun virhe näkyy virheenä ja Yritä uudelleen toimii")
+    : fail("palvelutiski: lähtöjen virhetila: " + JSON.stringify(depErr));
+
+  // A5 (häiriöt): ensimmäisen latauksen virhe näkyy virheenä eikä tekstinä "Ei aktiivisia häiriöitä". Tiski piirretään
+  // uudelleen (#/ ja takaisin), jotta häiriöt haetaan alusta; gql palautetaan ja Yritä uudelleen hakee ne.
+  await page.evaluate(() => {
+    window.__smokeOrigGql = gql;
+    alertsPromise = null;
+    gql = async (q, v, o) => /alerts\(feeds/.test(q) ? Promise.reject(new TypeError("Failed to fetch")) : window.__smokeOrigGql(q, v, o);
+    location.hash = "#/";
+  });
+  await page.waitForSelector("#homeFromInput, #routeList", { timeout: 15000 }).catch(() => {});
+  await page.evaluate(() => { location.hash = "#/palvelutiski"; });
+  await page.waitForFunction(() => { const a = document.getElementById("deskAlerts"); return a && !/Haetaan|Loading|Hämtar/.test(a.textContent); },
+    { timeout: 20000 }).catch(() => {});
+  const alErr = await page.evaluate(() => ({ virhe: !!document.querySelector("#deskAlerts .error"), nappi: !!document.querySelector("#deskAlerts .desk-retry"),
+    txt: (document.getElementById("deskAlerts")?.textContent || "").replace(/\s+/g, " ").trim() }));
+  await page.evaluate(() => { gql = window.__smokeOrigGql; delete window.__smokeOrigGql; document.querySelector("#deskAlerts .desk-retry")?.click(); });
+  await page.waitForFunction(() => { const a = document.getElementById("deskAlerts"); return a && !a.querySelector(".error") && !/Haetaan|Loading|Hämtar/.test(a.textContent); },
+    { timeout: 20000 }).catch(() => {});
+  const alBack = await page.evaluate(() => !document.querySelector("#deskAlerts .error") && !!(document.getElementById("deskAlerts")?.textContent || "").trim());
+  (alErr.virhe && alErr.nappi && !/Ei aktiivisia häiriöitä/.test(alErr.txt) && alBack)
+    ? ok("palvelutiski: häiriöiden latausvirhe näkyy virheenä eikä tyhjänä tilana, ja Yritä uudelleen hakee ne")
+    : fail("palvelutiski: häiriöiden virhetila: " + JSON.stringify({ ...alErr, alBack }));
 
   // 390 px: tiskissä ei vaakavieritystä (viewport palautetaan heti).
   await page.setViewport({ width: 390, height: 800 });
