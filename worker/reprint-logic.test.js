@@ -3,7 +3,8 @@
 // torjutaan. Mock-KV, ei verkkoa.
 // Aja: node reprint-logic.test.js
 import worker, { buildReprintBaseline, mergeReprintUnits, reprintCityName, REPRINT_MAX_UNITS,
-  reprintStateChanged, cleanReprintStale, buildReprintNotify, buildReprintAlertEmail }
+  reprintStateChanged, cleanReprintStale, buildReprintNotify, buildReprintAlertEmail,
+  reprintUnitTs, reprintMetric, reprintHistPut, reprintStateAfterMark, reprintDay, REPRINT_HIST_MONTHS }
   from "./worker.js";
 
 let fail = 0;
@@ -243,6 +244,118 @@ await worker.fetch(jreq2("/reprint/baseline", { city: "lahti", key: KEY2, units:
   "Lahti:010": { label: "1 Keskusta", printed: "2026-09-05T00:00:00.000Z", sig } } }), env2);
 const yha = JSON.parse(env2.PUSH_KV._m.get("rp:lahti"));
 check(yha.state && yha.state.checkedAt, "perustaso: päivitys ei tyhjennä vahdin tulosta");
+
+
+/* ---------- Vaihtolista: vaihdon kuittaus ja ajantasaisuusmittari (4.10.2026) ---------- */
+
+const ssig = { v: 1, kind: "stop", label: "Mukkulan kirkko P", code: "103849", lat: 61.0178, lon: 25.6659,
+  dirs: [{ label: "", groups: [{ k: "01234|4|Keskusta", n: 30, h: "abc" }] }] };
+const P1 = "2026-10-01T08:00:00.000Z", I1 = "2026-10-02T09:00:00.000Z";
+
+// Painettu ja asennettu ovat eri kenttiä, ja kuittaus säilyy siivouksessa (vain sallitut kentät).
+const kuitattu = buildReprintBaseline({ city: "lahti", units: {
+  "stop:Lahti:103849": { label: "Mukkulan kirkko P", printed: P1, installed: I1, sig: ssig, email: "x@y.fi" } } });
+check(kuitattu.units["stop:Lahti:103849"].installed === I1 &&
+  Object.keys(kuitattu.units["stop:Lahti:103849"]).sort().join(",") === "installed,label,printed,sig",
+  "kuittaus: asennusaika tallentuu, muut kuin sallitut kentät putoavat");
+
+// Pelkkä kuittaus (painopäivä ennallaan) voittaa yhdistämisen, vanhempi kuittaus ei.
+check(reprintUnitTs({ printed: P1, installed: I1 }) === I1 && reprintUnitTs({ printed: P1 }) === P1,
+  "kuittaus: yksikön aikaleima on uusin merkintä (painettu tai vaihdettu)");
+const ennenKuittausta = { s: { printed: P1, sig: ssig } };
+const kuittaus = { s: { printed: P1, installed: I1, sig: ssig } };
+check(mergeReprintUnits(ennenKuittausta, kuittaus).s.installed === I1,
+  "kuittaus: saman painomerkinnän kuittaus voittaa yhdistämisen");
+check(mergeReprintUnits(kuittaus, ennenKuittausta).s.installed === I1,
+  "kuittaus: kuittaamaton kopio toiselta koneelta ei pyyhi kuittausta");
+check(mergeReprintUnits(kuittaus, { s: { printed: "2026-10-03T07:00:00.000Z", sig: ssig } }).s.installed === undefined,
+  "kuittaus: uudempi painomerkintä korvaa vanhan kuittauksen (uusi arkki odottaa vaihtoa)");
+
+// Mittari: vain pysäkkijulisteet, kuitattu painamisen jälkeen eikä vanhentunut.
+const mitattavat = {
+  "stop:a": { printed: P1, installed: I1 },                      // ajan tasalla
+  "stop:b": { printed: P1, installed: I1 },                      // vahti: vanhentunut
+  "stop:c": { printed: P1 },                                     // painettu, ei kuitattu
+  "stop:d": { printed: "2026-10-03T00:00:00.000Z", installed: I1 }, // uudempi painos odottaa vaihtoa
+  "Lahti:010": { printed: P1, installed: I1 },                   // linjatuloste: ei mittarissa
+};
+const mm = reprintMetric(mitattavat, ["stop:b"]);
+check(mm.n === 4 && mm.ok === 1, `mittari: 4 pysäkkijulistetta, 1 ajan tasalla (sai ${mm.ok}/${mm.n})`);
+check(reprintMetric({}, null).n === 0 && reprintMetric(null, null).ok === 0, "mittari: tyhjä seuranta ei kaada");
+
+// Kuukausihistoria: kuukauden viimeisin mittaus voittaa, enintään 24 kuukautta, ei tyhjiä rivejä.
+let hh = reprintHistPut({}, "2026-10-04", { n: 4, ok: 1 });
+hh = reprintHistPut(hh, "2026-10-05", { n: 4, ok: 3 });
+check(Object.keys(hh).join(",") === "2026-10" && hh["2026-10"].d === "2026-10-05" && hh["2026-10"].ok === 3,
+  "historia: sama kuukausi päivittyy viimeisimpään mittaukseen");
+check(Object.keys(reprintHistPut(hh, "2026-11-01", { n: 0, ok: 0 })).length === 1,
+  "historia: kaupunki ilman pysäkkijulisteita ei saa riviä");
+let pitka = {};
+for (let i = 0; i < 30; i++) {
+  const d = new Date(Date.UTC(2024, i, 15)).toISOString().slice(0, 10);
+  pitka = reprintHistPut(pitka, d, { n: 10, ok: i % 10 });
+}
+check(Object.keys(pitka).length === REPRINT_HIST_MONTHS && !pitka["2024-01"] && !!pitka["2026-06"],
+  `historia: enintään ${REPRINT_HIST_MONTHS} kuukautta, vanhimmat putoavat`);
+check(JSON.stringify(pitka).length < 1500, `historia: 24 kuukautta mahtuu alle 1,5 kt:hen (${JSON.stringify(pitka).length} t)`);
+check(/^\d{4}-\d{2}-\d{2}$/.test(reprintDay(new Date("2026-10-04T22:30:00Z"))) &&
+  reprintDay(new Date("2026-10-04T22:30:00Z")) === "2026-10-05",
+  "historia: päivä lasketaan Suomen ajassa (klo 01.30 on jo seuraava päivä)");
+check(reprintStateAfterMark({ stale: ["a", "b"], checkedAt: "x" }, ["a"]).stale.join(",") === "b" &&
+  reprintStateAfterMark(null, ["a"]) === null,
+  "kuittaus: merkitty yksikkö putoaa vahdin vanhentuneista, muut säilyvät");
+
+// --- Päästä päähän: kuittaus kaupungin avaimella, tila ja historia palvelimella ---
+const env3 = { ...env2, PUSH_KV: mockKV(), ADMIN_SESSION_SECRET: "reprint-secret-3" };
+const login3 = await worker.fetch(req2("/admin/login", { method: "POST", body: JSON.stringify({ password: "salasana123" }) }), env3);
+const cookie3 = (login3.headers.get("Set-Cookie") || "").split(";")[0];
+const KEY3 = (await (await worker.fetch(jreq2("/admin/api/reprint/key", { city: "lahti" }, { headers: { Cookie: cookie3 } }), env3)).json()).key;
+const SID = "stop:Lahti:103849", SID2 = "stop:Lahti:103850";
+await worker.fetch(jreq2("/reprint/baseline", { city: "lahti", key: KEY3, units: {
+  [SID]: { label: "Mukkulan kirkko P", printed: P1, installed: P1, sig: ssig },
+  [SID2]: { label: "Mukkulan kirkko E", printed: P1, installed: P1, sig: ssig } } }), env3);
+
+// Ilmoitusosoite vahvistettuna: perustason päivitys EI saa pudottaa sitä (korjattu 4.10.2026).
+resendSends.length = 0;
+await worker.fetch(jreq2("/admin/api/reprint/notify", { city: "lahti", email: "kaupunki@example.fi" }, { headers: { Cookie: cookie3 } }), env3);
+const tok3 = JSON.parse(env3.PUSH_KV._m.get("rp:lahti")).notify.token;
+await worker.fetch(req2("/reprint/notify/confirm?city=lahti&token=" + tok3), env3);
+
+// Vahti toteaa toisen julisteen vanhentuneeksi.
+const vahti3 = await (await worker.fetch(jreq2("/reprint/service", { token: env3.REPRINT_SERVICE_TOKEN, city: "lahti", stale: [SID] }), env3)).json();
+const tila3 = JSON.parse(env3.PUSH_KV._m.get("rp:lahti"));
+const kk = reprintDay().slice(0, 7);
+check(vahti3.stale === 1 && tila3.hist && tila3.hist[kk] && tila3.hist[kk].n === 2 && tila3.hist[kk].ok === 1,
+  "mittari: vahdin ajo kirjaa kuluvan kuukauden rivin (1/2 ajan tasalla)");
+
+// Kuittaus väärällä avaimella torjutaan (sama tunnistautuminen kuin perustasolla).
+const vaaraKuittaus = await worker.fetch(jreq2("/reprint/baseline", { city: "lahti", key: "z".repeat(40), units: {
+  [SID]: { label: "Mukkulan kirkko P", printed: I1, installed: I1, sig: ssig } } }), env3);
+check(vaaraKuittaus.status === 403, "kuittaus: väärällä avaimella → 403");
+
+// Vaihdettu: uusi sormenjälki, painettu ja asennettu nyt.
+const kuittausVastaus = await (await worker.fetch(jreq2("/reprint/baseline", { city: "lahti", key: KEY3, units: {
+  [SID]: { label: "Mukkulan kirkko P", printed: I1, installed: I1, sig: ssig } } }), env3)).json();
+const tila4 = JSON.parse(env3.PUSH_KV._m.get("rp:lahti"));
+check(kuittausVastaus.ok && kuittausVastaus.ack === true && !tila4.state.stale.includes(SID) && tila4.state.checkedAt,
+  "kuittaus: vaihdettu juliste putoaa palvelimen vanhentuneista heti, vahdin ajoaika säilyy");
+check(tila4.hist[kk].ok === 2 && tila4.hist[kk].n === 2, "kuittaus: kuukausirivi päivittyy kuittauksesta (2/2)");
+check(tila4.notify && tila4.notify.confirmed === true && tila4.notify.email === "kaupunki@example.fi",
+  "perustaso: merkintä ei pudota vahvistettua ilmoitusosoitetta");
+check(!JSON.stringify(tila4.units).includes("@") && !JSON.stringify(tila4.hist).includes("@"),
+  "kuittaus: yksiköissä ja historiassa ei ole henkilötietoa");
+
+// Sovellus tunnistaa kuittauksen tukevan palvelimen ja saa historian.
+const status3 = await (await worker.fetch(req2("/reprint/status?city=lahti&key=" + KEY3, { headers: { Origin: ORIGIN } }), env3)).json();
+check(status3.ack === true && status3.hist[kk].ok === 2 && status3.units[SID].installed === I1,
+  "kuittaus: tilakysely kertoo tuen (ack), kuittauksen ja kuukausirivit");
+
+// Ylläpito: sama luku istunnolla, ei ilman.
+const yp = await (await worker.fetch(req2("/admin/api/reprint/key?city=lahti", { headers: { Cookie: cookie3 } }), env3)).json();
+check(yp.metric && yp.metric.n === 2 && yp.metric.ok === 2 && yp.hist[kk] && !("key" in yp),
+  "ylläpito: avainkysely palauttaa mittarin ja kuukausirivit");
+check((await worker.fetch(req2("/admin/api/reprint/key?city=lahti"), env3)).status === 403,
+  "ylläpito: mittaria ei saa ilman istuntoa");
 
 console.log(fail ? `\n${fail} TARKISTUSTA EPÄONNISTUI` : "\nKAIKKI TARKISTUKSET OK");
 process.exit(fail ? 1 : 0);

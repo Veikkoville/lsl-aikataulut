@@ -391,6 +391,11 @@ export const ADMIN_HTML = `<!doctype html>
           <div class="msg" id="rpKeyMsg" role="status"></div>
         </div>
         <div class="card">
+          <h3>Ajantasaisuus</h3>
+          <p class="muted">Osuus seuratuista pysäkkijulisteista, joiden pysäkillä oleva juliste vastaa nykyistä aikataulua. Mittari kattaa vain Reittarilla tulostetut ja vaihdetuiksi kuitatut pysäkkijulisteet. Muita pysäkkien julisteita se ei näe.</p>
+          <div id="rpMeterBox"><p class="empty">Ladataan…</p></div>
+        </div>
+        <div class="card">
           <h3>Ilmoitukset sähköpostiin</h3>
           <p class="muted">Vahti vertaa painettuja tulosteita nykydataan kerran vuorokaudessa ja lähettää viestin vain, kun tilanne muuttuu. Osoite saa ilmoituksia vasta, kun vahvistuslinkkiä on napsautettu. Tyhjä kenttä lopettaa ilmoitukset.</p>
           <div class="field"><label for="rpMail">Ilmoitusosoite</label>
@@ -541,7 +546,8 @@ function renderOverview(){
   const k = S.key;
   if (!k) t.push(tile("vahti", "", "Uusintapainatusvahti", L, ""));
   else if (k.err) t.push(tile("vahti", "st-attn", "Uusintapainatusvahti", "Ei saatavilla", "Avaintietoa ei saatu."));
-  else if (k.on) t.push(tile("vahti", "st-ok", "Uusintapainatusvahti", "Käytössä", fmtNum(k.units) + " tulostetta seurannassa"));
+  else if (k.on) t.push(tile("vahti", "st-ok", "Uusintapainatusvahti", "Käytössä", fmtNum(k.units) + " tulostetta seurannassa"
+    + (k.metric && k.metric.n ? ", ajan tasalla " + meterPct(k.metric) + " %" : "")));
   else t.push(tile("vahti", "", "Uusintapainatusvahti", "Ei käytössä", "Seuranta toimii vain yhdessä selaimessa."));
   const st = S.stats;
   if (!st) t.push(tile("tilastot", "", "Käyttö, 30 vrk", L, ""));
@@ -765,11 +771,29 @@ async function loadReprintKey(){
   const box = $("rpKeyBox");
   if (!r.ok || !r.data || r.data.error){ box.innerHTML="<p class='empty'>Avaintietoa ei saatu.</p>"; S.key = { err:true }; renderOverview(); return; }
   const d = r.data;
-  S.key = d.exists ? { on:true, units:d.units } : { on:false }; renderOverview();
+  S.key = d.exists ? { on:true, units:d.units, metric:d.metric } : { on:false }; renderOverview();
   box.innerHTML = d.exists
     ? "<p style='margin-top:0'>Avain on myönnetty " + esc(fmtDay(d.created)) + ". Palvelimella on <strong>" + esc(fmtNum(d.units)) + "</strong> seurattua tulostetta"
       + (d.updated ? " (päivitetty " + esc(fmtDay(d.updated)) + ")" : "") + ".</p>"
     : "<p class='empty'>Avainta ei ole vielä myönnetty. Seuranta toimii toistaiseksi vain kunnan omassa selaimessa.</p>";
+  renderReprintMeter(d);
+}
+// Ajantasaisuus: sama luku kuin sovelluksen Uusintapainatus-välilehdellä. Vanha palvelin ei
+// palauta metric-kenttää, jolloin kortti kertoo sen eikä näytä nollaa.
+function meterPct(m){ return m && m.n ? Math.round(100 * m.ok / m.n) : 0; }
+function renderReprintMeter(d){
+  const box = $("rpMeterBox");
+  if (!box) return;
+  if (!d || !("metric" in d)) { box.innerHTML = "<p class='empty'>Mittari otetaan käyttöön palvelimen päivityksen jälkeen.</p>"; return; }
+  const m = d.metric;
+  if (!m || !m.n) { box.innerHTML = "<p class='empty'>Seurannassa ei ole vielä pysäkkijulisteita.</p>"; return; }
+  const rows = Object.keys(d.hist || {}).sort().reverse().map(function(k){
+    const h = d.hist[k];
+    return "<tr><td>" + esc(k.slice(5) + "/" + k.slice(0,4)) + "</td><td>" + meterPct(h) + " %</td><td>" + esc(fmtNum(h.ok) + "/" + fmtNum(h.n)) + "</td><td>" + esc(fmtDay(h.d)) + "</td></tr>";
+  }).join("");
+  box.innerHTML = "<p style='margin-top:0'><strong>" + meterPct(m) + " %</strong> (" + esc(fmtNum(m.ok)) + "/" + esc(fmtNum(m.n)) + " pysäkkijulistetta)"
+    + (m.checkedAt ? ", päivittäinen vertailu " + esc(fmtDay(m.checkedAt)) : "") + ".</p>"
+    + (rows ? "<table class='ftable' id='rpMeterHist'><thead><tr><th scope='col'>Kuukausi</th><th scope='col'>Osuus</th><th scope='col'>Ajan tasalla</th><th scope='col'>Mitattu</th></tr></thead><tbody>" + rows + "</tbody></table>" : "");
 }
 $("rpMailBtn").addEventListener("click", async () => {
   // Tyhjä kenttä = lopeta ilmoitukset. Osoite on henkilötieto, joten se kysytään vain täällä,

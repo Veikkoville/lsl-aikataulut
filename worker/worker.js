@@ -1812,11 +1812,24 @@ export function reprintCityName(city) {
 
 // Yhden yksikön siivous. Sormenjälki tallennetaan sellaisenaan (se on sovelluksen tuottama
 // rakenne), mutta koko ja kentät rajataan: palvelin ei ole vapaa avainarvovarasto.
+// installed (4.10.2026, vaihtolista): milloin sormenjälkeä vastaava juliste kuitattiin paikalleen.
+// Painettu ja asennettu ovat eri asia: painettu arkki voi odottaa toimistolla viikon, ja koko sen
+// ajan pysäkillä roikkuu vanha. Siksi kuittaus on oma aikaleimansa eikä painomerkinnän synonyymi.
 function cleanReprintUnit(u) {
   if (!u || typeof u !== "object" || !u.sig || typeof u.sig !== "object") return null;
   const printed = String(u.printed || "").slice(0, 40);
   if (!printed) return null;
-  return { label: String(u.label || "").slice(0, 120), printed, sig: u.sig };
+  const out = { label: String(u.label || "").slice(0, 120), printed, sig: u.sig };
+  const installed = String(u.installed || "").slice(0, 40);
+  if (installed) out.installed = installed;
+  return out;
+}
+
+// Yksikön uusin merkintä: painomerkintä tai vaihdon kuittaus. Pelkkä kuittaus ei muuta
+// painopäivää, joten yhdistämissääntö vertaa tätä eikä pelkkää printed-kenttää.
+export function reprintUnitTs(u) {
+  const p = String((u && u.printed) || ""), i = String((u && u.installed) || "");
+  return i > p ? i : p;
 }
 
 // Validoi ja siistii POST /reprint/baseline -rungon. Puhdas funktio, testattava ilman KV:tä.
@@ -1845,9 +1858,61 @@ export function mergeReprintUnits(a, b) {
   const out = { ...(a || {}) };
   for (const [id, u] of Object.entries(b || {})) {
     const prev = out[id];
-    if (!prev || String(u.printed || "") > String(prev.printed || "")) out[id] = u;
+    if (!prev || reprintUnitTs(u) > reprintUnitTs(prev)) out[id] = u;
   }
   return out;
+}
+
+/* ---------- Ajantasaisuusmittari (4.10.2026) ----------
+   Osuus seuratuista PYSÄKKIJULISTEISTA (tunnus "stop:<gtfsId>"), joiden pysäkillä oleva juliste
+   vastaa nykyistä aikataulua: vaihto kuitattu sen jälkeen kun juliste painettiin, eikä vahti ole
+   todennut sitä vanhentuneeksi. Linja- ja käytävätulosteet eivät ole pysäkkikohtaisia, joten ne
+   eivät ole mittarissa. Mittari näkee vain Reittarilla tulostetut ja kuitatut julisteet.
+   Sama määritelmä on sovelluksessa (reprintMeterCount), ja muutos on tehtävä molempiin. */
+export const REPRINT_STOP_PREFIX = "stop:";
+export const REPRINT_HIST_MONTHS = 24;
+
+export function reprintInstalledOk(u) {
+  return !!(u && u.installed) && String(u.installed) >= String(u.printed || "");
+}
+
+export function reprintMetric(units, stale) {
+  const bad = new Set(Array.isArray(stale) ? stale : []);
+  let n = 0, ok = 0;
+  for (const [id, u] of Object.entries(units || {})) {
+    if (!id.startsWith(REPRINT_STOP_PREFIX)) continue;
+    n++;
+    if (!bad.has(id) && reprintInstalledOk(u)) ok++;
+  }
+  return { n, ok };
+}
+
+// Kuukausiyhteenveto: kuukauden viimeisin mittaus { d, n, ok }, enintään 24 kuukautta (noin 1 kt).
+// Päivittäinen vertailu ja jokainen kuittaus päivittävät kuluvan kuukauden rivin, joten päättyneen
+// kuukauden rivi on sen kuukauden viimeinen tilanne.
+export function reprintHistPut(hist, dayISO, m) {
+  const out = (hist && typeof hist === "object" && !Array.isArray(hist)) ? { ...hist } : {};
+  if (!m || !m.n || !/^\d{4}-\d{2}-\d{2}$/.test(String(dayISO || ""))) return out;
+  out[dayISO.slice(0, 7)] = { d: dayISO, n: m.n, ok: m.ok };
+  const keys = Object.keys(out).sort();
+  for (const k of keys.slice(0, Math.max(0, keys.length - REPRINT_HIST_MONTHS))) delete out[k];
+  return out;
+}
+
+// Päivä Suomen ajassa: kunta lukee kuukausirivit omassa ajassaan.
+export function reprintDay(now = new Date()) {
+  try {
+    return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Helsinki",
+      year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  } catch (e) { return now.toISOString().slice(0, 10); }
+}
+
+// Merkintä tai kuittaus, joka voitti yhdistämisen, on tehty nykyisestä aikataulusta: yksikkö ei ole
+// enää vanhentunut, vaikka vahdin edellinen ajo sanoi niin. Vahdin seuraava ajo tarkistaa sen uudelleen.
+export function reprintStateAfterMark(state, ids) {
+  if (!state || !Array.isArray(state.stale) || !ids || !ids.length) return state || null;
+  const drop = new Set(ids);
+  return { ...state, stale: state.stale.filter(id => !drop.has(id)) };
 }
 
 async function readReprintData(env, city) {
@@ -1898,6 +1963,10 @@ async function handleAdminReprintKeyGet(request, env, url) {
     exists: !!raw, created,
     units: data ? Object.keys(data.units || {}).length : 0,
     updated: (data && data.updated) || null,
+    // Ajantasaisuus ylläpidolle: sama luku kuin sovelluksessa, ja kuukausirivit.
+    metric: data ? { ...reprintMetric(data.units, data.state && data.state.stale),
+      checkedAt: (data.state && data.state.checkedAt) || null } : null,
+    hist: (data && data.hist) || {},
   }, 200);
 }
 
@@ -1927,18 +1996,29 @@ async function handleReprintBaseline(request, env, origin) {
   if (error) return jsonResponse({ error }, 400, origin);
   if (!(await reprintKeyOk(env, city, body && body.key)))
     return jsonResponse({ error: "bad_key" }, 403, origin);
-  const prev = await readReprintData(env, city);
+  const prev = (await readReprintData(env, city)) || {};
+  const merged = mergeReprintUnits(prev.units, units);
+  // Yksiköt, joiden uusi merkintä (painettu tai vaihdettu) voitti yhdistämisen.
+  const won = Object.keys(units).filter(id => merged[id] === units[id]);
+  // Vertailun tulos säilyy: perustason päivitys ei tyhjennä sitä mitä vahti on löytänyt.
+  // Vain juuri merkityt yksiköt putoavat vanhentuneista (ks. reprintStateAfterMark).
+  const state = reprintStateAfterMark(prev.state || null, won);
+  // ...prev säilyttää muut kentät (ilmoitusosoite notify, kuukausihistoria hist). Ennen 4.10.2026
+  // tietue koottiin pelkistä units/updated/state-kentistä, jolloin jokainen painomerkintä pudotti
+  // vahvistetun ilmoitusosoitteen pois ja sähköposti-ilmoitukset loppuivat hiljaa.
   const rec = {
-    units: mergeReprintUnits(prev && prev.units, units),
+    ...prev,
+    units: merged,
     updated: new Date().toISOString(),
-    // Vertailun tulos säilyy: perustason päivitys ei tyhjennä sitä mitä vahti on löytänyt.
-    state: (prev && prev.state) || null,
+    state,
+    hist: reprintHistPut(prev.hist, reprintDay(), reprintMetric(merged, state && state.stale)),
   };
   if (JSON.stringify(rec).length > REPRINT_MAX_BYTES)
     return jsonResponse({ error: "too_large" }, 413, origin);
   await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify(rec));
   await addReprintCity(env, city);
-  return jsonResponse({ ok: true, units: rec.units, updated: rec.updated, state: rec.state }, 200, origin);
+  // ack: true kertoo sovellukselle, että tämä palvelin tallentaa vaihdon kuittaukset (installed).
+  return jsonResponse({ ok: true, ack: true, units: rec.units, updated: rec.updated, state: rec.state, hist: rec.hist }, 200, origin);
 }
 
 async function handleReprintStatus(url, env, origin) {
@@ -1949,9 +2029,12 @@ async function handleReprintStatus(url, env, origin) {
   const data = await readReprintData(env, city);
   return jsonResponse({
     ok: true,
+    // Vanha palvelin ei palauta tätä: sovellus piilottaa silloin kuittauksen palvelinosan.
+    ack: true,
     units: (data && data.units) || {},
     updated: (data && data.updated) || null,
     state: (data && data.state) || null,
+    hist: (data && data.hist) || {},
   }, 200, origin);
 }
 
@@ -2026,7 +2109,9 @@ async function handleReprintServiceResult(request, env) {
     sent = await sendReprintAlert(env, city, data, stale);
     if (sent && sent.ok) state.notifiedAt = state.checkedAt;
   }
-  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, state }));
+  // Kuukausirivi päivittyy joka aamu vahdin ajosta, vaikka kukaan ei avaa sovellusta.
+  const hist = reprintHistPut(data.hist, reprintDay(), reprintMetric(data.units, stale));
+  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, state, hist }));
   return adminJson({ ok: true, city, stale: stale.length, changed: muuttui, notified: !!(sent && sent.ok) }, 200);
 }
 

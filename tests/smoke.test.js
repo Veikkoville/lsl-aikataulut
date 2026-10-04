@@ -2849,6 +2849,294 @@ async function minuuttiLinjaus(page, rootSel, media) {
     ? ok("palvelinvahti: yhdistäminen säilyttää molempien puolten merkinnät, uudempi voittaa")
     : fail("palvelinvahti: yhdistämissääntö väärin: " + JSON.stringify(rpMerge));
 
+  // --- Vaihtolista ja ajantasaisuusmittari (erä D7, 4.10.2026) ---
+  // Pysäkkijuliste on uusintapainatusvahdin oma yksikkö ("stop:<gtfsId>"), painettu ja vaihdettu
+  // ovat eri merkintöjä, ja vaihtolista järjestää vanhentuneet ja vaihtoa odottavat asennusreitiksi.
+  // Kaikki alla oleva ajetaan synteettisellä datalla: sormenjäljet, osoitteet ja palvelin kääritään
+  // sivulla, joten tulos ei riipu päivän aikataulusta eikä yhtään kutsua lähde tuotannon workerille.
+  // (1) Puhtaat funktiot: kielestä riippumaton sormenjälki ja luettava ero, ja kuittaus voittaa yhdistämisen.
+  const vtPuhdas = await page.evaluate(() => {
+    if (typeof reprintStopSigFrom !== "function") return { puuttuu: true };
+    const r = { shortName: "4" };
+    const blk = (n, shift) => [{ dows: new Set([0, 1, 2, 3, 4]), lines: [{ route: r, headsign: "Keskusta",
+      times: Array.from({ length: n }, (_, i) => 18000 + i * 1800 + shift), codes: new Map() }] }];
+    const meta = { name: "Testipysäkki", code: "T1", lat: 61.1234567, lon: 25.7654321 };
+    const a = reprintStopSigFrom(meta, blk(30, 0)), b = reprintStopSigFrom(meta, blk(28, 0)), c = reprintStopSigFrom(meta, blk(30, 60));
+    const u = { printed: "2026-10-01T08:00:00Z", sig: a };
+    const m = reprintMergeUnits({ x: u }, { x: { ...u, installed: "2026-10-02T08:00:00Z" } });
+    return { k: a.dirs[0].groups[0].k, lat: a.lat, ero: reprintDiff(a, b), aika: reprintDiff(a, c), sama: reprintDiff(a, a).length,
+      odotus: t("reprintDiffTrips", { label: dowLabel(new Set([0, 1, 2, 3, 4])) + " · 4 Keskusta", a: 30, b: 28 }),
+      kuittaus: m.x.installed || "" };
+  });
+  (!vtPuhdas.puuttuu && vtPuhdas.k === "01234|4|Keskusta" && vtPuhdas.lat === 61.12346 && vtPuhdas.ero.length === 1 &&
+   vtPuhdas.ero[0] === vtPuhdas.odotus && vtPuhdas.aika.length === 1 && vtPuhdas.sama === 0 && vtPuhdas.kuittaus === "2026-10-02T08:00:00Z")
+    ? ok(`vaihtolista: pysäkkijulisteen sormenjälki kielestä riippumaton, ero luettava ("${vtPuhdas.ero[0]}"), kuittaus voittaa yhdistämisen`)
+    : fail("vaihtolista: pysäkkijulisteen sormenjälki: " + JSON.stringify(vtPuhdas));
+
+  // (2) Asennusreitti: sekoitettu jono pisteitä suoralla linjalla kulkee järjestyksessä, ja ristikkäinen
+  // lähin naapuri -reitti oikaistaan (2-opt) lyhyemmäksi.
+  const vtReitti = await page.evaluate(() => {
+    if (typeof reprintRouteOrder !== "function") return { puuttuu: true };
+    const start = { lat: 61, lon: 25.6 };
+    const pts = [5, 1, 4, 2, 3].map(k => ({ lat: 61 + k * 0.01, lon: 25.6 }));
+    const jarjestys = reprintRouteOrder(pts, start).map(i => Math.round((pts[i].lat - 61) * 100));
+    // Lähin naapuri tuottaa tähän ristikkäisen reitin; oikaisun jälkeen kokonaismatka on lyhyempi.
+    const zz = [{ lat: 61, lon: 25.6368 }, { lat: 61.0058, lon: 25.6084 }, { lat: 61.0146, lon: 25.6213 },
+      { lat: 61.0066, lon: 25.6301 }, { lat: 61.0151, lon: 25.6217 }];
+    const len = o => o.reduce((s, i, k) => s + distM(k ? zz[o[k - 1]] : start, zz[i]), 0);
+    const nn = [];
+    { const left = new Set([0, 1, 2, 3, 4]); let cur = start;
+      while (left.size) { let b = -1, bd = Infinity; for (const i of left) { const d = distM(cur, zz[i]); if (d < bd) { bd = d; b = i; } } nn.push(b); left.delete(b); cur = zz[b]; } }
+    const opt = reprintRouteOrder(zz, start);
+    return { jarjestys: jarjestys.join(","), nn: Math.round(len(nn)), opt: Math.round(len(opt)), kaikki: opt.slice().sort().join(",") };
+  });
+  (!vtReitti.puuttuu && vtReitti.jarjestys === "1,2,3,4,5" && vtReitti.opt < vtReitti.nn && vtReitti.kaikki === "0,1,2,3,4")
+    ? ok(`vaihtolista: asennusreitti lähimmästä alkaen ja oikaistuna (${vtReitti.nn} m -> ${vtReitti.opt} m)`)
+    : fail("vaihtolista: asennusreitti: " + JSON.stringify(vtReitti));
+
+  // (3) Näkymä: synteettinen perustaso viidellä pysäkkijulisteella keskustan pohjoispuolella.
+  // A vanhenee (30 -> 28 lähtöä), B on painettu mutta ei vaihdettu, C (77 m B:stä) ja D vanhenevat,
+  // E on ajan tasalla. Odotus: reitti A, B+C (sama paikka, 2 julistetta), D; mittari 1/5 = 20 %.
+  const vtAvaimet = ["reprintBase:", "reprintHl:", "reprintStops:", "reprintAddr:"];
+  const vtAlku = await page.evaluate((avaimet) => {
+    const talteen = {};
+    for (const p of avaimet) { const k = p + cityKey; talteen[k] = localStorage.getItem(k); localStorage.removeItem(k); }
+    talteen.__srv = localStorage.getItem(reprintSrvKeyName());
+    localStorage.removeItem(reprintSrvKeyName());
+    window.__vtTalteen = talteen;
+    const f = AREA.focus;
+    const sig = (name, code, dLat, dLon, n) => ({ v: 1, kind: "stop", label: name, code, lat: f.lat + dLat, lon: f.lon + dLon,
+      dirs: [{ label: "", groups: [{ k: "01234|4|Keskusta", n, h: "h" + n }] }] });
+    const P = "2026-10-01T08:00:00.000Z", I = "2026-10-02T08:00:00.000Z", P2 = "2026-10-03T08:00:00.000Z";
+    const base = {
+      "stop:T:A": { label: "Testi A", printed: P, installed: I, sig: sig("Testi A", "TA", 0.002, 0, 30) },
+      "stop:T:B": { label: "Testi B", printed: P2, sig: sig("Testi B", "TB", 0.010, 0, 30) },
+      "stop:T:C": { label: "Testi C", printed: P, installed: I, sig: sig("Testi C", "TC", 0.0105, 0.001, 30) },
+      "stop:T:D": { label: "Testi D", printed: P, installed: I, sig: sig("Testi D", "TD", 0.020, 0, 30) },
+      "stop:T:E": { label: "Testi E", printed: P, installed: I, sig: sig("Testi E", "TE", -0.030, 0, 30) },
+    };
+    localStorage.setItem(reprintKey(), JSON.stringify(base));
+    // Nykytila: A, C ja D muuttuneet. Kääre korvaa verkkohaun (sama tapa kuin reprintLineSnap-kääre yllä).
+    window.__vtOrigSnaps = window.reprintStopSnaps;
+    window.reprintStopSnaps = async (ids) => new Map(ids.map(g => {
+      const u = base["stop:" + g];
+      if (!u) return [g, null];
+      const muuttunut = ["T:A", "T:C", "T:D"].includes(g);
+      return [g, { ...u.sig, dirs: [{ label: "", groups: [{ k: "01234|4|Keskusta", n: muuttunut ? 28 : 30, h: muuttunut ? "h28" : "h30" }] }] }];
+    }));
+    // Osoitevihje: käänteinen geokoodaus synteettisenä, ei verkkoa.
+    window.__vtOrigFetch = window.fetch;
+    window.__vtReprintKutsut = 0;
+    window.fetch = (url, opts) => {
+      const u = String(url);
+      if (/\/reprint\//.test(u)) window.__vtReprintKutsut++;
+      if (/\/geocoding\/reverse/.test(u)) {
+        const lat = Number(new URL(u, location.href).searchParams.get("point.lat"));
+        return Promise.resolve(new Response(JSON.stringify({ features: [{ properties: { name: "Testikatu " + Math.round((lat - f.lat) * 1000) } }] }),
+          { status: 200, headers: { "Content-Type": "application/json" } }));
+      }
+      return window.__vtOrigFetch(url, opts);
+    };
+    window.__vtOrigPrint = window.print;
+    window.__vtPrinted = 0;
+    window.print = () => { window.__vtPrinted++; };
+    return true;
+  }, vtAvaimet);
+  const vtPalauta = () => page.evaluate(() => {
+    if (window.__vtOrigSnaps) window.reprintStopSnaps = window.__vtOrigSnaps;
+    if (window.__vtOrigFetch) window.fetch = window.__vtOrigFetch;
+    if (window.__vtOrigPrint) window.print = window.__vtOrigPrint;
+    document.body.classList.remove("rp-vt-printing");
+    const t0 = window.__vtTalteen || {};
+    for (const [k, v] of Object.entries(t0)) {
+      const key = k === "__srv" ? reprintSrvKeyName() : k;
+      if (v == null) localStorage.removeItem(key); else localStorage.setItem(key, v);
+    }
+    delete window.__vtOrigSnaps; delete window.__vtOrigFetch; delete window.__vtOrigPrint;
+  }).catch(() => {});
+  const vtAvaa = async () => {
+    await page.evaluate(() => { location.hash = "#/tulosteet/vihko"; });
+    await sleep(300);
+    await page.evaluate(() => { location.hash = "#/tulosteet/uusintapainatus"; });
+    await page.waitForSelector("#rpVt:not([hidden]) #rpVtBody", { timeout: 30000 }).catch(() => {});
+  };
+  try {
+    await vtAvaa();
+    const ennen = await page.evaluate(() => ({
+      paikat: document.querySelectorAll("#rpVtList > li").length,
+      tarkistamatta: document.getElementById("rpVtSrc")?.textContent || "",
+      odotus: t("reprintVtUnknown", { n: 4 }),
+    }));
+    // Tarkistus vain pysäkkijulisteille (perustasossa ei ole muuta), kääre antaa nykytilan.
+    await page.evaluate(() => {
+      document.querySelectorAll(".rpCb").forEach(c => { c.checked = c.value.startsWith("stop:T:"); });
+      document.getElementById("rpGo").click();
+    });
+    await page.waitForFunction(() => document.querySelectorAll("#rpVtList > li").length === 3, { timeout: 20000 }).catch(() => {});
+    await page.waitForFunction(() => /Testikatu/.test(document.querySelector("#rpVtList .rp-vt-addr")?.textContent || ""), { timeout: 10000 }).catch(() => {});
+    const lista = await page.evaluate(() => ({
+      paikat: [...document.querySelectorAll("#rpVtList > li")].map(li => [...li.querySelectorAll(".rp-vt-stop")].map(s => s.dataset.id.slice(7)).join("+")).join(","),
+      julisteita: document.querySelectorAll("#rpVtList > li")[1]?.querySelector(".rp-vt-title .muted")?.textContent || "",
+      odotusJulisteita: t("reprintVtPosters", { n: 2 }),
+      osoite: document.querySelector("#rpVtList .rp-vt-addr")?.textContent || "",
+      ero: document.querySelector('#rpVtList .rp-vt-stop[data-id="stop:T:A"] .rp-vt-what')?.textContent || "",
+      odotusEro: t("reprintDiffTrips", { label: dowLabel(new Set([0, 1, 2, 3, 4])) + " · 4 Keskusta", a: 30, b: 28 }),
+      mittari: document.getElementById("rpMeterPct")?.textContent || "",
+      huomio: (document.getElementById("rpMeterBody")?.textContent || "").includes(t("reprintMeterNote")),
+      merkitseKaikki: !!document.getElementById("rpMarkAll"),
+    }));
+    (ennen.paikat === 1 && ennen.tarkistamatta.includes(ennen.odotus) && lista.paikat === "A,B+C,D" &&
+     lista.julisteita.startsWith(lista.odotusJulisteita) && /^Testikatu \d+$/.test(lista.osoite) &&
+     lista.ero.includes(lista.odotusEro) && lista.mittari === "20 %" && lista.huomio && lista.merkitseKaikki)
+      ? ok(`vaihtolista: asennusjärjestys ${lista.paikat} keskustasta, vierekkäiset yhdeksi kohteeksi, osoitevihje ja syy (${lista.ero}), mittari ${lista.mittari}`)
+      : fail("vaihtolista: näkymä: " + JSON.stringify({ ennen, lista }));
+
+    // (4) Kuittaus: B odotti vaihtoa (painettu, ei vaihdettu) -> sormenjälki säilyy, vain kuittaus.
+    // A oli vanhentunut -> uusi sormenjälki nykytilasta, painettu = vaihdettu = nyt.
+    const kuittaa = id => page.evaluate(id => document.querySelector(`#rpVtList .rpAck[data-id="${id}"]`)?.click(), id);
+    await kuittaa("stop:T:B");
+    await page.waitForFunction(() => !document.querySelector('#rpVtList .rpAck[data-id="stop:T:B"]'), { timeout: 10000 }).catch(() => {});
+    const b = await page.evaluate(() => ({ u: reprintLoad()["stop:T:B"], pct: document.getElementById("rpMeterPct")?.textContent || "",
+      tila: document.getElementById("rpVtStatus")?.textContent || "", odotus: t("reprintVtDoneOk") }));
+    await kuittaa("stop:T:A");
+    await page.waitForFunction(() => !document.querySelector('#rpVtList .rpAck[data-id="stop:T:A"]'), { timeout: 10000 }).catch(() => {});
+    const a = await page.evaluate(() => ({ u: reprintLoad()["stop:T:A"], pct: document.getElementById("rpMeterPct")?.textContent || "",
+      jaljella: document.querySelectorAll("#rpVtList .rp-vt-stop").length }));
+    (b.u && b.u.installed && b.u.printed === "2026-10-03T08:00:00.000Z" && b.u.sig.dirs[0].groups[0].n === 30 && b.pct === "40 %" &&
+     b.tila.startsWith(b.odotus) && a.u && a.u.installed && a.u.installed === a.u.printed && a.u.sig.dirs[0].groups[0].n === 28 &&
+     a.pct === "60 %" && a.jaljella === 2)
+      ? ok("vaihtolista: kuittaus erottaa painetun ja vaihdetun (odottanut säilyttää sormenjäljen, vanhentunut saa nykyisen), mittari 20 -> 40 -> 60 %")
+      : fail("vaihtolista: kuittaus: " + JSON.stringify({ b, a }));
+
+    // (5) Tulostus: A4-lista asennusjärjestyksessä rastitusruutuineen, ja paperille vain lista.
+    await page.evaluate(() => document.getElementById("rpVtPrintBtn")?.click());
+    await page.waitForFunction(() => window.__vtPrinted > 0, { timeout: 15000 }).catch(() => {});
+    const paperi = await page.evaluate(() => ({
+      rivit: [...document.querySelectorAll("#rpVtPrint tbody tr")].map(tr => tr.querySelector("b")?.textContent || "").join(","),
+      ruudut: document.querySelectorAll("#rpVtPrint td.rp-vt-box span").length,
+      otsikko: document.querySelector("#rpVtPrint .print-brandhead h2")?.textContent || "",
+      odotusOtsikko: t("reprintVtTitle"),
+    }));
+    await page.emulateMediaType("print");
+    const nakyy = await page.evaluate(() => {
+      const d = id => { const el = document.getElementById(id); return el ? getComputedStyle(el).display : "puuttuu"; };
+      return { lista: !["none", "puuttuu"].includes(d("rpVtPrint")), tulokset: d("rpOut"), kortti: d("rpVt") };
+    });
+    await page.emulateMediaType(null);
+    await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+    const siivottu = await page.evaluate(() => !document.body.classList.contains("rp-vt-printing") && !document.getElementById("rpVtPrint")?.innerHTML);
+    const kutsut = await page.evaluate(() => window.__vtReprintKutsut);
+    (paperi.rivit === "Testi C,Testi D" && paperi.ruudut === 2 && paperi.otsikko === paperi.odotusOtsikko &&
+     nakyy.lista && nakyy.tulokset === "none" && nakyy.kortti === "none" && siivottu && kutsut === 0)
+      ? ok("vaihtolista: tuloste on A4-lista asennusjärjestyksessä rastitusruutuineen, paperille vain lista, ilman avainta 0 palvelinkutsua")
+      : fail("vaihtolista: tuloste: " + JSON.stringify({ paperi, nakyy, siivottu, kutsut }));
+
+    // (6) Palvelin kaupungin avaimella (kääritty fetch, ei verkkoa): vahdin päivittäinen tila ja
+    // kuukausirivit näkyvät, ja kuittaus lähtee samalla avaimella kuin painomerkintä.
+    // Vanha palvelin (ei ack-kenttää): historia ja kuittauksen palvelinosa kertovat sen, eikä mikään kaadu.
+    const vtPalvelin = async (ack) => {
+      await page.evaluate((ack) => {
+        const base = JSON.parse(localStorage.getItem(reprintKey()) || "{}");
+        for (const id of Object.keys(base)) delete base[id].installed;   // kaikki odottavat vaihtoa
+        base["stop:T:E"].installed = "2026-10-02T08:00:00.000Z";
+        base["stop:T:E"].printed = "2026-10-01T08:00:00.000Z";
+        localStorage.setItem(reprintKey(), JSON.stringify(base));
+        localStorage.removeItem(reprintHlKey());
+        localStorage.setItem(reprintSrvKeyName(), "testiavain-ei-oikea-0123456789");
+        const kk = todayISO().slice(0, 7);
+        window.__vtPost = [];
+        const vastaus = o => Promise.resolve(new Response(JSON.stringify(o), { status: 200, headers: { "Content-Type": "application/json" } }));
+        const tila = { stale: ["stop:T:E"], checkedAt: todayISO() + "T03:20:00.000Z" };
+        const hist = { "2026-09": { d: "2026-09-30", n: 5, ok: 2 }, [kk]: { d: todayISO(), n: 5, ok: 1 } };
+        window.fetch = (url, opts) => {
+          const u = String(url);
+          if (/\/reprint\/status/.test(u)) return vastaus(ack ? { ok: true, ack: true, units: base, updated: null, state: tila, hist }
+            : { ok: true, units: base, updated: null, state: tila });
+          if (/\/reprint\/baseline/.test(u)) {
+            window.__vtPost.push(JSON.parse(opts.body));
+            return vastaus(ack ? { ok: true, ack: true, units: {}, state: tila, hist } : { ok: true, units: {}, state: tila });
+          }
+          if (/\/reprint\//.test(u)) return Promise.resolve(new Response("{}", { status: 404 }));
+          return window.__vtOrigFetch(url, opts);
+        };
+      }, ack);
+      await vtAvaa();
+      await page.waitForFunction(() => document.querySelectorAll("#rpVtList .rpAck").length > 0, { timeout: 15000 }).catch(() => {});
+      const nakyma = await page.evaluate(() => ({
+        kuukausia: document.querySelectorAll("#rpMeterHist tbody tr").length,
+        huomio: document.getElementById("rpMeterHistNote")?.textContent || "",
+        lahde: document.getElementById("rpVtSrc")?.textContent || "",
+        eVanha: !!document.querySelector('#rpVtList .rp-vt-stop[data-id="stop:T:E"]'),
+      }));
+      await page.evaluate(() => document.querySelector('#rpVtList .rpAck[data-id="stop:T:B"]')?.click());
+      await page.waitForFunction(() => window.__vtPost.length > 0 && /\S/.test(document.getElementById("rpVtStatus")?.textContent || ""), { timeout: 10000 }).catch(() => {});
+      return page.evaluate((nakyma) => {
+        const p = window.__vtPost[0] || {};
+        const u = (p.units || {})["stop:T:B"] || {};
+        return { ...nakyma, avain: p.key === "testiavain-ei-oikea-0123456789", kentat: Object.keys(u).sort().join(","),
+          tila: document.getElementById("rpVtStatus")?.textContent || "",
+          paikallinen: t("reprintVtAckLocal"), vanhaHuomio: t("reprintMeterOldSrv"),
+          palvelinLahde: t("reprintVtSrcServer", { date: fmtDateLong(todayISO()) }) };
+      }, nakyma);
+    };
+    const uusi = await vtPalvelin(true);
+    const vanha = await vtPalvelin(false);
+    (uusi.kuukausia === 2 && uusi.lahde.includes(uusi.palvelinLahde) && uusi.eVanha && uusi.avain &&
+     uusi.kentat === "installed,label,printed,sig" && !uusi.tila.includes(uusi.paikallinen) &&
+     vanha.kuukausia === 0 && vanha.huomio === vanha.vanhaHuomio && vanha.avain && vanha.tila.includes(vanha.paikallinen))
+      ? ok("vaihtolista: palvelimen päivittäinen tila ja kuukausirivit näkyvät, kuittaus lähtee kaupungin avaimella; vanha palvelin ei kaada vaan kertoo")
+      : fail("vaihtolista: palvelin: " + JSON.stringify({ uusi, vanha }));
+  } finally {
+    await vtPalauta();
+  }
+
+  // (7) Etusivu ei laske pysäkkijulisteita: niitä voi olla satoja. Ilman tätä vanha nosto kysyi
+  // jokaisen "stop:"-yksikön linjana (reprintLineSnap) ja jokainen etusivun avaus maksoi kyselyn.
+  await page.evaluate(() => {
+    // Sama kertakääre kuin nostovartijassa yllä (asennetaan vain jos sitä ei vielä ole).
+    if (!window.__rpWrapped) {
+      window.__rpWrapped = true;
+      const line = window.reprintLineSnap, corr = window.reprintCorridorSnap;
+      window.reprintLineSnap = (...a) => { window.__rpSnapCalls++; return line(...a); };
+      window.reprintCorridorSnap = (...a) => { window.__rpSnapCalls++; return corr(...a); };
+    }
+    window.__vtTalteen2 = { b: localStorage.getItem(reprintKey()), h: localStorage.getItem(reprintHlKey()) };
+    localStorage.setItem(reprintKey(), JSON.stringify({ "stop:T:A": { label: "Testi A", printed: "2026-10-01T08:00:00.000Z",
+      sig: { v: 1, kind: "stop", label: "Testi A", lat: AREA.focus.lat, lon: AREA.focus.lon, dirs: [{ label: "", groups: [] }] } } }));
+    localStorage.removeItem(reprintHlKey());
+  });
+  await rpGoHome();
+  await sleep(2000);
+  const vtEtusivu = await page.evaluate(() => ({ kyselyt: window.__rpSnapCalls, teksti: document.getElementById("hlReprintDesc")?.textContent || "",
+    yleis: t("heroHlReprintDesc") }));
+  await page.evaluate(() => {
+    const s = window.__vtTalteen2 || {};
+    if (s.b == null) localStorage.removeItem(reprintKey()); else localStorage.setItem(reprintKey(), s.b);
+    if (s.h == null) localStorage.removeItem(reprintHlKey()); else localStorage.setItem(reprintHlKey(), s.h);
+  });
+  (vtEtusivu.kyselyt === 0 && vtEtusivu.teksti === vtEtusivu.yleis)
+    ? ok("vaihtolista: etusivun nosto ei hae pysäkkijulisteita (0 kyselyä), tila tulee tarkistuksesta")
+    : fail("vaihtolista: etusivun nosto haki pysäkkijulisteen: " + JSON.stringify(vtEtusivu));
+
+  // (8) Linjan pysäkit seurantaan yhdellä painalluksella (oikea data: linjalla on aina pysäkkejä).
+  await page.goto(BASE + "/#/uusintapainatus", { waitUntil: "networkidle2" });
+  await page.waitForSelector("#rpStopLineBtn", { timeout: 30000 }).catch(() => {});
+  const vtLinja = await page.evaluate(async () => {
+    if (!document.getElementById("rpStopLineBtn")) return { puuttuu: true };
+    const ennen = localStorage.getItem(reprintStopsKey());
+    document.getElementById("rpStopLineBtn").click();
+    const t0 = performance.now();
+    while (performance.now() - t0 < 20000 && !document.querySelector('.rpCb[value^="stop:"]:checked')) await new Promise(r => setTimeout(r, 200));
+    const r = { rastit: document.querySelectorAll('.rpCb[value^="stop:"]:checked').length, ehdokkaat: reprintStopsLoad().length,
+      viesti: document.getElementById("rpStopMsg")?.textContent || "" };
+    if (ennen == null) localStorage.removeItem(reprintStopsKey()); else localStorage.setItem(reprintStopsKey(), ennen);
+    return r;
+  });
+  (!vtLinja.puuttuu && vtLinja.rastit > 0 && vtLinja.rastit === vtLinja.ehdokkaat && /\d/.test(vtLinja.viesti))
+    ? ok(`vaihtolista: linjan pysäkit seurantaan yhdellä painalluksella (${vtLinja.rastit} pysäkkiä rastitettu)`)
+    : fail("vaihtolista: linjan pysäkkien lisäys: " + JSON.stringify(vtLinja));
+  await page.goto(BASE + "/#/uusintapainatus", { waitUntil: "networkidle2" });
+
   // --- Navigointi: uusintapainatus on tulostekeskuksen välilehti, ja paluu toimii (4.9.2026) ---
   // Uusintapainatus oli oma irrallinen näkymänsä, josta pääsi pois vain etusivun kautta, vaikka se
   // on tulosteiden ylläpitoa siinä missä muutosvahti. Vanhan osoitteen #/uusintapainatus pitää yhä

@@ -792,6 +792,44 @@
   details.rp-srv { border-top: 1px solid var(--border); margin-top: 0.8rem; padding-top: 0.6rem; }
   details.rp-srv summary { cursor: pointer; padding: 0.1rem 0; color: var(--muted); }
   details.rp-srv[open] summary { margin-bottom: 0.3rem; }
+  /* Vaihtolista ja ajantasaisuusmittari (4.10.2026): paikka = vierekkäiset pysäkit, joiden julisteet
+     asentaja vaihtaa samalla pysähdyksellä; pysäkkirivillä Vaihdettu-kuittaus. */
+  .rp-meter-big { font-size: 2rem; font-weight: 700; line-height: 1.1; margin: 0.2rem 0; font-variant-numeric: tabular-nums; }
+  table.rp-meter-hist { border-collapse: collapse; font-size: 0.9rem; margin: 0.2rem 0 0.4rem; }
+  table.rp-meter-hist th, table.rp-meter-hist td { text-align: left; padding: 0.25rem 0.9rem 0.25rem 0;
+    border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  ol.rp-vt { list-style: none; margin: 0.5rem 0 0; padding: 0; }
+  ol.rp-vt > li { border-top: 1px solid var(--border); padding: 0.6rem 0 0.3rem; }
+  ol.rp-vt > li:first-child { border-top: none; }
+  .rp-vt-head { display: flex; gap: 0.6rem; align-items: flex-start; }
+  .rp-vt-no { flex: none; min-width: 1.9em; height: 1.9em; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 50%; background: var(--chip); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rp-vt-title { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; overflow-wrap: anywhere; }
+  ul.rp-vt-stops { margin: 0.2rem 0 0 2.5em; }
+  li.rp-vt-stop { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.45rem 0; }
+  li.rp-vt-stop > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  ul.rp-vt-what { margin: 0.15rem 0 0; padding-left: 1.1rem; }
+  .rp-vt-msg { margin: 0.2rem 0 0; }
+  .rp-vt-msg:empty { display: none; }
+  button.rpAck { flex: none; min-height: 44px; }
+  @media print {
+    /* Vaihtolistan tulostus: vain lista paperille, ei tarkistuksen tuloskortteja. */
+    body.rp-vt-printing #rpOut { display: none !important; }
+    .rp-vt-print { color: #000; }
+    .rp-vt-print .rp-vt-meter { font-size: 9.5pt; margin: 0 0 2.5mm; }
+    .rp-vt-print table.rp-vt-table { width: 100%; border-collapse: collapse; font-size: 10pt; line-height: 1.25; }
+    .rp-vt-print table.rp-vt-table thead { display: table-header-group; }
+    .rp-vt-print table.rp-vt-table th { font-size: 8.5pt; text-align: left; padding: 1mm 1.5mm; border-bottom: 0.5mm solid #000; }
+    .rp-vt-print table.rp-vt-table td { padding: 1.4mm 1.5mm; vertical-align: top; border-bottom: 0.25mm solid #999; }
+    .rp-vt-print table.rp-vt-table tr { break-inside: avoid; page-break-inside: avoid; }
+    .rp-vt-print table.rp-vt-table tr.rp-vt-first td { border-top: 0.4mm solid #000; }
+    .rp-vt-print table.rp-vt-table td.num { text-align: center; font-weight: 700; width: 9mm; }
+    .rp-vt-print table.rp-vt-table th:nth-child(2) { width: 27%; }
+    .rp-vt-print table.rp-vt-table th:nth-child(3) { width: 20%; }
+    .rp-vt-print td.rp-vt-box { width: 16mm; text-align: center; }
+    .rp-vt-print td.rp-vt-box span { display: inline-block; width: 6mm; height: 6mm; border: 0.5mm solid #000; }
+    .rp-vt-print .rp-vt-foot { font-size: 9pt; margin-top: 3mm; }
+  }
   .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
   /* REILA F3: segmentoidut valitsimet (päivätyyppi/kieli/teema/tekstikoko/kontrasti/
      tulostevälilehdet). Inaktiivi = neutraali kenttäpohja + reuna, aktiivi = accent-täyttö.
@@ -4792,6 +4830,51 @@ const STRINGS = {
     reprintDiffSpan: "{label}: ensimmäinen–viimeinen {a} → {b}",
     reprintDiffAdded: "Uusi lohko: {label}",
     reprintDiffRemoved: "Lohko poistui: {label}",
+    // Pysäkkijulisteet uusintapainatusvahtiin, vaihtolista ja ajantasaisuusmittari (4.10.2026)
+    reprintStopsTitle: "Pysäkkijulisteet",
+    reprintStopsIntro: "Lisää seurantaan pysäkit, joiden julisteen olet painanut. Ne tulevat vaihtolistalle ja ajantasaisuusmittariin.",
+    reprintStopSearch: "Hae pysäkki",
+    reprintStopSearchPh: "Pysäkin nimi tai tunnus",
+    reprintStopLine: "Tai lisää linjan kaikki pysäkit",
+    reprintStopLineBtn: "Lisää linjan pysäkit",
+    reprintStopAdded: "Lisätty listaan: {n} pysäkkiä. Aja tarkistus ja merkitse painetut.",
+    reprintStopAdded1: "Lisätty listaan: {name}. Aja tarkistus ja merkitse se painetuksi.",
+    reprintStopNone: "Pysäkkiä ei löytynyt.",
+    reprintStopLabel: "Pysäkkijuliste: {name}",
+    reprintMarkAll: "Merkitse kaikki painetuiksi ({n})",
+    reprintVtTitle: "Vaihtolista",
+    reprintVtIntro: "Pysäkit, joiden juliste pitää vaihtaa, asennusreitin järjestyksessä. Kuittaa pysäkki vaihdetuksi, kun uusi juliste on paikallaan.",
+    reprintVtStart: "Reitti alkaa",
+    reprintVtStartCenter: "Keskustasta",
+    reprintVtRouteNote: "Järjestys lasketaan linnuntietä: seuraavaksi aina lähin pysäkki, ja lopuksi reitin ristikkäiset osuudet oikaistaan. Katuverkkoa ja yksisuuntaisia katuja se ei tunne.",
+    reprintVtEmpty: "Yhtään pysäkkijulistetta ei tarvitse vaihtaa.",
+    reprintVtUnknown: "Tarkistamatta {n} julistetta. Aja Tarkista muutokset, niin ne tulevat mukaan.",
+    reprintVtSrcCheck: "Tilanne tarkistettu {date}.",
+    reprintVtSrcServer: "Tilanne palvelimen päivittäisestä vertailusta {date}.",
+    reprintVtPrint: "Tulosta vaihtolista",
+    reprintVtPosters: "{n} julistetta",
+    reprintVtPosters1: "1 juliste",
+    reprintVtChanged: "Aikataulu on muuttunut.",
+    reprintVtWaiting: "Uusi juliste painettu {date}, odottaa vaihtoa.",
+    reprintVtDone: "Vaihdettu",
+    reprintVtDoneOk: "Kuitattu vaihdetuksi",
+    reprintVtSaving: "Tallennetaan…",
+    reprintVtAckLocal: "Palvelin ei vielä tallenna kuittauksia, joten kuittaus on tallessa vain tässä selaimessa.",
+    reprintVtAckFail: "Kuittaus ei tallentunut palvelimelle. Se on tallessa tässä selaimessa.",
+    reprintVtAckErr: "Kuittaus ei onnistunut, koska aikataulua ei saatu haettua. Yritä uudelleen.",
+    reprintVtColNo: "Nro", reprintVtColStop: "Pysäkki", reprintVtColWhere: "Sijainti", reprintVtColN: "Julisteita",
+    reprintVtColWhat: "Mitä muuttui", reprintVtColDone: "Vaihdettu",
+    reprintVtPrintSub: "{n} julistetta {places} kohteessa · {date}",
+    reprintVtPrintFoot: "Rastita ruutu, kun uusi juliste on paikallaan, ja kuittaa vaihto sovelluksessa: {path}.",
+    reprintMeterTitle: "Ajantasaisuus",
+    reprintMeterValue: "{ok}/{n} seuratusta pysäkkijulisteesta vastaa nykyistä aikataulua.",
+    reprintMeterParts: "Vanhentuneita {stale}, vaihto kuittaamatta {waiting}, tarkistamatta {unknown}.",
+    reprintMeterNote: "Mittari kattaa vain Reittarilla tulostetut ja vaihdetuiksi kuitatut pysäkkijulisteet. Muita pysäkkien julisteita se ei näe.",
+    reprintMeterNone: "Seurannassa ei ole vielä pysäkkijulisteita.",
+    reprintMeterMonths: "Kuukausittain",
+    reprintMeterColMonth: "Kuukausi", reprintMeterColPct: "Osuus", reprintMeterColOk: "Ajan tasalla", reprintMeterColDate: "Mitattu",
+    reprintMeterNoHist: "Kuukausihistoria tallentuu palvelimelle kaupungin avaimella.",
+    reprintMeterOldSrv: "Kuukausihistoria tulee näkyviin palvelimen päivityksen jälkeen.",
     corridorBuilding: "Kootaan yhdistettyä aikataulua…",
     corridorNoShared: "Valituilla linjoilla ei ole riittävää yhteistä pysäkkijaksoa (vähintään 3 yhteistä pysäkkiä samassa järjestyksessä).",
     corridorExcluded: "Ei mukana (ei yhteistä jaksoa valittujen kanssa): {lines}",
@@ -5525,6 +5608,50 @@ const STRINGS = {
     reprintDiffSpan: "{label}: first–last {a} → {b}",
     reprintDiffAdded: "New block: {label}",
     reprintDiffRemoved: "Block removed: {label}",
+    reprintStopsTitle: "Stop posters",
+    reprintStopsIntro: "Add the stops whose poster you have printed. They appear on the replacement list and in the up-to-date meter.",
+    reprintStopSearch: "Find a stop",
+    reprintStopSearchPh: "Stop name or code",
+    reprintStopLine: "Or add every stop of a line",
+    reprintStopLineBtn: "Add the line's stops",
+    reprintStopAdded: "Added to the list: {n} stops. Run a check and mark the printed ones.",
+    reprintStopAdded1: "Added to the list: {name}. Run a check and mark it as printed.",
+    reprintStopNone: "No stop found.",
+    reprintStopLabel: "Stop poster: {name}",
+    reprintMarkAll: "Mark all as printed ({n})",
+    reprintVtTitle: "Replacement list",
+    reprintVtIntro: "Stops whose poster needs replacing, in installation route order. Mark a stop as replaced once the new poster is up.",
+    reprintVtStart: "Route starts",
+    reprintVtStartCenter: "From the city centre",
+    reprintVtRouteNote: "The order is worked out as the crow flies: always the nearest stop next, then crossing legs are straightened out. It does not know the street network or one-way streets.",
+    reprintVtEmpty: "No stop posters need replacing.",
+    reprintVtUnknown: "{n} posters not checked yet. Run Check for changes to include them.",
+    reprintVtSrcCheck: "Status checked {date}.",
+    reprintVtSrcServer: "Status from the server's daily comparison {date}.",
+    reprintVtPrint: "Print the replacement list",
+    reprintVtPosters: "{n} posters",
+    reprintVtPosters1: "1 poster",
+    reprintVtChanged: "The timetable has changed.",
+    reprintVtWaiting: "New poster printed {date}, waiting to be put up.",
+    reprintVtDone: "Replaced",
+    reprintVtDoneOk: "Marked as replaced",
+    reprintVtSaving: "Saving…",
+    reprintVtAckLocal: "The server does not store confirmations yet, so this one is saved in this browser only.",
+    reprintVtAckFail: "The confirmation did not reach the server. It is saved in this browser.",
+    reprintVtAckErr: "Could not confirm because the timetable could not be fetched. Please try again.",
+    reprintVtColNo: "No.", reprintVtColStop: "Stop", reprintVtColWhere: "Location", reprintVtColN: "Posters",
+    reprintVtColWhat: "What changed", reprintVtColDone: "Replaced",
+    reprintVtPrintSub: "{n} posters at {places} locations · {date}",
+    reprintVtPrintFoot: "Tick the box once the new poster is up, and confirm the replacement in the app: {path}.",
+    reprintMeterTitle: "Up to date",
+    reprintMeterValue: "{ok} of {n} tracked stop posters match the current timetable.",
+    reprintMeterParts: "Out of date {stale}, replacement not confirmed {waiting}, not checked {unknown}.",
+    reprintMeterNote: "The meter only covers stop posters printed with Reittari and confirmed as replaced. It cannot see any other posters at the stops.",
+    reprintMeterNone: "No stop posters are tracked yet.",
+    reprintMeterMonths: "By month",
+    reprintMeterColMonth: "Month", reprintMeterColPct: "Share", reprintMeterColOk: "Up to date", reprintMeterColDate: "Measured",
+    reprintMeterNoHist: "The monthly history is stored on the server with the city key.",
+    reprintMeterOldSrv: "The monthly history appears after the server is updated.",
     corridorBuilding: "Building the combined timetable…",
     corridorNoShared: "The selected routes do not share a sufficient common stop sequence (at least 3 shared stops in the same order).",
     corridorExcluded: "Not included (no shared corridor with the selection): {lines}",
@@ -6258,6 +6385,50 @@ const STRINGS = {
     reprintDiffSpan: "{label}: första–sista {a} → {b}",
     reprintDiffAdded: "Nytt block: {label}",
     reprintDiffRemoved: "Block borttaget: {label}",
+    reprintStopsTitle: "Hållplatsaffischer",
+    reprintStopsIntro: "Lägg till de hållplatser vars affisch du har tryckt. De kommer med på byteslistan och i aktualitetsmätaren.",
+    reprintStopSearch: "Sök hållplats",
+    reprintStopSearchPh: "Hållplatsens namn eller nummer",
+    reprintStopLine: "Eller lägg till alla hållplatser på en linje",
+    reprintStopLineBtn: "Lägg till linjens hållplatser",
+    reprintStopAdded: "Tillagda i listan: {n} hållplatser. Kör en kontroll och markera de tryckta.",
+    reprintStopAdded1: "Tillagd i listan: {name}. Kör en kontroll och markera den som tryckt.",
+    reprintStopNone: "Ingen hållplats hittades.",
+    reprintStopLabel: "Hållplatsaffisch: {name}",
+    reprintMarkAll: "Markera alla som tryckta ({n})",
+    reprintVtTitle: "Byteslista",
+    reprintVtIntro: "Hållplatser vars affisch ska bytas, i monteringsrundans ordning. Kvittera hållplatsen som bytt när den nya affischen sitter uppe.",
+    reprintVtStart: "Rundan börjar",
+    reprintVtStartCenter: "Från centrum",
+    reprintVtRouteNote: "Ordningen räknas fågelvägen: alltid närmaste hållplats härnäst, och till sist rätas korsande sträckor ut. Gatunätet och enkelriktade gator känner den inte till.",
+    reprintVtEmpty: "Ingen hållplatsaffisch behöver bytas.",
+    reprintVtUnknown: "{n} affischer har inte kontrollerats. Kör Kontrollera ändringar så kommer de med.",
+    reprintVtSrcCheck: "Läget kontrollerat {date}.",
+    reprintVtSrcServer: "Läget enligt serverns dagliga jämförelse {date}.",
+    reprintVtPrint: "Skriv ut byteslistan",
+    reprintVtPosters: "{n} affischer",
+    reprintVtPosters1: "1 affisch",
+    reprintVtChanged: "Tidtabellen har ändrats.",
+    reprintVtWaiting: "Ny affisch tryckt {date}, väntar på att sättas upp.",
+    reprintVtDone: "Bytt",
+    reprintVtDoneOk: "Kvitterad som bytt",
+    reprintVtSaving: "Sparar…",
+    reprintVtAckLocal: "Servern sparar ännu inte kvitteringar, så kvitteringen finns bara i den här webbläsaren.",
+    reprintVtAckFail: "Kvitteringen nådde inte servern. Den finns sparad i den här webbläsaren.",
+    reprintVtAckErr: "Kvitteringen misslyckades eftersom tidtabellen inte kunde hämtas. Försök igen.",
+    reprintVtColNo: "Nr", reprintVtColStop: "Hållplats", reprintVtColWhere: "Plats", reprintVtColN: "Affischer",
+    reprintVtColWhat: "Vad ändrades", reprintVtColDone: "Bytt",
+    reprintVtPrintSub: "{n} affischer på {places} platser · {date}",
+    reprintVtPrintFoot: "Kryssa i rutan när den nya affischen sitter uppe och kvittera bytet i appen: {path}.",
+    reprintMeterTitle: "Aktualitet",
+    reprintMeterValue: "{ok} av {n} bevakade hållplatsaffischer motsvarar den nuvarande tidtabellen.",
+    reprintMeterParts: "Föråldrade {stale}, byte inte kvitterat {waiting}, inte kontrollerade {unknown}.",
+    reprintMeterNote: "Mätaren omfattar bara hållplatsaffischer som skrivits ut med Reittari och kvitterats som bytta. Andra affischer vid hållplatserna ser den inte.",
+    reprintMeterNone: "Inga hållplatsaffischer bevakas ännu.",
+    reprintMeterMonths: "Per månad",
+    reprintMeterColMonth: "Månad", reprintMeterColPct: "Andel", reprintMeterColOk: "Aktuella", reprintMeterColDate: "Mätt",
+    reprintMeterNoHist: "Månadshistoriken sparas på servern med stadens nyckel.",
+    reprintMeterOldSrv: "Månadshistoriken visas när servern har uppdaterats.",
     corridorBuilding: "Sammanställer den kombinerade tidtabellen…",
     corridorNoShared: "De valda linjerna har ingen tillräcklig gemensam hållplatssekvens (minst 3 gemensamma hållplatser i samma ordning).",
     corridorExcluded: "Ingår inte (inget gemensamt stråk med urvalet): {lines}",
@@ -10838,7 +11009,9 @@ async function fillReprintHighlight() {
       : t(vals.length === 1 ? "heroHlReprintOk1" : "heroHlReprintOk", { n: vals.length });
   };
   paint(known);                    // välimuistista heti, ilman yhtään kyselyä
-  const todo = ids.filter(id => typeof known[id] !== "boolean");
+  // Pysäkkijulisteita ei lasketa etusivulla: niitä voi olla satoja, ja jokainen on julisteen
+  // verran kyselyjä. Niiden tila tulee välimuistiin Uusintapainatus-välilehden tarkistuksesta.
+  const todo = ids.filter(id => typeof known[id] !== "boolean" && !reprintIsStop(id));
   if (!todo.length) return;
   // Etusivu voi piirtyä uudelleen kesken laskennan (paluu toisesta näkymästä, kielen vaihto).
   // Jaettu lupaus estää saman tulosteen hakemisen kahdesti: mitattu 4.9.2026, kaksi piirtoa
@@ -19888,19 +20061,210 @@ function reprintDiff(base, now) {
     // saa vahdin näyttämään rikkinäiseltä juuri siinä kohdassa jossa sitä pitäisi uskoa.
     const pre = nd.length > 1 && c.label ? c.label + ": " : "";
     const add = m => out.push(pre + m);
-    const bg = new Map((b.groups || []).map(g => [g.label, g]));
-    const cg = new Map((c.groups || []).map(g => [g.label, g]));
-    for (const [label, g] of cg) {
-      const prev = bg.get(label);
+    // Pysäkkijulisteen lohkoilla on kielestä riippumaton tunniste k (ks. reprintStopSigFrom);
+    // linja- ja käytävälohkot tunnistetaan yhä nimestään.
+    const gk = g => g.k || g.label;
+    const bg = new Map((b.groups || []).map(g => [gk(g), g]));
+    const cg = new Map((c.groups || []).map(g => [gk(g), g]));
+    for (const [key, g] of cg) {
+      const label = reprintGroupName(g);
+      const prev = bg.get(key);
       if (!prev) { add(t("reprintDiffAdded", { label })); continue; }
       if (prev.n !== g.n) add(t("reprintDiffTrips", { label, a: prev.n, b: g.n }));
       else if (prev.h !== g.h) add(t("reprintDiffTimes", { label }));
       if (prev.first !== g.first || prev.last !== g.last)
         add(t("reprintDiffSpan", { label, a: `${prev.first}–${prev.last}`, b: `${g.first}–${g.last}` }));
     }
-    for (const [label] of bg) if (!cg.has(label)) add(t("reprintDiffRemoved", { label }));
+    for (const [key, g] of bg) if (!cg.has(key)) add(t("reprintDiffRemoved", { label: reprintGroupName(g) }));
   }
   return out;
+}
+
+// Lohkon näyttönimi. Pysäkkijulisteen lohkon tunniste "01234|4|Keskusta" (päivät numeroina, linja,
+// määränpää) muutetaan käyttäjän kielelle vasta tässä: "Ma–Pe · 4 Keskusta".
+function reprintGroupName(g) {
+  if (g.label || !g.k) return g.label || "";
+  const [dk, line, head] = String(g.k).split("|");
+  const days = dowLabel(new Set([...String(dk || "")].map(Number).filter(n => n >= 0 && n <= 6)));
+  return [days, [line, head].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
+}
+
+/* ---------- Pysäkkijulisteet uusintapainatusvahdissa (4.10.2026) ----------
+   Yksikkö "stop:<gtfsId>" = yhden pysäkin juliste. Linja- ja käytävätulosteet eivät kerro, millä
+   pysäkillä paperi on, joten vaihtolista ja ajantasaisuusmittari rakentuvat näiden varaan. Sormenjälki
+   lasketaan samalla moottorilla kuin juliste (stopPosterBlocks), joten vahti vertaa juuri sitä mikä
+   paperissa näkyy. Koordinaatit ja tunnus kulkevat sormenjäljessä, jolloin vaihtolista toimii myös
+   toisella koneella palvelinsynkronoinnin jälkeen ilman uutta hakua. */
+const REPRINT_STOP = "stop:";
+function reprintIsStop(id) { return String(id).startsWith(REPRINT_STOP); }
+function reprintStopsKey() { return "reprintStops:" + cityKey; }
+// Seurantaan lisätyt mutta vielä merkitsemättömät pysäkit: [{ id: gtfsId, name, code }].
+function reprintStopsLoad() {
+  try { const a = JSON.parse(localStorage.getItem(reprintStopsKey()) || "[]"); return Array.isArray(a) ? a.filter(s => s && s.id) : []; }
+  catch (e) { return []; }
+}
+function reprintStopsSave(list) {
+  const seen = new Set(), out = [];
+  for (const s of list) if (s && s.id && !seen.has(s.id)) { seen.add(s.id); out.push({ id: String(s.id), name: String(s.name || ""), code: String(s.code || "") }); }
+  try { localStorage.setItem(reprintStopsKey(), JSON.stringify(out.slice(0, 400))); } catch (e) { /* kiintiö täynnä */ }
+}
+
+// Lohko = päiväsarake × linja ja määränpää. Tunniste k on kielestä riippumaton (päivät numeroina),
+// koska perustaso voidaan merkitä eri kielellä kuin verrataan. Kirjainmerkinnöistä vain olemassaolo:
+// koulupäivän kirjain on suomeksi K ja ruotsiksi S. Ei first/last-kenttiä: 400 pysäkin perustaso
+// mahtuu näin palvelimen 512 kt:n rajaan (keskikokoinen pysäkki noin 0,6 kt).
+function reprintStopSigFrom(meta, blocks) {
+  const groups = [];
+  for (const b of blocks || []) {
+    const dk = [...b.dows].sort((x, y) => x - y).join("");
+    for (const L of b.lines || []) {
+      const times = [...new Set(L.times || [])].sort((x, y) => x - y);
+      groups.push({ k: `${dk}|${L.route?.shortName || ""}|${L.headsign || ""}`, n: times.length,
+        h: reprintHash(times.map(s => s + (L.codes && L.codes.get(s) ? "*" : "")).join(",")) });
+    }
+  }
+  groups.sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : 0));
+  const r5 = x => (typeof x === "number" ? Math.round(x * 1e5) / 1e5 : null);
+  return { v: REPRINT_VER, kind: "stop", label: meta.name || "", code: meta.code || "",
+    lat: r5(meta.lat), lon: r5(meta.lon), dirs: [{ label: "", groups }] };
+}
+
+// Monen pysäkin sormenjäljet kerralla kuten julisteiden erätulostus: patternit 40 pysäkin erissä ja
+// vuorot jaetussa muistissa, joten naapuripysäkit eivät hae samoja patterneja uudelleen.
+// Palauttaa Map(gtfsId -> sormenjälki tai null). Epäonnistunut pysäkki on null, ei koskaan "ennallaan".
+async function reprintStopSnaps(stopIds, dateISO) {
+  const ids = [...new Set(stopIds)].filter(Boolean);
+  const out = new Map();
+  if (!ids.length) return out;
+  const meta = new Map();
+  for (let i = 0; i < ids.length; i += POSTER_STOP_CHUNK) {
+    const data = await gql(`query ($ids: [String]) { stops(ids: $ids) { gtfsId name@L code lat lon } }`,
+      { ids: ids.slice(i, i + POSTER_STOP_CHUNK) });
+    for (const s of (data.stops || [])) if (s) meta.set(s.gtfsId, s);
+  }
+  const memo = new Map();
+  const pats = await loadPosterPatterns(ids);
+  await patternTripsMany([...pats.values()].flat().map(p => p.code), memo);
+  await mapLimit(ids, 2, async (id) => {
+    const m = meta.get(id);
+    if (!m) { out.set(id, null); return; }
+    try { out.set(id, reprintStopSigFrom(m, await stopPosterBlocks(id, dateISO, memo, 2, pats.get(id)))); }
+    catch (e) { out.set(id, null); }
+  });
+  return out;
+}
+async function reprintStopSnap(stopId, dateISO) {
+  return (await reprintStopSnaps([stopId], dateISO)).get(stopId) || null;
+}
+
+// Vaihto kuitattu sen jälkeen kun juliste painettiin (sama määritelmä kuin workerin reprintInstalledOk).
+function reprintInstalledOk(u) {
+  return !!(u && u.installed) && String(u.installed) >= String(u.printed || "");
+}
+// Yksikön uusin merkintä: painomerkintä tai vaihdon kuittaus (sama kuin workerin reprintUnitTs).
+function reprintUnitTs(u) {
+  const p = String((u && u.printed) || ""), i = String((u && u.installed) || "");
+  return i > p ? i : p;
+}
+
+// Ajantasaisuusmittari: sama määritelmä kuin workerin reprintMetric, ja muutos tehdään molempiin.
+// staleOf(id) = true (vanhentunut), false (vastaa nykyistä) tai undefined (ei tiedossa).
+// Tuntematon ei ole ajan tasalla: mittari ei väitä mitään, mitä ei ole tarkistettu.
+function reprintMeterCount(base, staleOf) {
+  const m = { n: 0, ok: 0, stale: 0, waiting: 0, unknown: 0 };
+  for (const id of Object.keys(base)) {
+    const u = base[id];
+    if (!reprintIsStop(id) || !u || !u.sig) continue;
+    m.n++;
+    const s = staleOf(id);
+    if (s === true) m.stale++;
+    else if (!reprintInstalledOk(u)) m.waiting++;
+    else if (s === false) m.ok++;
+    else m.unknown++;
+  }
+  return m;
+}
+
+// Asennusreitti: lähin naapuri aloituspisteestä ja sen jälkeen 2-opt-oikaisu (avoin reitti, alku
+// kiinteä). Linnuntie, ei katuverkkoa: tarkoitus on, ettei asentaja kierrä kaupunkia ristiin.
+// points = [{ lat, lon }], palauttaa indeksijärjestyksen.
+function reprintRouteOrder(points, start) {
+  const n = points.length;
+  if (n < 2) return points.map((_, i) => i);
+  const left = new Set(points.map((_, i) => i));
+  const order = [];
+  let cur = start;
+  while (left.size) {
+    let best = -1, bd = Infinity;
+    for (const i of left) { const d = distM(cur, points[i]); if (d < bd) { bd = d; best = i; } }
+    order.push(best); left.delete(best); cur = points[best];
+  }
+  const P = k => (k < 0 ? start : points[order[k]]);
+  for (let pass = 0, better = true; better && pass < 20; pass++) {
+    better = false;
+    for (let i = 0; i < n - 1; i++) {
+      for (let j = i + 1; j < n; j++) {
+        // Käännetään väli i..j: kaari (i-1,i) + (j,j+1) -> (i-1,j) + (i,j+1). Viimeisen jälkeen ei kaarta.
+        const before = distM(P(i - 1), P(i)) + (j + 1 < n ? distM(P(j), P(j + 1)) : 0);
+        const after = distM(P(i - 1), P(j)) + (j + 1 < n ? distM(P(i), P(j + 1)) : 0);
+        if (after < before - 0.5) {
+          const seg = order.slice(i, j + 1).reverse();
+          order.splice(i, seg.length, ...seg);
+          better = true;
+        }
+      }
+    }
+  }
+  return order;
+}
+
+// Vierekkäiset pysäkit (kadun eri puolilla, terminaalin laiturit) yhdeksi paikaksi: asentaja vaihtaa
+// ne samalla pysähdyksellä, ja paikan rivi kertoo montako julistetta siellä vaihdetaan.
+const REPRINT_PLACE_M = 150;
+function reprintPlaces(stops) {
+  const places = [];
+  for (const s of stops) {
+    const p = places.find(pl => distM(pl.seed, s) <= REPRINT_PLACE_M);
+    if (p) p.stops.push(s); else places.push({ seed: s, stops: [s] });
+  }
+  for (const p of places) {
+    p.lat = p.stops.reduce((a, s) => a + s.lat, 0) / p.stops.length;
+    p.lon = p.stops.reduce((a, s) => a + s.lon, 0) / p.stops.length;
+    p.stops.sort((a, b) => String(a.name).localeCompare(String(b.name), "fi") || String(a.code).localeCompare(String(b.code), "fi"));
+  }
+  return places;
+}
+
+// Osoitevihje: lähin osoite tai katu (Digitransitin geokoodaus, käänteinen haku). Feedien
+// pysäkkikuvaus (stop_desc) on tyhjä kaikissa mitatuissa kaupungeissa, joten pelkkä nimi ja
+// koordinaatit eivät kerro asentajalle, millä kadulla pysäkki on. Muistiin pysäkeittäin, koska
+// pysäkki ei liiku: sama vaihtolista ei hae osoitteita uudelleen.
+function reprintAddrKey() { return "reprintAddr:" + cityKey; }
+function reprintAddrLoad() {
+  try { const o = JSON.parse(localStorage.getItem(reprintAddrKey()) || "{}"); return (o && typeof o === "object") ? o : {}; }
+  catch (e) { return {}; }
+}
+async function reprintAddrFill(places) {
+  const cache = reprintAddrLoad();
+  const todo = places.filter(p => !cache[p.seed.id] && p.lat != null);
+  await mapLimit(todo, 3, async (p) => {
+    try {
+      const params = new URLSearchParams({ "point.lat": String(p.lat), "point.lon": String(p.lon),
+        size: "1", layers: "address,street", lang });
+      if (!PROXY_URL) params.set("digitransit-subscription-key", apiKey);
+      const r = await fetch(`${GEOCODING_URL}/reverse?${params}`);
+      if (!r.ok) return;
+      const f = ((await r.json()).features || [])[0];
+      const name = f && f.properties && (f.properties.name || f.properties.street);
+      if (name) cache[p.seed.id] = String(name).slice(0, 80);
+    } catch (e) { /* osoite on vihje, ei pakollinen: koordinaatit jäävät */ }
+  });
+  if (todo.length) {
+    const keys = Object.keys(cache);
+    for (const k of keys.slice(0, Math.max(0, keys.length - 600))) delete cache[k];
+    try { localStorage.setItem(reprintAddrKey(), JSON.stringify(cache)); } catch (e) { /* kiintiö täynnä */ }
+  }
+  return cache;
 }
 
 /* ---------- Palvelinvahti: perustaso myös palvelimelle (4.9.2026) ----------
@@ -19927,10 +20291,12 @@ function reprintSrvSetKey(k) {
 // Sama yhdistämissääntö kuin palvelimella (mergeReprintUnits): uudempi painomerkintä voittaa
 // ja molempien puolten yksiköt säilyvät. Tämä on se sääntö joka estää toista konetta
 // pyyhkimästä ensimmäisen merkintöjä.
+// Vertailtava aikaleima on uusin merkintä (painettu tai vaihdettu, reprintUnitTs): pelkkä vaihdon
+// kuittaus ei muuta painopäivää, mutta sen pitää silti voittaa kuittaamaton kopio.
 function reprintMergeUnits(a, b) {
   const out = { ...(a || {}) };
   for (const [id, u] of Object.entries(b || {}))
-    if (!out[id] || String(u.printed || "") > String(out[id].printed || "")) out[id] = u;
+    if (!out[id] || reprintUnitTs(u) > reprintUnitTs(out[id])) out[id] = u;
   return out;
 }
 
@@ -19969,16 +20335,25 @@ async function reprintSrvSync() {
   } catch (e) { return { error: "network" }; }
   const merged = reprintMergeUnits(remote.units, local);
   reprintSave(merged);
+  // ack = palvelin tallentaa vaihdon kuittaukset (worker 4.10.2026). Vanha palvelin pudottaa
+  // installed-kentän, joten sitä vasten vain painomerkintä on "uutta": muuten jokainen avaus
+  // lähettäisi saman kuittauksen uudelleen eikä se silti tallentuisi.
+  const ack = remote.ack === true;
+  const ts = ack ? reprintUnitTs : (u => String((u && u.printed) || ""));
   // Vie palvelimelle vain jos paikallisesta löytyi jotain uutta: turha kirjoitus on turha kirjoitus.
   const uusia = Object.keys(merged).some(id => {
     const a = (remote.units || {})[id], b = merged[id];
-    return !a || String(b.printed || "") > String(a.printed || "");
+    return !a || ts(b) > ts(a);
   });
+  let state = remote.state || null, hist = remote.hist || null;
   if (uusia) {
     const res = await reprintSrvPush(merged);
-    if (res && res.error) return { error: res.error, units: merged };
+    if (res && res.error) return { error: res.error, units: merged, ack };
+    if (res && res.state !== undefined) state = res.state;
+    if (res && res.hist) hist = res.hist;
   }
-  return { ok: true, units: merged, updated: remote.updated || null, count: Object.keys(merged).length };
+  return { ok: true, units: merged, updated: remote.updated || null, count: Object.keys(merged).length,
+    ack, state, hist };
 }
 
 // Palvelinvahdin ohjaus uusintapainatusnäkymässä. Näytetään vain jos proxy on käytössä:
@@ -20006,7 +20381,8 @@ function reprintSrvPanelHtml(state) {
 // Uusintapainatus on tulostekeskuksen välilehti (4.9.2026): se on tulosteiden ylläpitoa siinä
 // missä muutosvahti, ja omana irrallisena näkymänään siitä pääsi pois vain etusivun kautta.
 // Vanha reitti #/uusintapainatus ohjaa nyt tälle välilehdelle (ks. route()).
-async function bindReprintTab(routes, today) {
+// opts.check = juuri lisätyt yksiköt, jotka rastitetaan valmiiksi; opts.msg = tilarivin teksti.
+async function bindReprintTab(routes, today, opts) {
   const host = document.getElementById("rpPanelBody");
   if (!host) return;
   host.innerHTML = `<p class="muted">${t("loadingRoutes")}</p>`;
@@ -20018,27 +20394,55 @@ async function bindReprintTab(routes, today) {
   if (mySeq !== viewSeq || !document.getElementById("rpPanelBody")) return;
   const base = reprintLoad();
 
-  // Seurattava yksikkö = painettava arkki: linjatuloste tai käytävätuloste.
+  // Seurattava yksikkö = painettava arkki: pysäkkijuliste, linjatuloste tai käytävätuloste.
   const manualIds = [...new Set([...Object.keys(base).filter(k => k.startsWith("corr:m:")), ...reprintManualLoad()])];
+  const stopCands = new Map(reprintStopsLoad().map(s => [REPRINT_STOP + s.id, s]));
+  const stopIds = [...new Set([...Object.keys(base).filter(reprintIsStop), ...stopCands.keys()])];
+  const stopLabel = id => (base[id] && base[id].label) || t("reprintStopLabel", {
+    name: [stopCands.get(id)?.name, stopCands.get(id)?.code].filter(Boolean).join(" ") || id.slice(REPRINT_STOP.length) });
   const units = [
+    ...stopIds.map(id => ({ id, kind: "stop", gtfsId: id.slice(REPRINT_STOP.length), label: stopLabel(id) })),
     ...(CONFIG.corridors || []).map(c => ({ id: "corr:" + c.key, kind: "corridor", cfg: c, label: corridorName(c) })),
     ...manualIds.map(id => ({ id, cfg: reprintManualCorridor(id) })).filter(u => u.cfg)
       .map(u => ({ ...u, kind: "corridor", label: t("reprintManualLabel", { lines: u.cfg.name }) })),
     ...routes.map(r => ({ id: r.gtfsId, kind: "line", route: r, label: `${r.shortName || ""} ${r.longName || ""}`.trim() })),
   ];
   const tracked = u => !!base[u.id];
+  const unitIcon = u => icon(u.kind === "corridor" ? "route" : u.kind === "stop" ? "pin" : "print");
 
   const unitRow = (u) => `<li><label class="item" style="cursor:pointer;align-items:center">
       <input type="checkbox" class="rpCb" value="${esc(u.id)}" ${tracked(u) ? "checked" : ""}
              style="width:1.4rem;height:1.4rem;flex:none">
-      <span>${u.kind === "corridor" ? icon("route") : icon("print")} ${esc(u.label)}</span>
+      <span>${unitIcon(u)} ${esc(u.label)}</span>
       ${tracked(u) ? `<span class="muted" style="margin-left:auto;font-size:0.85em">${esc(t("reprintPrintedAt", { date: fmtDateLong((base[u.id].printed || "").slice(0, 10)) }))}</span>` : ""}
     </label></li>`;
 
   const trackedUnits = units.filter(tracked);
   const otherUnits = units.filter(u => !tracked(u));
+  const lineOpts = routes.slice()
+    .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }))
+    .map(r => `<option value="${esc(r.gtfsId)}">${esc(r.shortName || "")} ${esc(r.longName || "")}</option>`).join("");
 
   host.innerHTML = `
+    <section class="card no-print" id="rpMeter" aria-labelledby="rpMeterH">
+      <h2 id="rpMeterH">${icon("shield")} ${t("reprintMeterTitle")}</h2>
+      <div id="rpMeterBody"></div>
+    </section>
+    <section class="card no-print" id="rpVt" aria-labelledby="rpVtH" hidden>
+      <h2 id="rpVtH">${icon("list")} ${t("reprintVtTitle")}</h2>
+      <p class="muted">${t("reprintVtIntro")}</p>
+      <div class="row" style="flex-wrap:wrap;gap:0.4rem 0.8rem;align-items:flex-end">
+        <div class="field" style="margin:0;min-width:0;max-width:100%">
+          <label for="rpVtStart">${t("reprintVtStart")}</label>
+          <select id="rpVtStart" style="max-width:100%"><option value="">${t("reprintVtStartCenter")}</option></select>
+        </div>
+        <button type="button" id="rpVtPrintBtn">${icon("print")} ${t("reprintVtPrint")}</button>
+      </div>
+      <p class="muted" id="rpVtSrc"></p>
+      <p class="muted" id="rpVtStatus" role="status"></p>
+      <div id="rpVtBody"></div>
+      <p class="muted" style="font-size:0.82em">${t("reprintVtRouteNote")}</p>
+    </section>
     <div class="card no-print">
       <h2>${icon("print")} ${t("reprintTitle")}</h2>
       <p class="muted">${t("reprintIntro")}</p>
@@ -20062,12 +20466,28 @@ async function bindReprintTab(routes, today) {
         </div>
         <p class="muted" id="rpManualMsg" role="status"></p>
       </div>
+      <h4 style="margin:0.8rem 0 0.2rem">${t("reprintStopsTitle")}</h4>
+      <p class="muted" style="margin-top:0">${t("reprintStopsIntro")}</p>
+      <div class="field">
+        <label for="rpStopQ">${t("reprintStopSearch")}</label>
+        <div class="suggest"><input id="rpStopQ" type="text" autocomplete="off" placeholder="${esc(t("reprintStopSearchPh"))}">
+          <ul class="plain suggest-list" id="rpStopList" hidden></ul></div>
+      </div>
+      <div class="field">
+        <label for="rpStopLine">${t("reprintStopLine")}</label>
+        <div class="row" style="flex-wrap:wrap;gap:0.4rem">
+          <select id="rpStopLine" style="flex:1 1 12rem;min-width:0;max-width:100%">${lineOpts}</select>
+          <button type="button" id="rpStopLineBtn" class="secondary">${t("reprintStopLineBtn")}</button>
+        </div>
+        <p class="muted" id="rpStopMsg" role="status"></p>
+      </div>
       <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
         <input type="search" id="rpFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
       </div>
       <ul class="plain" id="rpOthers">${otherUnits.map(unitRow).join("")}</ul>
     </div>
-    <div id="rpOut"></div>`;
+    <div id="rpOut"></div>
+    <div id="rpVtPrint" class="print-only"></div>`;
 
   document.getElementById("rpSrvSave")?.addEventListener("click", () => {
     reprintSrvSetKey(document.getElementById("rpSrvKey").value.trim());
@@ -20095,6 +20515,59 @@ async function bindReprintTab(routes, today) {
     }, 0);
   });
 
+  // Pysäkkijulisteet seurantaan: yksittäinen pysäkki haulla tai linjan kaikki pysäkit kerralla.
+  // Lisätty pysäkki on ehdokas, kunnes se merkitään painetuksi (sama polku kuin linjoilla).
+  const addStops = (list) => {
+    const fresh = list.filter(s => s && s.gtfsId);
+    if (!fresh.length) { document.getElementById("rpStopMsg").textContent = t("reprintStopNone"); return; }
+    reprintStopsSave([...reprintStopsLoad(), ...fresh.map(s => ({ id: s.gtfsId, name: s.name, code: s.code }))]);
+    bindReprintTab(routes, today, {
+      check: fresh.map(s => REPRINT_STOP + s.gtfsId),
+      msg: fresh.length === 1 ? t("reprintStopAdded1", { name: [fresh[0].name, fresh[0].code].filter(Boolean).join(" ") })
+        : t("reprintStopAdded", { n: fresh.length }),
+    });
+  };
+  const sq = document.getElementById("rpStopQ"), sl = document.getElementById("rpStopList");
+  let sTimer = null, sSeq = 0, sHits = [];
+  sq.addEventListener("input", () => {
+    clearTimeout(sTimer);
+    const text = sq.value.trim();
+    if (text.length < 2) { sl.hidden = true; sl.innerHTML = ""; return; }
+    sTimer = setTimeout(async () => {
+      const my = ++sSeq;
+      let hits = [];
+      try { hits = await searchStopsByName(text, 8); } catch (e) { hits = []; }
+      if (my !== sSeq || !document.getElementById("rpStopList")) return;
+      sHits = hits;
+      sl.innerHTML = hits.length
+        ? hits.map((h, i) => `<li><button type="button" class="item" data-h="${i}">${icon("pin")}<span>${esc(h.name)}${h.code ? ` <span class="muted">${esc(h.code)}</span>` : ""}</span></button></li>`).join("")
+        : `<li><p class="muted" style="padding:0.4rem">${esc(t("reprintStopNone"))}</p></li>`;
+      sl.hidden = false;
+      sl.querySelectorAll("button[data-h]").forEach(b => b.addEventListener("click", () => addStops([sHits[Number(b.dataset.h)]])));
+    }, 250);
+  });
+  sq.addEventListener("keydown", e => {
+    if (e.key === "Enter" && sHits.length) { e.preventDefault(); addStops([sHits[0]]); }
+    else if (e.key === "Escape") sl.hidden = true;
+  });
+  document.getElementById("rpStopLineBtn").addEventListener("click", async () => {
+    const routeId = document.getElementById("rpStopLine").value;
+    const msg = document.getElementById("rpStopMsg");
+    if (!routeId) return;
+    msg.textContent = t("loadingRoutes");
+    try {
+      // Sama kysely ja välimuisti kuin linjan pysäkkijulisteiden erätulostuksessa.
+      const ids = await lineIds(routeId);
+      const { data } = await cachedGql("routestops:" + ids.join(","),
+        `query ($ids: [String]) { routes(ids: $ids) { patterns { stops { gtfsId name@L code } } } }`, { ids });
+      const seen = new Set(), stops = [];
+      for (const r of (data.routes || [])) for (const p of (r?.patterns || [])) for (const s of (p.stops || []))
+        if (!seen.has(s.gtfsId)) { seen.add(s.gtfsId); stops.push(s); }
+      if (mySeq !== viewSeq) return;
+      addStops(stops);
+    } catch (e) { msg.textContent = e.message; }
+  });
+
   document.getElementById("rpFilter").addEventListener("input", e => {
     const f = e.target.value.toLowerCase();
     document.querySelectorAll("#rpOthers li").forEach(li => {
@@ -20103,32 +20576,256 @@ async function bindReprintTab(routes, today) {
   });
 
   const byId = new Map(units.map(u => [u.id, u]));
+
+  /* ---------- Vaihtolista ja ajantasaisuus ----------
+     Tieto vanhentumisesta pysäkkijulisteittain kolmesta lähteestä tuoreimmasta alkaen: tämän
+     istunnon tarkistus, tämän päivän välimuisti (aiempi tarkistus tässä selaimessa) ja palvelimen
+     päivittäinen vertailu. Mikään lähde ei ole "ajan tasalla" oletuksena: tuntematon on tuntematon. */
+  const vt = { res: new Map(), checkedOn: "", ordered: [], addrP: null };
+  const srvOk = !!(srvState && srvState.ok);
+  const srvStale = srvOk && srvState.state && Array.isArray(srvState.state.stale) ? new Set(srvState.state.stale) : null;
+  const srvAt = srvStale ? String(srvState.state.checkedAt || "").slice(0, 10) : "";
+  const hl = reprintHlLoad();
+  const hlKnown = (hl && hl.day === todayISO() && hl.sig === reprintBaseSig(base) && hl.units) ? hl.units : {};
+  const staleOf = id => vt.res.has(id) ? vt.res.get(id).stale
+    : typeof hlKnown[id] === "boolean" ? hlKnown[id]
+    : srvStale ? srvStale.has(id) : undefined;
+  const srcText = () => vt.res.size ? t("reprintVtSrcCheck", { date: fmtDateLong(vt.checkedOn) })
+    : Object.keys(hlKnown).some(reprintIsStop) ? t("reprintVtSrcCheck", { date: fmtDateLong(todayISO()) })
+    : srvAt ? t("reprintVtSrcServer", { date: fmtDateLong(srvAt) }) : "";
+  const locale = lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI";
+
+  const renderMeter = () => {
+    const el = document.getElementById("rpMeterBody");
+    if (!el) return;
+    const m = reprintMeterCount(base, staleOf);
+    const note = `<p class="muted"><strong>${t("reprintMeterNote")}</strong></p>`;
+    if (!m.n) { el.innerHTML = `<p class="muted" id="rpMeterValue">${t("reprintMeterNone")}</p>${note}`; return; }
+    const pct = Math.round(100 * m.ok / m.n);
+    let hist = "";
+    if (srvOk && srvState.ack) {
+      const rows = Object.keys(srvState.hist || {}).sort().reverse().map(k => {
+        const h = srvState.hist[k];
+        const [y, mo] = k.split("-").map(Number);
+        const month = new Date(y, mo - 1, 1).toLocaleDateString(locale, { month: "long", year: "numeric" });
+        return `<tr><td>${esc(month)}</td><td>${h.n ? Math.round(100 * h.ok / h.n) : 0} %</td><td>${h.ok}/${h.n}</td><td>${esc(fmtDateLong(h.d))}</td></tr>`;
+      }).join("");
+      hist = rows ? `<h3>${t("reprintMeterMonths")}</h3><table class="rp-meter-hist" id="rpMeterHist"><thead><tr>
+          <th scope="col">${t("reprintMeterColMonth")}</th><th scope="col">${t("reprintMeterColPct")}</th>
+          <th scope="col">${t("reprintMeterColOk")}</th><th scope="col">${t("reprintMeterColDate")}</th></tr></thead>
+          <tbody>${rows}</tbody></table>` : "";
+    } else if (srvOk) hist = `<p class="muted" id="rpMeterHistNote">${t("reprintMeterOldSrv")}</p>`;
+    else if (!reprintSrvKey()) hist = `<p class="muted" id="rpMeterHistNote">${t("reprintMeterNoHist")}</p>`;
+    const parts = m.stale || m.waiting || m.unknown ? `<p class="muted">${t("reprintMeterParts", m)}</p>` : "";
+    el.innerHTML = `<p class="rp-meter-big" id="rpMeterPct">${pct} %</p>
+      <p id="rpMeterValue">${t("reprintMeterValue", { pct, ok: m.ok, n: m.n })}</p>${parts}
+      <p class="muted">${srcText()}</p>${note}${hist}`;
+  };
+
+  // Vaihtolistan rivit: vanhentuneet ja painetut mutta vaihtamattomat pysäkkijulisteet.
+  const vtItems = () => Object.keys(base).filter(id => reprintIsStop(id) && base[id] && base[id].sig).map(id => {
+    const u = base[id], s = staleOf(id);
+    if (s !== true && reprintInstalledOk(u)) return null;
+    const r = vt.res.get(id);
+    const what = s === true ? ((r && r.diff && r.diff.length) ? r.diff : [t("reprintVtChanged")])
+      : [t("reprintVtWaiting", { date: fmtDateLong(String(u.printed || "").slice(0, 10)) })];
+    const sig = u.sig;
+    return { id, gtfsId: id.slice(REPRINT_STOP.length), name: sig.label || u.label, code: sig.code || "",
+      lat: sig.lat, lon: sig.lon, what, stale: s === true };
+  }).filter(Boolean);
+
+  const coordText = p => (typeof p.lat === "number" ? `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}` : "");
+  const placeHtml = (p, no) => {
+    const n = p.stops.length;
+    const title = [...new Set(p.stops.map(s => s.name))].join(" / ");
+    const addr = reprintAddrLoad()[p.seed.id] || coordText(p);
+    return `<li class="rp-vt-place" data-place="${esc(p.seed.id)}">
+        <div class="rp-vt-head"><span class="rp-vt-no">${no}</span>
+          <div class="rp-vt-title"><strong>${esc(title)}</strong>
+            <span class="muted">${esc(t(n === 1 ? "reprintVtPosters1" : "reprintVtPosters", { n }))}${addr ? " · " : ""}<span class="rp-vt-addr" data-addr="${esc(p.seed.id)}">${esc(addr)}</span></span></div></div>
+        <ul class="plain rp-vt-stops">${p.stops.map(s => `<li class="rp-vt-stop" data-id="${esc(s.id)}">
+            <div><a href="${esc(appUrl("#/pysakki/" + encodeURIComponent(s.gtfsId)))}" target="_blank" rel="noopener">${esc(n > 1 ? s.name : (s.code || s.name))}</a>${n > 1 && s.code ? ` <span class="muted">${esc(s.code)}</span>` : ""}
+              <ul class="muted rp-vt-what">${s.what.map(w => `<li>${esc(w)}</li>`).join("")}</ul>
+              <p class="muted rp-vt-msg" role="status"></p></div>
+            <button type="button" class="rpAck" data-id="${esc(s.id)}" aria-label="${esc(t("reprintVtDone") + ": " + s.name)}">${t("reprintVtDone")}</button></li>`).join("")}</ul>
+      </li>`;
+  };
+
+  const renderVt = () => {
+    const card = document.getElementById("rpVt");
+    if (!card) return;
+    const m = reprintMeterCount(base, staleOf);
+    card.hidden = !m.n;
+    if (!m.n) { vt.ordered = []; return; }
+    document.getElementById("rpVtSrc").textContent =
+      [srcText(), m.unknown ? t("reprintVtUnknown", { n: m.unknown }) : ""].filter(Boolean).join(" ");
+    const items = vtItems();
+    const body = document.getElementById("rpVtBody");
+    const sel = document.getElementById("rpVtStart");
+    document.getElementById("rpVtPrintBtn").disabled = !items.length;
+    if (!items.length) { body.innerHTML = `<p class="muted">${t("reprintVtEmpty")}</p>`; vt.ordered = []; return; }
+    const geo = items.filter(i => typeof i.lat === "number" && typeof i.lon === "number");
+    const places = reprintPlaces(geo);
+    const prev = sel.value;
+    sel.innerHTML = `<option value="">${t("reprintVtStartCenter")}</option>` + places.slice()
+      .sort((a, b) => String(a.seed.name).localeCompare(String(b.seed.name), "fi"))
+      .map(p => `<option value="${esc(p.seed.id)}">${esc([...new Set(p.stops.map(s => s.name))].join(" / "))}</option>`).join("");
+    sel.value = places.some(p => p.seed.id === prev) ? prev : "";
+    const sp = places.find(p => p.seed.id === sel.value);
+    const start = sp ? { lat: sp.lat, lon: sp.lon } : { lat: AREA.focus.lat, lon: AREA.focus.lon };
+    const ordered = reprintRouteOrder(places, start).map(i => places[i]);
+    // Koordinaatiton pysäkki (ei pitäisi tapahtua) jää listan loppuun eikä katoa.
+    for (const i of items.filter(x => !geo.includes(x))) ordered.push({ seed: i, stops: [i], lat: null, lon: null });
+    vt.ordered = ordered;
+    body.innerHTML = `<ol class="plain rp-vt" id="rpVtList">${ordered.map((p, i) => placeHtml(p, i + 1)).join("")}</ol>`;
+    vt.addrP = reprintAddrFill(ordered.filter(p => p.lat != null)).then(c => {
+      if (mySeq !== viewSeq) return c;
+      document.querySelectorAll("#rpVtBody [data-addr]").forEach(el => { if (c[el.dataset.addr]) el.textContent = c[el.dataset.addr]; });
+      return c;
+    });
+  };
+
+  document.getElementById("rpVtStart").addEventListener("change", renderVt);
+
+  // Vaihdettu: uusi juliste on paikallaan. Kaksi tapausta (painettu eri kuin asennettu):
+  //  - juliste oli painettu ja odotti vaihtoa: paperin oma sormenjälki säilyy, vain kuittaus lisätään
+  //  - juliste oli vanhentunut: uusi on tehty nykyaikataulusta, joten sormenjälki otetaan nyt
+  // Palvelimelle samalla kaupungin avaimella kuin painomerkintä; palvelin pudottaa pysäkin heti
+  // vanhentuneista (worker reprintStateAfterMark).
+  document.getElementById("rpVtBody").addEventListener("click", async (e) => {
+    const btn = e.target.closest(".rpAck");
+    if (!btn || btn.disabled) return;
+    const id = btn.dataset.id;
+    const u = reprintLoad()[id];
+    if (!u) return;
+    const msgEl = btn.closest("li")?.querySelector(".rp-vt-msg");
+    btn.disabled = true;
+    btn.textContent = t("reprintVtSaving");
+    const now = new Date().toISOString();
+    let rec;
+    if (staleOf(id) === true) {
+      const r = vt.res.get(id);
+      let snap = r && r.date === todayISO() ? r.snap : null;
+      if (!snap) { try { snap = await reprintStopSnap(id.slice(REPRINT_STOP.length), todayISO()); } catch (err) { snap = null; } }
+      if (!snap) {
+        btn.disabled = false; btn.textContent = t("reprintVtDone");
+        if (msgEl) msgEl.textContent = t("reprintVtAckErr");
+        return;
+      }
+      rec = { label: u.label, printed: now, installed: now, sig: snap };
+    } else {
+      rec = { ...u, installed: now };
+    }
+    const all = reprintLoad();   // uudelleen: toinen kuittaus on voinut tallentua odotuksen aikana
+    all[id] = rec;
+    reprintSave(all);
+    base[id] = rec;
+    vt.res.set(id, { stale: false, diff: [], snap: rec.sig, date: todayISO() });
+    if (!vt.checkedOn) vt.checkedOn = todayISO();
+    reprintHlMerge(all, todayISO(), [[id, false]]);
+    const res = await reprintSrvPush({ [id]: rec });
+    if (mySeq !== viewSeq) return;
+    const name = (rec.sig && rec.sig.label) || u.label;
+    let extra = "";
+    if (res && res.error) extra = " " + t("reprintVtAckFail");
+    else if (res && res.ok && res.ack !== true) extra = " " + t("reprintVtAckLocal");
+    else if (res && res.hist && srvOk) srvState.hist = res.hist;
+    document.getElementById("rpVtStatus").textContent = `${t("reprintVtDoneOk")}: ${name}.${extra}`;
+    renderMeter();
+    renderVt();
+  });
+
+  // Vaihtolista paperille: A4, asennusjärjestyksessä, ruutu rastitettavaksi. Osoitteet odotetaan
+  // ensin (enintään 6 s), koska paperille ei voi täydentää jälkikäteen.
+  document.getElementById("rpVtPrintBtn").addEventListener("click", async () => {
+    if (!vt.ordered.length) return;
+    if (vt.addrP) await Promise.race([vt.addrP, new Promise(r => setTimeout(r, 6000))]);
+    if (mySeq !== viewSeq) return;
+    const addr = reprintAddrLoad();
+    const m = reprintMeterCount(base, staleOf);
+    const nStops = vt.ordered.reduce((a, p) => a + p.stops.length, 0);
+    const path = [t("navPrints"), t("tabReprint"), t("reprintVtTitle")].join(" > ");
+    const rows = vt.ordered.map((p, i) => p.stops.map((s, j) => {
+      const span = p.stops.length > 1 ? ` rowspan="${p.stops.length}"` : "";
+      return `<tr${j === 0 ? ` class="rp-vt-first"` : ""}>
+        ${j === 0 ? `<td${span} class="num">${i + 1}</td>` : ""}
+        <td><b>${esc(s.name)}</b>${s.code ? `<br>${esc(s.code)}` : ""}</td>
+        ${j === 0 ? `<td${span}>${esc(addr[p.seed.id] || coordText(p))}</td><td${span} class="num">${p.stops.length}</td>` : ""}
+        <td>${s.what.map(esc).join("<br>")}</td>
+        <td class="rp-vt-box"><span></span></td></tr>`;
+    }).join("")).join("");
+    const out = document.getElementById("rpVtPrint");
+    out.innerHTML = `<div class="rp-vt-print">
+        ${printBrandHead({ title: esc(t("reprintVtTitle")), meta: "date",
+          sub: esc(t("reprintVtPrintSub", { n: nStops, places: vt.ordered.length, date: fmtDateLong(todayISO()) })) })}
+        ${m.n ? `<p class="rp-vt-meter"><b>${esc(t("reprintMeterTitle"))} ${Math.round(100 * m.ok / m.n)} %</b>: ${esc(t("reprintMeterValue", { ok: m.ok, n: m.n }))} ${esc(t("reprintMeterNote"))}</p>` : ""}
+        <table class="rp-vt-table"><thead><tr>
+          <th scope="col">${t("reprintVtColNo")}</th><th scope="col">${t("reprintVtColStop")}</th>
+          <th scope="col">${t("reprintVtColWhere")}</th><th scope="col">${t("reprintVtColN")}</th>
+          <th scope="col">${t("reprintVtColWhat")}</th><th scope="col">${t("reprintVtColDone")}</th></tr></thead>
+          <tbody>${rows}</tbody></table>
+        <p class="rp-vt-foot">${esc(t("reprintVtPrintFoot", { path }))}</p></div>`;
+    // Vain vaihtolista paperille: tarkistuksen tuloskortit (#rpOut) pois tulosteesta.
+    document.body.classList.add("rp-vt-printing");
+    window.addEventListener("afterprint", () => {
+      document.body.classList.remove("rp-vt-printing");
+      const o = document.getElementById("rpVtPrint");
+      if (o) o.innerHTML = "";
+    }, { once: true });
+    setPageOrientation("portrait");
+    window.print();
+  });
+
+  renderMeter();
+  renderVt();
+
   const snapOf = (u, date) => u.kind === "corridor"
     ? reprintCorridorSnap(u.cfg, date, routes)
     : reprintLineSnap(u.route.gtfsId, date);
+
+  // Merkitse painetuksi = tallenna NYKYINEN sormenjälki uudeksi perustasoksi. Pysäkkijulisteella
+  // painettu ei ole vielä vaihdettu: se näkyy vaihtolistalla, kunnes vaihto kuitataan.
+  const markPrinted = (list) => {
+    const all = reprintLoad();
+    const now = new Date().toISOString();
+    for (const r of list) {
+      all[r.u.id] = { label: r.u.label, printed: now, sig: r.snap };
+      base[r.u.id] = all[r.u.id];
+    }
+    reprintSave(all);
+    // Vain tälle päivälle tehty tarkistus kelpaa noston välimuistiin: tulevalle päivälle
+    // merkitty perustaso ei kerro mitään tämän päivän aikataulusta.
+    const date = document.getElementById("rpDate")?.value || today;
+    reprintHlMerge(all, date, list.map(r => [r.u.id, false]));
+    if (date === todayISO()) for (const r of list) if (r.u.kind === "stop")
+      vt.res.set(r.u.id, { stale: false, diff: [], snap: r.snap, date });
+    // Palvelimelle vain nämä merkinnät: yhdistäminen tehdään palvelinpäässä, joten
+    // koko perustasoa ei tarvitse lähettää joka merkinnällä.
+    reprintSrvPush(Object.fromEntries(list.map(r => [r.u.id, all[r.u.id]])));
+    for (const r of list) {
+      const b = [...document.querySelectorAll("#rpOut .rpMark")].find(x => x.dataset.id === r.u.id);
+      if (b) b.replaceWith(Object.assign(document.createElement("span"), { className: "muted", textContent: t("reprintMarked") }));
+    }
+    renderMeter();
+    renderVt();
+  };
 
   // Viimeisimmän tarkistuksen tulokset. Kuuntelija sidotaan KERRAN (ei joka ajolla),
   // muuten sama #rpOut keräisi kuuntelijan per tarkistus.
   let lastResults = [];
   document.getElementById("rpOut").addEventListener("click", (e) => {
+    if (e.target.closest("#rpMarkAll")) {
+      const list = lastResults.filter(r => r.snap && !r.error && (!r.prev || (r.diff && r.diff.length)) &&
+        document.querySelector(`#rpOut .rpMark[data-id="${CSS.escape(r.u.id)}"]`));
+      if (list.length) markPrinted(list);
+      e.target.closest("#rpMarkAll").closest("p")?.remove();
+      return;
+    }
     const b = e.target.closest(".rpMark");
     if (!b) return;
     const r = lastResults.find(x => x.u.id === b.dataset.id);
     if (!r || !r.snap) return;
-    // Merkitse painetuksi = tallenna NYKYINEN sormenjälki uudeksi perustasoksi.
-    const all = reprintLoad();
-    all[r.u.id] = { label: r.u.label, printed: new Date().toISOString(), sig: r.snap };
-    reprintSave(all);
-    base[r.u.id] = all[r.u.id];
-    // Vain tälle päivälle tehty tarkistus kelpaa noston välimuistiin: tulevalle päivälle
-    // merkitty perustaso ei kerro mitään tämän päivän aikataulusta.
-    reprintHlMerge(all, document.getElementById("rpDate")?.value || today, [[r.u.id, false]]);
-    // Palvelimelle vain tämä yksi merkintä: yhdistäminen tehdään palvelinpäässä, joten
-    // koko perustasoa ei tarvitse lähettää joka merkinnällä.
-    reprintSrvPush({ [r.u.id]: all[r.u.id] });
-    b.replaceWith(Object.assign(document.createElement("span"), {
-      className: "muted", textContent: t("reprintMarked"),
-    }));
+    markPrinted([r]);
   });
 
   document.getElementById("rpGo").addEventListener("click", async () => {
@@ -20141,7 +20838,22 @@ async function bindReprintTab(routes, today) {
     const tick = () => { status.textContent = t("reprintChecking", { done, total: picked.length }); };
     tick();
 
-    const results = await mapLimit(picked, 3, async (u) => {
+    // Pysäkkijulisteet yhtenä eränä (patternit ja vuorot jaetaan pysäkkien kesken), muut kuten ennen.
+    const stopUnits = picked.filter(u => u.kind === "stop");
+    let stopSnaps = new Map();
+    if (stopUnits.length) {
+      try { stopSnaps = await reprintStopSnaps(stopUnits.map(u => u.gtfsId), date); }
+      catch (e) { stopSnaps = new Map(); }
+      done += stopUnits.length;
+      if (mySeq === viewSeq) tick();
+    }
+    const stopResults = stopUnits.map(u => {
+      const snap = stopSnaps.get(u.gtfsId);
+      if (!snap) return { u, error: true };
+      const prev = base[u.id];
+      return { u, snap, prev, diff: prev ? reprintDiff(prev.sig, snap) : null };
+    });
+    const results = stopResults.concat(await mapLimit(picked.filter(u => u.kind !== "stop"), 3, async (u) => {
       try {
         const snap = await snapOf(u, date);
         if (!snap) return null;
@@ -20153,7 +20865,7 @@ async function bindReprintTab(routes, today) {
         done++;
         if (mySeq === viewSeq) tick();
       }
-    });
+    }));
     if (mySeq !== viewSeq) return;
 
     const ok = results.filter(Boolean);
@@ -20168,8 +20880,10 @@ async function bindReprintTab(routes, today) {
         <h2>${t(titleKey)} (${list.length})</h2>
         <ul class="plain">${list.map(body).join("")}</ul>
       </section>` : "";
+    const markable = changed.length + fresh.length;
 
     document.getElementById("rpOut").innerHTML =
+      (markable > 1 ? `<p class="no-print"><button type="button" id="rpMarkAll" class="secondary">${t("reprintMarkAll", { n: markable })}</button></p>` : "") +
       card("reprintChanged", changed, r => `<li class="item" style="align-items:flex-start">
         <div><strong>${esc(r.u.label)}</strong>
           <ul class="muted" style="margin:0.2rem 0 0">${r.diff.map(d => `<li>${esc(d)}</li>`).join("")}</ul>
@@ -20184,10 +20898,28 @@ async function bindReprintTab(routes, today) {
       (!changed.length && same.length ? `<p class="muted">${t("reprintEmpty")}</p>` : "");
 
     reprintHlMerge(reprintLoad(), date, ok.filter(r => r.diff).map(r => [r.u.id, r.diff.length > 0]));
+    // Vaihtolista ja mittari vain tämän päivän tarkistuksesta: tulevan päivän vertailu ei kerro,
+    // mitä pysäkillä on nyt.
+    if (date === todayISO()) {
+      for (const r of ok) if (r.u.kind === "stop" && r.diff)
+        vt.res.set(r.u.id, { stale: r.diff.length > 0, diff: r.diff, snap: r.snap, date });
+      vt.checkedOn = date;
+      renderMeter();
+      renderVt();
+    }
     lastResults = ok;
     status.textContent = "";
     document.getElementById("rpOut").scrollIntoView({ behavior: "smooth", block: "start" });
   });
+
+  // Juuri lisätyt pysäkit rastitetaan valmiiksi, jotta seuraava askel on yksi painallus.
+  if (opts && opts.check) {
+    const want = new Set(opts.check);
+    let first = null;
+    document.querySelectorAll(".rpCb").forEach(c => { if (want.has(c.value)) { c.checked = true; first = first || c; } });
+    first?.closest("li")?.scrollIntoView({ block: "center" });
+  }
+  if (opts && opts.msg) document.getElementById("rpStopMsg").textContent = opts.msg;
 }
 
 // Monen linjan tulostusvihko: valitse linjat → aikataulut isoilla pysäkillä
