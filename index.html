@@ -17167,12 +17167,14 @@ async function viewServiceDesk() {
   };
   const expandRoute = () => setRouteCompact(false);
   document.getElementById("deskEditRoute")?.addEventListener("click", () => { expandRoute(); fromEl.focus(); fromEl.select?.(); });
-  // Vastaus näkyviin: jos "Kerro asiakkaalle" jää näytön ylä- tai alareunan yli, vieritetään se esiin.
+  // Vastaus näkyviin: jos "Kerro asiakkaalle" jää näytön ylä- tai alareunan yli, vieritetään se esiin marginaalilla.
+  // scrollIntoView("nearest") kohdisti alareunan tasan näytön reunaan, ja Linuxin fonteilla pikselin murto-osa jäi yli.
   const revealTell = () => {
     const tell = document.querySelector("#deskResults .desk-tell");
     if (!tell) return;
-    const r = tell.getBoundingClientRect();
-    if (r.top < 0 || r.bottom > window.innerHeight) tell.scrollIntoView({ block: r.height > window.innerHeight ? "start" : "nearest" });
+    const r = tell.getBoundingClientRect(), vh = window.innerHeight, pad = 12;
+    if (r.top < 0 || r.height + 2 * pad > vh) window.scrollBy(0, r.top - pad);
+    else if (r.bottom > vh - pad) window.scrollBy(0, r.bottom - vh + pad);
   };
 
   // ---- Kopioi vastaus (B2) ja Näytä asiakkaalle (B8) ----
