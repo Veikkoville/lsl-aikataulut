@@ -1646,6 +1646,79 @@
   .desk-show-close { margin-top: 2rem; font-size: clamp(22px, 2vw, 30px); min-height: 64px; padding: 0.5rem 1.4rem; }
   body.desk-show-on { overflow: hidden; }
   @media (max-width: 900px) { .desk-show-grid { grid-template-columns: 1fr; } }
+  /* Erä V3 (4.10.2026): Kerro asiakkaalle -laatikon kielivalinta otsikon rinnalla (D4) ei vie pystytilaa, konekäännös
+     merkitään näkyvästi. Terminaalin Minne?-suodatin (B10) ja pysäkkikortin asiakasnäkymä (seuraavat lähdöt isolla). */
+  .desk-tell-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.2rem 0.8rem; }
+  .desk-tell-top .desk-ans-lang { margin: 0; font-size: 0.8rem; }
+  .desk-ans-lang select { font: inherit; font-size: 0.8rem; min-height: 32px; padding: 0.1rem 0.4rem; max-width: 16rem;
+    border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--text); }
+  .desk-ans-nomt { font-size: 0.8rem; }
+  .desk-ans-mt-note { margin: 0.4rem 0 0; font-size: 0.85em; }
+  .desk-ans-orig { display: block; margin-top: 0.2rem; }
+  .desk-pocket-note { font-size: 0.85em; flex: 1 1 18rem; }
+  .desk-term-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; margin: 0 0 0.6rem; }
+  .desk-term-filter label { font-weight: var(--wmed); }
+  .desk .desk-term-filter input { flex: 1 1 14rem; min-height: 44px; font-size: 1.05em; border: 2px solid var(--border);
+    border-radius: var(--radius-control); padding: 0.3rem 0.6rem; background: #fff; color: var(--text); }
+  .desk-term-info { flex-basis: 100%; margin: 0; }
+  .desk-term-info:empty { display: none; }
+  .desk-show-deps { list-style: none; margin: 0; padding: 0; font-size: clamp(40px, 3.2vw, 56px); line-height: 1.25; }
+  .desk-show-deps li { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 0.2em 0.45em; align-items: baseline;
+    padding: 0.12em 0; border-bottom: 2px solid #d8d8d8; }
+  .desk-show-deps .badge { font-size: 0.9em; padding: 0.05em 0.35em; }
+  .desk-show-plat { font-weight: 700; }
+  .desk-show-dest { overflow-wrap: anywhere; }
+  .desk-show-time { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .desk-show-rel { font-weight: 400; }
+  .desk-show-code { font-weight: 400; color: #2f2f2f; }
+  .desk-show-mt { margin: 0.8rem 0 0; font-size: clamp(20px, 1.6vw, 28px); color: #2f2f2f; }
+  /* Taskuaikataulu (D3): A4 pysty, neljä A6-paneelia (105 x 148 mm). Vaakaviiva leikataan ja pystyviiva taitetaan,
+     jolloin syntyy kaksipuolisia A6-kortteja. Mitat millimetreinä ja pisteinä: mittauslaatikko (pk-measure) ja paperi
+     ovat samat, joten sivutus (pocketHtml) jakaa lähdöt paneeleille ilman, että mikään leikkautuu. */
+  .pocket { font-size: 10pt; line-height: 1.25; color: #000; }
+  .pocket .pk-sheet { position: relative; width: 210mm; height: 296mm; display: grid; grid-template-columns: 105mm 105mm;
+    grid-template-rows: 148mm 148mm; overflow: hidden; break-after: page; page-break-after: always; }
+  /* Leikkaus- ja taittoviiva omina elementteinään: Chromen PDF jätti piirtämättä paneelin alareunan, kun samassa
+     laatikossa oli eri tyylinen oikea reuna (katko- ja pisteviiva). */
+  .pocket .pk-sheet::before { content: ""; position: absolute; left: 105mm; top: 0; bottom: 0; border-left: 0.3mm dotted #555; }
+  .pocket .pk-sheet::after { content: ""; position: absolute; top: 148mm; left: 0; right: 0; border-top: 0.3mm dashed #555; }
+  .pocket .pk-sheet:last-child { break-after: auto; page-break-after: auto; }
+  .pocket .pk-panel { box-sizing: border-box; width: 105mm; height: 148mm; padding: 7mm; overflow: hidden; margin: 0; }
+  .pocket h2, .pocket h3, .pocket p, .pocket ol { margin: 0; padding: 0; }
+  .pocket .pk-kicker { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+  .pocket .pk-title { font-size: 15pt; line-height: 1.15; margin: 1.5mm 0 2.5mm; overflow-wrap: anywhere; }
+  .pocket .pk-lines, .pocket .pk-travel, .pocket .pk-none { font-size: 10pt; margin: 0 0 1.5mm; }
+  .pocket .pk-valid { font-size: 9.5pt; font-weight: 700; margin: 2mm 0 1.5mm; }
+  .pocket .pk-valid-change { background: #ffe066; padding: 0.8mm 1.5mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pocket .pk-window { font-size: 8pt; margin: 0 0 1.5mm; }
+  .pocket .pk-printed, .pocket .pk-fold { font-size: 8pt; margin: 2mm 0 0; }
+  .pocket .pk-qr { display: flex; align-items: center; gap: 3mm; margin: 3mm 0; font-size: 8pt; }
+  .pocket .pk-qr img { width: 28mm; height: 28mm; flex: none; }
+  .pocket .pk-day-h { font-size: 11.5pt; font-weight: 700; border-bottom: 0.4mm solid #000; padding: 0 0 1mm; margin: 0 0 1.5mm; }
+  .pocket .pk-colh { font-size: 8pt; margin: 0 0 1mm; }
+  .pocket .pk-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 4mm; }
+  .pocket .pk-col { list-style: none; }
+  .pocket .pk-col li { display: flex; align-items: baseline; gap: 1.2mm; font-size: 10pt; line-height: 4.4mm;
+    font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pocket .pk-dep { font-weight: 700; }
+  .pocket .pk-code { font-size: 7.5pt; min-width: 2.2mm; }
+  .pocket .pk-legend { font-size: 7.5pt; margin: 2mm 0 0; }
+  .pocket .badge { font-size: 8.5pt; line-height: 1.15; padding: 0 1.2mm; border: 0.25mm solid #000; border-radius: 1mm;
+    background: #fff !important; color: #000 !important; }
+  /* Iso teksti: kaikki vähintään 14 pt ja kellonajat 16 pt, yksi palsta paneelia kohden. */
+  .pocket.pk-large { font-size: 14pt; }
+  .pocket.pk-large .pk-panel { padding: 6mm; }
+  .pocket.pk-large .pk-kicker, .pocket.pk-large .pk-lines, .pocket.pk-large .pk-travel, .pocket.pk-large .pk-none,
+  .pocket.pk-large .pk-valid, .pocket.pk-large .pk-window, .pocket.pk-large .pk-printed, .pocket.pk-large .pk-fold,
+  .pocket.pk-large .pk-qr, .pocket.pk-large .pk-colh, .pocket.pk-large .pk-legend, .pocket.pk-large .pk-code,
+  .pocket.pk-large .badge { font-size: 14pt; }
+  .pocket.pk-large .pk-title { font-size: 22pt; }
+  .pocket.pk-large .pk-day-h { font-size: 18pt; }
+  .pocket.pk-large .pk-cols { grid-template-columns: 1fr; }
+  .pocket.pk-large .pk-col li { font-size: 16pt; line-height: 7.4mm; gap: 2mm; }
+  .pocket.pk-large .pk-code { min-width: 4mm; }
+  .pocket.pk-large .pk-qr img { width: 34mm; height: 34mm; }
+  .pk-measure { position: absolute; left: -9999px; top: 0; visibility: hidden; }
   .preview-bar { background: #fff4d6; color: #3d2e00; border-bottom: 1px solid #e6c766; padding: 0.45rem 1rem;
                  font-size: 0.92rem; text-align: center; }
   .preview-bar a { color: inherit; font-weight: var(--wmed); }
@@ -5392,6 +5465,40 @@ const STRINGS = {
     deskFareZones: "Kertalippu, {method}. Hinta vyöhykkeiden mukaan, aikuinen / lapsi: {list}.",
     deskFareZone: "{zone} {adult} € / {child} €", deskFaresLinkDefault: "Liput ja hinnat",
     deskRouteAlerts: "Häiriöt tällä reitillä", deskOptAlert: "häiriö",
+    // Erä V3 (4.10.2026): taskuaikataulu A->B (D3), vastaus asiakkaan kielellä (D4), terminaalin Minne?-suodatin (B10)
+    // ja pysäkkikortin asiakasnäkymä.
+    deskPocketBtn: "Tulosta taskuaikataulu",
+    deskPocketIndirect: "Taskuaikataulu tehdään vain suorille yhteyksille. Vaihdollisen reitin saa paperille Tulosta asiakkaalle -napista.",
+    deskPocketErr: "Taskuaikataulua ei saatu koottua. Yritä uudelleen.",
+    deskPocketNoIds: "Taskuaikataulua ei voi tehdä, koska yhteyden pysäkkitiedot puuttuvat.",
+    deskPocketNoDeps: "Suoria lähtöjä pysäkiltä {from} pysäkille {to} ei löytynyt seuraavan 6 viikon aikataulusta.",
+    pocketKicker: "Taskuaikataulu", pocketLine: "Linja", pocketLines: "Linjat",
+    pocketTravel: "Matka-aika {min} min", pocketTravelRange: "Matka-aika {min}–{max} min",
+    pocketColHead: "Lähtö → perillä",
+    pocketCont: "{label}, jatkuu", pocketNoDeps: "{days}: ei suoria lähtöjä.",
+    pocketWindow: "Lähtöajat on koottu {from}–{until} aikataulusta.",
+    pocketNoChange: "Aikataulumuutoksia ei ole tiedossa (tarkistettu {date}).",
+    pocketStopChange: "Pysäkin {stop} aikataulu muuttuu {date}. Tarkista lähdöt silloin uudelleen.",
+    pocketStopChangeBy: "Pysäkin {stop} aikataulu muuttuu viimeistään {date}. Tarkista lähdöt silloin uudelleen.",
+    pocketQr: "Kuvaa koodi puhelimella: reitti ja ajantasaiset lähdöt.",
+    pocketFold: "Leikkaa katkoviivaa pitkin ja taita pisteviivasta.",
+    deskAnsLang: "Asiakkaan kieli", deskAnsLangOther: "Muu kieli (konekäännös)",
+    deskAnsMtNote: "Konekäännös: {lang}. Pysäkkien ja linjojen nimet ovat alkuperäisiä.",
+    deskAnsMtOrig: "Alkuperäinen:",
+    deskAnsMtBusy: "Käännetään…", deskAnsMtLoad: "Ladataan kielimallia ({pct} %)…",
+    deskAnsMtFail: "Konekäännös ei onnistunut. Vastaus näkyy alkuperäisellä kielellä.",
+    deskAnsMtCust: "Konekäännös. Tarkista ajat QR-koodista.",
+    deskAnsMtNone: "Muut kielet vain Chrome- ja Edge-selaimessa",
+    deskAnsMtNoneHint: "Konekäännös toimii Chromen ja Edgen tietokoneversiossa laitteella ilman pilvipalvelua. Tässä selaimessa sitä ei ole, joten valittavana ovat suomi, ruotsi ja englanti.",
+    deskAnsMtNoLangs: "Konekäännöksen kieliä ei ole saatavilla tässä selaimessa",
+    deskTermQLabel: "Minne?", deskTermQPh: "Linja, määränpää tai pysäkki",
+    deskTermQLine: "Linja {line}: lähdöt seuraavan {h} tunnin ajalta.",
+    deskTermQOn: "Haku \"{q}\": linjat {lines}, lähdöt seuraavan {h} tunnin ajalta.",
+    deskTermQNoMatch: "Haulla \"{q}\" ei löytynyt linjaa, määränpäätä eikä pysäkkiä tämän terminaalin reiteiltä.",
+    deskTermQNone: "Ei lähtöjä seuraavan {h} tunnin aikana.",
+    deskTermQShort: "Kirjoita linjan numero tai vähintään 3 kirjainta.",
+    deskShowKickerStop: "Seuraavat lähdöt",
+    deskShowStopQrCap: "Kuvaa koodi puhelimella, niin pysäkin lähdöt aukeavat siihen.",
     navAdmin: "Ylläpito",
     adminLinkDesc: "Häiriötiedotteet, hinnat, saavutettavuusseloste ja uusintapainatusavain. Vaatii kirjautumisen.",
     previewResident: "Esikatselu: kuntalaisnäkymä (henkilöstön osat piilossa)",
@@ -6249,6 +6356,38 @@ const STRINGS = {
     deskFareZones: "Single ticket, {method}. Price by zones, adult / child: {list}.",
     deskFareZone: "{zone} {adult} € / {child} €", deskFaresLinkDefault: "Tickets and prices",
     deskRouteAlerts: "Disruptions on this route", deskOptAlert: "disruption",
+    deskPocketBtn: "Print pocket timetable",
+    deskPocketIndirect: "Pocket timetables are made for direct connections only. Print a connection with a change using Print for the customer.",
+    deskPocketErr: "The pocket timetable could not be put together. Please try again.",
+    deskPocketNoIds: "No pocket timetable: the stop details of this connection are missing.",
+    deskPocketNoDeps: "No direct departures from {from} to {to} in the timetable for the next 6 weeks.",
+    pocketKicker: "Pocket timetable", pocketLine: "Line", pocketLines: "Lines",
+    pocketTravel: "Travel time {min} min", pocketTravelRange: "Travel time {min}–{max} min",
+    pocketColHead: "Departs → arrives",
+    pocketCont: "{label}, continued", pocketNoDeps: "{days}: no direct departures.",
+    pocketWindow: "Departure times are taken from the timetable for {from}–{until}.",
+    pocketNoChange: "No timetable changes are known (checked {date}).",
+    pocketStopChange: "The timetable at {stop} changes on {date}. Check the departures again then.",
+    pocketStopChangeBy: "The timetable at {stop} changes by {date} at the latest. Check the departures again then.",
+    pocketQr: "Scan with your phone: the route and live departures.",
+    pocketFold: "Cut along the dashed line and fold along the dotted line.",
+    deskAnsLang: "Customer's language", deskAnsLangOther: "Other language (machine translation)",
+    deskAnsMtNote: "Machine translation: {lang}. Stop and line names are in their original form.",
+    deskAnsMtOrig: "Original:",
+    deskAnsMtBusy: "Translating…", deskAnsMtLoad: "Downloading the language model ({pct} %)…",
+    deskAnsMtFail: "Machine translation failed. The answer is shown in the original language.",
+    deskAnsMtCust: "Machine translation. Check the times with the QR code.",
+    deskAnsMtNone: "Other languages only in Chrome and Edge",
+    deskAnsMtNoneHint: "Machine translation works on the device in desktop Chrome and Edge, without a cloud service. This browser does not have it, so Finnish, Swedish and English are available.",
+    deskAnsMtNoLangs: "No machine translation languages are available in this browser",
+    deskTermQLabel: "Where to?", deskTermQPh: "Line, destination or stop",
+    deskTermQLine: "Line {line}: departures for the next {h} hours.",
+    deskTermQOn: "Search \"{q}\": lines {lines}, departures for the next {h} hours.",
+    deskTermQNoMatch: "No line, destination or stop on this terminal's routes matches \"{q}\".",
+    deskTermQNone: "No departures in the next {h} hours.",
+    deskTermQShort: "Type a line number or at least 3 letters.",
+    deskShowKickerStop: "Next departures",
+    deskShowStopQrCap: "Scan the code with your phone to open the stop's departures.",
     navAdmin: "Admin",
     adminLinkDesc: "Disruption notices, fares, accessibility statement and reprint key. Requires sign-in.",
     previewResident: "Preview: resident view (staff sections hidden)",
@@ -7092,6 +7231,38 @@ const STRINGS = {
     deskFareZones: "Enkelbiljett, {method}. Pris enligt zoner, vuxen / barn: {list}.",
     deskFareZone: "{zone} {adult} € / {child} €", deskFaresLinkDefault: "Biljetter och priser",
     deskRouteAlerts: "Störningar på rutten", deskOptAlert: "störning",
+    deskPocketBtn: "Skriv ut fickturlista",
+    deskPocketIndirect: "Fickturlistor görs bara för direkta förbindelser. Skriv ut en förbindelse med byte med knappen Skriv ut åt kunden.",
+    deskPocketErr: "Fickturlistan kunde inte sammanställas. Försök igen.",
+    deskPocketNoIds: "Ingen fickturlista: förbindelsens hållplatsuppgifter saknas.",
+    deskPocketNoDeps: "Inga direkta avgångar från {from} till {to} i tidtabellen för de närmaste 6 veckorna.",
+    pocketKicker: "Fickturlista", pocketLine: "Linje", pocketLines: "Linjer",
+    pocketTravel: "Restid {min} min", pocketTravelRange: "Restid {min}–{max} min",
+    pocketColHead: "Avgång → framme",
+    pocketCont: "{label}, fortsättning", pocketNoDeps: "{days}: inga direkta avgångar.",
+    pocketWindow: "Avgångstiderna är hämtade ur tidtabellen för {from}–{until}.",
+    pocketNoChange: "Inga kända tidtabellsändringar (kontrollerat {date}).",
+    pocketStopChange: "Tidtabellen vid {stop} ändras {date}. Kontrollera avgångarna igen då.",
+    pocketStopChangeBy: "Tidtabellen vid {stop} ändras senast {date}. Kontrollera avgångarna igen då.",
+    pocketQr: "Skanna med telefonen: rutten och aktuella avgångar.",
+    pocketFold: "Klipp längs den streckade linjen och vik längs den prickade.",
+    deskAnsLang: "Kundens språk", deskAnsLangOther: "Annat språk (maskinöversättning)",
+    deskAnsMtNote: "Maskinöversättning: {lang}. Hållplatsernas och linjernas namn är i originalform.",
+    deskAnsMtOrig: "Original:",
+    deskAnsMtBusy: "Översätter…", deskAnsMtLoad: "Laddar ner språkmodellen ({pct} %)…",
+    deskAnsMtFail: "Maskinöversättningen misslyckades. Svaret visas på originalspråket.",
+    deskAnsMtCust: "Maskinöversättning. Kontrollera tiderna med QR-koden.",
+    deskAnsMtNone: "Andra språk bara i Chrome och Edge",
+    deskAnsMtNoneHint: "Maskinöversättning fungerar på enheten i Chrome och Edge på dator, utan molntjänst. Den här webbläsaren har den inte, så finska, svenska och engelska finns att välja.",
+    deskAnsMtNoLangs: "Inga språk för maskinöversättning finns i den här webbläsaren",
+    deskTermQLabel: "Vart?", deskTermQPh: "Linje, destination eller hållplats",
+    deskTermQLine: "Linje {line}: avgångar under de närmaste {h} timmarna.",
+    deskTermQOn: "Sökning \"{q}\": linjer {lines}, avgångar under de närmaste {h} timmarna.",
+    deskTermQNoMatch: "Ingen linje, destination eller hållplats på terminalens rutter matchar \"{q}\".",
+    deskTermQNone: "Inga avgångar under de närmaste {h} timmarna.",
+    deskTermQShort: "Skriv ett linjenummer eller minst 3 bokstäver.",
+    deskShowKickerStop: "Nästa avgångar",
+    deskShowStopQrCap: "Skanna koden med telefonen så öppnas hållplatsens avgångar.",
     navAdmin: "Administration",
     adminLinkDesc: "Störningsmeddelanden, priser, tillgänglighetsutlåtande och nyckel för omtryck. Kräver inloggning.",
     previewResident: "Förhandsvisning: invånarvy (personalens delar dolda)",
@@ -16677,6 +16848,20 @@ const DESK_GROUP_DEPS_QUERY = `query ($ids: [String]) {
     }
   }
 }`;
+// Minne?-suodatin (erä V3, B10): terminaalin pysäkkien reitit pysäkkeineen (kohteen haku reitiltä terminaalin jälkeen)
+// ja osuvien pysäkkien lähdöt pidemmältä ajalta. pattern.code yhdistää lähdön osuvaan reittiin.
+const DESK_TERM_PATTERNS_QUERY = `query ($ids: [String]) {
+  stops(ids: $ids) { gtfsId patterns { code headsign@L route { gtfsId shortName } stops { gtfsId name@L } } }
+}`;
+const DESK_TERM_DEPS_QUERY = `query ($ids: [String], $n: Int, $range: Int) {
+  stops(ids: $ids) {
+    gtfsId name@L platformCode lat lon routes { gtfsId shortName }
+    stoptimesWithoutPatterns(numberOfDepartures: $n, timeRange: $range, omitNonPickups: true) {
+      scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
+      trip { pattern { code } wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } ${TRIP_ENDS_FIELDS} }
+    }
+  }
+}`;
 // Kotipysäkki id:llä (CONFIG.deskHomeStop.id/ids): pysäkki linjoineen ja sen emoasema pysäkkeineen.
 const DESK_HOME_IDS_QUERY = `query ($ids: [String]) {
   stops(ids: $ids) { gtfsId name@L code lat lon routes { gtfsId shortName longName@L }
@@ -16710,9 +16895,12 @@ function terminalPlatCodes(stops, termName) {
 // Aseman (tai pysäkkiryhmän) vastaus pysäkin muotoon: saapuvat vuorot suodatetaan pysäkeittäin (dropArrivals vertaa
 // pysäkin omaan id:hen ja nimeen), lähdöt yhdeksi aikajärjestykseen, ja jokaiselle riville sen pysäkki (_plat).
 // title = tiskin otsikko (Porin emoaseman nimi on syötteessä "PORI Kauppatori").
-function terminalStopOf(st, title) {
+// opts (erä V3, B10): keep = rivin rajaus (Minne?-suodatin), codes = koko terminaalin pysäkkitunnukset, kun kysely koski
+// vain osaa pysäkeistä, max = rivien enimmäismäärä (oletus 12).
+function terminalStopOf(st, title, opts) {
+  const o = opts || {};
   const name = title || st.name;
-  const codes = terminalPlatCodes(st.stops || [], name);
+  const codes = o.codes || terminalPlatCodes(st.stops || [], name);
   const groups = new Map();
   for (const x of st.stoptimesWithoutPatterns || []) {
     const id = x.stop?.gtfsId || "";
@@ -16724,7 +16912,7 @@ function terminalStopOf(st, title) {
   for (const [id, sts] of groups) {
     const one = { gtfsId: id, name: sts[0].stop?.name || st.name, stoptimesWithoutPatterns: sts };
     cleanStopDepartures(one, id);
-    for (const x of one.stoptimesWithoutPatterns)
+    for (const x of one.stoptimesWithoutPatterns) if (!o.keep || o.keep(x))
       rows.push({ ...x, _plat: { id, name: x.stop?.name || "", code: codes.get(id) || x.stop?.platformCode || "" } });
   }
   rows.sort((a, b) => at(a) - at(b));
@@ -16734,7 +16922,7 @@ function terminalStopOf(st, title) {
     .map(p => ({ id: p.gtfsId, name: p.name, code: codes.get(p.gtfsId) || "" }))
     .sort((a, b) => a.code.localeCompare(b.code, "fi", { numeric: true }));
   return { gtfsId: st.gtfsId, name, code: "", lat: st.lat, lon: st.lon, terminal: true,
-    platforms: plats.length, plats, routes, stoptimesWithoutPatterns: rows.slice(0, 12) };
+    platforms: plats.length, plats, routes, stoptimesWithoutPatterns: rows.slice(0, o.max || 12) };
 }
 // Pysäkkiryhmän vastaus (DESK_GROUP_DEPS_QUERY) aseman muotoon terminalStopOfille.
 function groupStationOf(stops, term) {
@@ -17017,15 +17205,19 @@ function deskNextBusHtml(busNode) {
 
 // timed = haku valitulle ajalle (ei nyt): "Kävely on nopein" ilman sanaa "nyt".
 function deskTellHtml(nodes, busNode, timed) {
+  return `<div class="desk-tell"><div class="desk-tell-h">${t("deskTellTitle")}</div>` +
+    `<p class="desk-tell-body">${deskTellBodyHtml(nodes, busNode, timed)}</p></div>`;
+}
+// Vastauksen teksti ilman laatikkoa (erä V3, D4): sama lause voidaan piirtää asiakkaan kielellä (withLang).
+function deskTellBodyHtml(nodes, busNode, timed) {
   const node = nodes[0];
   const transit = node.legs.filter(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
-  const head = `<div class="desk-tell-h">${t("deskTellTitle")}</div>`;
   if (!transit.length) {
     // Nopein on pelkkä kävely → kerro silti seuraava bussi (asiakas kysyi bussia)
     const dur = fmtDur((new Date(node.end) - new Date(node.start)) / 1000);
     const walk = t(timed ? "deskWalkFastestTimed" : "deskWalkFastest", { dur });
     const bus = busNode ? deskBusSentence(busNode) : t("deskNoBusToday");
-    return `<div class="desk-tell">${head}<p class="desk-tell-body">${walk} ${bus}</p></div>`;
+    return `${walk} ${bus}`;
   }
   const first = transit[0];
   const line = first.route?.shortName || "";
@@ -17052,8 +17244,7 @@ function deskTellHtml(nodes, busNode, timed) {
     ? t("deskTellBoardNext", { line: esc(line), stop: esc(board), time: dep, next })
     : t("deskTellBoard", { line: esc(line), stop: esc(board), time: dep });
   const transferTxt = deskTransfersTxt(node) || t("deskNoTransfers");
-  return `<div class="desk-tell">${head}
-    <p class="desk-tell-body">${boardTxt} ${t("deskTellArrive", { stop: esc(arrStop), time: arr })} ${transferTxt}</p></div>`;
+  return `${boardTxt} ${t("deskTellArrive", { stop: esc(arrStop), time: arr })} ${transferTxt}`;
 }
 
 // Pysäkit reitillä: nousupysäkki (+ linja) → välipysäkit → jättö/vaihto, legeittäin.
@@ -17092,8 +17283,16 @@ function deskOptionHtml(node, i, dayIso) {
     <div class="desk-opt-lines">${ride.length ? lines : `<span class="muted">${t("deskWalkOnly", { dur })}</span>`}</div>
     <details class="desk-stops"><summary>${t("deskStopsTitle")}</summary>${deskStopsListHtml(node)}</details>
     ${i == null ? "" : `<p class="desk-opt-print"><button type="button" class="secondary deskOptPrint" data-i="${i}">${icon("print")} ${t("deskItinPrintBtn")}</button>
-      <span class="muted" role="status"></span> ${printLargeOptHtml()}</p>`}
+      <span class="muted" role="status"></span> ${printLargeOptHtml()}${!ride.length ? "" : deskPocketLeg(node)
+        ? ` <button type="button" class="secondary deskOptPocket" data-i="${i}">${icon("print")} ${t("deskPocketBtn")}</button>`
+        : ` <span class="muted desk-pocket-note">${t("deskPocketIndirect")}</span>`}</p>`}
   </div>`;
+}
+// Taskuaikataulun osuus (D3): vain suora yhteys, eli tasan yksi kulkuneuvo-osuus. Vaihdollinen reitti tulostetaan
+// reittitulosteena (Tulosta asiakkaalle).
+function deskPocketLeg(node) {
+  const ride = (node?.legs || []).filter(l => l.mode !== "WALK" && l.mode !== "BICYCLE");
+  return ride.length === 1 ? ride[0] : null;
 }
 
 /* Asiakkaalle ojennettava yhteystuloste (Inkoon tarjous: "asiakaspalvelija voi tulostaa yhteyden
@@ -17159,6 +17358,344 @@ async function deskPrintItinerary(node, nodes, from, to, stEl) {
     window.addEventListener("afterprint", done);
     window.print();
   });
+}
+
+/* ---------- Taskuaikataulu A->B (erä V3 4.10.2026, D3) ----------
+   Henkilökohtainen tuloste tiskiltä: suorat lähdöt pysäkiltä A pysäkille B saapumisaikoineen Ma–Pe, La ja Su erikseen,
+   linjat, voimassaolo ja QR samaan reittiin. Ikääntyneet suosivat taskukokoista, omaa matkaa koskevaa tulostetta
+   (tutkimus 4.10.2026, idea 2). Päivätyypit samalla moottorilla kuin pysäkkijulisteessa (groupTripsByDays +
+   canonicalPosterBlocks): vain osana päivistä, koulupäivinä tai tietyn jakson ajan ajettava lähtö saa kirjaimen ja
+   selitteen. Ikkuna on julisteen 42 vrk (activeDates kattaa noin 84 vrk), eikä sen yli väitetä mitään. Taitto: A4 pysty,
+   neljä A6-paneelia; vaakaviiva leikataan ja pystyviiva taitetaan, jolloin syntyy kaksipuolisia A6-kortteja. */
+const POCKET_PAT_QUERY = `query PocketPatterns($id: String!) {
+  stop(id: $id) { gtfsId name@L patterns { code route { gtfsId shortName longName@L color textColor mode } stops { gtfsId } } }
+}`;
+const POCKET_TRIP_FIELDS = `trips { serviceId activeDates
+  stoptimes { scheduledArrival scheduledDeparture pickupType dropoffType stop { gtfsId } } }`;
+// Istunnon ajan: sama pysäkkipari tulostetaan usein uudelleen (iso teksti, toinen asiakas). Ei localStorageen, koska
+// vuorot pysäkkiaikoineen ovat isoja.
+const pocketPatMemo = new Map(), pocketTripMemo = new Map();
+async function pocketTripsFor(codes) {
+  const need = [...new Set(codes)].filter(c => c && !pocketTripMemo.has(c));
+  const chunks = [];
+  for (let i = 0; i < need.length; i += PTD_ALIAS_CHUNK) chunks.push(need.slice(i, i + PTD_ALIAS_CHUNK));
+  await mapLimit(chunks, 3, async chunk => {
+    const decl = chunk.map((_, i) => `$c${i}: String!`).join(", ");
+    const body = chunk.map((_, i) => `p${i}: pattern(id: $c${i}) { ${POCKET_TRIP_FIELDS} }`).join("\n");
+    const vars = Object.fromEntries(chunk.map((c, i) => ["c" + i, c]));
+    let data = null, err = null;
+    for (let a = 0; a < 3 && !data; a++) {
+      try { data = await gql(`query PocketTrips(${decl}) { ${body} }`, vars); }
+      catch (e) { err = e; if (a < 2) await new Promise(r => setTimeout(r, 700 * (a + 1))); }
+    }
+    // Lopullinen virhe heittää: taskuaikataulu ei saa tulostua vajaana (puuttuva linja näyttäisi "ei lähtöjä").
+    if (!data) throw err || new Error("pocket");
+    chunk.forEach((c, i) => pocketTripMemo.set(c, data["p" + i]?.trips || []));
+  });
+  return codes.map(c => pocketTripMemo.get(c) || []);
+}
+// Vuoron lähdöt pysäkiltä A ja saapumiset pysäkille B. Silmukassa A voi esiintyä kahdesti: nousu myöhemmältä käynniltä,
+// jotta matka on lyhin. Pelkkä jättö A:lla (pickupType NONE) tai pelkkä nousu B:llä (dropoffType NONE) ei kelpaa.
+function pocketPairs(sts, aId, bId) {
+  const out = [];
+  let ai = -1;
+  for (let k = 0; k < sts.length; k++) {
+    const s = sts[k], id = s.stop?.gtfsId;
+    if (id === aId && s.pickupType !== "NONE" && k < sts.length - 1) ai = k;
+    else if (id === bId && ai >= 0 && s.dropoffType !== "NONE") {
+      const dep = sts[ai].scheduledDeparture, arr = s.scheduledArrival ?? s.scheduledDeparture;
+      if (dep != null && arr != null && arr >= dep) out.push({ dep, arr });
+      ai = -1;
+    }
+  }
+  return out;
+}
+const POCKET_BUCKETS = [[0, 1, 2, 3, 4], [5], [6]];
+// Suorat lähdöt A -> B päivätyypeittäin: { blocks: [{ label, dows, legend, rows: [{ dep, arr, route, code }] }],
+// routes, missing (päivätyypit ilman lähtöjä), changeDays, minDur, maxDur, aName }. Heittää verkkovirheessä.
+async function pocketTimetable(aId, bId, refISO) {
+  const pk = aId + "@" + lang;
+  if (!pocketPatMemo.has(pk)) pocketPatMemo.set(pk, gql(POCKET_PAT_QUERY, { id: aId }).catch(e => { pocketPatMemo.delete(pk); throw e; }));
+  const data = await pocketPatMemo.get(pk);
+  const eventLines = CONFIG.eventLines || [];
+  const pats = (data.stop?.patterns || []).filter(p => {
+    if (eventLines.includes(p.route?.shortName)) return false;
+    const ids = (p.stops || []).map(s => s.gtfsId);
+    const a = ids.indexOf(aId);
+    return a >= 0 && ids.indexOf(bId, a + 1) > a;
+  });
+  const tripsBy = await pocketTripsFor(pats.map(p => p.code));
+  // Vuorot linjoittain kuten julisteessa (sama linja = sama kausijako ja jaksot). Saapumisaika kulkee vuoron toisena
+  // aikana, jolloin saman lähtöajan eri saapumiset eivät sulaudu yhteen (groupTripsByDays vertaa kaikkia aikoja).
+  const lineId = r => r.shortName || r.longName || r.gtfsId || "";
+  const byLine = new Map();
+  pats.forEach((p, pi) => {
+    const r = p.route || {};
+    for (const tr of tripsBy[pi] || []) for (const { dep, arr } of pocketPairs(tr.stoptimes || [], aId, bId)) {
+      const id = lineId(r);
+      if (!byLine.has(id)) byLine.set(id, { route: r, trips: [] });
+      byLine.get(id).trips.push({ serviceId: tr.serviceId, activeDates: tr.activeDates,
+        stoptimes: [{ scheduledDeparture: dep }, { scheduledDeparture: arr }] });
+    }
+  });
+  const regular = new Set();
+  for (const [id, L] of byLine)
+    if (groupTripsByDays(L.trips, refISO, { fallback: false, markNew: true }).length) regular.add(id);
+  const blocks = new Map(), arrAt = new Map();
+  for (const [id, L] of byLine) {
+    for (const g of groupTripsByDays(L.trips, refISO, { fallback: !regular.has(id), markNew: true })) {
+      if (!blocks.has(g.key)) blocks.set(g.key, { dows: g.dows, school: g.school, period: g.period, label: g.label, lines: new Map() });
+      const b = blocks.get(g.key);
+      if (!b.lines.has(id)) b.lines.set(id, { route: L.route, headsign: id, times: [] });
+      for (const tr of g.trips) {
+        const dep = tr.stoptimes[0].scheduledDeparture, arr = tr.stoptimes[1].scheduledDeparture;
+        b.lines.get(id).times.push(dep);
+        // Saapuminen päivittäin: sama lähtö voi olla sunnuntaina nopeampi. Jos saman päivän samalla lähdöllä on kaksi
+        // saapumista (eri reittivariantti), näytetään myöhäisempi, ettei asiakas myöhästy.
+        for (const d of g.dows) { const k = id + "|" + dep + "|" + d; arrAt.set(k, Math.max(arrAt.get(k) ?? -1, arr)); }
+      }
+    }
+  }
+  const dayBlocks = [...blocks.values()].map(b => ({ ...b, lines: [...b.lines.values()] }));
+  dayBlocks.sort((a, b) => {
+    const am = Math.min(...a.dows), bm = Math.min(...b.dows);
+    return am !== bm ? am - bm : a.dows.size !== b.dows.size ? b.dows.size - a.dows.size
+      : a.school !== b.school ? (a.school ? 1 : 0) - (b.school ? 1 : 0) : (a.period?.from || 0) - (b.period?.from || 0);
+  });
+  const canon = canonicalPosterBlocks(dayBlocks);
+  const out = canon.map(o => {
+    const rows = [];
+    for (const L of o.lines) for (const dep of [...new Set(L.times)]) {
+      let a = -1;
+      for (const d of o.dows) a = Math.max(a, arrAt.get(L.headsign + "|" + dep + "|" + d) ?? -1);
+      if (a >= 0) rows.push({ dep, arr: a, route: L.route, code: L.codes.get(dep) || "" });
+    }
+    rows.sort((x, y) => (x.dep - y.dep) || (x.arr - y.arr));
+    return { label: o.label, dows: o.dows, legend: o.legend || [], rows };
+  });
+  const missing = POCKET_BUCKETS.filter(days => !out.some(b => b.rows.length && days.every(d => b.dows.has(d))))
+    .map(days => dowLabel(new Set(days)));
+  const all = out.flatMap(b => b.rows);
+  const durs = all.map(r => Math.round((r.arr - r.dep) / 60));
+  const seen = new Set(), routes = [];
+  for (const r of all) { const k = lineId(r.route); if (!seen.has(k)) { seen.add(k); routes.push(r.route); } }
+  routes.sort((a, b) => String(a.shortName || "").localeCompare(String(b.shortName || ""), "fi", { numeric: true }));
+  return { blocks: out.filter(b => b.rows.length), routes, missing, aName: data.stop?.name || "",
+    changeDays: [...new Set(dayBlocks.map(b => b.period?.from).filter(Boolean))].sort((a, b) => a - b),
+    minDur: durs.length ? Math.min(...durs) : 0, maxDur: durs.length ? Math.max(...durs) : 0 };
+}
+// Lyhyt päivämäärä tulosteeseen: "4.10." / "15.11.2026" (en: "4 Oct" / "15 Nov 2026").
+function pocketDate(iso, withYear) {
+  const [y, m, d] = String(iso).split("-").map(Number);
+  const loc = lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI";
+  return new Date(y, m - 1, d).toLocaleDateString(loc, { day: "numeric", month: lang === "en" ? "short" : "numeric",
+    ...(withYear ? { year: "numeric" } : {}) });
+}
+// Voimassaolo (stopValidityInfo, kuten pysäkkiaikataulussa D1). Muutosvahti tietää vain pysäkin A muutoksen, ei sitä,
+// koskeeko se juuri tätä matkaa, joten vahdin muutos kerrotaan pysäkin muutoksena eikä tämän aikataulun päättymisenä.
+// Taskuaikataulun oma jakso (changeDays) koskee vain näitä lähtöjä, ja ne on merkitty kirjaimella.
+function pocketValidityHtml(v, stopName) {
+  if (!v) return "";
+  const txt = v.kind === "shown" ? t("validChangeShown", { date: fmtDateLong(v.date) })
+    : v.kind === "until" ? t("pocketStopChange", { stop: stopName, date: fmtDateLong(v.date) })
+    : v.kind === "approx" ? t("pocketStopChangeBy", { stop: stopName, date: fmtDateLong(v.date) })
+    : t("pocketNoChange", { date: fmtDateLong(v.date) });
+  return `<p class="pk-valid${v.kind === "ok" ? "" : " pk-valid-change"}" data-valid="${v.kind}">${esc(txt)}</p>`;
+}
+// Paneelit mitataan samalla CSS:llä kuin paperilla (pk-measure): kansi kohteittain ja jokainen päivätyyppi niin moneen
+// paneeliin kuin lähdöt vaativat. Mikään ei leikkaudu, vaan paneeleita ja arkkeja tulee lisää.
+function pocketHtml(pk, o) {
+  const large = !!o.large, cols = large ? 1 : 2, multi = pk.routes.length > 1;
+  const badge = r => badgeHtml(r) || `<span class="badge">${esc(r.longName || "")}</span>`;
+  const row = r => `<li><span class="pk-dep">${fmtSec(r.dep)}</span><span class="pk-code">${esc(r.code || "")}</span>` +
+    `<span class="pk-arrow" aria-hidden="true">→</span><span class="pk-arr">${fmtSec(r.arr)}</span>${multi ? " " + badge(r.route) : ""}</li>`;
+  const dayHtml = (b, cont, rows, withLegend) => {
+    const per = Math.ceil(rows.length / cols);
+    const colHtml = Array.from({ length: cols }, (_, c) => rows.slice(c * per, (c + 1) * per)).filter(x => x.length)
+      .map(x => `<ol class="pk-col">${x.map(row).join("")}</ol>`).join("");
+    return `<h3 class="pk-day-h">${esc(cont ? t("pocketCont", { label: b.label }) : b.label)}</h3>` +
+      (rows.length ? `<p class="pk-colh">${esc(t("pocketColHead"))}</p><div class="pk-cols">${colHtml}</div>` : "") +
+      (withLegend && b.legend.length ? `<p class="pk-legend">${b.legend.map(l => `<b>${esc(l.code)}</b> = ${esc(l.text)}`).join("<br>")}</p>` : "");
+  };
+  const end = new Date(o.today + "T12:00:00");
+  end.setDate(end.getDate() + PRINT_HORIZON_DAYS);
+  const travel = pk.minDur === pk.maxDur ? t("pocketTravel", { min: pk.minDur }) : t("pocketTravelRange", { min: pk.minDur, max: pk.maxDur });
+  const op = operatorName();
+  const cover = [
+    `<p class="pk-kicker">${esc(t("pocketKicker"))}</p><h2 class="pk-title">${esc(pk.aName)} → ${esc(pk.bName)}</h2>`,
+    `<p class="pk-lines">${esc(t(pk.routes.length > 1 ? "pocketLines" : "pocketLine"))} ${pk.routes.map(badge).join(" ")}</p>`,
+    `<p class="pk-travel">${esc(travel)}</p>`,
+    pk.missing.length ? `<p class="pk-none">${esc(t("pocketNoDeps", { days: pk.missing.join(", ") }))}</p>` : "",
+    pocketValidityHtml(o.valid, pk.aName),
+    `<p class="pk-window">${esc(t("pocketWindow", { from: pocketDate(o.today, false), until: pocketDate(isoOf(end), true) }))}</p>`,
+    o.qr ? `<div class="pk-qr"><img src="${o.qr}" alt=""><span>${esc(t("pocketQr"))}</span></div>` : "",
+  ].filter(Boolean);
+  // Tulostuspäivä ja taitto-ohje kanteen, tai jos tila ei riitä (iso teksti), viimeisen paneelin loppuun.
+  const foot = [
+    `<p class="pk-printed">${esc(op ? t("printMeta", { date: fmtDateLong(o.today), operator: op }) : t("printMetaDate", { date: fmtDateLong(o.today) }))}</p>`,
+    `<p class="pk-fold">${esc(t("pocketFold"))}</p>`,
+  ];
+  const box = document.createElement("div");
+  box.className = "pk-measure";
+  box.innerHTML = `<div class="pocket${large ? " pk-large" : ""}"><section class="pk-panel pk-p0"></section></div>`;
+  document.body.appendChild(box);
+  const panel = box.querySelector(".pk-panel");
+  const fits = html => { panel.innerHTML = html; return panel.scrollHeight <= panel.clientHeight + 1; };
+  const panels = [];
+  try {
+    let cur = "";
+    for (const it of cover) { if (!cur || fits(cur + it)) cur += it; else { panels.push(cur); cur = it; } }
+    if (cur) panels.push(cur);
+    const coverN = panels.length;
+    for (const b of pk.blocks) {
+      const n = b.rows.length;
+      let i = 0, first = true;
+      while (i < n) {
+        if (fits(dayHtml(b, !first, b.rows.slice(i), true))) { panels.push(dayHtml(b, !first, b.rows.slice(i), true)); i = n; break; }
+        let lo = 1, hi = n - i, k = 1;
+        while (lo <= hi) { const mid = (lo + hi) >> 1; if (fits(dayHtml(b, !first, b.rows.slice(i, i + mid), false))) { k = mid; lo = mid + 1; } else hi = mid - 1; }
+        panels.push(dayHtml(b, !first, b.rows.slice(i, i + k), false));
+        i += k; first = false;
+        if (i === n && b.legend.length) panels.push(dayHtml(b, true, [], true));   // selite ei mahtunut viimeisten lähtöjen kanssa
+      }
+    }
+    for (const f of foot) {
+      if (fits(panels[coverN - 1] + f)) panels[coverN - 1] += f;
+      else if (panels.length > coverN && fits(panels[panels.length - 1] + f)) panels[panels.length - 1] += f;
+      else panels.push(f);
+    }
+  } finally { box.remove(); }
+  const sheets = [];
+  for (let i = 0; i < panels.length; i += 4) sheets.push(panels.slice(i, i + 4));
+  return `<div class="print-only pocket${large ? " pk-large" : ""}" data-panels="${panels.length}">${sheets.map(s =>
+    `<div class="pk-sheet">${[0, 1, 2, 3].map(j => `<section class="pk-panel pk-p${j}">${s[j] || ""}</section>`).join("")}</div>`).join("")}</div>`;
+}
+async function deskPrintPocket(node, from, to, stEl) {
+  const po = document.getElementById("deskPrintOut");
+  const leg = deskPocketLeg(node);
+  if (!po || !leg) return;
+  const say = s => { if (stEl) stEl.textContent = s; };
+  const aId = leg.from?.stop?.gtfsId, bId = leg.to?.stop?.gtfsId;
+  if (!aId || !bId) { say(t("deskPocketNoIds")); return; }
+  say(t("preparingPrint"));
+  const today = todayISO();
+  let pk;
+  try { pk = await pocketTimetable(aId, bId, today); }
+  catch (e) { say(t("deskPocketErr")); return; }   // ei tulosteta: tyhjä paperi kertoisi, ettei vuoroja ole
+  const aName = leg.from.name || pk.aName, bName = leg.to.name || "";
+  if (!pk.blocks.length) { say(t("deskPocketNoDeps", { from: aName, to: bName })); return; }
+  let qr = "";
+  try { qr = from && to ? await qrDataUrl(appUrl(tripHash(from, to)), 240) : ""; } catch (e) { /* QR ei pakollinen */ }
+  let valid = null;
+  try { valid = await stopValidityInfo(aId, Object.assign([], { changeDays: pk.changeDays }), today); } catch (e) { valid = null; }
+  po.innerHTML = pocketHtml({ ...pk, aName, bName }, { qr, valid, today, large: printLargeOn() });
+  const n = po.querySelectorAll(".pk-sheet").length;
+  say(n > 1 ? t("posterSheets", { n }) : "");
+  runPrintJob(t("preparingPrint"), () => {
+    setPageOrientation("size:A4 portrait");
+    const done = () => { setPageOrientation("portrait"); hidePrintPrep(); window.removeEventListener("afterprint", done); };
+    window.addEventListener("afterprint", done);
+    window.print();
+  });
+}
+
+/* ---------- Kerro asiakkaalle asiakkaan kielellä (erä V3 4.10.2026, D4) ----------
+   FI, SV ja EN valmiista käännöksistä (STRINGS, withLang). Muut kielet selaimen omalla laitteella toimivalla
+   kääntäjällä (Translator API, Chrome 138+ ja Edge 148+ työpöydällä), ei pilvipalvelua eikä henkilötietoja. Lähdekieli
+   on englanti. Pysäkkien ja linjojen nimet sekä kellonajat korvataan ennen käännöstä numeromerkeillä ja palautetaan
+   sen jälkeen, jotta kääntäjä ei käännä nimeä eikä muuta aikaa. Jos yksikin merkki katoaa, käännöstä ei näytetä.
+   Jos rajapintaa ei ole, muut kielet piilotetaan ja syy kerrotaan. */
+function withLang(l, fn) {
+  if (!l || l === lang || !STRINGS[l]) return fn();
+  const prev = lang;
+  lang = l;
+  try { return fn(); } finally { lang = prev; }
+}
+const MT_LANGS = ["uk", "ru", "et", "ar", "so", "fa", "tr", "zh", "vi", "th", "es", "de", "fr", "pl"];
+const MT_RTL = new Set(["ar", "fa", "he", "ur"]);
+let mtListP = null;
+const mtTranslators = new Map(), mtCache = new Map();
+function mtApi() {
+  try { const T = ("Translator" in self) ? self.Translator : null;
+    return T && typeof T.availability === "function" && typeof T.create === "function" ? T : null; } catch (e) { return null; }
+}
+// null = rajapintaa ei ole; [] = rajapinta on, mutta yhtäkään kieltä ei ole saatavilla.
+function mtAvailableLangs() {
+  const api = mtApi();
+  if (!api) return Promise.resolve(null);
+  if (!mtListP) mtListP = Promise.all(MT_LANGS.map(async l => {
+    try { const a = await api.availability({ sourceLanguage: "en", targetLanguage: l }); return a && a !== "unavailable" ? l : null; }
+    catch (e) { return null; }
+  })).then(ls => ls.filter(Boolean));
+  return mtListP;
+}
+// Luonti kutsutaan synkronisesti valinnan tapahtumassa: kielimallin lataus vaatii käyttäjän eleen. Epäonnistunut luonti
+// unohdetaan, joten uusi valinta yrittää uudelleen.
+function mtTranslator(l, onProgress) {
+  if (!mtTranslators.has(l)) {
+    let p;
+    try {
+      p = Promise.resolve(mtApi().create({ sourceLanguage: "en", targetLanguage: l,
+        monitor(m) { try { m.addEventListener("downloadprogress", e => { try { onProgress && onProgress(e.loaded); } catch (x) {} }); } catch (x) {} } }));
+    } catch (e) { p = Promise.reject(e); }
+    mtTranslators.set(l, p.catch(e => { mtTranslators.delete(l); throw e; }));
+  }
+  return mtTranslators.get(l);
+}
+async function mtTranslate(l, text, onProgress) {
+  const k = l + "\n" + text;
+  if (!mtCache.has(k)) {
+    const tr = await mtTranslator(l, onProgress);
+    mtCache.set(k, String(await tr.translate(text)));
+  }
+  return mtCache.get(k);
+}
+// Nimet korvataan ennen käännöstä numeroilla 7301, 7302... esiintymisjärjestyksessä. Mitattu Chromen kääntäjällä
+// 4.10.2026 (uk, ru, ar, tr, zh, vi, th, es, de, fr, pl): numerot säilyivät lähes aina, kun taas nimet käännettiin tai
+// translitteroitiin ("Настолан Везиторни П") ja kirjainmerkit (ZQA) pienennettiin tai pudotettiin (tr, zh). Kellonajat
+// jäävät tekstiin: numeroiksi muutettuina kääntäjä luki ne numeroiksi ("за номером 23:45"). Ne tarkistetaan
+// käännöksestä (ranska kirjoittaa 23h45). tok antaa datalle paikkamerkin (yksityiskäyttöalueen merkit), prep vaihtaa
+// tekstin paikkamerkit numeroiksi ja restore palauttaa ne ("7 304" ja "7.304" kelpaavat). tokAs = merkki, joka
+// palautuu eri arvoksi (päivämäärä kohdekielen muodossa).
+function mtTokens() {
+  const keyOf = new Map(), valOf = new Map();
+  const tokAs = (v, out) => { if (v == null || v === "") return v; v = String(v);
+    if (!keyOf.has(v)) { const k = "\uE000" + keyOf.size + "\uE001"; keyOf.set(v, k); valOf.set(k, out); } return keyOf.get(v); };
+  const tok = v => tokAs(v, v);
+  const prep = s => {
+    const map = new Map(), back = new Map();
+    const src = String(s).replace(/\uE000\d+\uE001/g, k => {
+      if (!map.has(k)) {
+        if (map.size >= 98) throw new Error("mt-tokens");
+        const n = String(7301 + map.size);
+        map.set(k, n); back.set(n.slice(2), valOf.get(k));
+      }
+      return map.get(k);
+    });
+    return { src, back, times: [...src.matchAll(/\b(\d{1,2}):(\d{2})\b/g)].map(m => [m[1], m[2]]) };
+  };
+  const RE = /(?<!\d)7[\s\u00a0\u202f.,']?3(\d\d)(?!\d)/g;
+  const restore = (out, p) => {
+    const seen = new Set();
+    const text = String(out).replace(RE, (m, c) => { if (!p.back.has(c)) return m; seen.add(c); return p.back.get(c); });
+    const timeOk = ([h, m]) => new RegExp("(?<!\\d)0?" + (+h) + "\\s?[:.h]\\s?" + m + "(?!\\d)").test(text);
+    return { text, ok: [...p.back.keys()].every(c => seen.has(c)) && p.times.every(timeOk) };
+  };
+  return { tok, tokAs, prep, restore };
+}
+// Englanninkielisen lähdetekstin monikäsitteiset kohdat: "transfer" kääntyi rahansiirroksi tai luovutukseksi (uk
+// "Без переказів", "1 Передача", de "Keine Überweisungen"), pienellä kirjoitettu "line 92" riviksi (uk "рядок", "bus 92"
+// renkaaksi "шини"), "change at 7306" numeroksi ("за номером") ja "arriving by" muotoon "mit" (de). Mitattu samassa
+// ajossa. Ajetaan merkkien vaihdon jälkeen (merkki = 73xx).
+const MT_SRC_FIX = [[/\bNo transfers\./g, "Direct, no change of bus."], [/\b1 transfer:/g, "Change once:"],
+  [/\b(\d+) transfers:/g, "Change $1 times:"], [/\barriving by\b/g, "arriving at"], [/\bline (?=73\d\d\b)/g, "bus line "],
+  [/\bchange at (?=73\d\d\b)/g, "change at stop "]];
+const mtSrcFix = s => MT_SRC_FIX.reduce((a, [re, to]) => a.replace(re, to), s);
+function mtLangName(code) {
+  let own = code, native = "";
+  try { own = new Intl.DisplayNames([lang], { type: "language" }).of(code) || code; } catch (e) {}
+  try { native = new Intl.DisplayNames([code], { type: "language" }).of(code) || ""; } catch (e) {}
+  return native && native.toLowerCase() !== own.toLowerCase() ? `${own} (${native})` : own;
 }
 
 /* Palvelutiskin oletuspysäkki. Tiskillä ei ehditä kirjoittaa pysäkin nimeä joka asiakkaan
@@ -17841,12 +18378,13 @@ async function viewServiceDesk() {
   const upFirst = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   // Lyhyt vastaus tekstiviestiin tai chattiin (noin 160 merkkiä ilman linkkiä): päivä, mistä → minne, linja,
   // pysäkki, lähtö, vaihdot ja perillä. Pitkä teksti lyhenee ensin pudottamalla mistä → minne.
-  const deskShortText = rs => {
+  // dayFmt (D4, konekäännös): päivän muoto; oletus käyttöliittymän (tai withLang-) kielellä.
+  const deskShortText = (rs, dayFmt) => {
     const node = rs.node;
     const ride = firstTransitLeg(node) ? node : rs.busNode;
     const ft = ride ? firstTransitLeg(ride) : null;
-    const day = upFirst(new Date(ft ? legTime(ft.start) : node.start)
-      .toLocaleDateString(deskLoc(), { weekday: "short", day: "numeric", month: "numeric" }));
+    const dayD = new Date(ft ? legTime(ft.start) : node.start);
+    const day = dayFmt ? dayFmt(dayD) : upFirst(dayD.toLocaleDateString(deskLoc(), { weekday: "short", day: "numeric", month: "numeric" }));
     const ft0 = firstTransitLeg(node);
     const fromTo = `${placeShort(rs.from)} → ${placeShort(rs.to)}`;
     const build = ft2 => {
@@ -17862,12 +18400,127 @@ async function viewServiceDesk() {
     const full = build(fromTo);
     return full.length <= 160 ? full : build("").replace(/ :/, ":").replace(/\s{2,}/g, " ");
   };
+  // ---- Vastaus asiakkaan kielellä (erä V3, D4) ----
+  // ansLang "" = käyttöliittymän kieli. Valinta pysyy tämän tiskin ajan, joten seuraava haku tulee samalla kielellä, ja
+  // painettu nappi näyttää aina valitun kielen. ansMt = valmis konekäännös näkyvästä vastauksesta: kopio ja asiakasnäkymä
+  // käyttävät sitä. Ääneenlukua tiskin vastauksessa ei ole, joten sitä ei tarvitse kääntää.
+  let ansLang = "", ansMt = null, ansSeq = 0;
+  const curAns = () => ansLang || lang;
+  const tellBodyIn = (rs, l) => withLang(l, () => rs.tell.kind === "last" ? deskBusSentence(rs.tell.node, rs.tell.day)
+    : deskTellBodyHtml(rs.tell.nodes, rs.tell.busNode, rs.tell.timed));
+  const htmlText = h => { const d = document.createElement("div"); d.innerHTML = h; return d.textContent.replace(/\s+/g, " ").trim(); };
+  // Nimet merkeiksi jo datassa: lause syntyy englanniksi samoilla funktioilla kuin muilla kielillä.
+  const tokNode = (n, tk) => n && ({ ...n, legs: (n.legs || []).map(l => ({ ...l,
+    from: l.from ? { ...l.from, name: tk.tok(l.from.name) } : l.from,
+    to: l.to ? { ...l.to, name: tk.tok(l.to.name) } : l.to,
+    route: l.route ? { ...l.route, shortName: tk.tok(l.route.shortName) } : l.route })) });
+  const mtAnswer = async (rs, l, onProgress) => {
+    const tk = mtTokens();
+    const tell = rs.tell.kind === "last" ? { kind: "last", node: tokNode(rs.tell.node, tk), day: rs.tell.day }
+      : { kind: "route", nodes: rs.tell.nodes.map(n => tokNode(n, tk)), busNode: tokNode(rs.tell.busNode, tk), timed: rs.tell.timed };
+    const bodyP = tk.prep(htmlText(tellBodyIn({ tell }, "en")));
+    bodyP.src = mtSrcFix(bodyP.src);
+    const rsT = { ...rs, node: tokNode(rs.node, tk), busNode: tokNode(rs.busNode, tk),
+      from: { ...rs.from, name: tk.tok(placeShort(rs.from)) }, to: { ...rs.to, name: tk.tok(placeShort(rs.to)) } };
+    // Päivä kohdekielen muodossa (Intl), ei käännettynä: "Sun 4/10" kääntyisi arvaamattomasti.
+    const dayFmt = d => {
+      let s = "";
+      try { s = upFirst(d.toLocaleDateString(l, { weekday: "short", day: "numeric", month: "numeric" })); } catch (e) { s = ""; }
+      return tk.tokAs("day:" + d.getTime(), s || upFirst(d.toLocaleDateString(deskLoc(), { weekday: "short", day: "numeric", month: "numeric" })));
+    };
+    const shortP = tk.prep(withLang("en", () => deskShortText(rsT, dayFmt)));
+    shortP.src = mtSrcFix(shortP.src);
+    const srcs = [bodyP.src, shortP.src, tIn("en", rs.kind === "last" ? "deskShowKickerLast" : "deskShowKicker"),
+      tIn("en", "deskShowQrCap"), tIn("en", "deskAnsMtCust")];
+    const [body, short, kicker, cap, note] = await Promise.all(srcs.map(s => mtTranslate(l, s, onProgress)));
+    const b = tk.restore(body, bodyP), sh = tk.restore(short, shortP);
+    if (!b.ok) throw new Error("mt-tokens");   // nimi tai kellonaika katosi käännöksestä: ei näytetä
+    // Lyhyt kopioteksti, josta kääntäjä hukkasi nimen tai ajan (zh pudotti linjan, mitattu): kopioon vastauksen teksti.
+    return { body: b.text, short: sh.ok ? sh.text : b.text, kicker, cap, note };
+  };
+  const ansLangSync = () => {
+    const l = curAns();
+    document.querySelectorAll("#deskResults .desk-ans-lang button[data-alang]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.alang === l)));
+    const sel = document.querySelector("#deskResults .desk-ans-mt");
+    if (sel) sel.value = STRINGS[l] ? "" : l;
+  };
+  const applyAnsLang = async () => {
+    const rs = routeShown;
+    const tell = document.querySelector("#deskResults .desk-tell");
+    const body = tell && tell.querySelector(".desk-tell-body");
+    if (!rs || !rs.tell || !body) return;
+    const my = ++ansSeq, l = curAns();
+    ansMt = null;
+    ansLangSync();
+    tell.querySelector(".desk-ans-mt-note")?.remove();
+    tell.querySelector(".desk-copy-out")?.remove();
+    const st = tell.querySelector(".desk-copy-st");
+    if (st) st.textContent = "";
+    if (STRINGS[l]) { body.innerHTML = tellBodyIn(rs, l); body.lang = l; body.removeAttribute("dir"); return; }
+    // Konekäännös: alkuperäinen näkyy, kunnes käännös on valmis, ja jää sen alle virkailijan tarkistettavaksi.
+    const orig = tellBodyIn(rs, lang);
+    body.innerHTML = orig; body.lang = lang; body.removeAttribute("dir");
+    body.insertAdjacentHTML("afterend", `<p class="desk-ans-mt-note muted" role="status">${esc(t("deskAnsMtBusy"))}</p>`);
+    const note = tell.querySelector(".desk-ans-mt-note");
+    const stale = () => my !== ansSeq || routeShown !== rs || !live();
+    try {
+      const r = await mtAnswer(rs, l, p => { if (!stale()) note.textContent = t("deskAnsMtLoad", { pct: Math.round((+p || 0) * 100) }); });
+      if (stale()) return;
+      ansMt = { rs, l, ...r };
+      body.textContent = r.body; body.lang = l; body.dir = MT_RTL.has(l) ? "rtl" : "ltr";
+      note.innerHTML = `${esc(t("deskAnsMtNote", { lang: mtLangName(l) }))}<span class="desk-ans-orig">${esc(t("deskAnsMtOrig"))} ${esc(htmlText(orig))}</span>`;
+    } catch (e) {
+      if (!stale()) note.textContent = t("deskAnsMtFail");
+    }
+  };
+  // Kielivalinta Kerro asiakkaalle -otsikon rinnalle: FI/SV/EN aina, muut kielet vain, jos selaimessa on kääntäjä.
+  const ansLangHtml = () => `<div class="desk-ans-lang nl-langs" role="group" aria-label="${esc(t("deskAnsLang"))}">` +
+    `<span class="muted">${esc(t("deskAnsLang"))}:</span>` +
+    LANG_OPTIONS.map(([k, n]) => `<button type="button" data-alang="${k}" aria-pressed="${k === curAns() ? "true" : "false"}" title="${esc(n)}" aria-label="${esc(n)}">${k.toUpperCase()}</button>`).join("") +
+    `<span class="desk-ans-mt-slot"></span></div>`;
+  const mountAnsLang = () => {
+    const tell = document.querySelector("#deskResults .desk-tell");
+    const h = tell && tell.querySelector(".desk-tell-h");
+    if (!h || tell.querySelector(".desk-ans-lang")) return;
+    const top = document.createElement("div");
+    top.className = "desk-tell-top";
+    h.replaceWith(top);
+    top.appendChild(h);
+    top.insertAdjacentHTML("beforeend", ansLangHtml());
+    const grp = top.querySelector(".desk-ans-lang");
+    grp.addEventListener("click", e => {
+      const b = e.target.closest && e.target.closest("button[data-alang]");
+      if (!b) return;
+      ansLang = b.dataset.alang === lang ? "" : b.dataset.alang;
+      applyAnsLang();
+    });
+    const slot = grp.querySelector(".desk-ans-mt-slot");
+    mtAvailableLangs().then(list => {
+      if (!slot.isConnected) return;
+      if (list === null) slot.innerHTML = `<span class="muted desk-ans-nomt" title="${esc(t("deskAnsMtNoneHint"))}">${esc(t("deskAnsMtNone"))}</span>`;
+      else if (!list.length) slot.innerHTML = `<span class="muted desk-ans-nomt">${esc(t("deskAnsMtNoLangs"))}</span>`;
+      else {
+        slot.innerHTML = `<select class="desk-ans-mt" aria-label="${esc(t("deskAnsLangOther"))}"><option value="">${esc(t("deskAnsLangOther"))}</option>${
+          list.map(c => `<option value="${esc(c)}">${esc(mtLangName(c))}</option>`).join("")}</select>`;
+        const sel = slot.querySelector("select");
+        sel.value = list.includes(curAns()) ? curAns() : "";
+        sel.addEventListener("change", () => { ansLang = sel.value; applyAnsLang(); });
+      }
+      // Kielirivi valmistuu vasta vierityksen jälkeen ja voi kasvattaa vastauslaatikkoa (selitysteksti rivittyy):
+      // vieritetään uudelleen, ettei alareuna jää näytön alle (CI:n 1366x768: alareuna 782/768).
+      revealTell();
+    }).catch(() => {});
+    if (curAns() !== lang) applyAnsLang();
+  };
   const copyAnswer = async () => {
     const rs = routeShown;
     const tools = document.querySelector("#deskResults .desk-tell-tools");
     if (!rs || !tools) return;
     const st = tools.querySelector(".desk-copy-st");
-    const txt = deskShortText(rs);
+    // Asiakkaan kielellä (D4). Konekäännös, joka ei ole vielä valmis tai epäonnistui: käyttöliittymän kielellä.
+    const l = curAns();
+    const txt = STRINGS[l] ? withLang(l, () => deskShortText(rs))
+      : ansMt && ansMt.rs === rs && ansMt.l === l ? ansMt.short : deskShortText(rs);
     const link = routeLink(rs);
     const all = link ? txt + "\n" + link : txt;
     let copied = false;
@@ -17889,34 +18542,88 @@ async function viewServiceDesk() {
     try { showReturnFocus?.focus(); } catch (e) {}
     return true;
   };
+  // Asiakasnäkymän avaus (reittivastaus ja pysäkkikortti): koko ruutu, fokus Sulje-nappiin, QR jos osoite on.
+  const openShow = async (html, qrUrl, qrCap) => {
+    const box = document.getElementById("deskShow");
+    if (!box) return;
+    box.innerHTML = html;
+    box.hidden = false;
+    document.body.classList.add("desk-show-on");
+    const close = document.getElementById("deskShowClose");
+    close.addEventListener("click", hideCustomer);
+    close.focus();
+    if (!qrUrl) return;
+    try {
+      const cv = await qrCanvas(qrUrl, 420);
+      cv.className = "desk-show-qrimg";
+      cv.setAttribute("role", "img");
+      cv.setAttribute("aria-label", qrCap);
+      if (!box.hidden) document.getElementById("deskShowQr")?.appendChild(cv);
+    } catch (e) { const q = document.getElementById("deskShowQr"); if (q) q.textContent = t("deskShowQrFail"); }
+  };
   const showCustomer = async () => {
     const rs = routeShown;
     const box = document.getElementById("deskShow");
     const body = document.querySelector("#deskResults .desk-tell-body");
     if (!rs || !box || !body) return;
     showReturnFocus = document.activeElement;
-    const day = upFirst(new Date(rs.node.start).toLocaleDateString(deskLoc(), { weekday: "long", day: "numeric", month: "numeric" }));
-    box.innerHTML = `<div class="desk-show-in">
-      <p class="desk-show-k">${esc(t(rs.kind === "last" ? "deskShowKickerLast" : "deskShowKicker"))} · ${esc(day)}</p>
+    // Asiakkaan kielellä (D4): otsikko, päivä ja QR-ohje samalla kielellä kuin vastaus. Sulje-nappi on virkailijalle.
+    const l = curAns();
+    const mt = !STRINGS[l] && ansMt && ansMt.rs === rs && ansMt.l === l ? ansMt : null;
+    const ui = STRINGS[l] ? l : lang;
+    const dayD = new Date(rs.node.start), dayOpts = { weekday: "long", day: "numeric", month: "numeric" };
+    let day = "";
+    if (mt) { try { day = upFirst(dayD.toLocaleDateString(l, dayOpts)); } catch (e) { day = ""; } }
+    if (!day) day = withLang(ui, () => upFirst(dayD.toLocaleDateString(deskLoc(), dayOpts)));
+    const kicker = mt ? mt.kicker : withLang(ui, () => t(rs.kind === "last" ? "deskShowKickerLast" : "deskShowKicker"));
+    const cap = mt ? mt.cap : withLang(ui, () => t("deskShowQrCap"));
+    const bl = mt ? l : ui;
+    await openShow(`<div class="desk-show-in">
+      <p class="desk-show-k">${esc(kicker)} · ${esc(day)}</p>
       <h2 class="desk-show-h" id="deskShowH">${esc(placeShort(rs.from))} → ${esc(placeShort(rs.to))}</h2>
       <div class="desk-show-grid">
-        <p class="desk-show-body">${body.innerHTML}</p>
-        <figure class="desk-show-qr"><div id="deskShowQr"></div><figcaption>${esc(t("deskShowQrCap"))}</figcaption></figure>
+        <div><p class="desk-show-body" lang="${esc(bl)}"${mt && MT_RTL.has(l) ? ` dir="rtl"` : ""}>${body.innerHTML}</p>${
+          mt ? `<p class="desk-show-mt" lang="${esc(l)}">${esc(mt.note)}</p>` : ""}</div>
+        <figure class="desk-show-qr"><div id="deskShowQr"></div><figcaption lang="${esc(bl)}">${esc(cap)}</figcaption></figure>
       </div>
       <button type="button" class="desk-show-close" id="deskShowClose">${esc(t("deskShowClose"))}</button>
-    </div>`;
-    box.hidden = false;
-    document.body.classList.add("desk-show-on");
-    const close = document.getElementById("deskShowClose");
-    close.addEventListener("click", hideCustomer);
-    close.focus();
-    try {
-      const cv = await qrCanvas(routeLink(rs), 420);
-      cv.className = "desk-show-qrimg";
-      cv.setAttribute("role", "img");
-      cv.setAttribute("aria-label", t("deskShowQrCap"));
-      if (!box.hidden) document.getElementById("deskShowQr")?.appendChild(cv);
-    } catch (e) { const q = document.getElementById("deskShowQr"); if (q) q.textContent = t("deskShowQrFail"); }
+    </div>`, routeLink(rs), cap);
+  };
+  // Pysäkkikortin asiakasnäkymä (erä V3; erä B teki vain reittivastaukselle): näkyvissä olevan lähtölistan 6 seuraavaa
+  // lähtöä isolla ja QR pysäkin omaan sivuun. Terminaalilla ei ole omaa pysäkkisivua, joten siellä rivillä on pysäkin
+  // tunnus eikä QR:ää näytetä. Minne?-suodatin rajaa myös tämän listan.
+  const showStopCustomer = async () => {
+    const sh = depsShown && depsShown.gtfsId === curStop ? depsShown : null;
+    if (!sh || !document.getElementById("deskShow")) return;
+    showReturnFocus = document.activeElement;
+    const stop = sh.stop, now = Date.now(), seen = new Set();
+    const list = (stop.stoptimesWithoutPatterns || []).filter(st => {
+      const at = (st.serviceDay + (st.realtime ? st.realtimeDeparture : st.scheduledDeparture)) * 1000;
+      const k = (st.trip?.route?.shortName || "") + "|" + (st.headsign || "") + "|" + (st.serviceDay + st.scheduledDeparture);
+      if (at < now - 30000 || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }).slice(0, 6);
+    const rows = list.map(st => {
+      const dep = st.realtime ? st.realtimeDeparture : st.scheduledDeparture;
+      const at = (st.serviceDay + dep) * 1000, mins = Math.round((at - now) / 60000);
+      const rel = mins <= 0 ? t("depNow") : mins < 60 ? t("depMin", { n: mins }) : "";
+      const day = mins < 60 ? "" : depDayLabel(at);
+      return `<li>${badgeHtml(st.trip?.route) || "<span></span>"} <span class="desk-show-plat">${esc(st._plat?.code || "")}</span> ` +
+        `<span class="desk-show-dest">${esc(st.headsign || "")}</span> ` +
+        `<span class="desk-show-time">${day ? esc(day) + " " : ""}${fmtSec(dep)}${rel ? ` <span class="desk-show-rel">(${esc(rel)})</span>` : ""}${st.realtime ? " ●" : ""}</span></li>`;
+    }).join("");
+    const qrOn = !stop.terminal && !!stop.gtfsId;
+    const day = upFirst(new Date().toLocaleDateString(deskLoc(), { weekday: "long", day: "numeric", month: "numeric" }));
+    await openShow(`<div class="desk-show-in">
+      <p class="desk-show-k">${esc(t("deskShowKickerStop"))} · ${esc(day)}</p>
+      <h2 class="desk-show-h" id="deskShowH">${esc(stop.name || "")}${!stop.terminal && stop.code ? ` <span class="desk-show-code">${esc(stop.code)}</span>` : ""}</h2>
+      <div class="desk-show-grid">
+        ${rows ? `<ol class="desk-show-deps">${rows}</ol>` : `<p class="desk-show-body">${esc(t("deskDepsNone"))}</p>`}
+        ${qrOn ? `<figure class="desk-show-qr"><div id="deskShowQr"></div><figcaption>${esc(t("deskShowStopQrCap"))}</figcaption></figure>` : ""}
+      </div>
+      <button type="button" class="desk-show-close" id="deskShowClose">${esc(t("deskShowClose"))}</button>
+    </div>`, qrOn ? appUrl("#/pysakki/" + encodeURIComponent(stop.gtfsId)) : "", t("deskShowStopQrCap"));
   };
   // Työkalurivi Kerro asiakkaalle -laatikkoon: kopioi, näytä asiakkaalle ja hinta (B6).
   const tellToolsHtml = fares => `<div class="desk-tell-tools">
@@ -17928,6 +18635,7 @@ async function viewServiceDesk() {
     const res = document.getElementById("deskResults");
     res.querySelector(".desk-copy")?.addEventListener("click", copyAnswer);
     res.querySelector(".desk-show-btn")?.addEventListener("click", showCustomer);
+    mountAnsLang();
   };
 
   // ---- Häiriöt reittivastaukseen (B3): reittiosuuksien linjat ja pysäkit ----
@@ -18046,8 +18754,13 @@ async function viewServiceDesk() {
     fillRailHints(railCtx);
     res.querySelectorAll(".deskOptPrint").forEach(b => b.addEventListener("click", () =>
       deskPrintItinerary(nodes[+b.dataset.i], nodes, rsFrom, rsTo, b.nextElementSibling)));
+    // Taskuaikataulu (D3) suoralle vaihtoehdolle; QR avaa saman reitin kuin reittituloste.
+    res.querySelectorAll(".deskOptPocket").forEach(b => b.addEventListener("click", () =>
+      deskPrintPocket(nodes[+b.dataset.i], rsFrom, rsTo, b.parentElement.querySelector('[role="status"]'))));
+    // tell = vastauksen lähtötiedot, joista lause piirretään asiakkaan kielellä uudelleen (D4).
     routeShown = { kind: "route", node: tellNodes[0], nodes, busNode, from: rsFrom, to: rsTo, vars, arr, time: timeIso, railCtx,
-      wc: !!vars.preferences?.accessibility?.wheelchair?.enabled, pageInfo: data.planConnection?.pageInfo || null };
+      wc: !!vars.preferences?.accessibility?.wheelchair?.enabled, pageInfo: data.planConnection?.pageInfo || null,
+      tell: { kind: "route", nodes: tellNodes, busNode, timed: !!dateTime } };
     bindTellTools();
     syncPageBtns();
     setRouteCompact(true);
@@ -18282,13 +18995,18 @@ async function viewServiceDesk() {
     const deps = stop.terminal
       ? `<h3 class="stophead">${esc(stop.name || "")} <span class="muted desk-terminal-n">${esc(t("deskTerminalAll", { n: stop.platforms || "" }))}</span></h3>`
         + ((stop.plats || []).length ? `<p class="desk-terminal-plats">${t("deskTerminalStops")} ${stop.plats.map(platChipHtml).join(" ")}</p>` : "")
-        + (rows ? `<table class="deps"><tbody>${rows}</tbody></table>` : `<p class="muted">${t("deskDepsNone")}</p>`)
+        + (rows ? `<table class="deps"><tbody>${rows}</tbody></table>`
+          : stop.filter ? (stop.filter.emptyMsg ? `<p class="muted">${esc(stop.filter.emptyMsg)}</p>` : "")
+          : `<p class="muted">${t("deskDepsNone")}</p>`)
       : stopDepGroupHtml(stop, "", DESK_DEP_OPTS)
         || `<h3 class="stophead">${esc(stop.name || "")}</h3><p class="muted">${t("deskDepsNone")}</p>`;
     dep.innerHTML = deps
       + `<p class="muted desk-deps-upd">${CONFIG.departureRealtime === false ? "" : `<span class="rt">●</span> ${t("rtLegend")} · `}${t("deskUpdated", { time: fmtClock((opts && opts.at || new Date()).toISOString()) })}</p>`
       + (opts && opts.failed ? failNoteHtml() : "");
     dep.querySelector(".desk-upd-fail .desk-retry")?.addEventListener("click", () => loadDeskDeps(stop.gtfsId || curStop));
+    // Minne?-suodattimen tulos (B10): mitä lista nyt näyttää.
+    const tqInfo = document.getElementById("deskTermInfo");
+    if (tqInfo) tqInfo.textContent = stop.filter ? stop.filter.info : "";
     // Päivitä linjat täydemmästä reittilistasta jos saatavilla (ei pakollinen, lines jo näkyvissä)
     const ln = document.getElementById("deskLines");
     if (ln && (stop.routes || []).length) ln.innerHTML = stopLinesHtml(stop.routes);
@@ -18325,23 +19043,89 @@ async function viewServiceDesk() {
       hitLines.length ? `<p class="desk-alert-lines">${icon("warning")} ${esc(t("deskAlertLines"))} ${hitLines.map(r =>
         `<a class="badgelink" href="#/linjakartta/${encodeURIComponent(r.gtfsId)}" title="${esc(t("deskOpenLine", { line: r.shortName || "" }))}"><span class="badge">${esc(r.shortName || "")}</span></a>`).join(" ")}</p>` : ""}</div>` : "";
   };
+  // ---- Terminaalin Minne?-suodatin (erä V3, B10) ----
+  // Turun Kauppatorilla on 26 pysäkkiä, joten 12 lähdön lista kattaa vain muutaman minuutin. Suodatin rajaa listan
+  // linjaan (tarkka linjatunnus) tai kohteeseen (määränpää tai pysäkki reitillä terminaalin jälkeen, taivutus sallittu,
+  // stopNameScore) ja hakee lähdöt vain niiltä pysäkeiltä, joilta osuvat reitit lähtevät, 4 tunnin ajalta. Valinta
+  // nollautuu, kun pysäkki vaihtuu: openStop piirtää kentän uudelleen ja tyhjentää termQ:n.
+  const TERM_Q_HOURS = 4;
+  let termQ = "", termFull = null, termQTimer = null, depsSeq = 0;
+  const termPatCache = new Map();
+  const termPatterns = plats => {
+    const ids = plats.map(p => p.id);
+    const key = lang + "|" + ids.join(",");
+    if (!termPatCache.has(key)) termPatCache.set(key, gql(DESK_TERM_PATTERNS_QUERY, { ids }).then(d => (d.stops || []).filter(Boolean))
+      .catch(e => { termPatCache.delete(key); throw e; }));
+    return termPatCache.get(key);
+  };
+  const termMatch = async (q, plats) => {
+    const nq = q.toLowerCase().replace(/\s+/g, " ").trim();
+    const cand = [];
+    for (const s of await termPatterns(plats)) for (const p of s.patterns || []) {
+      const at = (p.stops || []).findIndex(x => x.gtfsId === s.gtfsId);
+      if (at < 0 || at >= p.stops.length - 1) continue;   // reitti päättyy tähän: ei lähtöjä tältä pysäkiltä
+      cand.push({ plat: s.gtfsId, p, after: p.stops.slice(at + 1) });
+    }
+    const line = cand.filter(c => String(c.p.route?.shortName || "").toLowerCase() === nq);
+    const mode = line.length ? "line" : nq.length >= 3 ? "text" : "short";
+    const hits = mode === "line" ? line : mode === "text"
+      ? cand.filter(c => stopNameScore(c.p.headsign || "", nq) > 0 || c.after.some(x => stopNameScore(x.name || "", nq) > 0)) : [];
+    return { mode, codes: new Set(hits.map(c => c.p.code)), plats: [...new Set(hits.map(c => c.plat))],
+      lines: dedupeRoutesByShort(hits.map(c => c.p.route).filter(Boolean)).map(r => r.shortName) };
+  };
+  const fetchTerminal = async (gtfsId, term) => {
+    // Pysäkkiryhmä (terminaali ilman yhteistä emoasemaa): kaikkien pysäkkien lähdöt yhdellä kyselyllä.
+    const group = Array.isArray(term.group) && term.group.length ? term.group : null;
+    const d = await gql(group ? DESK_GROUP_DEPS_QUERY : DESK_STATION_DEPS_QUERY, group ? { ids: group } : { id: gtfsId });
+    if (!(group ? (d.stops || []).some(Boolean) : d.station)) throw new Error(t("errStopNotFound") + gtfsId);
+    return group ? terminalStopOf(groupStationOf(d.stops, term), term.name) : terminalStopOf(d.station, term.name);
+  };
+  const fetchTerminalFiltered = async (gtfsId, term, q) => {
+    if (!termFull || termFull.id !== gtfsId) {
+      const full = await fetchTerminal(gtfsId, term);
+      termFull = { id: gtfsId, plats: full.plats || [], routes: full.routes || [], platforms: full.platforms };
+    }
+    const m = await termMatch(q, termFull.plats);
+    const h = TERM_Q_HOURS;
+    let stop;
+    if (m.mode === "short") stop = await fetchTerminal(gtfsId, term);   // 1-2 merkkiä eikä linja: lista ennallaan, ohje
+    else if (!m.plats.length) stop = { gtfsId, name: term.name, code: "", lat: term.lat, lon: term.lon, terminal: true, stoptimesWithoutPatterns: [] };
+    else {
+      const d = await gql(DESK_TERM_DEPS_QUERY, { ids: m.plats, n: 100, range: h * 3600 });
+      if (!(d.stops || []).some(Boolean)) throw new Error(t("errStopNotFound") + gtfsId);
+      stop = terminalStopOf(groupStationOf(d.stops, term), term.name,
+        { keep: x => m.codes.has(x.trip?.pattern?.code), codes: new Map(termFull.plats.map(p => [p.id, p.code])) });
+    }
+    // Otsikko, pysäkkirivi, linjat ja häiriöt koko terminaalista, vaikka lähdöt on rajattu.
+    stop.plats = termFull.plats; stop.routes = termFull.routes; stop.platforms = termFull.platforms;
+    stop.filter = { q, mode: m.mode,
+      info: m.mode === "short" ? t("deskTermQShort") : !m.plats.length ? t("deskTermQNoMatch", { q })
+        : m.mode === "line" ? t("deskTermQLine", { line: m.lines[0] || q, h }) : t("deskTermQOn", { q, lines: m.lines.join(", "), h }),
+      emptyMsg: m.mode === "short" ? t("deskDepsNone") : !m.plats.length ? "" : t("deskTermQNone", { h }) };
+    return stop;
+  };
   // Viimeksi onnistunut lähtölista: verkkohikka (30 s päivitys) ei korvaa sitä tekstillä "Ei tulevia lähtöjä"
   // (auditointi 4.10.2026, K5). Lista piirretään uudelleen ilman jo lähteneitä, jotta minuutit pysyvät oikein.
+  // depsSeq: vain viimeksi käynnistetty haku piirtää (suodattimen vaihto ja 30 s päivitys voivat mennä ristiin).
   let depsShown = null;
   const loadDeskDeps = async (gtfsId) => {
+    const my = ++depsSeq, q = termQ;
     try {
       const terminal = !!(curStopObj && curStopObj.terminal && curStopObj.gtfsId === gtfsId);
-      // Pysäkkiryhmä (terminaali ilman yhteistä emoasemaa): kaikkien pysäkkien lähdöt yhdellä kyselyllä.
-      const group = terminal && Array.isArray(curStopObj.group) && curStopObj.group.length ? curStopObj.group : null;
       const term = terminal ? { ...curStopObj } : null;
-      const d = await gql(group ? DESK_GROUP_DEPS_QUERY : terminal ? DESK_STATION_DEPS_QUERY : DESK_DEPS_QUERY,
-        group ? { ids: group } : { id: gtfsId });
-      if (!live() || curStop !== gtfsId) return;   // pysäkki vaihtui haun aikana → hylkää tulos
-      if (!(group ? (d.stops || []).some(Boolean) : terminal ? d.station : d.stop)) throw new Error(t("errStopNotFound") + gtfsId);
-      const stop = group ? terminalStopOf(groupStationOf(d.stops, term), term.name)
-        : terminal ? terminalStopOf(d.station, term.name) : d.stop;
-      if (!terminal) cleanStopDepartures(stop, gtfsId);
-      depsShown = { gtfsId, stop, at: new Date() };
+      let stop;
+      if (terminal) {
+        stop = q ? await fetchTerminalFiltered(gtfsId, term, q) : await fetchTerminal(gtfsId, term);
+        if (!q) termFull = { id: gtfsId, plats: stop.plats || [], routes: stop.routes || [], platforms: stop.platforms };
+      } else {
+        const d = await gql(DESK_DEPS_QUERY, { id: gtfsId });
+        if (!live() || curStop !== gtfsId) return;
+        if (!d.stop) throw new Error(t("errStopNotFound") + gtfsId);
+        stop = d.stop;
+        cleanStopDepartures(stop, gtfsId);
+      }
+      if (!live() || curStop !== gtfsId || my !== depsSeq) return;   // pysäkki tai suodatin vaihtui haun aikana → hylkää tulos
+      depsShown = { gtfsId, q, stop, at: new Date() };
       // Linkistä (#/pysakki/<id>) avatulla pysäkillä nimi ja sijainti tulevat vasta tästä.
       const hadPos = !!(curStopObj && curStopObj.lat != null);
       curStopObj = { ...curStopObj, gtfsId, name: stop.name, code: stop.code, lat: stop.lat, lon: stop.lon,
@@ -18352,11 +19136,13 @@ async function viewServiceDesk() {
       if (!hadPos && card === "stop") deskMap.stop(curStopObj);
     } catch (e) {
       const dep = document.getElementById("deskDeps");
-      if (!dep || curStop !== gtfsId || !live()) return;
-      const shown = depsShown && depsShown.gtfsId === gtfsId ? depsShown : null;
+      if (!dep || curStop !== gtfsId || !live() || my !== depsSeq) return;
+      const shown = depsShown && depsShown.gtfsId === gtfsId && depsShown.q === q ? depsShown : null;
       const ahead = st => (st.serviceDay + (st.realtime ? st.realtimeDeparture : st.scheduledDeparture)) * 1000 >= Date.now() - 60000;
       const kept = shown ? { ...shown.stop, stoptimesWithoutPatterns: (shown.stop.stoptimesWithoutPatterns || []).filter(ahead) } : null;
       if (kept && kept.stoptimesWithoutPatterns.length) { renderDeskDeps(kept, { at: shown.at, failed: true }); return; }
+      const info = document.getElementById("deskTermInfo");
+      if (info) info.textContent = "";
       const name = curStopObj && curStopObj.name;
       dep.innerHTML = (name ? `<h3 class="stophead">${esc(name)}</h3>` : "") + `<div class="desk-deps-err"></div>`;
       showErr(dep.querySelector(".desk-deps-err"), "deskDepsErr", () => {
@@ -18378,11 +19164,14 @@ async function viewServiceDesk() {
     curStopObj = { ...s };
     syncPrintsStop();
     clearDeskDepTimer();
+    // Minne?-suodatin nollautuu pysäkkiä vaihdettaessa (B10).
+    termQ = ""; clearTimeout(termQTimer);
     // Linjat näkyviin HETI (synkroninen); live-lähdöt latautuvat omaan lohkoonsa perään.
     const pinned = deskPinnedStop();
     const isPinned = pinned && (pinned.gtfsId === s.gtfsId || (!!s.name && pinned.name === s.name));
     // Järjestys (erä B): paluu terminaaliin, häiriöt, toiminnot (tulosta, kiinnitä), linjat ja lähdöt. Toiminnot ennen
     // linjamerkkejä, jotta tulostusnappiin pääsee sarkaimella muutamalla painalluksella (ennen 35, auditointi M8).
+    // Näytä asiakkaalle (erä V3) tulostusnapin jälkeen, jotta sarkainpolku tulostusnappiin ei pitene.
     const back = s.parentTerm ? `<p class="desk-back-row"><button type="button" id="deskBackTerm" class="secondary">${
       esc(t("deskBackToTerminal", { name: s.parentTerm.name || "" }))}</button></p>` : "";
     document.getElementById("deskStopResults").innerHTML = back +
@@ -18390,8 +19179,12 @@ async function viewServiceDesk() {
       `<p class="desk-pin-row">${s.terminal ? `<span class="muted">${t("deskTerminalPrintHint")}</span>`
           : `<button type="button" id="deskPrintBtn" class="secondary">${icon("print")} ${t("deskPrintBtn")}</button>
         ${printLargeOptHtml()}`}
+        <button type="button" id="deskShowStopBtn" class="secondary" aria-keyshortcuts="Alt+N">${icon("qr")} ${t("deskShowBtn")}</button>
         <button type="button" id="deskPinBtn" class="linkish">${isPinned ? t("deskPinned") : t("deskPinBtn")}</button>
         <span id="deskPrintStatus" class="muted" role="status"></span></p>` +
+      (s.terminal ? `<div class="desk-term-filter"><label for="deskTermQ">${esc(t("deskTermQLabel"))}</label>
+        <input type="search" id="deskTermQ" autocomplete="off" spellcheck="false" placeholder="${esc(t("deskTermQPh"))}" aria-describedby="deskTermInfo">
+        <p class="muted desk-term-info" id="deskTermInfo" role="status" aria-live="polite"></p></div>` : "") +
       `<div id="deskLines">${Array.isArray(s.routes) && s.routes.length ? stopLinesHtml(s.routes) : ""}</div>` +
       `<div id="deskDeps"><p class="muted">${t("loadingStopDeps")}</p></div>`;
     // Terminaalista avatun pysäkin kortista yhdellä napilla takaisin koko terminaaliin (B9).
@@ -18400,6 +19193,20 @@ async function viewServiceDesk() {
     // kohdalla oleva nappi on nopein reitti, kun pysäkki on juuri valittu.
     document.getElementById("deskPrintBtn")?.addEventListener("click", () =>
       deskPrintStopPoster(curStopObj, document.getElementById("deskPrintStatus")));
+    document.getElementById("deskShowStopBtn")?.addEventListener("click", showStopCustomer);
+    // Minne?-suodatin: haku 350 ms kirjoittamisen jälkeen tai heti Enterillä.
+    const tq = document.getElementById("deskTermQ");
+    const runTq = () => {
+      clearTimeout(termQTimer);
+      const v = tq.value.trim();
+      if (v === termQ) return;
+      termQ = v;
+      const info = document.getElementById("deskTermInfo");
+      if (info) info.textContent = v ? t("loadingStopDeps") : "";
+      loadDeskDeps(curStop);
+    };
+    tq?.addEventListener("input", () => { clearTimeout(termQTimer); termQTimer = setTimeout(runTq, 350); });
+    tq?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); runTq(); } });
     // Kiinnitys = tämä pysäkki avautuu jatkossa valmiiksi kun palvelutiski avataan.
     document.getElementById("deskPinBtn")?.addEventListener("click", (e) => {
       if (!curStopObj || !curStopObj.name) return;
@@ -19044,6 +19851,7 @@ async function viewServiceDesk() {
       }
       if (e.code === "KeyK" && routeShown && card === "route") { e.preventDefault(); copyAnswer(); return; }
       if (e.code === "KeyN" && routeShown && card === "route") { e.preventDefault(); showCustomer(); return; }
+      if (e.code === "KeyN" && card === "stop" && depsShown) { e.preventDefault(); showStopCustomer(); return; }
     }
   };
   document.addEventListener("keydown", deskKeyHandler);
@@ -19113,7 +19921,8 @@ async function viewServiceDesk() {
     const st = new Date(last.start);
     const pad = n => String(n).padStart(2, "0");
     routeShown = { kind: "last", node: last, nodes: [last], busNode: last, from: dFrom, to: dTo, arr: false,
-      time: `${isoOf(st)}T${pad(st.getHours())}:${pad(st.getMinutes())}`, wc: !!document.getElementById("deskWheelchair")?.checked };
+      time: `${isoOf(st)}T${pad(st.getHours())}:${pad(st.getMinutes())}`, wc: !!document.getElementById("deskWheelchair")?.checked,
+      tell: { kind: "last", node: last, day } };
     bindTellTools();
     syncPageBtns();
     setRouteCompact(true, lastBusText("deskLastBusTitle", "deskLastBusDay"));
@@ -19375,8 +20184,8 @@ const PLAN_QUERY = `
           mode duration distance realtimeState interlineWithPreviousLeg
           start { scheduledTime estimated { time } }
           end { scheduledTime estimated { time } }
-          from { name lat lon stop { code platformCode name@L } }
-          to { name lat lon stop { code name@L } }
+          from { name lat lon stop { gtfsId code platformCode name@L } }
+          to { name lat lon stop { gtfsId code name@L } }
           route { gtfsId shortName color textColor }
           trip { tripHeadsign@L occupancy { occupancyStatus } }
           intermediateStops { name@L }
