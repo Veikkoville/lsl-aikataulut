@@ -1530,6 +1530,8 @@
   .desk-pin-row { margin: 0.6rem 0 0; display: flex; flex-wrap: wrap; gap: 0.6rem;
     align-items: center; }
   .desk .deps td, .desk .deps th { font-size: 1em; padding: 0.45rem 0.5rem; }
+  /* Linjakortin varianttivuoro: lähtöpysäkki omalla rivillään määränpään alla (V2, 4.10.2026). */
+  .dep-from { display: block; font-size: 0.88em; color: var(--muted); overflow-wrap: anywhere; }
   /* Alanauha: häiriöt, junat (jos kaupungissa on rata) ja hinnat rinnakkain leveällä näytöllä,
      pinoon kapealla. min(100%, ...) estää 20rem-minimiä levittämästä 390 px:n näyttöä. */
   .desk-aux { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
@@ -1850,6 +1852,8 @@
   .rail-next { display: inline-flex; align-items: center; gap: 0.3rem; margin-right: 0.75rem;
     white-space: nowrap; }
   [data-railhint] { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+  /* Tiski piilottaa vinkin, jos haun ajalle ei ole junadataa: display: flex ohittaisi hidden-attribuutin. */
+  [data-railhint][hidden] { display: none; }
   /* Karttapopupin linjalista: "tätä väliä ajaa N linjaa". Rivit ovat linkkejä linjasivulle,
      joten kosketuskohteen on oltava riittävän korkea (WCAG 2.5.8, 24 px). */
   .net-corridor { list-style: none; margin: 0.25rem 0 0; padding: 0; max-height: 11rem;
@@ -4400,6 +4404,8 @@ const STRINGS = {
     deskLastBusBtn: "Viimeinen bussi tänään",
     deskLastBusTitle: "Viimeinen bussi tänään",
     deskLastBusNone: "Ei enää busseja tänään tälle välille.",
+    deskLastBusDay: "Viimeinen bussi {day}",
+    deskLastBusNoneDay: "Ei busseja tälle välille {day}.",
     deskFaresTitle: "Lippujen hinnat",
     deskFaresSingle: "Kertalippu (kortti/sovellus):",
     deskAlertsTitle: "Aktiiviset häiriöt",
@@ -4661,6 +4667,7 @@ const STRINGS = {
     deskLineLoadErr: "Linjan tietoja ei saatu haettua. Yritä uudelleen.",
     deskLineDepsTitle: "Seuraavat lähdöt pysäkiltä {stop}",
     deskLineDepsNone: "Ei tulevia lähtöjä tähän suuntaan juuri nyt.",
+    deskLineDepFrom: "Lähtee pysäkiltä {stop}",
     deskLineStopsTitle: "Pysäkit tähän suuntaan ({n})",
     deskLinePrintsTitle: "Tulosteet tältä linjalta",
     deskOpenLine: "Avaa linja {line} tiskillä",
@@ -5136,6 +5143,8 @@ const STRINGS = {
     deskLastBusBtn: "Last bus today",
     deskLastBusTitle: "Last bus today",
     deskLastBusNone: "No more buses today for this trip.",
+    deskLastBusDay: "Last bus on {day}",
+    deskLastBusNoneDay: "No buses for this trip on {day}.",
     deskFaresTitle: "Ticket prices",
     deskFaresSingle: "Single ticket (card/app):",
     deskAlertsTitle: "Active disruptions",
@@ -5389,6 +5398,7 @@ const STRINGS = {
     deskLineLoadErr: "Could not load the line. Please try again.",
     deskLineDepsTitle: "Next departures from {stop}",
     deskLineDepsNone: "No upcoming departures in this direction right now.",
+    deskLineDepFrom: "Departs from {stop}",
     deskLineStopsTitle: "Stops in this direction ({n})",
     deskLinePrintsTitle: "Printouts for this line",
     deskOpenLine: "Open line {line} at the desk",
@@ -5860,6 +5870,8 @@ const STRINGS = {
     deskLastBusBtn: "Sista bussen idag",
     deskLastBusTitle: "Sista bussen idag",
     deskLastBusNone: "Inga fler bussar idag för denna resa.",
+    deskLastBusDay: "Sista bussen {day}",
+    deskLastBusNoneDay: "Inga bussar för denna resa {day}.",
     deskFaresTitle: "Biljettpriser",
     deskFaresSingle: "Engångsbiljett (kort/app):",
     deskAlertsTitle: "Aktiva störningar",
@@ -6113,6 +6125,7 @@ const STRINGS = {
     deskLineLoadErr: "Linjens uppgifter kunde inte hämtas. Försök igen.",
     deskLineDepsTitle: "Nästa avgångar från {stop}",
     deskLineDepsNone: "Inga kommande avgångar i den här riktningen just nu.",
+    deskLineDepFrom: "Avgår från {stop}",
     deskLineStopsTitle: "Hållplatser i den här riktningen ({n})",
     deskLinePrintsTitle: "Utskrifter för linjen",
     deskOpenLine: "Öppna linje {line} vid disken",
@@ -9997,9 +10010,12 @@ function depTableRows(stoptimes) {
     const badge = rid
       ? `<a class="badgelink" href="#/linjakartta/${encodeURIComponent(rid)}" title="${t("lineMapLink")}">${badgeHtml(st.trip.route)}</a>`
       : badgeHtml(st.trip.route);
+    // _from: vuoro lähtee eri pysäkiltä kuin muut (tiskin linjakortti, lineDirDeps). Tekstinä eikä
+    // pelkkänä merkkinä tai värinä, jotta ruudunlukija lukee sen rivin osana.
+    const from = st._from ? `<span class="dep-from">${esc(t("deskLineDepFrom", { stop: st._from }))}</span>` : "";
     return `<tr>
       <td>${badge}</td>
-      <td>${esc(st.headsign || "")}${acc}${occupancyHtml(st.trip)}</td>
+      <td>${esc(st.headsign || "")}${acc}${occupancyHtml(st.trip)}${from}</td>
       <td class="${d.rt ? "rt" : ""}">${d.when}${d.rt ? " ●" : ""}</td>
     </tr>`;
   }).join("");
@@ -11338,30 +11354,37 @@ function railHintHtml(nodes) {
 // keskustasta, joten ovelta ovelle -haku ei tarjoa junaa lainkaan, ja kayttaja paattelee
 // ettei junaa ole. Vihjeeseen haetaan siksi aseman kaksi seuraavaa lahtoa.
 // Epaonnistuminen on hiljainen: vihje jaa linkiksi eika mitaan kaadu.
-async function fillRailHints() {
+// ctx (palvelutiski): { time: "YYYY-MM-DDTHH:MM" tai "" (= nyt), timeMode, to } korvaa reittihaun
+// planStaten. Tiskin haku tietylle ajalle on tiukka: junat haetaan koko live-ikkunan verran (noin
+// vuorokausi eteenpain), ja jos haun ajalle ei ole junadataa tai haku epaonnistuu, vihje piilotetaan
+// eika siina nayteta nykyhetken junia.
+async function fillRailHints(ctx) {
   const els = [...document.querySelectorAll("[data-railhint]:not([data-railhint-done])")];
   if (!els.length) return;
   const code = railCodes()[0];
   if (!code) return;
   for (const el of els) el.setAttribute("data-railhint-done", "1");
+  const st0 = ctx || planState;
+  const strict = !!(ctx && ctx.time);
+  const hide = () => { if (strict) for (const el of els) el.hidden = true; };
   // Lahdot suodatetaan HAETUN ajan mukaan, ei nykyhetken: jos kayttaja hakee huomiselle
   // aamukuudelle, tan iltana lahteva juna on vastaus vaaraan kysymykseen.
   let from = Date.now();
-  if (planState.time) {
-    const wanted = new Date(planState.time).getTime();
+  if (st0.time) {
+    const wanted = new Date(st0.time).getTime();
     if (Number.isFinite(wanted) && wanted > from) from = wanted;
   }
   let rows;
   try {
     const names = await railStationNames();
-    rows = (await loadTrains(code, names))
+    rows = (await loadTrains(code, names, "DEPARTURE", strict && from > Date.now() + 600000 ? 150 : 15))
       .filter(r => !r.cancelled && r.sched.getTime() >= from)
       .slice(0, 2);
-  } catch (e) { return; }
-  if (!rows || !rows.length) return;
+  } catch (e) { hide(); return; }
+  if (!rows || !rows.length) { hide(); return; }
   const list = rows.map(r => {
     const st = netStyleFor(r.label, "RAIL");
-    return `<span class="rail-next">${railDayTime(r.sched)} ` +
+    return `<span class="rail-next" data-sched="${r.sched.getTime()}">${railDayTime(r.sched)} ` +
       `<span class="badge" style="background:${st.badge};color:${st.badgeText}">${esc(r.label)}</span> ` +
       `${esc(r.dest)}</span>`;
   }).join("");
@@ -11376,14 +11399,14 @@ async function fillRailHints() {
     const kmF = x => Math.hypot((x.lat - AREA.focus.lat) * 111, (x.lon - AREA.focus.lon) * 55);
     const st = (await loadAreaStops()).filter(x => x.vehicleMode === "RAIL" && x.lat != null)
       .sort((a, b) => kmF(a) - kmF(b))[0];
-    if (st && planState && planState.to && st.lat != null) {
+    if (st && st0 && st0.to && st.lat != null) {
       const enc = q => encodeURIComponent(`${q.lat.toFixed(5)},${q.lon.toFixed(5)},${q.name}`);
       const opts = new URLSearchParams();
-      if (planState.time) opts.set("t", planState.time);
-      if (planState.timeMode === "arr") opts.set("m", "arr");
+      if (st0.time) opts.set("t", st0.time);
+      if (st0.timeMode === "arr") opts.set("m", "arr");
       const o = opts.toString();
       const href = `#/reitti/${enc({ lat: st.lat, lon: st.lon, name: st.name })}` +
-        `/${enc(planState.to)}${o ? "/" + encodeURIComponent(o) : ""}`;
+        `/${enc(st0.to)}${o ? "/" + encodeURIComponent(o) : ""}`;
       asemaLink = ` <a href="${href}">${esc(t("railHintFromStation"))}</a>`;
     }
   } catch (e) { /* linkki on lisatieto: ilman sita vihje toimii kuten ennen */ }
@@ -11457,6 +11480,186 @@ async function viewRouteMap(routeId) {
     const el = document.getElementById("lineMap");
     if (el) el.outerHTML = `<div class="error">${t("mapFail")}${esc(err.message)}</div>`;
   }
+}
+
+// Linjan suunnan päivän lähdöt linjasivun säännöillä: lähtöpysäkki pickRefStop, eri pysäkiltä alkavat
+// vuorot omalta lähtöpysäkiltään (_from) ja eri pysäkille päättyvät vuorot (_to). Nostettu viewRoutesta
+// 4.10.2026, jotta palvelutiskin linjakortti näyttää samat lähdöt kuin linjasivu eikä rinnakkaista
+// toteutusta synny. dirPatterns = suunnan kaikki patternit (dirKey === curDir), current = suunnan
+// pääpattern. memoDays: päivän vuorot haetaan kerran päivää kohden (tiski on auki koko päivän ja
+// päivittää lähdöt 30 s välein); reaaliaikakysely tehdään joka kutsulla. Linjasivu ei käytä muistia.
+function lineDirDeps(routeId, dirPatterns, curDir, current, routeCachedAt, memoDays) {
+  const dayMemo = memoDays ? new Map() : null;
+  // Valitsee suunnan patternin (+ sen vuorot) jolla on lähtöjä annettuna päivänä.
+  // Kausivaihdon takia oikea pattern-koodi vaihtelee päivittäin → tarvitaan
+  // matriisissa ja tulostuksessa (yksittäinen pattern, ei aggregointi kuten listassa).
+  const bestPatternForDate = (iso) => {
+    if (!dayMemo) return loadDayTrips(iso);
+    // epäonnistunut haku ei jää muistiin, seuraava päivitys yrittää uudelleen
+    if (!dayMemo.has(iso)) dayMemo.set(iso, loadDayTrips(iso).catch(err => { dayMemo.delete(iso); throw err; }));
+    return dayMemo.get(iso);
+  };
+  const loadDayTrips = async (iso) => {
+    const aliases = dirPatterns.map((p, i) =>
+      `c${i}: pattern(id: "${p.code}") { tripsForDate(serviceDate: $date) { serviceId stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } } } }`).join("\n");
+    const { data } = await cachedGql(`matrix2:${routeId}:dir${curDir}:${iso}`,
+      `query ($date: String!) { ${aliases} }`, { date: iso.replace(/-/g, "") });
+    let pat = current, trips = [], allTrips = [];
+    dirPatterns.forEach((p, i) => {
+      const tr = (data["c" + i] && data["c" + i].tripsForDate) || [];
+      allTrips.push(...tr);
+      // tasapelissä pidempi reittikuvio (ks. byTrips)
+      if (tr.length > trips.length || (tr.length && tr.length === trips.length && (p.stops || []).length > (pat.stops || []).length)) {
+        pat = p; trips = tr;
+      }
+    });
+    return { pat, trips, allTrips };
+  };
+
+  // wheelchairAccessible ja occupancy: tiskin linjakortin rivit näyttävät esteettömyys- ja kuormitusmerkin.
+  const TT_QUERY = `query ($stopId: String!, $date: String!) {
+    stop(id: $stopId) {
+      stoptimesForServiceDate(date: $date, omitNonPickups: true) {
+        pattern { code }
+        stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay trip { gtfsId serviceId
+          wheelchairAccessible occupancy { occupancyStatus }
+          departureStoptime { scheduledDeparture stop { gtfsId name@L } }
+          arrivalStoptime { scheduledArrival stop { gtfsId name@L } } } }
+      }
+    }
+  }`;
+  // Päivän lähdöt = SAMA totuus kuin koko aikataulu -taulu: hallitsevan patternin
+  // (bestPatternForDate) vuorot sen LÄHTÖpysäkiltä. Suodatetaan ko. pattern-koodiin →
+  // chipit == taulun sarakkeet (sama määrä/ajat/järjestys) ja duplikaatit poistuvat.
+  // stoptimesForServiceDate tuo reaaliajan (●, seuraavat lähdöt -laskuri).
+  // Referenssipysäkki = hallitsevan patternin ensimmäinen pysäkki, jonka kautta kulkee ENITEN
+  // suunnan kaikista vuoroista. Pelkkä hallitsevan patternin stops[0] pudotti muiden
+  // varianttien vuorot: Joensuun linja 2 näytti arkena 36 lähtöä 51:stä (Utran Y-vuorot eivät
+  // kulje Kupluskylän kautta), 101 17/36 (auditointi 23.9.2026). Yhden patternin linjalla
+  // kaikki pysäkit ovat tasoissa, joten valinta on stops[0] kuten ennen.
+  // Tuplatarkistus 23.9.: pelkkä suurin kattavuus valitsi usein pysäkin keskeltä reittiä (linja 4
+  // Kurjentie eikä Lentoasema, 480 Kovero eikä JOENSUU), jolloin ajat eivät vastanneet vihkoa.
+  // Nyt: ensimmäinen pysäkki, jonka kautta kulkee vähintään 80 % suurimmasta kattavuudesta.
+  // Vuoron viimeistä pysäkkiä ei lasketa (se on saapuminen, ei lähtö). Vuorot, jotka eivät
+  // kulje valitun pysäkin kautta, näytetään omalta lähtöpysäkiltään merkinnällä (fetchDeps).
+  // Seutulinjat 24.9.2026: yksi syöttö- tai lyhytvuoro pudotti alkupysäkin alle 80 %:n ja ajat
+  // näytettiin keskeltä reittiä (401 Ammattiopisto I eikä Kuusjärvi, 490 Heinävaara eikä
+  // JOENSUU), eivätkä ne vastanneet vihkoa. Siksi hallitsevan patternin alkupysäkki voittaa, jos
+  // sen ohittaa alle puolet ja enintään kaksi tai 20 % suunnan vuoroista (ne näkyvät *-merkinnällä);
+  // muuten 80 %:n sääntö kuten ennen. Rajat mitattu 24.9.: 440:n kaksi neljästä vuorosta alkaa
+  // sairaalalta (vihkossa tarvittaessa) ja Fölin 11:n 40/95 Kauppatorilta, joten niissä yhteinen
+  // pysäkki pysyy lähtöpysäkkinä.
+  const pickRefStop = (pat, allTrips) => {
+    const stops = pat.stops || [];
+    if (!stops.length) return null;
+    const cover = new Map();
+    for (const tr of (allTrips || [])) {
+      const seen = new Set();
+      const sts = tr.stoptimes || [];
+      for (let i = 0; i < sts.length - 1; i++) {
+        const id = sts[i].stop?.gtfsId;
+        if (id && !seen.has(id)) { seen.add(id); cover.set(id, (cover.get(id) || 0) + 1); }
+      }
+    }
+    const n = (allTrips || []).length, ohi = n - (cover.get(stops[0].gtfsId) || 0);
+    if (n && ohi < n / 2 && ohi <= Math.max(2, 0.2 * n)) return stops[0];
+    let max = 0;
+    for (const s of stops) max = Math.max(max, cover.get(s.gtfsId) || 0);
+    return stops.find(s => (cover.get(s.gtfsId) || 0) >= 0.8 * max && max > 0) || stops[0];
+  };
+  const dirCodes = new Set(dirPatterns.map(p => p.code));
+  // Patternit, joilla refStop on VAIN viimeinen pysäkki: siellä vuoro saapuu eikä lähde
+  // (OTP sallii noudon päätepysäkillä, joten omitNonPickups ei suodata sitä). Linja 4:n
+  // 08:55 ja 203:n 14:45 näkyivät lähtöinä (tuplatarkistus 23.9.2026).
+  const arrivalOnly = refId => new Set(dirPatterns.filter(p => {
+    const ids = (p.stops || []).map(s => s.gtfsId);
+    return ids.length && ids.indexOf(refId) === ids.length - 1;
+  }).map(p => p.code));
+  const fetchDeps = async (iso) => {
+    const { pat, trips, allTrips } = await bestPatternForDate(iso);
+    const refStop = pickRefStop(pat, allTrips);
+    if (!trips.length || !refStop) return { sts: [], pat, refStop, stale: routeCachedAt };
+    const { data: tt, cachedAt } = await cachedGql(`tt4:${routeId}:dir${curDir}:${refStop.gtfsId}:${iso}`, TT_QUERY,
+      { stopId: refStop.gtfsId, date: iso.replace(/-/g, "") });
+    // Yksi (varhaisin) lähtö per vuoro: jos lähtöpysäkki on reitillä kahdesti (silmukka/
+    // palveluliikenne, esim. Salo 31, Kajaani Pali), stoptimesForServiceDate palauttaa
+    // saman vuoron kahdesti → pidetään ensimmäinen käynti = taulun sarake (joka ottaa
+    // myös 1. käynnin). Vuorottelematon tapaus säilyy ennallaan.
+    const byTrip = new Map();
+    const arrOnly = arrivalOnly(refStop.gtfsId);
+    const patStops = new Map(dirPatterns.map(p => [p.code, p.stops || []]));
+    let serviceDay = null;
+    for (const g of (tt.stop?.stoptimesForServiceDate || [])) {
+      if (!dirCodes.has(g.pattern.code) || arrOnly.has(g.pattern.code)) continue;
+      for (const s of (g.stoptimes || [])) {
+        if (serviceDay == null && s.serviceDay) serviceDay = s.serviceDay;
+        const key = s.trip?.gtfsId || ("anon:" + s.scheduledDeparture);
+        const prev = byTrip.get(key);
+        // Vuoro ohittaa lähtöpysäkin vasta paluumatkalla enintään 5 min ennen loppuaan: se on
+        // saapuminen, ja lähtö näytetään vuoron omalta lähtöpysäkiltä (*). Linja 620 näytti
+        // "15:38 K" pysäkiltä Oleksi, vaikka vuoro lähtee Oikokatu L:ltä 14.05 (kierros 2, 25.9.2026).
+        const a = s.trip?.arrivalStoptime, d = s.trip?.departureStoptime;
+        const hanta = a?.scheduledArrival != null && d?.stop && d.stop.gtfsId !== refStop.gtfsId &&
+          a.scheduledArrival - s.scheduledDeparture <= CENTER_ARRIVAL_MAX_S;
+        const rivi = hanta
+          ? { ...s, scheduledDeparture: d.scheduledDeparture, realtimeDeparture: d.scheduledDeparture, realtime: false,
+              _from: d.stop.name || "", _stops: patStops.get(g.pattern.code) }
+          : { ...s, _stops: patStops.get(g.pattern.code) };
+        if (!prev || rivi.scheduledDeparture < prev.scheduledDeparture) byTrip.set(key, rivi);
+      }
+    }
+    // Suunnan vuorot, jotka eivät kulje refStopin kautta lähtönä (esim. 540:n syöttövuoro,
+    // linjan 4 Onttolasta lähtevät Y-vuorot): näytetään omalta lähtöpysäkiltään merkinnällä
+    // (_from), eikä niitä pudoteta. Reaaliaikaa niille ei ole, aikataulun mukainen aika riittää.
+    if (serviceDay == null) { const [y, mo, d] = iso.split("-").map(Number); serviceDay = Math.floor(new Date(y, mo - 1, d).getTime() / 1000); }
+    for (const tr of (allTrips || [])) {
+      const stts = tr.stoptimes || [];
+      if (stts.length < 2) continue;
+      if (stts.slice(0, -1).some(s => s.stop?.gtfsId === refStop.gtfsId)) continue;
+      const first = stts[0];
+      const last = stts[stts.length - 1];
+      byTrip.set("from:" + (first.stop?.gtfsId || "") + ":" + first.scheduledDeparture, {
+        scheduledDeparture: first.scheduledDeparture, realtimeDeparture: first.scheduledDeparture,
+        realtime: false, serviceDay, _from: first.stop?.name || "", _stops: stts.map(x => x.stop),
+        trip: { serviceId: tr.serviceId || "", arrivalStoptime: { stop: last?.stop || null } } });
+    }
+    // Eri pysäkille päättyvä vuoro (_to): päätepysäkki eri kuin hallitsevan patternin (laiturikirjain
+    // ei ratkaise) EIKÄ vuoro käy pääreitin päätepysäkillä matkalla. Linjasivu näytti ne koko reitin
+    // vuoroina: 2:n 18.30-22.30 Kivisalmesta ajavat vain Keskustaan, 100:n 21.10 päättyy Joutsenoon;
+    // vihko merkitsee ne X:llä (Lappeenranta, auditointi 25.9.2026). Päätepysäkin ohi jatkava vuoro
+    // (1: Kiiskinmäeltä Muukonniemeen, 4: Karhuvuoresta Ajurinkadulle) ei ole lyhyt (kierros 2).
+    let list = [...byTrip.values()], shownRef = refStop, originMode = false;
+    // Harva lähiliikennelinja, jonka vuorot alkavat eri paikoista (Lappeenranta 610: Rikkilä 6.45,
+    // Oikokatu L 7.30, Oleksi 12.05 ja 14.05): yhteinen välipysäkki antoi ajat keskeltä reittiä
+    // (Haikalantie 194: 06:59, 08:23, 12:36, 14:40). Kun vuoroja on enintään 12 ja enintään puolet
+    // alkaa lähtöpysäkiltä, jokainen vuoro näytetään omalta alkupysäkiltään kuten vihkossa:
+    // yleisin alkupysäkki on otsikossa ja muut *-merkillä (kierros 2, 25.9.2026).
+    const trips0 = (allTrips || []).filter(tr => (tr.stoptimes || []).length >= 2);
+    const alkaaTasta = trips0.filter(tr => cbStopBase(tr.stoptimes[0].stop?.name) === cbStopBase(refStop.name)).length;
+    if (trips0.length && trips0.length <= 12 && alkaaTasta <= trips0.length / 2) {
+      const cnt = new Map();
+      for (const tr of trips0) { const k = cbStopBase(tr.stoptimes[0].stop?.name); cnt.set(k, (cnt.get(k) || 0) + 1); }
+      const modeBase = [...cnt.entries()].sort((x, y) => y[1] - x[1])[0][0];
+      shownRef = trips0.find(tr => cbStopBase(tr.stoptimes[0].stop?.name) === modeBase).stoptimes[0].stop;
+      originMode = true;
+      list = trips0.map(tr => {
+        const f = tr.stoptimes[0], l = tr.stoptimes[tr.stoptimes.length - 1];
+        return { scheduledDeparture: f.scheduledDeparture, realtimeDeparture: f.scheduledDeparture, realtime: false,
+          serviceDay, _from: cbStopBase(f.stop?.name) === modeBase ? "" : (f.stop?.name || ""),
+          _stops: tr.stoptimes.map(x => x.stop),
+          trip: { serviceId: tr.serviceId || "", arrivalStoptime: { stop: l.stop || null } } };
+      });
+    }
+    const mainEnd = cbStopBase((pat.stops || [])[(pat.stops || []).length - 1]?.name);
+    for (const s of list) {
+      const end = s.trip?.arrivalStoptime?.stop?.name;
+      const kayPaassa = (s._stops || []).some(st => st && cbStopBase(st.name) === mainEnd);
+      if (end && mainEnd && cbStopBase(end) !== mainEnd && !kayPaassa) s._to = end;
+    }
+    const sts = list.sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
+    return { sts, pat, refStop: shownRef, originMode, stale: cachedAt || routeCachedAt };
+  };
+  return { bestPatternForDate, fetchDeps };
 }
 
 // autoPrint (?print=rack|key|all): tulosteet-sivu ja palvelutiski avaavat linjatulosteen suoraan
@@ -11684,168 +11887,8 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   // käännetyissä varianteissa olla reitin VIIMEINEN pysäkki → saapumisajat). Referenssi on
   // päivän hallitseva pattern (bestPatternForDate, sama kuin koko aikataulu -taulu) ja sen
   // stops[0]. Ratkaistaan per päivä fetchDepsissä, ei kiinteää headStopia.
-
-  // Valitsee suunnan patternin (+ sen vuorot) jolla on lähtöjä annettuna päivänä.
-  // Kausivaihdon takia oikea pattern-koodi vaihtelee päivittäin → tarvitaan
-  // matriisissa ja tulostuksessa (yksittäinen pattern, ei aggregointi kuten listassa).
-  const bestPatternForDate = async (iso) => {
-    const aliases = dirPatterns.map((p, i) =>
-      `c${i}: pattern(id: "${p.code}") { tripsForDate(serviceDate: $date) { serviceId stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } } } }`).join("\n");
-    const { data } = await cachedGql(`matrix2:${routeId}:dir${curDir}:${iso}`,
-      `query ($date: String!) { ${aliases} }`, { date: iso.replace(/-/g, "") });
-    let pat = current, trips = [], allTrips = [];
-    dirPatterns.forEach((p, i) => {
-      const tr = (data["c" + i] && data["c" + i].tripsForDate) || [];
-      allTrips.push(...tr);
-      // tasapelissä pidempi reittikuvio (ks. byTrips)
-      if (tr.length > trips.length || (tr.length && tr.length === trips.length && (p.stops || []).length > (pat.stops || []).length)) {
-        pat = p; trips = tr;
-      }
-    });
-    return { pat, trips, allTrips };
-  };
-
-  const TT_QUERY = `query ($stopId: String!, $date: String!) {
-    stop(id: $stopId) {
-      stoptimesForServiceDate(date: $date, omitNonPickups: true) {
-        pattern { code }
-        stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay trip { gtfsId serviceId
-          departureStoptime { scheduledDeparture stop { gtfsId name@L } }
-          arrivalStoptime { scheduledArrival stop { gtfsId name@L } } } }
-      }
-    }
-  }`;
-  // Päivän lähdöt = SAMA totuus kuin koko aikataulu -taulu: hallitsevan patternin
-  // (bestPatternForDate) vuorot sen LÄHTÖpysäkiltä. Suodatetaan ko. pattern-koodiin →
-  // chipit == taulun sarakkeet (sama määrä/ajat/järjestys) ja duplikaatit poistuvat.
-  // stoptimesForServiceDate tuo reaaliajan (●, seuraavat lähdöt -laskuri).
-  // Referenssipysäkki = hallitsevan patternin ensimmäinen pysäkki, jonka kautta kulkee ENITEN
-  // suunnan kaikista vuoroista. Pelkkä hallitsevan patternin stops[0] pudotti muiden
-  // varianttien vuorot: Joensuun linja 2 näytti arkena 36 lähtöä 51:stä (Utran Y-vuorot eivät
-  // kulje Kupluskylän kautta), 101 17/36 (auditointi 23.9.2026). Yhden patternin linjalla
-  // kaikki pysäkit ovat tasoissa, joten valinta on stops[0] kuten ennen.
-  // Tuplatarkistus 23.9.: pelkkä suurin kattavuus valitsi usein pysäkin keskeltä reittiä (linja 4
-  // Kurjentie eikä Lentoasema, 480 Kovero eikä JOENSUU), jolloin ajat eivät vastanneet vihkoa.
-  // Nyt: ensimmäinen pysäkki, jonka kautta kulkee vähintään 80 % suurimmasta kattavuudesta.
-  // Vuoron viimeistä pysäkkiä ei lasketa (se on saapuminen, ei lähtö). Vuorot, jotka eivät
-  // kulje valitun pysäkin kautta, näytetään omalta lähtöpysäkiltään merkinnällä (fetchDeps).
-  // Seutulinjat 24.9.2026: yksi syöttö- tai lyhytvuoro pudotti alkupysäkin alle 80 %:n ja ajat
-  // näytettiin keskeltä reittiä (401 Ammattiopisto I eikä Kuusjärvi, 490 Heinävaara eikä
-  // JOENSUU), eivätkä ne vastanneet vihkoa. Siksi hallitsevan patternin alkupysäkki voittaa, jos
-  // sen ohittaa alle puolet ja enintään kaksi tai 20 % suunnan vuoroista (ne näkyvät *-merkinnällä);
-  // muuten 80 %:n sääntö kuten ennen. Rajat mitattu 24.9.: 440:n kaksi neljästä vuorosta alkaa
-  // sairaalalta (vihkossa tarvittaessa) ja Fölin 11:n 40/95 Kauppatorilta, joten niissä yhteinen
-  // pysäkki pysyy lähtöpysäkkinä.
-  const pickRefStop = (pat, allTrips) => {
-    const stops = pat.stops || [];
-    if (!stops.length) return null;
-    const cover = new Map();
-    for (const tr of (allTrips || [])) {
-      const seen = new Set();
-      const sts = tr.stoptimes || [];
-      for (let i = 0; i < sts.length - 1; i++) {
-        const id = sts[i].stop?.gtfsId;
-        if (id && !seen.has(id)) { seen.add(id); cover.set(id, (cover.get(id) || 0) + 1); }
-      }
-    }
-    const n = (allTrips || []).length, ohi = n - (cover.get(stops[0].gtfsId) || 0);
-    if (n && ohi < n / 2 && ohi <= Math.max(2, 0.2 * n)) return stops[0];
-    let max = 0;
-    for (const s of stops) max = Math.max(max, cover.get(s.gtfsId) || 0);
-    return stops.find(s => (cover.get(s.gtfsId) || 0) >= 0.8 * max && max > 0) || stops[0];
-  };
-  const dirCodes = new Set(dirPatterns.map(p => p.code));
-  // Patternit, joilla refStop on VAIN viimeinen pysäkki: siellä vuoro saapuu eikä lähde
-  // (OTP sallii noudon päätepysäkillä, joten omitNonPickups ei suodata sitä). Linja 4:n
-  // 08:55 ja 203:n 14:45 näkyivät lähtöinä (tuplatarkistus 23.9.2026).
-  const arrivalOnly = refId => new Set(dirPatterns.filter(p => {
-    const ids = (p.stops || []).map(s => s.gtfsId);
-    return ids.length && ids.indexOf(refId) === ids.length - 1;
-  }).map(p => p.code));
-  const fetchDeps = async (iso) => {
-    const { pat, trips, allTrips } = await bestPatternForDate(iso);
-    const refStop = pickRefStop(pat, allTrips);
-    if (!trips.length || !refStop) return { sts: [], pat, refStop, stale: routeCachedAt };
-    const { data: tt, cachedAt } = await cachedGql(`tt4:${routeId}:dir${curDir}:${refStop.gtfsId}:${iso}`, TT_QUERY,
-      { stopId: refStop.gtfsId, date: iso.replace(/-/g, "") });
-    // Yksi (varhaisin) lähtö per vuoro: jos lähtöpysäkki on reitillä kahdesti (silmukka/
-    // palveluliikenne, esim. Salo 31, Kajaani Pali), stoptimesForServiceDate palauttaa
-    // saman vuoron kahdesti → pidetään ensimmäinen käynti = taulun sarake (joka ottaa
-    // myös 1. käynnin). Vuorottelematon tapaus säilyy ennallaan.
-    const byTrip = new Map();
-    const arrOnly = arrivalOnly(refStop.gtfsId);
-    const patStops = new Map(dirPatterns.map(p => [p.code, p.stops || []]));
-    let serviceDay = null;
-    for (const g of (tt.stop?.stoptimesForServiceDate || [])) {
-      if (!dirCodes.has(g.pattern.code) || arrOnly.has(g.pattern.code)) continue;
-      for (const s of (g.stoptimes || [])) {
-        if (serviceDay == null && s.serviceDay) serviceDay = s.serviceDay;
-        const key = s.trip?.gtfsId || ("anon:" + s.scheduledDeparture);
-        const prev = byTrip.get(key);
-        // Vuoro ohittaa lähtöpysäkin vasta paluumatkalla enintään 5 min ennen loppuaan: se on
-        // saapuminen, ja lähtö näytetään vuoron omalta lähtöpysäkiltä (*). Linja 620 näytti
-        // "15:38 K" pysäkiltä Oleksi, vaikka vuoro lähtee Oikokatu L:ltä 14.05 (kierros 2, 25.9.2026).
-        const a = s.trip?.arrivalStoptime, d = s.trip?.departureStoptime;
-        const hanta = a?.scheduledArrival != null && d?.stop && d.stop.gtfsId !== refStop.gtfsId &&
-          a.scheduledArrival - s.scheduledDeparture <= CENTER_ARRIVAL_MAX_S;
-        const rivi = hanta
-          ? { ...s, scheduledDeparture: d.scheduledDeparture, realtimeDeparture: d.scheduledDeparture, realtime: false,
-              _from: d.stop.name || "", _stops: patStops.get(g.pattern.code) }
-          : { ...s, _stops: patStops.get(g.pattern.code) };
-        if (!prev || rivi.scheduledDeparture < prev.scheduledDeparture) byTrip.set(key, rivi);
-      }
-    }
-    // Suunnan vuorot, jotka eivät kulje refStopin kautta lähtönä (esim. 540:n syöttövuoro,
-    // linjan 4 Onttolasta lähtevät Y-vuorot): näytetään omalta lähtöpysäkiltään merkinnällä
-    // (_from), eikä niitä pudoteta. Reaaliaikaa niille ei ole, aikataulun mukainen aika riittää.
-    if (serviceDay == null) { const [y, mo, d] = iso.split("-").map(Number); serviceDay = Math.floor(new Date(y, mo - 1, d).getTime() / 1000); }
-    for (const tr of (allTrips || [])) {
-      const stts = tr.stoptimes || [];
-      if (stts.length < 2) continue;
-      if (stts.slice(0, -1).some(s => s.stop?.gtfsId === refStop.gtfsId)) continue;
-      const first = stts[0];
-      const last = stts[stts.length - 1];
-      byTrip.set("from:" + (first.stop?.gtfsId || "") + ":" + first.scheduledDeparture, {
-        scheduledDeparture: first.scheduledDeparture, realtimeDeparture: first.scheduledDeparture,
-        realtime: false, serviceDay, _from: first.stop?.name || "", _stops: stts.map(x => x.stop),
-        trip: { serviceId: tr.serviceId || "", arrivalStoptime: { stop: last?.stop || null } } });
-    }
-    // Eri pysäkille päättyvä vuoro (_to): päätepysäkki eri kuin hallitsevan patternin (laiturikirjain
-    // ei ratkaise) EIKÄ vuoro käy pääreitin päätepysäkillä matkalla. Linjasivu näytti ne koko reitin
-    // vuoroina: 2:n 18.30-22.30 Kivisalmesta ajavat vain Keskustaan, 100:n 21.10 päättyy Joutsenoon;
-    // vihko merkitsee ne X:llä (Lappeenranta, auditointi 25.9.2026). Päätepysäkin ohi jatkava vuoro
-    // (1: Kiiskinmäeltä Muukonniemeen, 4: Karhuvuoresta Ajurinkadulle) ei ole lyhyt (kierros 2).
-    let list = [...byTrip.values()], shownRef = refStop, originMode = false;
-    // Harva lähiliikennelinja, jonka vuorot alkavat eri paikoista (Lappeenranta 610: Rikkilä 6.45,
-    // Oikokatu L 7.30, Oleksi 12.05 ja 14.05): yhteinen välipysäkki antoi ajat keskeltä reittiä
-    // (Haikalantie 194: 06:59, 08:23, 12:36, 14:40). Kun vuoroja on enintään 12 ja enintään puolet
-    // alkaa lähtöpysäkiltä, jokainen vuoro näytetään omalta alkupysäkiltään kuten vihkossa:
-    // yleisin alkupysäkki on otsikossa ja muut *-merkillä (kierros 2, 25.9.2026).
-    const trips0 = (allTrips || []).filter(tr => (tr.stoptimes || []).length >= 2);
-    const alkaaTasta = trips0.filter(tr => cbStopBase(tr.stoptimes[0].stop?.name) === cbStopBase(refStop.name)).length;
-    if (trips0.length && trips0.length <= 12 && alkaaTasta <= trips0.length / 2) {
-      const cnt = new Map();
-      for (const tr of trips0) { const k = cbStopBase(tr.stoptimes[0].stop?.name); cnt.set(k, (cnt.get(k) || 0) + 1); }
-      const modeBase = [...cnt.entries()].sort((x, y) => y[1] - x[1])[0][0];
-      shownRef = trips0.find(tr => cbStopBase(tr.stoptimes[0].stop?.name) === modeBase).stoptimes[0].stop;
-      originMode = true;
-      list = trips0.map(tr => {
-        const f = tr.stoptimes[0], l = tr.stoptimes[tr.stoptimes.length - 1];
-        return { scheduledDeparture: f.scheduledDeparture, realtimeDeparture: f.scheduledDeparture, realtime: false,
-          serviceDay, _from: cbStopBase(f.stop?.name) === modeBase ? "" : (f.stop?.name || ""),
-          _stops: tr.stoptimes.map(x => x.stop),
-          trip: { serviceId: tr.serviceId || "", arrivalStoptime: { stop: l.stop || null } } };
-      });
-    }
-    const mainEnd = cbStopBase((pat.stops || [])[(pat.stops || []).length - 1]?.name);
-    for (const s of list) {
-      const end = s.trip?.arrivalStoptime?.stop?.name;
-      const kayPaassa = (s._stops || []).some(st => st && cbStopBase(st.name) === mainEnd);
-      if (end && mainEnd && cbStopBase(end) !== mainEnd && !kayPaassa) s._to = end;
-    }
-    const sts = list.sort((a, b) => a.scheduledDeparture - b.scheduledDeparture);
-    return { sts, pat, refStop: shownRef, originMode, stale: cachedAt || routeCachedAt };
-  };
+  // Säännöt ovat lineDirDepsissä, jota myös palvelutiskin linjakortti käyttää.
+  const { bestPatternForDate, fetchDeps } = lineDirDeps(routeId, dirPatterns, curDir, current, routeCachedAt);
   // Etsii seuraavan liikennöintipäivän (enintään 14 vrk eteenpäin) jolla on lähtöjä.
   const findNextServiceDate = async (fromISO) => {
     const [y, mo, d] = fromISO.split("-").map(Number);
@@ -13240,10 +13283,13 @@ async function railStationNames() {
 // kind "DEPARTURE": seuraavat 15 lähtevää junaa, dest = pääteasema.
 // kind "ARRIVAL": seuraavat 15 saapuvaa junaa, from = lähtöasema. Saapuvat lisättiin Joensuun
 // toiveesta 24.9.2026 (saapuvat junat näytölle, esim. vastaanottajille ja jatkoyhteyksiin).
-async function loadTrains(code, names, kind = "DEPARTURE") {
+// n: junien määrä (oletus 15). Palvelutiskin junavinkki pyytää tulevalle hakuajalle enemmän: live-
+// rajapinta kattaa noin vuorokauden eteenpäin (Lahti 4.10.2026: 75 matkustajajunaa, viimeinen seuraavana
+// päivänä klo 13.20), ja 15 junaa riittää Lahdessa vain noin neljäksi tunniksi.
+async function loadTrains(code, names, kind = "DEPARTURE", n = 15) {
   const arr = kind === "ARRIVAL";
   const res = await fetch(`${RAIL_API}/live-trains/station/${code}` +
-    `?arrived_trains=0&arriving_trains=${arr ? 15 : 0}&departed_trains=0&departing_trains=${arr ? 0 : 15}` +
+    `?arrived_trains=0&arriving_trains=${arr ? n : 0}&departed_trains=0&departing_trains=${arr ? 0 : n}` +
     "&include_nonstopping=false",
     { headers: { "Digitraffic-User": "Reittari" } });
   if (!res.ok) throw new Error("HTTP " + res.status);
@@ -14241,6 +14287,28 @@ async function searchStopsByName(name, limit) {
     .slice(0, limit);
 }
 
+// areaScoped-kaupungin pysäkkiosumien linjat (palvelutiskin yhteishaku). Alueen pysäkkivälimuistissa
+// (loadAreaStops) ei ole linjoja, joten ne haetaan kaikille osumille YHDELLÄ kyselyllä (stops(ids:)),
+// ei pysäkki kerrallaan. Tulos muistetaan pysäkeittäin, joten jatkokirjoitus ei hae samoja uudelleen.
+// Linjat rajataan alueen liikennöiviin linjoihin samoin kuin linjalistassa ja kartalla (loadRoutes:
+// areaRouteIds + aktiiviset vuorot): valtakunnallisen feedin pysäkillä voi pysähtyä linjoja, jotka eivät
+// palvele kuntaa. Haun virhe ei kaada pysäkkihakua: pysäkit näytetään silloin ilman linjoja, samoin
+// jos alueen linjajoukkoa ei saada (väärä linja on pahempi kuin puuttuva).
+const areaStopRoutesMemo = new Map();   // pysäkin gtfsId -> [{ gtfsId, shortName }]
+async function withAreaStopRoutes(stops) {
+  const need = [...new Set((stops || []).map(s => s.gtfsId).filter(id => id && !areaStopRoutesMemo.has(id)))];
+  if (need.length) {
+    try {
+      const d = await gql(`query ($ids: [String]) { stops(ids: $ids) { gtfsId routes { gtfsId shortName } } }`, { ids: need });
+      for (const x of (d.stops || []).filter(Boolean)) areaStopRoutesMemo.set(x.gtfsId, x.routes || []);
+    } catch (e) { return stops; }
+  }
+  const area = new Set();
+  for (const g of await loadRoutes().catch(() => [])) for (const id of (g.gtfsIds && g.gtfsIds.length ? g.gtfsIds : [g.gtfsId])) area.add(id);
+  return (stops || []).map(s => ({ ...s,
+    routes: (areaStopRoutesMemo.get(s.gtfsId) || []).filter(r => area.has(r.gtfsId)) }));
+}
+
 async function searchPlaces(q) {
   await findFeed();
   const alias = (CONFIG.searchAliases || {})[(q || "").trim().toLowerCase()];
@@ -14676,12 +14744,14 @@ const DESK_DEPS_QUERY = `query ($id: String!) {
   }
 }`;
 
-// "Viimeinen bussi tänään X→Y": pakotettu bussiyhteys, latestArrival = tämän päivän loppu,
+// "Viimeinen bussi X→Y": pakotettu bussiyhteys, latestArrival = haun päivän loppu,
 // taaksepäin haku (last) → tulokset laskevassa lähtöaikajärjestyksessä; nodes[0] = viimeisin.
+// $preferences = tiskin Esteetön reitti -valinta (sama kuin reittihaussa).
 const DESK_LASTBUS_QUERY = `
-  query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!, $dateTime: PlanDateTimeInput) {
+  query ($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!, $dateTime: PlanDateTimeInput,
+         $preferences: PlanPreferencesInput) {
     planConnection(origin: $origin, destination: $destination, last: 5, dateTime: $dateTime,
-                   searchWindow: "PT6H",
+                   searchWindow: "PT6H", preferences: $preferences,
                    modes: { transitOnly: true, transit: { transit: [{ mode: BUS }] } }) {
       edges { node {
         start end numberOfTransfers
@@ -15439,6 +15509,7 @@ async function viewServiceDesk() {
     whenMode = mode;
     document.querySelectorAll(".desk-when .dseg").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tm === mode)));
     if (mode === "now" || !dateEl.value || !timeEl.value) fillNow();
+    syncLastBusBtn();
   };
   fillNow();
   const whenVars = () => {
@@ -15446,12 +15517,26 @@ async function viewServiceDesk() {
     const iso = isoWithOffset(dateEl.value + "T" + timeEl.value.slice(0, 5));
     return whenMode === "arr" ? { latestArrival: iso } : { earliestDeparture: iso };
   };
+  const deskLoc = () => lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI";
   const whenText = () => {
-    const loc = lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI";
     const d = new Date(dateEl.value + "T" + timeEl.value.slice(0, 5));
-    return d.toLocaleDateString(loc, { weekday: "short", day: "numeric", month: "numeric" }) + " " + timeEl.value.slice(0, 5);
+    return d.toLocaleDateString(deskLoc(), { weekday: "short", day: "numeric", month: "numeric" }) + " " + timeEl.value.slice(0, 5);
+  };
+  // Haun päivä (YYYY-MM-DD): "nyt"-tilassa tämä päivä, muuten päiväkentän arvo. Viimeinen bussi
+  // lasketaan tälle päivälle; otsikko ja nappi kertovat päivän, jos se ei ole tänään.
+  const searchDay = () => (whenMode !== "now" && dateEl.value) ? dateEl.value : todayISO();
+  const dayLabel = iso => new Date(iso + "T12:00").toLocaleDateString(deskLoc(), { weekday: "short", day: "numeric", month: "numeric" });
+  const lastBusText = (todayKey, otherKey) => {
+    const day = searchDay();
+    return day === todayISO() ? t(todayKey) : t(otherKey, { day: dayLabel(day) });
+  };
+  const syncLastBusBtn = () => {
+    const b = document.getElementById("deskLastBusBtn");
+    if (b) b.innerHTML = `${icon("clock")} ${esc(lastBusText("deskLastBusBtn", "deskLastBusDay"))}`;
   };
 
+  // Esteetön reitti: sama valinta reittihakuun ja viimeiseen bussiin.
+  const deskPrefs = () => ({ accessibility: { wheelchair: { enabled: !!document.getElementById("deskWheelchair")?.checked } } });
   const runSearch = async () => {
     const msg = document.getElementById("deskMsg");
     if (!dFrom || !dTo) { msg.innerHTML = `<p class="muted">${t("deskNeedBoth")}</p>`; return; }
@@ -15460,7 +15545,10 @@ async function viewServiceDesk() {
     const destination = { location: { coordinate: { latitude: dTo.lat, longitude: dTo.lon } } };
     const dateTime = whenVars();
     const arr = !!(dateTime && dateTime.latestArrival);
-    const preferences = { accessibility: { wheelchair: { enabled: !!document.getElementById("deskWheelchair")?.checked } } };
+    const preferences = deskPrefs();
+    // Junavinkki ("Asemalta seuraavaksi") haun ajasta ja määränpäästä, ei reittihaun (planState) eikä
+    // nykyhetken junista. Jos haun ajalle ei ole junadataa, vinkki piilotetaan (fillRailHints).
+    const railCtx = { time: dateTime ? dateEl.value + "T" + timeEl.value.slice(0, 5) : "", timeMode: arr ? "arr" : "dep", to: dTo };
     let data;
     try { data = await gql(PLAN_QUERY, { origin, destination, first: 5, dateTime, preferences }); }
     catch (e) { msg.innerHTML = `<div class="error">${t("deskSearchErr")}</div>`; return; }
@@ -15472,7 +15560,7 @@ async function viewServiceDesk() {
       ? `<p class="muted desk-when-used">${t(arr ? "deskSearchedArr" : "deskSearchedDep", { when: esc(whenText()) })}</p>` : "";
     if (!nodes.length) {
       res.innerHTML = usedHtml + `<p class="muted">${t("noItineraries")}</p>` + railHintHtml([]);
-      fillRailHints(); return;
+      fillRailHints(railCtx); return;
     }
     // Saapumisaikahaussa asiakkaalle kerrotaan myöhäisin lähtö, joka ehtii perille;
     // vaihtoehdot lähtöajan mukaan.
@@ -15494,7 +15582,7 @@ async function viewServiceDesk() {
       + `<h3 class="desk-h3">${t("deskOptionsTitle")}</h3>`
       + nodes.map((n, i) => deskOptionHtml(n, i)).join("")
       + railHintHtml(nodes);
-    fillRailHints();
+    fillRailHints(railCtx);
     res.querySelectorAll(".deskOptPrint").forEach(b => b.addEventListener("click", () =>
       deskPrintItinerary(nodes[+b.dataset.i], nodes, dFrom, dTo, b.nextElementSibling)));
   };
@@ -15508,7 +15596,7 @@ async function viewServiceDesk() {
     fromInput: fromEl, toInput: toEl,
     setFrom: p => { dFrom = p; fromCtl.set(p); },
     setTo: p => { dTo = p; toCtl.set(p); },
-    setTime: hhmm => { setWhen("dep"); dateEl.value = todayISO(); timeEl.value = hhmm; },
+    setTime: hhmm => { setWhen("dep"); dateEl.value = todayISO(); timeEl.value = hhmm; syncLastBusBtn(); },
     resetTime: () => setWhen("now"),
     focus: el => el.focus(),
     run: () => runSearch(),
@@ -15521,7 +15609,7 @@ async function viewServiceDesk() {
   }));
   // Kellon tai päivän muokkaus "nyt"-tilassa tarkoittaa lähtöaikaa.
   [dateEl, timeEl].forEach(el => {
-    el.addEventListener("input", () => { if (whenMode === "now") setWhen("dep"); });
+    el.addEventListener("input", () => { if (whenMode === "now") setWhen("dep"); else syncLastBusBtn(); });
     el.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); runSearch(); } });
   });
   document.getElementById("deskWheelchair").addEventListener("change", () => { if (dFrom && dTo) runSearch(); });
@@ -15773,34 +15861,50 @@ async function viewServiceDesk() {
     clearLineTimer();
     deskLineTimer = setInterval(() => { if (curLine && card === "line") loadLineDeps(); }, 30000);
   };
+  // Lähdöt samoilla säännöillä kuin linjasivulla (lineDirDeps): lähtöpysäkki pickRefStop, ja suunnan
+  // vuorot, jotka eivät kulje sen kautta (eri pysäkiltä alkavat varianttivuorot), omalta lähtöpysäkiltään.
+  // Niiden rivillä lukee lähtöpysäkki tekstinä. Näytetään 6 seuraavaa tämän päivän listasta; illalla
+  // jatketaan huomisesta ja yöllä (ennen klo 5) mukaan tulevat edellisen liikennöintipäivän yövuorot.
+  // Päivän vuorot haetaan kerran (memoDays) ja muiden päivien listat kerran; 30 s päivitys hakee vain
+  // tämän päivän reaaliaikaiset lähdöt, joten kyselyitä on päivitystä kohden yksi kuten ennen.
+  const LINE_DEPS_N = 6;
+  const lineDepsOf = (cl, i) => {
+    if (!cl.deps[i]) {
+      const p = cl.dirs[i], k = dirKey(p);
+      cl.deps[i] = { api: lineDirDeps(cl.routeId, cl.patterns.filter(q => dirKey(q) === k), k, p, null, true), other: new Map() };
+    }
+    return cl.deps[i];
+  };
   const loadLineDeps = async () => {
     const cl = curLine;
-    const p = cl && cl.dirs[cl.dirIdx];
-    const first = p && (p.stops || [])[0];
+    const i = cl ? cl.dirIdx : -1;
+    const p = cl && cl.dirs[i];
     const box = () => document.getElementById("deskLineDeps");
-    if (!first) { if (box()) box().innerHTML = `<p class="muted">${t("deskLineDepsNone")}</p>`; return; }
-    // Saman suunnan patternit, jotka LÄHTEVÄT tältä pysäkiltä (ei päätepysäkille saapuvia).
-    const k = dirKey(p);
-    const codes = new Set(cl.patterns.filter(q => {
-      const ids = (q.stops || []).map(s => s.gtfsId);
-      const i = ids.indexOf(first.gtfsId);
-      return dirKey(q) === k && i >= 0 && i < ids.length - 1;
-    }).map(q => q.code));
+    if (!p || !(p.stops || []).length) { if (box()) box().innerHTML = `<p class="muted">${t("deskLineDepsNone")}</p>`; return; }
+    const D = lineDepsOf(cl, i);
+    const now = new Date();
+    const dayIso = n => isoOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() + n));
+    const otherDay = iso => {
+      if (!D.other.has(iso)) D.other.set(iso, D.api.fetchDeps(iso).catch(err => { D.other.delete(iso); throw err; }));
+      return D.other.get(iso);
+    };
+    const epoch = st => (st.serviceDay + (st.realtime ? st.realtimeDeparture : st.scheduledDeparture)) * 1000;
     try {
-      const d = await gql(`query ($id: String!) {
-        stop(id: $id) { stoptimesForPatterns(numberOfDepartures: 6, omitNonPickups: true) {
-          pattern { code }
-          stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
-            trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } } }
-        } } }`, { id: first.gtfsId });
-      if (!live() || curLine !== cl || cl.dirs[cl.dirIdx] !== p || !box()) return;
-      const list = (d.stop?.stoptimesForPatterns || []).filter(g => codes.has(g.pattern?.code))
-        .flatMap(g => g.stoptimes || [])
-        .sort((a, b) => ((a.serviceDay || 0) + (a.realtimeDeparture ?? a.scheduledDeparture))
-          - ((b.serviceDay || 0) + (b.realtimeDeparture ?? b.scheduledDeparture)))
-        .slice(0, 6);
-      box().innerHTML = list.length
-        ? `<table class="deps"><tbody>${depTableRows(list)}</tbody></table>
+      const today = await D.api.fetchDeps(dayIso(0));
+      let all = today.sts;
+      if (now.getHours() < 5) all = (await otherDay(dayIso(-1))).sts.concat(all);
+      let next = all.filter(st => epoch(st) >= now.getTime() - 30000);
+      if (next.length < LINE_DEPS_N) next = next.concat((await otherDay(dayIso(1))).sts);
+      next = next.slice().sort((a, b) => epoch(a) - epoch(b)).slice(0, LINE_DEPS_N);
+      if (!live() || curLine !== cl || cl.dirIdx !== i || !box()) return;
+      const refName = today.refStop?.name || p.stops[0].name;
+      const h = document.getElementById("deskLineDepsH");
+      if (h) h.textContent = t("deskLineDepsTitle", { stop: refName });
+      // Määränpää = vuoron päätepysäkki (lyhyt vuoro näkyy oikein); linjamerkki kortin linjasta.
+      const rows = next.map(st => ({ ...st, headsign: st.trip?.arrivalStoptime?.stop?.name || "",
+        trip: { ...(st.trip || {}), route: cl.route } }));
+      box().innerHTML = rows.length
+        ? `<table class="deps"><tbody>${depTableRows(rows)}</tbody></table>
            <p class="muted desk-deps-upd">${t("deskUpdated", { time: fmtClock(new Date().toISOString()) })}</p>`
         : `<p class="muted">${t("deskLineDepsNone")}</p>`;
     } catch (e) {
@@ -15820,7 +15924,7 @@ async function viewServiceDesk() {
       ${cl.dirs.length ? `<div class="desk-line-dirs" role="group" aria-label="${t("directionAria")}">
         ${cl.dirs.map((d, i) => `<button type="button" class="dseg" data-dir="${i}" aria-pressed="${i === cl.dirIdx}">${esc(cl.labels[i])}</button>`).join("")}
       </div>` : `<p class="muted">${t("noStopsDirection")}</p>`}
-      <h3 class="desk-h3">${t("deskLineDepsTitle", { stop: esc(stops[0]?.name || "") })}</h3>
+      <h3 class="desk-h3" id="deskLineDepsH">${t("deskLineDepsTitle", { stop: esc(stops[0]?.name || "") })}</h3>
       <div id="deskLineDeps"><p class="muted">${t("loadingDeps")}</p></div>
       <h3 class="desk-h3">${t("deskLineStopsTitle", { n: stops.length })}</h3>
       <ol class="desk-line-stops">${stops.map(s =>
@@ -15893,7 +15997,7 @@ async function viewServiceDesk() {
       if (k >= 0) dirIdx = k;
     }
     const grp = (groups || []).find(r => (r.gtfsIds || []).includes(routeId));
-    curLine = { routeId, printId: grp ? grp.gtfsId : routeId, ids, route, dirs, labels, dirIdx: Math.max(0, dirIdx), patterns };
+    curLine = { routeId, printId: grp ? grp.gtfsId : routeId, ids, route, dirs, labels, dirIdx: Math.max(0, dirIdx), patterns, deps: [] };
     renderLine();
     announce(t("deskCardLine") + " " + (route.shortName || "") + ": " + (route.longName || ""));
   };
@@ -16009,9 +16113,10 @@ async function viewServiceDesk() {
     .sort((a, b) => (a.sc - b.sc) || String(a.route.shortName || "").localeCompare(String(b.route.shortName || ""), "fi", { numeric: true }))
     .slice(0, 6);
   // Pysäkit linjoineen (feed-rajattu). Valtakunnallisen feedin kaupungissa (areaScoped) haku
-  // tehdään alueen pysäkeistä kuten muuallakin; linjat tulevat silloin lähtöhaun mukana.
+  // tehdään alueen pysäkeistä kuten muuallakin, ja linjat haetaan osumille yhdellä kyselyllä
+  // alueen linjoihin rajattuna (withAreaStopRoutes).
   const searchDeskStops = async q => {
-    if (CONFIG.areaScoped) return searchStopsByName(q, 8);
+    if (CONFIG.areaScoped) return withAreaStopRoutes(await searchStopsByName(q, 8));
     const data = await gql(DESK_STOP_QUERY, { name: q });
     const pref = feedId ? feedId + ":" : "";
     return (data.stops || []).filter(s => !pref || String(s.gtfsId).startsWith(pref))
@@ -16118,7 +16223,8 @@ async function viewServiceDesk() {
     if (s && !curStop && live()) openStop(s, { silent: true });
   }).catch(() => {});
 
-  // "Viimeinen bussi tänään X→Y": käyttää A→B-kenttien valintoja (dFrom/dTo).
+  // "Viimeinen bussi X→Y": käyttää A→B-kenttien valintoja (dFrom/dTo), haun päivää (searchDay: "nyt" =
+  // tänään, muuten päiväkenttä) ja Esteetön reitti -valintaa. Otsikko kertoo päivän, jos se ei ole tänään.
   document.getElementById("deskLastBusBtn")?.addEventListener("click", async () => {
     const msg = document.getElementById("deskMsg");
     const res = document.getElementById("deskResults");
@@ -16126,17 +16232,21 @@ async function viewServiceDesk() {
     msg.innerHTML = `<p class="muted">${t("searchingRoutes")}</p>`;
     const origin = { location: { coordinate: { latitude: dFrom.lat, longitude: dFrom.lon } } };
     const destination = { location: { coordinate: { latitude: dTo.lat, longitude: dTo.lon } } };
-    const eod = new Date(); eod.setHours(23, 59, 0, 0);  // tämän päivän loppu; toISOString → DST-turvallinen
+    const [y, mo, d] = searchDay().split("-").map(Number);
+    const eod = new Date(y, mo - 1, d, 23, 59, 0, 0);  // haun päivän loppu; toISOString → DST-turvallinen
+    const title = esc(lastBusText("deskLastBusTitle", "deskLastBusDay"));
+    const none = esc(lastBusText("deskLastBusNone", "deskLastBusNoneDay"));
     let data;
-    try { data = await gql(DESK_LASTBUS_QUERY, { origin, destination, dateTime: { latestArrival: eod.toISOString() } }); }
+    try { data = await gql(DESK_LASTBUS_QUERY, { origin, destination, dateTime: { latestArrival: eod.toISOString() }, preferences: deskPrefs() }); }
     catch (e) { msg.innerHTML = `<div class="error">${t("deskSearchErr")}</div>`; return; }
+    if (!live()) return;
     msg.innerHTML = "";
     const nodes = (data.planConnection?.edges || []).map(e => localizePlanNode(e.node)).filter(firstTransitLeg);
-    if (!nodes.length) { res.innerHTML = `<p class="muted">${t("deskLastBusNone")}</p>`; return; }
+    if (!nodes.length) { res.innerHTML = `<p class="muted">${none}</p>`; return; }
     // viimeisin = myöhäisin ensimmäisen bussilegin lähtöaika
     const last = nodes.reduce((a, b) =>
       new Date(legTime(firstTransitLeg(a).start)) >= new Date(legTime(firstTransitLeg(b).start)) ? a : b);
-    res.innerHTML = `<div class="desk-tell"><div class="desk-tell-h">${t("deskLastBusTitle")}</div>
+    res.innerHTML = `<div class="desk-tell"><div class="desk-tell-h">${title}</div>
         <p class="desk-tell-body">${deskBusSentence(last)}</p></div>` + deskOptionHtml(last);
   });
 

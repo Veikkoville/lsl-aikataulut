@@ -759,6 +759,150 @@ async function minuuttiLinjaus(page, rootSel, media) {
       ? ok(`palvelutiski: pysäkkilinkki avaa pysäkkikortin tiskillä (${linkStop})`)
       : fail("palvelutiski: pysäkkilinkki vei pois tiskiltä tai kortti ei avautunut: " + JSON.stringify({ linkStop, stopOpened, ...ls }));
   }
+  // --- Palvelutiski V2 (4.10.2026) ---
+  // 1) Linjakortin lähdöt linjasivun säännöillä (lineDirDeps): eri pysäkiltä alkava varianttivuoro
+  //    näkyy aikajärjestyksessä ja sen lähtöpysäkki tekstinä rivillä. Synteettinen linja, jotta
+  //    tarkistus ei riipu päivän aikataulusta: cachedGql vastaa hetken testidatalla VAIN tämän linjan
+  //    avaimiin (muut kyselyt menevät ennallaan), ja alkuperäinen palautetaan aina.
+  const v2Line = await page.evaluate(async () => {
+    const orig = cachedGql;
+    const now = new Date();
+    const sd = Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000);
+    const t0 = Math.floor(now.getTime() / 1000) - sd;
+    const ymd = todayISO().replace(/-/g, "");
+    const st = (id, name, lat, lon) => ({ gtfsId: "SMOKEV2:" + id, name, lat, lon });
+    const A = st("a", "Alkupysäkki", 60.98, 25.60), B = st("b", "Välipysäkki", 60.98, 25.61),
+      C = st("c", "Keskipysäkki", 60.98, 25.62), D = st("d", "Päätepysäkki", 60.98, 25.63), X = st("x", "Varikko", 60.99, 25.615);
+    const probe = Object.fromEntries(activeProbeDates().map((_, i) => ["p" + i, [{ gtfsId: "SMOKEV2:t" }]]));
+    const pMain = { code: "SMOKEV2:r:0:01", directionId: 0, ...probe, stops: [A, B, C, D] };
+    const pVar = { code: "SMOKEV2:r:0:02", directionId: 0, ...probe, stops: [X, C, D] };
+    const trip = (id, stops, dep) => ({ gtfsId: "SMOKEV2:" + id, serviceId: "SMOKEV2:s",
+      stoptimes: stops.map((s, i) => ({ timepoint: true, scheduledDeparture: dep + i * 120, stop: s })) });
+    const main = [300, 1500, 2700].map((m, i) => trip("m" + i, pMain.stops, t0 + m));
+    const vari = [trip("v0", pVar.stops, t0 + 900)];
+    const tripsOf = { [pMain.code]: main, [pVar.code]: vari };
+    cachedGql = async (key, query, vars) => {
+      if (/^deskline:SMOKEV2/.test(key)) return { data: { routes: [{ gtfsId: "SMOKEV2:r", shortName: "V2",
+        longName: "Alkupysäkki - Päätepysäkki", color: null, textColor: null, mode: "BUS", patterns: [pMain, pVar] }] }, cachedAt: null };
+      if (/^patgeo:SMOKEV2/.test(key)) return { data: { pattern: null }, cachedAt: null };
+      if (/^matrix2:SMOKEV2/.test(key)) {
+        const data = {};
+        for (const m of query.matchAll(/c(\d+): pattern\(id: "([^"]+)"\)/g))
+          data["c" + m[1]] = { tripsForDate: vars.date === ymd ? (tripsOf[m[2]] || []) : [] };
+        return { data, cachedAt: null };
+      }
+      if (/^tt4:SMOKEV2/.test(key)) return { data: { stop: { stoptimesForServiceDate: vars.date !== ymd ? [] : [{
+        pattern: { code: pMain.code },
+        stoptimes: main.map(tr => { const f = tr.stoptimes[0], l = tr.stoptimes[tr.stoptimes.length - 1];
+          return { scheduledDeparture: f.scheduledDeparture, realtimeDeparture: f.scheduledDeparture, realtime: false, serviceDay: sd,
+            trip: { gtfsId: tr.gtfsId, serviceId: tr.serviceId, wheelchairAccessible: "POSSIBLE",
+              departureStoptime: { scheduledDeparture: f.scheduledDeparture, stop: f.stop },
+              arrivalStoptime: { scheduledArrival: l.scheduledDeparture, stop: l.stop } } }; }) }] } }, cachedAt: null };
+      return orig(key, query, vars);
+    };
+    try {
+      const a = document.createElement("a");
+      a.href = "#/linjakartta/" + encodeURIComponent("SMOKEV2:r");
+      document.querySelector(".desk").appendChild(a);
+      a.click();
+      a.remove();
+      for (let i = 0; i < 60 && document.querySelectorAll("#deskLineDeps tbody tr").length < 4; i++) await new Promise(r => setTimeout(r, 200));
+      const rows = [...document.querySelectorAll("#deskLineDeps tbody tr")];
+      return {
+        jaettu: typeof lineDirDeps === "function",
+        otsikko: document.getElementById("deskLineDepsH")?.textContent.trim() || "",
+        minuutit: rows.map(tr => parseInt(tr.lastElementChild.textContent, 10)),
+        lahtopysakit: rows.map(tr => tr.querySelector(".dep-from")?.textContent.trim() || ""),
+        viesti: document.querySelector("#deskLineDeps > p.muted")?.textContent || "",
+      };
+    } finally {
+      cachedGql = orig;
+      document.querySelector('.dcard-tab[data-dcard="stop"]')?.click();   // linjan ajastin pois, kartta koko verkkoon
+    }
+  });
+  const v2Asc = v2Line.minuutit.length === 4 && v2Line.minuutit.every((m, i, a) => Number.isFinite(m) && (i === 0 || m > a[i - 1]));
+  (v2Line.jaettu && v2Asc && v2Line.lahtopysakit[1] === "Lähtee pysäkiltä Varikko"
+    && v2Line.lahtopysakit.filter(Boolean).length === 1 && v2Line.otsikko.includes("Alkupysäkki"))
+    ? ok(`palvelutiski V2: linjakortti näyttää eri pysäkiltä alkavan vuoron aikajärjestyksessä lähtöpysäkkeineen (${v2Line.minuutit.join("/")} min)`)
+    : fail("palvelutiski V2: linjakortin varianttivuoro: " + JSON.stringify(v2Line));
+
+  // 2) Viimeinen bussi haun päivälle ja Esteetön reitti -valinnalla, junavinkki haun ajasta. Lähtö ja
+  //    määränpää ovat yllä haetut (Matkakeskus → Mukkulankatu 2). Kyselyn muuttujat luetaan pyynnöstä.
+  //    Tila palautetaan: Nyt-aika ja esteettömyys pois.
+  const v2Vars = [];
+  const v2Listener = req => {
+    const pd = req.method() === "POST" ? (req.postData() || "") : "";
+    if (pd.includes('searchWindow: \\"PT6H\\"')) { try { v2Vars.push(JSON.parse(pd).variables); } catch (e) { /* ei JSONia */ } }
+  };
+  page.on("request", v2Listener);
+  await page.click('.dcard-tab[data-dcard="route"]');
+  const v2Day = await page.evaluate(() => {
+    const n = new Date(), d = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
+    return { iso: isoOf(d), label: d.toLocaleDateString("fi-FI", { weekday: "short", day: "numeric", month: "numeric" }) };
+  });
+  // Kenttien input vaihtaa Nyt-tilan lähtöajaksi käynnistämättä hakua (napin klikkaus hakisi, ja
+  // myöhästyvä reittitulos voisi korvata viimeisen bussin tuloksen kesken tarkistuksen).
+  const v2SetWhen = (date, time) => page.evaluate((d, tm) => {
+    document.getElementById("deskWheelchair").checked = true;   // ilman change-tapahtumaa: ei käynnistä hakua
+    const de = document.getElementById("deskDate"), te = document.getElementById("deskTime");
+    de.value = d; de.dispatchEvent(new Event("input", { bubbles: true }));
+    te.value = tm; te.dispatchEvent(new Event("input", { bubbles: true }));
+  }, date, time);
+  await v2SetWhen(v2Day.iso, "22:00");
+  await sleep(500);
+  await page.evaluate(() => { document.getElementById("deskResults").innerHTML = ""; document.getElementById("deskLastBusBtn").click(); });
+  await page.waitForSelector("#deskResults .desk-tell-h, #deskResults > p.muted", { timeout: 25000 }).catch(() => {});
+  const v2Last = await page.evaluate(() => ({
+    nappi: document.getElementById("deskLastBusBtn")?.textContent.trim() || "",
+    otsikko: document.querySelector("#deskResults .desk-tell-h")?.textContent.trim() || "",
+    runko: (document.querySelector("#deskResults .desk-tell-body")?.textContent || "").trim(),
+    vaihtoehto: !!document.querySelector("#deskResults .desk-opt"),
+    viesti: document.querySelector("#deskResults > p.muted")?.textContent || "",
+  }));
+  const lv = v2Vars[v2Vars.length - 1] || {};
+  const la = new Date(lv.dateTime?.latestArrival || 0);
+  const laOk = await page.evaluate(ms => { const d = new Date(ms); return isoOf(d) + " " + d.getHours() + ":" + d.getMinutes(); }, la.getTime());
+  (v2Last.otsikko === "Viimeinen bussi " + v2Day.label && v2Last.nappi === v2Last.otsikko && v2Last.runko && v2Last.vaihtoehto
+    && laOk === v2Day.iso + " 23:59" && lv.preferences?.accessibility?.wheelchair?.enabled === true)
+    ? ok(`palvelutiski V2: viimeinen bussi haun päivälle (${v2Last.otsikko}) esteettömyysvalinnalla`)
+    : fail("palvelutiski V2: viimeinen bussi: " + JSON.stringify({ ...v2Last, odotettu: v2Day.label, laOk, wc: lv.preferences }));
+  page.off("request", v2Listener);
+  // Junavinkki: haku 6 h päähän (live-junadata kattaa noin vuorokauden) näyttää vain sen jälkeen lähteviä
+  // junia; haku 5 vrk päähän piilottaa vinkin (ei nykyhetken junia).
+  const v2Rail = async (ms) => {
+    await page.evaluate(ms => {
+      const d = new Date(ms);
+      const de = document.getElementById("deskDate"), te = document.getElementById("deskTime");
+      de.value = isoOf(d); de.dispatchEvent(new Event("input", { bubbles: true }));
+      te.value = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+      te.dispatchEvent(new Event("input", { bubbles: true }));
+      document.getElementById("deskResults").innerHTML = "";
+      document.getElementById("deskRouteBtn").click();
+    }, ms);
+    await page.waitForFunction(() => { const h = document.querySelector("#deskResults [data-railhint]");
+      return h && h.hasAttribute("data-railhint-done") && (h.hidden || !!h.querySelector(".rail-next")); }, { timeout: 30000 }).catch(() => {});
+    return page.evaluate(() => {
+      const h = document.querySelector("#deskResults [data-railhint]");
+      const tm = document.getElementById("deskTime").value, from = new Date(document.getElementById("deskDate").value + "T" + tm).getTime();
+      // piilossa = hidden JA laskettu display none (CSS ei saa ohittaa piilotusta)
+      return { vinkki: !!h, piilossa: !!h && h.hidden && getComputedStyle(h).display === "none", from,
+        junat: h ? [...h.querySelectorAll(".rail-next")].map(x => Number(x.dataset.sched)) : [] };
+    });
+  };
+  const nowMs = Date.now();
+  const r6 = await v2Rail(nowMs + 6 * 3600e3);
+  const r5d = await v2Rail(nowMs + 5 * 86400e3);
+  (r6.vinkki && !r6.piilossa && r6.junat.length > 0 && r6.junat.every(s => s >= r6.from - 60000)
+    && r5d.vinkki && r5d.piilossa && r5d.junat.length === 0)
+    ? ok(`palvelutiski V2: junavinkki alkaa haun ajasta (${r6.junat.length} junaa) ja piiloutuu, kun haun ajalle ei ole junadataa`)
+    : fail("palvelutiski V2: junavinkki: " + JSON.stringify({ r6, r5d }));
+  await page.evaluate(() => {
+    document.getElementById("deskWheelchair").checked = false;
+    document.getElementById("deskResults").innerHTML = "";
+    document.querySelector('.desk-when .dseg[data-tm="now"]').click();
+  });
+  await sleep(500);
+
   // 390 px: tiskissä ei vaakavieritystä (viewport palautetaan heti).
   await page.setViewport({ width: 390, height: 800 });
   await sleep(1200);
@@ -2617,6 +2761,32 @@ async function minuuttiLinjaus(page, rootSel, media) {
     !!document.getElementById("deskFrom") && !!document.getElementById("deskTo") && !!document.getElementById("deskNlInput"));
   extDesk ? ok("oma reittihaku (Raasepori): palvelutiskin reittihaku ennallaan")
           : fail("oma reittihaku (Raasepori): palvelutiskin reittihaku katosi");
+  // Palvelutiski V2 (4.10.2026): areaScoped-kaupungin (Inkoo) yhteishaun pysäkkiriveillä on linjanumerot,
+  // ja ne ovat alueen linjoja (loadRoutes). Linjat haetaan yhdellä stops(ids:)-kyselyllä per haku.
+  await page.goto(BASE + "/?city=inkoo#/palvelutiski", { waitUntil: "networkidle2" });
+  await page.waitForSelector("#deskStop", { timeout: 15000 }).catch(() => {});
+  const ikReqs = [];
+  const ikListener = req => {
+    const pd = req.method() === "POST" ? (req.postData() || "") : "";
+    if (pd.includes("stops(ids: $ids) { gtfsId routes")) ikReqs.push(1);
+  };
+  page.on("request", ikListener);
+  await page.evaluate(() => { const q = document.getElementById("deskStop"); q.focus(); q.value = "Inkoo"; q.dispatchEvent(new Event("input", { bubbles: true })); });
+  await page.waitForSelector("#deskStopList button[data-s]", { timeout: 20000 }).catch(() => {});
+  await sleep(1500);
+  page.off("request", ikListener);
+  const ik = await page.evaluate(async () => {
+    const area = new Set((await loadRoutes()).map(r => r.shortName).filter(Boolean));
+    const rows = [...document.querySelectorAll("#deskStopList button[data-s]")].map(b => {
+      const m = b.querySelector(".muted")?.textContent || "";
+      return m.replace(/^[^:]*:\s*/, "").split(",").map(s => s.trim()).filter(Boolean);
+    });
+    return { areaScoped: !!CONFIG.areaScoped, pysakit: rows.length, linjallisia: rows.filter(r => r.length).length,
+      vieraat: [...new Set(rows.flat().filter(l => !area.has(l)))] };
+  });
+  (ik.areaScoped && ik.pysakit > 0 && ik.linjallisia > 0 && ik.vieraat.length === 0 && ikReqs.length === 1)
+    ? ok(`palvelutiski V2 (Inkoo): hakulistan pysäkeillä linjanumerot (${ik.linjallisia}/${ik.pysakit} pysäkkiä, alueen linjat, 1 linjakysely)`)
+    : fail("palvelutiski V2 (Inkoo): pysäkkirivien linjat: " + JSON.stringify({ ...ik, linjakyselyt: ikReqs.length }));
   await page.goto(BASE + "/?city=lahti#/", { waitUntil: "networkidle2" });
   await page.waitForSelector("#homeFromInput", { timeout: 15000 }).catch(() => {});
   const extLahti = await page.evaluate(() => ({
