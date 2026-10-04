@@ -2773,6 +2773,16 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (extHome.fields && !extHome.link && !extHome.nav)
     ? ok("oma reittihaku (Raasepori): etusivulla omat A->B-kentät, ei ulkoista reittiopaslinkkiä")
     : fail("oma reittihaku (Raasepori): " + JSON.stringify(extHome));
+  // Käännetty pysäkkinimi etusivun haussa (4.10.2026): feedin nimet ovat ruotsiksi, ja suomeksi "Tammisaari"
+  // ei antanut Pysäkit-ryhmään mitään. Nyt linja-autoasema löytyy pysäkkilinkkinä.
+  await page.evaluate(() => { const q = document.getElementById("uniSearch"); q.focus(); q.value = "Tammisaari"; q.dispatchEvent(new Event("input", { bubbles: true })); });
+  await page.waitForSelector('#searchResults a[href^="#/pysakki/"]', { timeout: 20000 }).catch(() => {});
+  const tmsHome = await page.evaluate(() => ({ kieli: lang,
+    pysakit: [...document.querySelectorAll('#searchResults a[href^="#/pysakki/"]')].map(a => a.textContent.replace(/\s+/g, " ").trim()) }));
+  await page.evaluate(() => { const q = document.getElementById("uniSearch"); q.value = ""; q.dispatchEvent(new Event("input", { bubbles: true })); });
+  (tmsHome.kieli === "fi" && tmsHome.pysakit.some(p => p.startsWith("Tammisaaren linja-autoasema")))
+    ? ok(`etusivun haku (Raasepori): suomenkielinen "Tammisaari" löytää pysäkit (${tmsHome.pysakit.length})`)
+    : fail("etusivun haku (Raasepori): Tammisaari: " + JSON.stringify(tmsHome));
   await page.goto(BASE + "/?city=raasepori#/reitti", { waitUntil: "networkidle2" });
   await page.waitForSelector("#planForm", { timeout: 15000 }).catch(() => {});
   const extPlan = await page.evaluate(() => ({

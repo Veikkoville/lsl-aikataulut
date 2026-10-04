@@ -14279,11 +14279,16 @@ async function searchStopsByName(name, limit) {
       .sort((a, b) => near(a) - near(b))
       .slice(0, limit);
   }
-  const data = await gql(
-    `query ($name: String) { stops(name: $name) { gtfsId name@L code lat lon } }`, { name });
-  return (data.stops || [])
-    .filter(s => inCityFeed(s.gtfsId) && s.lat != null && inRect(s.lat, s.lon))
-    .sort((a, b) => near(a) - near(b))
+  // Käyttöliittymän kielellä löytyvät nimet (searchLangStops, sama kuin tiskillä): stops(name:) vertaa vain feedin
+  // natiivinimiin, joten Raaseporissa suomeksi "Tammisaari" ei antanut etusivun haussa yhtään pysäkkiä.
+  const [data, own] = await Promise.all([
+    gql(`query ($name: String) { stops(name: $name) { gtfsId name@L code lat lon } }`, { name }),
+    langStopSearch() ? searchLangStops(name, limit).catch(() => []) : [],
+  ]);
+  const seen = new Set(own.map(s => s.gtfsId));
+  return [...own, ...(data.stops || [])
+    .filter(s => inCityFeed(s.gtfsId) && s.lat != null && inRect(s.lat, s.lon) && !seen.has(s.gtfsId))
+    .sort((a, b) => near(a) - near(b))]
     .slice(0, limit);
 }
 
@@ -14770,8 +14775,8 @@ function stopNameScore(name, nq) {
   };
   return nq.split(" ").every(w => words.some(x => near(w, x))) ? 1 : 0;
 }
-// Osumat linjoineen tiskin yhteishakuun: ehdokkaita otetaan reilusti, linjat haetaan yhdellä kyselyllä,
-// ja vilkkain pysäkki (eniten linjoja) nousee saman osumatason sisällä ensimmäiseksi.
+// Osumat linjoineen tiskin yhteishakuun ja kuntalaisen pysäkkihakuun (searchStopsByName): ehdokkaita otetaan
+// reilusti, linjat haetaan yhdellä kyselyllä, ja vilkkain pysäkki (eniten linjoja) nousee saman osumatason sisällä ensimmäiseksi.
 async function searchLangStops(q, limit) {
   const nq = (q || "").toLowerCase().replace(/\s+/g, " ").trim();
   if (nq.length < 2) return [];
