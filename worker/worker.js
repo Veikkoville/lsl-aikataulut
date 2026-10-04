@@ -697,10 +697,19 @@ export function buildAdminAlert(body, nowSec) {
   if (!title) return { error: "bad_request" };
   const sev = ["INFO", "WARNING", "SEVERE"].includes(body && body.severity) ? body.severity : "WARNING";
   const num = v => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.floor(n) : null; };
+  // Valinnaiset ruotsin- ja englanninkieliset versiot (kaksikielinen kunta, kielilain 32 § 2 mom ja 33 §).
+  // Samat pituusrajat kuin suomenkielisillä. Tyhjä = sovellus näyttää suomenkielisen tekstin.
+  // Kuvaus ilman saman kielen otsikkoa hylätään: sovellus näyttäisi suomenkielisen otsikon
+  // ja vieraskielisen kuvauksen sekaisin.
+  const tr = (k, max) => String((body && body[k]) || "").trim().slice(0, max);
+  const titleSv = tr("titleSv", 200), bodySv = tr("bodySv", 2000);
+  const titleEn = tr("titleEn", 200), bodyEn = tr("bodyEn", 2000);
+  if ((bodySv && !titleSv) || (bodyEn && !titleEn)) return { error: "translation_title" };
   return {
     rec: {
       title: title.slice(0, 200),
       body: String((body && body.body) || "").slice(0, 2000),
+      titleSv, bodySv, titleEn, bodyEn,
       url: String((body && body.url) || "").slice(0, 300),
       severity: sev,
       lines: Array.isArray(body && body.lines)

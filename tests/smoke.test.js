@@ -644,6 +644,124 @@ async function minuuttiLinjaus(page, rootSel, media) {
           ? ok("printtihygienia (palvelutiski): tulosteessa vain aikataulu, ei tiskinäkymää")
           : fail(`printtihygienia (palvelutiski): ${JSON.stringify(hy)} ` +
                  "(odotus: tiskinaykyma=false, hakukentta=false, tuloste=true)");
+
+        // Erä D1 (4.10.2026): pysäkkiaikataulun voimassaolo. Synteettinen muutosvahti, jotta tulos ei
+        // riipu päivän aikataulusta: muutos 60 vrk päästä on tulosteen 42 vrk:n ikkunan takana, joten
+        // tulosteeseen kuuluu "Voimassa X asti. Aikataulu muuttuu Y.". Lisäksi stopValidityInfo:n
+        // tapaukset synteettisillä lohkoilla. Vahdin välimuisti nollataan lopuksi (smoke on tilallinen).
+        const vd = await page.evaluate(async () => {
+          if (typeof stopValidityInfo !== "function") return { puuttuu: true };
+          const iso = n => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return isoOf(d); };
+          const num = s => +s.replace(/-/g, "");
+          const T = todayISO(), muutos = iso(60), arvio = iso(50), oma = iso(20);
+          const W = (rows, ajettu = T) => { changeWatchPromise = Promise.resolve({ ajettu: ajettu + "T09:00:00.000Z", pysakit: rows }); };
+          const B = days => Object.assign([], { changeDays: days });
+          const k = v => v ? v.kind + ":" + v.date : null;
+          const r = {};
+          W([{ id: "X:1", tulossa: true, voimaan: muutos, voimaanTarkka: true }]); r.until = k(await stopValidityInfo("X:1", B([]), T));
+          W([{ id: "X:1", tulossa: true, voimaan: arvio, voimaanTarkka: false }]); r.approx = k(await stopValidityInfo("X:1", B([]), T));
+          W([{ id: "X:1", tulossa: true, voimaan: oma, voimaanTarkka: true }]); r.shownVahti = k(await stopValidityInfo("X:1", B([num(oma)]), T));
+          W([{ id: "X:1", tulossa: false }]); r.shownOma = k(await stopValidityInfo("X:1", B([num(oma)]), T));
+          r.ok = k(await stopValidityInfo("X:1", B([]), T));
+          r.eiRivia = k(await stopValidityInfo("X:2", B([]), T));
+          W([{ id: "X:1", tulossa: true, voimaan: iso(-1), voimaanTarkka: true }]); r.mennyt = k(await stopValidityInfo("X:1", B([]), T));
+          W([{ id: "X:1", tulossa: false }], iso(-30)); r.vanha = k(await stopValidityInfo("X:1", B([]), T));
+          changeWatchPromise = Promise.resolve(null); r.eiVahtia = k(await stopValidityInfo("X:1", B([]), T));
+          // Koko tulostepolku: vahti tuntee tulostettavan pysäkin muutoksen.
+          const orig = stopValidityInfo;
+          stopValidityInfo = async (s, b, d) => { W([{ id: s, tulossa: true, voimaan: muutos, voimaanTarkka: true }]); return orig(s, b, d); };
+          const po = document.getElementById("deskPrintOut");
+          try {
+            po.innerHTML = "";
+            document.getElementById("deskPrintBtn").click();
+            for (let i = 0; i < 600 && !po.querySelector(".poster-day .hourgrid tr"); i++) await new Promise(res => setTimeout(res, 100));
+          } finally { stopValidityInfo = orig; changeWatchPromise = null; }
+          const el = po.querySelector(".poster-head .poster-valid");
+          const ed = new Date(muutos + "T12:00:00"); ed.setDate(ed.getDate() - 1);
+          return { r, T, muutos, arvio, oma, kpl: po.querySelectorAll(".poster-valid").length, laji: el?.dataset.valid || null,
+            teksti: el?.textContent.trim() || "", odMuutos: fmtDateLong(muutos), odAsti: fmtDateLong(isoOf(ed)),
+            kontrasti: el ? getComputedStyle(el).backgroundColor : "" };
+        });
+        const vr = vd.r || {};
+        (!vd.puuttuu && vr.until === "until:" + vd.muutos && vr.approx === "approx:" + vd.arvio && vr.shownVahti === "shown:" + vd.oma
+          && vr.shownOma === "shown:" + vd.oma && vr.ok === "ok:" + vd.T && vr.eiRivia === null && vr.mennyt === "ok:" + vd.T
+          && vr.vanha === null && vr.eiVahtia === null)
+          ? ok("palvelutiski: voimassaolon päättely (vahdin muutos, arvio, julisteen oma jakso, toistaiseksi, ei tietoa) oikein")
+          : fail("palvelutiski: voimassaolon päättely: " + JSON.stringify(vd));
+        (vd.kpl === 1 && vd.laji === "until" && vd.teksti.includes(vd.odMuutos) && vd.teksti.includes(vd.odAsti))
+          ? ok(`palvelutiski: pysäkkiaikataulussa voimassaolo kerran otsikossa ("${vd.teksti}")`)
+          : fail("palvelutiski: pysäkkiaikataulun voimassaolo puuttuu tai väärin: " + JSON.stringify(vd));
+
+        // Erä D2: Iso teksti. Valinta tulostenapin vieressä, muistetaan (localStorage) ja kaikki valinnat
+        // pysyvät samassa tilassa. Print-medialla jokainen tekstisolmu vähintään 14 pt (18,6 px). Valinta
+        // palautetaan lopuksi ennalleen, jotta myöhemmät tulostetarkistukset näkevät oletustulosteen.
+        const isoEnnen = await page.evaluate(() => localStorage.getItem("printLarge"));
+        const isoCb = await page.$("#deskStopResults .printLargeCb");
+        if (!isoCb) fail("palvelutiski: Iso teksti -valinta puuttuu tulostusnapin vierestä");
+        else {
+          await isoCb.click();
+          const isoTila = await page.evaluate(async () => {
+            const po = document.getElementById("deskPrintOut");
+            const tila = { tallessa: localStorage.getItem("printLarge"),
+              kaikki: [...document.querySelectorAll(".printLargeCb")].map(c => c.checked),
+              vieressa: !!document.querySelector("#deskPrintBtn ~ .print-large-opt .printLargeCb") };
+            po.innerHTML = "";
+            document.getElementById("deskPrintBtn").click();
+            for (let i = 0; i < 600 && !po.querySelector('.poster-stop[data-large="1"] .hourgrid tr'); i++) await new Promise(res => setTimeout(res, 100));
+            for (let i = 0; i < 50 && !document.getElementById("pageOrient")?.textContent; i++) await new Promise(res => setTimeout(res, 100));
+            tila.iso = !!po.querySelector('.poster-stop[data-large="1"]');
+            tila.orient = document.getElementById("pageOrient")?.textContent || "";
+            return tila;
+          });
+          const mitta = async (sel) => {
+            await page.emulateMediaType("print");
+            const m = await page.evaluate(s => {
+              const root = document.querySelector(s);
+              const out = { n: 0, min: Infinity, pienin: "", ajat: Infinity };
+              if (!root) return out;
+              for (const el of root.querySelectorAll("*")) {
+                if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue;
+                const cs = getComputedStyle(el);
+                if (cs.display === "none" || cs.visibility === "hidden" || !el.getClientRects().length) continue;
+                const px = parseFloat(cs.fontSize);
+                out.n++;
+                if (px < out.min) { out.min = px; out.pienin = el.tagName + "." + el.className + ": " + el.textContent.trim().slice(0, 30); }
+                if (el.matches("td, td *")) out.ajat = Math.min(out.ajat, px);
+              }
+              return out;
+            }, sel);
+            await page.emulateMediaType(null);
+            return m;
+          };
+          const mp = await mitta("#deskPrintOut .poster-compact");
+          // Reittituloste synteettisellä yhteydellä (ei riipu päivän aikataulusta).
+          const it = await page.evaluate(() => {
+            const leg = (mode, a, b, from, to, route) => ({ mode, start: { scheduledTime: a }, end: { scheduledTime: b }, duration: 300, distance: 350,
+              from: { name: from, stop: { platformCode: "D" } }, to: { name: to }, route, trip: route ? { tripHeadsign: "Mukkula" } : null, intermediateStops: [] });
+            const node = { start: "2026-10-05T07:58:00+03:00", end: "2026-10-05T08:30:00+03:00", numberOfTransfers: 0, legs: [
+              leg("WALK", "2026-10-05T07:58:00+03:00", "2026-10-05T08:03:00+03:00", "Koti", "Matkakeskus", null),
+              leg("BUS", "2026-10-05T08:05:00+03:00", "2026-10-05T08:25:00+03:00", "Matkakeskus D", "Mukkula", { shortName: "32", color: "0a4ea3", textColor: "ffffff" }),
+              leg("WALK", "2026-10-05T08:25:00+03:00", "2026-10-05T08:30:00+03:00", "Mukkula", "Perillä", null)] };
+            document.getElementById("deskPrintOut").innerHTML = deskItineraryPrintHtml(node, [node], { name: "Koti" }, { name: "Mukkulankatu 2" }, "");
+            return !!document.querySelector("#deskPrintOut .itin-print.ip-large");
+          });
+          const mi = await mitta("#deskPrintOut .itin-print");
+          await page.evaluate(e => {
+            setPrintLarge(e === "1");
+            if (e == null) localStorage.removeItem("printLarge");
+            printLargeMem = null;
+            document.getElementById("deskPrintOut").innerHTML = "";
+          }, isoEnnen);
+          (isoTila.tallessa === "1" && isoTila.kaikki.length >= 2 && isoTila.kaikki.every(Boolean) && isoTila.vieressa)
+            ? ok(`palvelutiski: Iso teksti -valinta tulostusnapin vieressä, muistetaan ja synkassa (${isoTila.kaikki.length} valintaa)`)
+            : fail("palvelutiski: Iso teksti -valinta: " + JSON.stringify(isoTila));
+          (isoTila.iso && /portrait/.test(isoTila.orient) && mp.n >= 20 && mp.min >= 18.6 && mp.ajat >= 18.6)
+            ? ok(`palvelutiski: iso pysäkkiaikataulu A4:llä, pienin teksti ${(mp.min * 0.75).toFixed(1)} pt, kellonajat ${(mp.ajat * 0.75).toFixed(1)} pt (${mp.n} tekstiä)`)
+            : fail("palvelutiski: iso pysäkkiaikataulu alle 14 pt tai puuttuu: " + JSON.stringify({ isoTila, mp }));
+          (it && mi.n >= 8 && mi.min >= 18.6 && mi.ajat >= 18.6)
+            ? ok(`palvelutiski: iso reittituloste, pienin teksti ${(mi.min * 0.75).toFixed(1)} pt (${mi.n} tekstiä)`)
+            : fail("palvelutiski: iso reittituloste alle 14 pt tai puuttuu: " + JSON.stringify({ it, mi }));
+        }
       }
     }
   }
@@ -968,6 +1086,41 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (await page.evaluate(() => document.body.classList.contains("desk-mode")))
     ? fail("palvelutiski: desk-mode ei purkaudu poistuttaessa")
     : ok("palvelutiski: desk-mode purkautuu poistuttaessa");
+
+  // Erä D5 (4.10.2026): ylläpidon häiriötiedote käyttäjän kielellä. Synteettinen julkaisu kuten hintatestissä:
+  // A:ssa ruotsi kokonaan ja englanniksi vain otsikko (kuvaus palaa suomeen), B on vanhan workerin muoto
+  // ilman käännöskenttiä. Kieli vaihtuu vain uudelleenlatauksessa; kieli ja julkaisun välimuisti palautetaan.
+  {
+    const kieliEnnen = await page.evaluate(() => localStorage.getItem("lang"));
+    const tulos = [];
+    for (const kieli of ["sv", "en", "fi"]) {
+      await page.evaluate(l => localStorage.setItem("lang", l), kieli);
+      await page.reload({ waitUntil: "networkidle2" });
+      tulos.push(await page.evaluate(async k => {
+        publishedPromise = Promise.resolve({ fares: null, a11y: null, alerts: [
+          { title: "D5 otsikko suomeksi", body: "D5 kuvaus suomeksi", titleSv: "D5 rubrik på svenska", bodySv: "D5 beskrivning på svenska",
+            titleEn: "D5 title in English", bodyEn: "", severity: "SEVERE", lines: ["4"] },
+          { title: "D5 vain suomeksi", body: "D5 vanha worker", severity: "SEVERE", lines: [] }] });
+        try {
+          const a = (await loadAllAlerts()).filter(x => x._admin).map(x => x.alertHeaderText + " | " + x.alertDescriptionText);
+          const box = document.createElement("div");
+          await loadAlertsInto(box);
+          return { kieli: k, lang, a, nakyy: box.textContent.replace(/\s+/g, " ") };
+        } finally { publishedPromise = null; }
+      }, kieli));
+    }
+    await page.evaluate(l => { if (l == null) localStorage.removeItem("lang"); else localStorage.setItem("lang", l); }, kieliEnnen);
+    await page.reload({ waitUntil: "networkidle2" });
+    const odotus = {
+      sv: ["D5 rubrik på svenska | D5 beskrivning på svenska", "D5 vain suomeksi | D5 vanha worker"],
+      en: ["D5 title in English | D5 kuvaus suomeksi", "D5 vain suomeksi | D5 vanha worker"],
+      fi: ["D5 otsikko suomeksi | D5 kuvaus suomeksi", "D5 vain suomeksi | D5 vanha worker"] };
+    const vika = tulos.filter(r => r.lang !== r.kieli || JSON.stringify(r.a) !== JSON.stringify(odotus[r.kieli])
+      || !odotus[r.kieli].every(s => s.split(" | ").every(o => r.nakyy.includes(o))));
+    !vika.length
+      ? ok("häiriötiedote: ylläpidon tiedote näkyy käyttäjän kielellä (sv/en), puuttuva käännös ja vanha worker palaavat suomeen")
+      : fail("häiriötiedote: kieliversio väärin: " + JSON.stringify(vika));
+  }
 
   // Työkalunappien teksti ei saa katketa KESKEN SANAN. Rivitys sanavälistä on kunnossa
   // ("Bussit kartalla (live)" saa olla kahdella rivillä); sanan sisäinen katkos ei ole

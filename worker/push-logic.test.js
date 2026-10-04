@@ -213,6 +213,23 @@ check(aa.lines.join(",") === "3,8K,12", "adminAlert: linjat siistitään isoiksi
 check(buildAdminAlert({ title: "x", severity: "OUTO" }, 1).rec.severity === "WARNING", "adminAlert: tuntematon vakavuus → WARNING");
 check(buildAdminAlert({ title: "a".repeat(500) }, 1).rec.title.length === 200, "adminAlert: otsikko katkaistaan 200 merkkiin");
 check(buildAdminAlert({ title: "x", startsAt: "ei-numero" }, 1).rec.startsAt === null, "adminAlert: virheellinen alkuaika → null");
+// Ruotsin- ja englanninkieliset versiot (erä D1/D5): valinnaiset, trimmataan, samat pituusrajat.
+const ak = buildAdminAlert({ title: "Työmaa", body: "Linja 3 poikkeaa", titleSv: "  Vägarbete ", bodySv: "Linje 3 avviker",
+  titleEn: "Roadworks", bodyEn: "Line 3 is diverted" }, 1).rec;
+check(ak.titleSv === "Vägarbete" && ak.bodySv === "Linje 3 avviker" && ak.titleEn === "Roadworks" && ak.bodyEn === "Line 3 is diverted",
+  "adminAlert: sv- ja en-kentät tallentuvat (trimmattuna)");
+const akNone = buildAdminAlert({ title: "Työmaa" }, 1).rec;
+check(akNone.titleSv === "" && akNone.bodySv === "" && akNone.titleEn === "" && akNone.bodyEn === "",
+  "adminAlert: puuttuvat käännökset → tyhjät (sovellus näyttää suomen)");
+const akLong = buildAdminAlert({ title: "x", titleSv: "å".repeat(500), bodySv: "å".repeat(5000), titleEn: "e".repeat(500), bodyEn: "e".repeat(5000) }, 1).rec;
+check(akLong.titleSv.length === 200 && akLong.bodySv.length === 2000 && akLong.titleEn.length === 200 && akLong.bodyEn.length === 2000,
+  "adminAlert: käännösten pituusrajat samat kuin suomella (200 / 2000)");
+check(buildAdminAlert({ title: "x", bodySv: "Linje 3 avviker" }, 1).error === "translation_title"
+  && buildAdminAlert({ title: "x", bodyEn: "Line 3 is diverted" }, 1).error === "translation_title",
+  "adminAlert: käännetty kuvaus ilman saman kielen otsikkoa hylätään");
+check(buildAdminAlert({ title: "x", titleSv: "y", titleEn: 5 }, 1).rec.titleEn === "5"
+  && buildAdminAlert({ title: "x", titleSv: null }, 1).rec.titleSv === "",
+  "adminAlert: käännöskenttä merkkijonoksi (numero) ja null tyhjäksi");
 
 // --- Ylläpito: voimassaolon suodatus (currentAdminAlerts) ---
 const now = 1500;
@@ -234,6 +251,9 @@ const cookieFrom = res => { const c = res.headers.get("Set-Cookie") || ""; retur
 const pageRes = await worker.fetch(req("/admin"), adminEnv);
 const pageHtml = await pageRes.text();
 check(pageRes.status === 200 && /Ylläpito/.test(pageHtml), "admin: /admin palauttaa HTML-sivun");
+check(["titleSv", "bodySv", "titleEn", "bodyEn"].every(id => pageHtml.includes(`id="${id}"`))
+  && /titleSv: \$\("titleSv"\)\.value\.trim\(\)/.test(pageHtml) && /bodyEn: \$\("bodyEn"\)\.value\.trim\(\)/.test(pageHtml),
+  "admin: tiedotelomakkeessa ruotsin- ja englanninkieliset kentät, ja ne lähtevät tallennukseen");
 
 // ilman evästettä API on suojattu
 const noAuth = await worker.fetch(req("/admin/api/alerts?city=lahti"), adminEnv);
@@ -268,6 +288,29 @@ const editRes = await worker.fetch(req("/admin/api/alerts", { method: "POST", he
   body: JSON.stringify({ city: "lahti", id: editId, title: "Hissi korjattu", severity: "INFO" }) }), adminEnv);
 const edited = await editRes.json();
 check(edited.items.length === 1 && edited.items[0].id === editId && edited.items[0].title === "Hissi korjattu", "admin: muokkaus säilyttää id:n (ei tuplaa)");
+
+// Kieliversiot päästä päähän: tallennus → /published palauttaa ne, ja suomenkieliset kentät pysyvät
+// ennallaan (vanha client lukee vain title/body). Muokkaus ilman käännöksiä tyhjentää ne.
+const svRes = await worker.fetch(req("/admin/api/alerts", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" },
+  body: JSON.stringify({ city: "lahti", id: editId, title: "Hissi korjattu", body: "Matkakeskus", titleSv: "Hissen lagad",
+    bodySv: "Resecentrum", titleEn: "Lift repaired", bodyEn: "Travel centre" }) }), adminEnv);
+const svPub = await (await worker.fetch(req("/published?city=lahti"), adminEnv)).json();
+const svA = svPub.alerts[0] || {};
+check(svRes.status === 200 && svPub.alerts.length === 1 && svA.titleSv === "Hissen lagad" && svA.bodySv === "Resecentrum"
+  && svA.titleEn === "Lift repaired" && svA.bodyEn === "Travel centre",
+  "admin: sv- ja en-versiot tallentuvat ja näkyvät /published-päätepisteessä");
+check(svA.title === "Hissi korjattu" && svA.body === "Matkakeskus" && svA.id === editId,
+  "admin: kieliversioiden kanssa suomenkieliset title/body ja id ennallaan (vanha client toimii)");
+const badTr = await worker.fetch(req("/admin/api/alerts", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" },
+  body: JSON.stringify({ city: "lahti", id: editId, title: "Hissi korjattu", bodySv: "Resecentrum" }) }), adminEnv);
+const afterBad = ((await (await worker.fetch(req("/published?city=lahti"), adminEnv)).json()).alerts || [])[0] || {};
+check(badTr.status === 400 && (await badTr.json()).error === "translation_title" && afterBad.titleSv === "Hissen lagad",
+  "admin: ruotsinkielinen kuvaus ilman otsikkoa → 400 translation_title, tallennettu ennallaan");
+const clrRes = await worker.fetch(req("/admin/api/alerts", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" },
+  body: JSON.stringify({ city: "lahti", id: editId, title: "Hissi korjattu" }) }), adminEnv);
+const clr = (await clrRes.json()).items[0] || {};
+check(clr.titleSv === "" && clr.bodySv === "" && clr.titleEn === "" && clr.bodyEn === "",
+  "admin: muokkaus ilman käännöksiä tyhjentää ne (ei jää vanhaa käännöstä uuden suomenkielisen rinnalle)");
 
 // poisto
 const delRes = await worker.fetch(req("/admin/api/alerts/delete", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" },

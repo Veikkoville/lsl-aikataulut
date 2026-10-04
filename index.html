@@ -1127,6 +1127,35 @@
   .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix th.poster-line { padding: 0 1mm 1.2mm 1mm; }
   .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix td.t0 { padding-left: 1mm; }
   .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix td.tz { padding-right: 1mm; }
+  /* Voimassaolorivi (stopValidityHtml): tuleva muutos keltaisella pohjalla mustana, jotta se erottuu
+     otsikkopalkista myös mustavalkotulosteessa; "voimassa toistaiseksi" tavallisena rivinä. */
+  .poster-valid { font-weight: 700; margin: 0.3rem 0 0; }
+  .poster-valid-change { display: inline-block; background: #ffe066; color: #000; padding: 0.1em 0.45em;
+    border-radius: 0.2em; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .poster-compact .poster-head p.poster-valid { color: #fff; font-size: 9pt; margin: 1.2mm 0 0; }
+  .poster-compact .poster-head p.poster-valid-change { color: #000; font-size: 10pt; padding: 0.6mm 2mm; border-radius: 1mm; }
+  /* Iso teksti (tiskin pysäkkiaikataulu asiakkaalle, printLargeOn): kaikki teksti vähintään 14 pt ja
+     kellonajat 16 pt (RNIB-linjan ohje: vähintään 12, mieluiten 14 pt). fitPosterSheet ei tiukenna
+     (fitCap 0), joten arkkeja tulee tarvittaessa useampi. Otsikkopalkin teksti täysvalkoisena. */
+  .poster-compact .poster-stop[data-large="1"] { font-size: 16pt; line-height: 1.2; gap: 3mm 6mm; }
+  .poster-compact .poster-stop[data-large="1"] .poster-head { padding: 2mm 3.5mm; }
+  .poster-compact .poster-stop[data-large="1"] .poster-head h2 { font-size: 22pt; }
+  .poster-compact .poster-stop[data-large="1"] .poster-head h2 .muted { color: #fff; font-size: 16pt; }
+  .poster-compact .poster-stop[data-large="1"] .poster-head p.muted,
+  .poster-compact .poster-stop[data-large="1"] .poster-head p.poster-printed,
+  .poster-compact .poster-stop[data-large="1"] .poster-head p.poster-valid { color: #fff; font-size: 14pt; margin-top: 1mm; }
+  .poster-compact .poster-stop[data-large="1"] .poster-head p.poster-valid-change { color: #000; }
+  .poster-compact .poster-stop[data-large="1"] .poster-qrcap,
+  .poster-compact .poster-stop[data-large="1"] .poster-legend,
+  .poster-compact .poster-stop[data-large="1"] p.poster-cont,
+  .poster-compact .poster-stop[data-large="1"] table.poster-matrix tr.pm-cont th { font-size: 14pt; }
+  .poster-compact .poster-stop[data-large="1"] img.poster-qr { width: 24mm; height: 24mm; }
+  .poster-compact .poster-stop[data-large="1"] table.poster-matrix th { color: #000; }
+  /* Sama enimmäisleveys myös kapeassa tilassa: 24 mm:n sarakkeeseen "Matkakeskus" ei mahdu 14 pt:llä,
+     ja sana valui naapurisarakkeen päälle (PDF 4.10.2026). Mieluummin arkki lisää kuin katkennut sana. */
+  .poster-compact .poster-stop[data-large="1"] table.poster-matrix th.poster-line h4 { font-size: 14pt; max-width: 34mm; min-width: min-content; }
+  .poster-compact .poster-stop[data-large="1"] table.poster-matrix th.poster-line h4 .badge { font-size: 16pt; }
+  .poster-compact .poster-stop[data-large="1"] table.hourgrid td sup { font-size: 0.9em; }
   /* Mittauslaatikko: arkin levyinen, näkymätön, ruudun ulkopuolella. Sama CSS kuin paperilla. */
   .poster-measure { position: absolute; left: -9999px; top: 0; width: 196mm; visibility: hidden;
     display: block; font-size: 16px; }
@@ -1508,6 +1537,20 @@
   .itin-print .ip-qr img { width: 30mm; height: 30mm; display: block; margin: 0 auto 1mm; }
   .itin-print .ip-later { margin: 5mm 0 0; font-size: 12pt; }
   .itin-print .ip-foot { margin: 4mm 0 0; font-size: 9pt; color: #444; }
+  /* Iso teksti (printLargeOn): kaikki vähintään 14 pt, kellonajat 20 pt, harmaat tekstit mustiksi. */
+  .itin-print.ip-large h2 { font-size: 26pt; }
+  .itin-print.ip-large .ip-sum { font-size: 18pt; }
+  .itin-print.ip-large table { font-size: 16pt; }
+  .itin-print.ip-large td { padding: 3mm 2mm; border-top-color: #000; }
+  .itin-print.ip-large td.it-time { width: 24mm; font-size: 20pt; }
+  .itin-print.ip-large td.it-line { width: 30mm; }
+  .itin-print.ip-large .badge { font-size: 16pt; color: #000 !important; background: #fff !important; border: 1px solid #000; }
+  .itin-print.ip-large .muted { color: #000; font-size: 14pt; }
+  .itin-print.ip-large .ip-foot { color: #000; }
+  .itin-print.ip-large .ip-qr { font-size: 14pt; }
+  .itin-print.ip-large .ip-qr img { width: 40mm; height: 40mm; }
+  .itin-print.ip-large .ip-later { font-size: 16pt; }
+  .itin-print.ip-large .ip-foot { font-size: 14pt; }
   .desk-opt-lines .badge { font-size: 1.05em; }
   details.desk-stops summary { cursor: pointer; color: var(--blue); font-weight: var(--wmed); margin-top: 0.2rem; }
   ul.desk-stoplist { list-style: none; margin: 0.4rem 0 0; padding: 0; }
@@ -4394,6 +4437,8 @@ const STRINGS = {
     deskStopNoLines: "Ei säännöllisiä linjoja.",
     deskPinBtn: "Kiinnitä tämä pysäkki oletukseksi",
     deskPrintBtn: "Tulosta aikataulu asiakkaalle",
+    printLargeLabel: "Iso teksti",
+    printLargeHint: "Teksti vähintään 14 pt ikääntyneille ja heikkonäköisille. Sivuja voi tulla useampi.",
     deskPinned: "Kiinnitetty oletukseksi",
     deskNoStop: "Pysäkkiä ei löytynyt.",
     deskDepsTitle: "Seuraavat lähdöt pysäkiltä",
@@ -4592,6 +4637,10 @@ const STRINGS = {
     posterFoot: "Tulostettu {date} · {operator} · Ajantasaiset lähdöt QR-koodilla",
     printMeta: "Tulostettu {date} · {operator}",
     printMetaDate: "Tulostettu {date}",
+    validUntilChange: "Voimassa {until} asti. Aikataulu muuttuu {date}.",
+    validChangeBy: "Aikataulu muuttuu viimeistään {date}.",
+    validChangeShown: "Aikataulu muuttuu {date}. Muuttuvat lähdöt on merkitty kirjaimella, katso selite.",
+    validNoChange: "Voimassa toistaiseksi. Aikataulumuutoksia ei ole tiedossa (tarkistettu {date}).",
     loadingDeps: "Haetaan lähtöjä…",
     fullTimetableTitle: "Koko aikataulu pysäkeittäin",
     fullTimetableShow: "Näytä koko aikataulu",
@@ -5133,6 +5182,8 @@ const STRINGS = {
     deskStopNoLines: "No regular lines.",
     deskPinBtn: "Pin this stop as the default",
     deskPrintBtn: "Print timetable for the customer",
+    printLargeLabel: "Large text",
+    printLargeHint: "Text at least 14 pt for older and partially sighted readers. The printout may need more pages.",
     deskPinned: "Pinned as the default",
     deskNoStop: "Stop not found.",
     deskDepsTitle: "Next departures from stop",
@@ -5325,6 +5376,10 @@ const STRINGS = {
     posterFoot: "Printed {date} · {operator} · Live departures via the QR code",
     printMeta: "Printed {date} · {operator}",
     printMetaDate: "Printed {date}",
+    validUntilChange: "Valid until {until}. The timetable changes on {date}.",
+    validChangeBy: "The timetable changes on {date} at the latest.",
+    validChangeShown: "The timetable changes on {date}. Departures that change are marked with a letter, see the key.",
+    validNoChange: "Valid until further notice. No timetable changes are known (checked {date}).",
     loadingDeps: "Loading departures…",
     fullTimetableTitle: "Full timetable by stop",
     fullTimetableShow: "Show full timetable",
@@ -5860,6 +5915,8 @@ const STRINGS = {
     deskStopNoLines: "Inga reguljära linjer.",
     deskPinBtn: "Fäst den här hållplatsen som standard",
     deskPrintBtn: "Skriv ut tidtabellen åt kunden",
+    printLargeLabel: "Stor text",
+    printLargeHint: "Text minst 14 pt för äldre och synsvaga. Utskriften kan bli flera sidor.",
     deskPinned: "Fäst som standard",
     deskNoStop: "Hållplatsen hittades inte.",
     deskDepsTitle: "Nästa avgångar från hållplats",
@@ -6052,6 +6109,10 @@ const STRINGS = {
     posterFoot: "Utskriven {date} · {operator} · Avgångar i realtid via QR-koden",
     printMeta: "Utskriven {date} · {operator}",
     printMetaDate: "Utskriven {date}",
+    validUntilChange: "Gäller till och med {until}. Tidtabellen ändras {date}.",
+    validChangeBy: "Tidtabellen ändras senast {date}.",
+    validChangeShown: "Tidtabellen ändras {date}. Avgångar som ändras är märkta med en bokstav, se förklaringen.",
+    validNoChange: "Gäller tills vidare. Inga kända tidtabellsändringar (kontrollerat {date}).",
     loadingDeps: "Hämtar avgångar…",
     fullTimetableTitle: "Hela tidtabellen per hållplats",
     fullTimetableShow: "Visa hela tidtabellen",
@@ -9309,10 +9370,14 @@ function track(type, value) {
     else fetch(u, { method: "POST", body, keepalive: true }).catch(() => {});
   } catch (e) { /* analytiikka ei saa koskaan rikkoa sovellusta */ }
 }
+// Ylläpidon tiedote käyttöliittymän kielellä: ruotsin- ja englanninkielinen otsikko ja kuvaus ovat
+// valinnaisia (worker buildAdminAlert). Puuttuva käännös tai vanha worker ilman kenttiä → suomi.
 function adminToAlerts(items) {
+  const sfx = lang === "sv" ? "Sv" : lang === "en" ? "En" : "";
+  const pick = (a, k) => (sfx && String(a[k + sfx] || "").trim()) || a[k] || "";
   return (items || []).map(a => ({
-    alertHeaderText: a.title,
-    alertDescriptionText: a.body || "",
+    alertHeaderText: pick(a, "title"),
+    alertDescriptionText: pick(a, "body"),
     alertSeverityLevel: a.severity || "WARNING",
     alertUrl: a.url || "",
     _admin: true,
@@ -10215,6 +10280,85 @@ function periodNote(dateISO) {
   return t("bookletPeriodNote", { date: fmtDateLong(dateISO) });
 }
 
+/* Pysäkkiaikataulun voimassaolo (auditointi 4.10.2026, M12): asiakkaalle annettu pysäkkiaikataulu
+   kertoi vain tulostuspäivän, vaikka muutosvahti tiesi Lahden 43 pysäkin aikataulun muuttuvan
+   2.11.2026. Uutta datalähdettä ei ole, vaan kaksi olemassa olevaa:
+   1) Muutosvahdin viikkoajo (docs/muutosvahti/<city>.json, sama tiedosto kuin Muutosvahti-välilehdellä):
+      pysäkin tulossa + voimaan (+ voimaanTarkka). Vahti katsoo noin 6 viikkoa eteenpäin.
+   2) Julisteen omat jaksot (stopPosterBlocks.changeDays): activeDates tulosteen 42 vrk:n ikkunasta.
+      Näistä alkavat lähdöt selite merkitsee jo kirjaimella ("2.11. alkaen").
+   Pidemmälle ei päätellä mitään: Digitransitin activeDates kattaa vain noin 84 vrk eteenpäin. */
+let changeWatchPromise = null;
+function loadChangeWatch() {
+  if (!changeWatchPromise) {
+    changeWatchPromise = (async () => {
+      // Yhteenveto ensin kuten bindChangesTab: puuttuvan kaupunkitiedoston haku lokittaisi 404:n.
+      const ix = await fetch("docs/muutosvahti/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null);
+      if (!ix?.kaupungit?.[cityKey]) return null;
+      const r = await fetch("docs/muutosvahti/" + encodeURIComponent(cityKey) + ".json", { cache: "no-cache" });
+      return r.ok ? await r.json() : null;
+    })().catch(() => { changeWatchPromise = null; return null; });   // verkkovirhe: seuraava tuloste yrittää uudelleen
+  }
+  return changeWatchPromise;
+}
+// Palauttaa { kind, date } tai null (ei tietoa → tulosteeseen ei väitetä mitään):
+//   until  = vahdin tuntema muutos, jota juliste ei vielä näytä: "Voimassa X asti. Aikataulu muuttuu Y."
+//   approx = sama, mutta vahti ei saanut tarkkaa päivää (voimaanTarkka false): "muuttuu viimeistään Y"
+//   shown  = muutos on julisteen omassa ikkunassa ja selitteessä: "Aikataulu muuttuu Y. Merkitty kirjaimella."
+//   ok     = vahti tarkisti pysäkin enintään 14 vrk sitten, eikä muutosta ole tiedossa
+async function stopValidityInfo(stopId, blocks, todayIso) {
+  const today = todayIso || todayISO();
+  const num = iso => +String(iso).replace(/-/g, "");
+  const isoOfNum = n => { const s = String(n); return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`; };
+  const shown = ((blocks && blocks.changeDays) || []).filter(n => n > num(today));
+  let watch = null;
+  try { watch = await loadChangeWatch(); } catch (e) { /* ei vahtia: vain julisteen omat jaksot */ }
+  const row = watch && Array.isArray(watch.pysakit) ? watch.pysakit.find(p => p && p.id === stopId) : null;
+  if (row && row.tulossa && row.voimaan && row.voimaan > today && !shown.includes(num(row.voimaan)))
+    return { kind: row.voimaanTarkka === false ? "approx" : "until", date: row.voimaan };
+  if (shown.length) return { kind: "shown", date: isoOfNum(Math.min(...shown)) };
+  const checked = String((watch && watch.ajettu) || "").slice(0, 10);
+  const age = checked ? (new Date(today + "T12:00:00") - new Date(checked + "T12:00:00")) / 864e5 : Infinity;
+  if (row && age >= 0 && age <= 14) return { kind: "ok", date: checked };
+  return null;
+}
+function stopValidityHtml(v) {
+  if (!v) return "";
+  const D = fmtDateLong;
+  let txt;
+  if (v.kind === "until") {
+    const prev = new Date(v.date + "T12:00:00");
+    prev.setDate(prev.getDate() - 1);
+    txt = t("validUntilChange", { until: D(isoOf(prev)), date: D(v.date) });
+  } else if (v.kind === "approx") txt = t("validChangeBy", { date: D(v.date) });
+  else if (v.kind === "shown") txt = t("validChangeShown", { date: D(v.date) });
+  else txt = t("validNoChange", { date: D(v.date) });
+  return `<p class="poster-valid${v.kind === "ok" ? "" : " poster-valid-change"}" data-valid="${v.kind}">${esc(txt)}</p>`;
+}
+
+/* "Iso teksti" -tuloste ikääntyneelle tai heikkonäköiselle asiakkaalle (auditointi 4.10.2026: pysäkki-
+   aikataulun selitteet 7-8,5 pt; RNIB-linjan ohje 14 pt). Tiskin pysäkkiaikataulu ja reittituloste.
+   Yksi valinta kaikkien tulostenappien vieressä, muistetaan selaimessa. Ilman localStoragea
+   (yksityinen ikkuna, esto) valinta pysyy sivun auki ollessa. */
+const PRINT_LARGE_KEY = "printLarge";
+let printLargeMem = null;
+function printLargeOn() {
+  if (printLargeMem !== null) return printLargeMem;
+  try { return localStorage.getItem(PRINT_LARGE_KEY) === "1"; } catch (e) { return false; }
+}
+function setPrintLarge(on) {
+  printLargeMem = !!on;
+  try { localStorage.setItem(PRINT_LARGE_KEY, on ? "1" : "0"); } catch (e) { /* muistissa sivun ajan */ }
+  document.querySelectorAll(".printLargeCb").forEach(cb => { cb.checked = !!on; });
+}
+function printLargeOptHtml() {
+  return `<label class="dtopt print-large-opt" title="${esc(t("printLargeHint"))}"><input type="checkbox" class="printLargeCb"${
+    printLargeOn() ? " checked" : ""}> ${t("printLargeLabel")}</label>`;
+}
+document.addEventListener("change", e => {
+  if (e.target && e.target.classList && e.target.classList.contains("printLargeCb")) setPrintLarge(e.target.checked);
+});
+
 // Tulosteiden yhteinen otsikkopalkki (käytävä, vihko, lehtiteline, linjatuloste): sama brändi-ilme
 // kuin tiiviissä pysäkkijulisteessa. Ruudulla tavallinen otsikko, print-mediassa CSS värittää palkin
 // CONFIG.brandColorista (--header-bg). meta: "full" = "Tulostettu pvm · operaattori", "date" = vain pvm
@@ -10392,6 +10536,9 @@ function markPosterContinuations(st, box) {
   });
   let pageStart = 0;
   for (const row of rows) {
+    // Iso teksti (data-large): ensimmäinen päivälohko alkaa aina otsikon alta 1. arkilta (Chrome jakaa
+    // sen eikä siirrä, mitattu PDF:stä 4.10.2026), joten "jatkuu" ei kuulu siihen.
+    if (st.dataset.large === "1" && row === rows[0]) continue;
     if (row.bottom - pageStart > POSTER_SHEET_PX && row.top > pageStart) {
       pageStart = row.top;
       for (const i of row.idx) {
@@ -11227,7 +11374,11 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
       : a.school !== b.school ? (a.school ? 1 : 0) - (b.school ? 1 : 0)
       : (a.period?.from || 0) - (b.period?.from || 0);
   });
-  return canonicalPosterBlocks(arr);
+  const out = canonicalPosterBlocks(arr);
+  // Jaksojen alkupäivät (YYYYMMDD) tulosteen ikkunasta: julisteen selite merkitsee niistä alkavat
+  // lähdöt kirjaimella, ja voimassaolorivi (stopValidityInfo) kertoo ensimmäisen muutospäivän.
+  out.changeDays = [...new Set(arr.map(b => b.period?.from).filter(Boolean))].sort((a, b) => a - b);
+  return out;
 }
 
 // Julisteen päivätyypit kuten painetussa aikatauluvihkossa: vain Ma–Pe, La ja Su. Todellisten
@@ -12497,11 +12648,12 @@ async function viewStop(stopId, autoPrint) {
       qrImg = `<div class="poster-qrwrap"><img class="poster-qr" src="${u}" alt="">
         <span class="poster-qrcap">${t("qrPosterHint")}</span></div>`;
     } catch (e) { /* QR ei pakollinen tulosteelle */ }
+    const valid = stopValidityHtml(await stopValidityInfo(stopId, blocks, today));
     const head = (sub) => `<div class="poster-head">
            <div>
              <h2>${esc(placeName(stop.name))} <span class="muted">${esc(stop.code || "")}</span></h2>
              <p class="poster-sub">${esc(sub)}</p>
-             <p class="muted">${t("posterAllLinesNote")}</p>
+             <p class="muted">${t("posterAllLinesNote")}</p>${valid}
            </div>
            ${qrImg}
          </div>`;
@@ -15068,7 +15220,7 @@ function deskOptionHtml(node, i) {
     <div class="desk-opt-lines">${ride.length ? lines : `<span class="muted">${t("deskWalkOnly", { dur })}</span>`}</div>
     <details class="desk-stops"><summary>${t("deskStopsTitle")}</summary>${deskStopsListHtml(node)}</details>
     ${i == null ? "" : `<p class="desk-opt-print"><button type="button" class="secondary deskOptPrint" data-i="${i}">${icon("print")} ${t("deskItinPrintBtn")}</button>
-      <span class="muted" role="status"></span></p>`}
+      <span class="muted" role="status"></span> ${printLargeOptHtml()}</p>`}
   </div>`;
 }
 
@@ -15107,7 +15259,7 @@ function deskItineraryPrintHtml(node, nodes, from, to, qrImg) {
       && new Date(legTime(l.start)) > new Date(legTime(first.start)))
     .map(l => fmtClock(legTime(l.start))) : [];
   const now = new Date();
-  return `<div class="print-only itin-print">
+  return `<div class="print-only itin-print${printLargeOn() ? " ip-large" : ""}">
     <div class="ip-head"><div>
       <h2>${esc(from.name)} → ${esc(to.name)}</h2>
       <p class="ip-sum">${esc(day)}<br><strong>${esc(t("itinSummary", { dep: fmtClock(node.start), arr: fmtClock(node.end) }))}</strong> · ${esc(dur)} · ${esc(tr)}</p>
@@ -15334,6 +15486,7 @@ async function viewServiceDesk() {
                 <p class="dp-target" id="deskPrintsStop">${t("deskNeedStop")}</p>
                 <div class="dp-btns">
                   <button type="button" id="deskStopPosterBtn" class="secondary" disabled>${t("deskStopPoster")}</button>
+                  ${printLargeOptHtml()}
                 </div>
                 <p class="muted dp-note" id="deskStopPosterStatus" role="status"></p>
               </div>
@@ -15803,18 +15956,22 @@ async function viewServiceDesk() {
       qrImg = `<div class="poster-qrwrap"><img class="poster-qr" src="${u}" alt="">
         <span class="poster-qrcap">${t("qrPosterHint")}</span></div>`;
     } catch (e) { /* QR ei pakollinen tulosteelle */ }
+    // Voimassaolo: muutosvahdin ja julisteen omien jaksojen tieto tulevasta muutoksesta (stopValidityInfo).
+    const valid = stopValidityHtml(await stopValidityInfo(stop.gtfsId, blocks, today));
     const head = (sub) => `<div class="poster-head"><div>
            <h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
            <p class="poster-sub">${esc(sub)}</p>
-           <p class="muted">${t("posterAllLinesNote")}</p>
+           <p class="muted">${t("posterAllLinesNote")}</p>${valid}
          </div>${qrImg}</div>`;
-    const compact = posterCompactOn(null);
-    po.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}"><div class="poster-stop">${blocks.map(b =>
+    // Iso teksti: aina yhden arkin asettelu (matriisi), mutta ilman tiukennusta; arkkeja tulee lisää.
+    const large = printLargeOn();
+    const compact = large || posterCompactOn(null);
+    po.innerHTML = `<div class="print-only${compact ? " poster-compact" : ""}"><div class="poster-stop"${large ? ` data-large="1"` : ""}>${blocks.map(b =>
         `<section class="card poster-day">${head(b.label)}${stopPosterHtml(b.lines, compact, b.legend)}</section>`).join("")}</div>
       <p class="muted">${periodNote(today)}</p></div>`;
     if (stEl) stEl.textContent = "";
     if (compact) {
-      const fit = fitPosterSheet(po);
+      const fit = fitPosterSheet(po, large ? 0 : POSTER_FIT_MAX);
       if (stEl && fit.sheets > 1) stEl.textContent = t("posterSheets", { n: fit.sheets });
     }
     runPrintJob(t("preparingPrint"), () => {
@@ -15900,6 +16057,7 @@ async function viewServiceDesk() {
       `<p class="desk-pin-row"><button type="button" id="deskPinBtn" class="linkish">${
         isPinned ? t("deskPinned") : t("deskPinBtn")}</button>
         <button type="button" id="deskPrintBtn" class="secondary">${icon("print")} ${t("deskPrintBtn")}</button>
+        ${printLargeOptHtml()}
         <span id="deskPrintStatus" class="muted" role="status"></span></p>`;
     // Sama pysäkkijuliste kuin Tulosteet-välilehdellä (deskPrintStopPoster): pysäkin
     // kohdalla oleva nappi on nopein reitti, kun pysäkki on juuri valittu.
