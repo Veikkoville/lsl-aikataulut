@@ -16005,6 +16005,13 @@ function hospitalQuery(q) {
 }
 // 2 = juuri haettu sairaala (lyhenne suluissa tai nimenä, tai lyhenteen koko nimi), 1 = sairaala, 0 = muu.
 // Pysäköinti ("P-Sairaala", "TYKS Pysäköintitalo 3") ja sairaalan muut rakennukset ("lämpökeskus") eivät ole sairaala.
+// Kaupungin oma sairaala = palvelutiskin pikakohde (CONFIG.deskQuick, k: "hospital", koordinaatit 17 kaupungilla).
+function cityHospital() {
+  const h = (CONFIG.deskQuick || []).find(x => x && x.k === "hospital");
+  return h && Number.isFinite(h.lat) && Number.isFinite(h.lon) ? h : null;
+}
+const nearCityHospital = (p, home) => !!home && p.lat != null &&
+  Math.hypot((p.lat - home.lat) * 111, (p.lon - home.lon) * 111 * Math.cos(home.lat * Math.PI / 180)) <= 0.3;
 function hospitalRank(p, hq) {
   if (!hq || p.layer !== "venue") return 0;
   const name = String(p.name || "").toLowerCase();
@@ -16012,7 +16019,12 @@ function hospitalRank(p, hq) {
   const base = first.replace(/\s*\([^)]*\)\s*$/, "");
   if (hq.abbr && (name.includes("(" + hq.abbr + ")") || first === hq.abbr)) return 2;
   if (hq.full && base === hq.full) return 2;
-  return /(sairaala|sjukhus|sjukhuset|hospital)$/.test(base) && !/pysäköinti|parkki|^p-/.test(base) ? 1 : 0;
+  // Yleissana ("sairaala", "keskussairaala"): kaupungin oma sairaala ensin. Ennen nimetön "Sairaala"-kohde voitti
+  // tarkalla tekstiosumalla, ja Joensuussa se oli 47,9 km päässä (sairaalatarkistus 4.10.2026, erä E2).
+  const home = !hq.abbr && !hq.full ? cityHospital() : null;
+  if (home && nearCityHospital(p, home)) return 2;
+  if (!/(sairaala|sjukhus|sjukhuset|hospital)$/.test(base) || /pysäköinti|parkki|^p-/.test(base)) return 0;
+  return home && HOSPITAL_WORD.test(base) ? 0 : 1;
 }
 
 async function searchPlacesOnce(q) {
@@ -16040,6 +16052,11 @@ async function searchPlacesOnce(q) {
     const seen = new Set(places.map(p => p.name));
     places = [...extra.filter(p => hospitalRank(p, hq) > 0 && !seen.has(p.name)).slice(0, 3), ...places];
   }
+  // Yleissanalla ilman osumaa kaupungin omaan sairaalaan (Kuopio ja Kouvola: "keskussairaala" ei antanut mitään)
+  // ehdotetaan pikakohteen sairaalaa sen koordinaateilla.
+  const home = hq && !hq.abbr && !hq.full ? cityHospital() : null;
+  if (home && !places.some(p => hospitalRank(p, hq) === 2))
+    places = [{ name: (home.fi || t("deskQuickHospital")) + ", " + cityName(), lat: home.lat, lon: home.lon, layer: "venue", conf: 1 }, ...places];
   return (await withOutsideLocality(q, rankPlaceHits(q, stopsRes.status === "fulfilled" ? stopsRes.value : [], places))).slice(0, 9);
 }
 
