@@ -7,6 +7,9 @@ on:
     paths-ignore:
       - "docs/muutosvahti/**"
   pull_request:
+    # Muutosvahdin data-PR:n avaa botti ja se yhdistetään heti: ajo jäisi odottamaan hyväksyntää ja vanhenisi punaiseksi
+    paths-ignore:
+      - "docs/muutosvahti/**"
   # auto-kehitys kaynnistaa taman GITHUB_TOKENilla avatulle PR:lle (se ei laukaise pull_request-tapahtumaa)
   workflow_dispatch:
 
