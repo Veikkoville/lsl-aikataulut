@@ -2000,6 +2000,158 @@ async function minuuttiLinjaus(page, rootSel, media) {
       ? ok("palvelutiski: hinnat samasta lähteestä kuin #/liput (ylläpidon julkaisu näkyy tiskillä)")
       : fail("palvelutiski: tiskin ja hintasivun hinnat eri lähteestä: " + JSON.stringify({ ...fz, liput, tiski }));
   }
+  // Erä D6 (4.10.2026): tiskin tietopankki. Synteettinen worker: /published kertoo kb-tuen ja /kb palauttaa kortit
+  // (window.fetch kääritään vain /kb-osoitteelle, palautus finally-lohkossa, ei kirjoituksia tuotannon workeriin).
+  // Tarkistetaan: välilehti näkyy, yhteishaku löytää kortin ja vahva osuma on ylimpänä, Enter avaa kortin tiskillä
+  // (kappaleet, linkki, lähde, tarkistettu, Kopioi teksti), ylläpidon teksti ei renderöidy HTML:nä eikä javascript:-lähde
+  // linkiksi, selattava lista, kieli (sv/en, suomi varalla), tyhjä tila, latausvirhe virheenä (ei tyhjänä listana) ja
+  // vanha worker (ei kb-kenttää): välilehti piilossa, hakuun ei ryhmää eikä /kb-kutsua. Kieli palautetaan finallyssä.
+  {
+    const kbRes = await page.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      const until = async (fn, ms = 10000) => { for (let i = 0; i < ms / 100; i++) { const v = fn(); if (v) return v; await wait(100); } return fn(); };
+      const items0 = [
+        { id: "smoke-kb-1", title: "Löytötavarat", order: 0, checked: "2026-09-15", url: "https://www.lsl.fi/asiakaspalvelu/",
+          body: "Bussiin unohtuneet tavarat toimitetaan palvelupisteeseen.\n\nLisätietoa https://www.lsl.fi/asiakaspalvelu/. Kiitos.\nToinen rivi <img src=x onerror=\"window.__kbXss=1\">",
+          titleSv: "Hittegods", bodySv: "Glömda saker lämnas till servicepunkten.", titleEn: "", bodyEn: "",
+          keywords: ["löytötavara", "unohtunut", "kadonnut"] },
+        { id: "smoke-kb-2", title: "Polkupyörä bussissa", order: 1, checked: "2025-01-10", url: "javascript:window.__kbXss=2",
+          body: "Polkupyörää ei voi ottaa kaupunkiliikenteen bussiin.", titleSv: "", bodySv: "", titleEn: "Bicycles on the bus", bodyEn: "",
+          keywords: ["pyörä", "fillari"] },
+      ];
+      let items = items0, status = 200, kbCalls = 0;
+      const of = window.fetch;
+      window.fetch = (u, o) => {
+        if (/\/kb\?city=/.test(String(u))) {
+          kbCalls++;
+          return Promise.resolve(new Response(JSON.stringify(status === 200 ? { items } : { error: "x" }),
+            { status, headers: { "Content-Type": "application/json" } }));
+        }
+        return of(u, o);
+      };
+      const tab = () => document.querySelector('.dcard-tab[data-dcard="kb"]');
+      const box = () => document.getElementById("deskKbCard");
+      const resetKb = () => { kbPromise = null; kbLast = null; kbAt = 0; };
+      const open = async pub => {
+        publishedPromise = Promise.resolve(pub); resetKb();
+        location.hash = "#/";
+        await until(() => !document.body.classList.contains("desk-mode"));
+        location.hash = "#/palvelutiski";
+        await until(() => box() && document.getElementById("deskStop") && !/Haetaan/.test(box().textContent));
+      };
+      const search = async q => {
+        const el = document.getElementById("deskStop");
+        el.focus(); el.value = q; el.dispatchEvent(new Event("input", { bubbles: true }));
+        await until(() => !document.getElementById("deskStopList").hidden && document.querySelector('#deskStopList [role="option"], #deskStopList .desk-search-msg'), 20000);
+        await wait(400);
+      };
+      const out = {};
+      const langWas = lang;
+      try {
+        // 1) Uusi worker: välilehti, haku, kortti
+        await open({ alerts: [], fares: null, a11y: null, kb: true });
+        out.tabNakyy = !!tab() && !tab().hidden;
+        await search("löytö");
+        const first = document.querySelector('#deskStopList [role="option"]');
+        out.ekaOnKb = !!first && first.hasAttribute("data-k");
+        out.ryhmat = [...document.querySelectorAll("#deskStopList li.search-cat")].map(x => x.textContent.trim());
+        document.getElementById("deskStop").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+        await until(() => document.querySelector('[data-dcard-panel="kb"]')?.hidden === false && box().querySelector(".desk-kb-art"));
+        const art = box().querySelector(".desk-kb-art");
+        out.otsikko = art?.querySelector(".desk-kb-h")?.textContent.trim() || "";
+        out.kappaleet = art ? art.querySelectorAll(".desk-kb-body p").length : 0;
+        out.linkit = art ? [...art.querySelectorAll(".desk-kb-body a")].map(a => a.getAttribute("href") + "|" + a.target) : [];
+        out.lahde = art?.querySelector(".desk-kb-src a")?.getAttribute("href") || "";
+        out.tarkistettu = art?.querySelector(".desk-kb-checked")?.textContent.trim() || "";
+        out.imgt = document.querySelectorAll("#deskKbCard img").length;
+        out.tekstina = (art?.querySelector(".desk-kb-body")?.textContent || "").includes("<img src=x");
+        out.lista = box().querySelectorAll(".desk-kb-list li").length;
+        out.valittu = box().querySelector('.desk-kb-pick[aria-current="true"]')?.dataset.kb || "";
+        out.hash = location.hash;
+        out.valilehti = tab()?.getAttribute("aria-pressed");
+        let leike = null;
+        try { Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async s => { leike = s; } } }); } catch (e) {}
+        box().querySelector(".desk-kb-copy")?.click();
+        await until(() => leike);
+        out.leike = leike;
+        out.kopioituTila = box().querySelector(".desk-kb-tools .desk-copy-st")?.textContent || "";
+        // Selattava lista: toinen kortti, javascript:-lähde ei linkiksi
+        box().querySelectorAll(".desk-kb-pick")[1]?.click();
+        await until(() => box().querySelector(".desk-kb-h")?.textContent.includes("Polkupyörä"));
+        out.toinen = box().querySelector(".desk-kb-h")?.textContent.trim() || "";
+        out.toinenLahde = box().querySelectorAll(".desk-kb-src, a[href^='javascript']").length;
+        out.xss = window.__kbXss || 0;
+        // Haku taivutetulla sanalla ja liian lyhyellä haulla (puhdas funktio)
+        const its = kbClean(items0);
+        out.taivutus = kbMatch(its, "polkupyörän").map(h => h.c.id + ":" + h.sc).join(",");
+        out.avainsana = kbMatch(its, "fillari").map(h => h.c.id + ":" + h.sc).join(",");
+        out.lyhyt = kbMatch(its, "p").length + kbMatch(its, "4").length;
+        out.lahdeSiivottu = its[1].url === "";
+        // Kieli: ruotsi ja englanti, suomi varalla (lang palautetaan finallyssä)
+        lang = "sv";
+        out.sv = [kbLocal(its[0]).title, kbLocal(its[1]).title, kbLocal(its[1]).titleLang, kbMatch(its, "hitte").map(h => h.c.id).join(",")];
+        lang = "en";
+        out.en = [kbLocal(its[1]).title, kbLocal(its[1]).bodyLang, kbLocal(its[0]).title];
+        lang = langWas;
+        // 2) Tyhjä tietopankki: ohjeteksti
+        items = [];
+        await open({ alerts: [], fares: null, a11y: null, kb: true });
+        tab()?.click();
+        await until(() => box().querySelector(".desk-kb-empty"));
+        out.tyhja = box().textContent.trim();
+        out.tyhjaTab = !!tab() && !tab().hidden;
+        // 3) Latausvirhe: virhe ja Yritä uudelleen, ei tyhjää listaa
+        items = items0; status = 500;
+        await open({ alerts: [], fares: null, a11y: null, kb: true });
+        tab()?.click();
+        await until(() => box().querySelector(".desk-err"));
+        out.virhe = box().querySelector(".desk-err")?.textContent.trim() || "";
+        status = 200;
+        box().querySelector(".desk-retry")?.click();
+        await until(() => box().querySelectorAll(".desk-kb-list li").length === 2);
+        out.uudelleen = box().querySelectorAll(".desk-kb-list li").length;
+        // 4) Vanha worker: /published ilman kb-kenttää
+        kbCalls = 0;
+        await open({ alerts: [], fares: null, a11y: null });
+        await wait(500);
+        out.vanhaTab = tab() ? tab().hidden : null;
+        await search("löytö");
+        out.vanhaKbOsumat = document.querySelectorAll("#deskStopList [data-k]").length;
+        out.vanhaKutsut = kbCalls;
+      } finally {
+        window.fetch = of; lang = langWas; publishedPromise = null; resetKb();
+        try { delete navigator.clipboard; } catch (e) {}   // oma ominaisuus pois: selaimen oma leikepöytä takaisin
+        const el = document.getElementById("deskStop");
+        if (el) { el.value = ""; el.dispatchEvent(new Event("input", { bubbles: true })); }
+        document.querySelector('.dcard-tab[data-dcard="stop"]')?.click();
+      }
+      return out;
+    });
+    const k = kbRes;
+    (k.tabNakyy && k.ekaOnKb && k.ryhmat[0] === "Tietopankki" && k.otsikko === "Löytötavarat" && k.kappaleet === 2
+      && k.linkit.length === 1 && k.linkit[0] === "https://www.lsl.fi/asiakaspalvelu/|_blank" && k.lahde === "https://www.lsl.fi/asiakaspalvelu/"
+      && k.tarkistettu === "Tarkistettu 15.9.2026" && k.lista === 2 && k.valittu === "smoke-kb-1" && k.hash === "#/palvelutiski" && k.valilehti === "true")
+      ? ok(`palvelutiski D6: yhteishaku löytää tietopankin kortin ylimpänä ja Enter avaa sen tiskillä (${k.kappaleet} kappaletta, lähde, tarkistettu, lista ${k.lista})`)
+      : fail("palvelutiski D6: tietopankin haku tai kortti: " + JSON.stringify(k));
+    (k.leike === "Löytötavarat\nBussiin unohtuneet tavarat toimitetaan palvelupisteeseen.\n\nLisätietoa https://www.lsl.fi/asiakaspalvelu/. Kiitos.\nToinen rivi <img src=x onerror=\"window.__kbXss=1\">\nhttps://www.lsl.fi/asiakaspalvelu/"
+      && /Kopioitu/.test(k.kopioituTila))
+      ? ok("palvelutiski D6: Kopioi teksti kopioi otsikon, vastauksen ja lähteen")
+      : fail("palvelutiski D6: kopiointi: " + JSON.stringify({ leike: k.leike, tila: k.kopioituTila }));
+    (k.imgt === 0 && k.tekstina && k.xss === 0 && k.toinen === "Polkupyörä bussissa" && k.toinenLahde === 0 && k.lahdeSiivottu)
+      ? ok("palvelutiski D6: ylläpidon teksti näkyy tekstinä (ei HTML:ää), javascript:-lähde ei muutu linkiksi")
+      : fail("palvelutiski D6: turvallinen renderöinti: " + JSON.stringify({ imgt: k.imgt, tekstina: k.tekstina, xss: k.xss, toinen: k.toinen, lahde: k.toinenLahde, siivottu: k.lahdeSiivottu }));
+    (k.taivutus === "smoke-kb-2:1" && k.avainsana === "smoke-kb-2:0" && k.lyhyt === 0
+      && k.sv.join("|") === "Hittegods|Polkupyörä bussissa|fi|smoke-kb-1" && k.en.join("|") === "Bicycles on the bus|fi|Löytötavarat")
+      ? ok("palvelutiski D6: haku taivutetulla sanalla ja avainsanalla, kortti käyttöliittymän kielellä suomi varalla")
+      : fail("palvelutiski D6: haku tai kieli: " + JSON.stringify({ taivutus: k.taivutus, avainsana: k.avainsana, lyhyt: k.lyhyt, sv: k.sv, en: k.en }));
+    (k.tyhjaTab && /Kunnan omia vastauskortteja ei ole vielä lisätty\. Ylläpito lisää ne kohdasta Tietopankki\./.test(k.tyhja)
+      && /Tietopankki ei latautunut/.test(k.virhe) && !/vastauskortteja ei ole/.test(k.virhe) && k.uudelleen === 2)
+      ? ok("palvelutiski D6: tyhjä tietopankki näyttää ohjeen, latausvirhe näkyy virheenä ja Yritä uudelleen lataa kortit")
+      : fail("palvelutiski D6: tyhjä tila tai virhe: " + JSON.stringify({ tab: k.tyhjaTab, tyhja: k.tyhja, virhe: k.virhe, uudelleen: k.uudelleen }));
+    (k.vanhaTab === true && k.vanhaKbOsumat === 0 && k.vanhaKutsut === 0)
+      ? ok("palvelutiski D6: vanha worker (ei kb-kenttää): välilehti piilossa, ei hakuryhmää eikä /kb-kutsua")
+      : fail("palvelutiski D6: vanha worker: " + JSON.stringify({ tab: k.vanhaTab, osumat: k.vanhaKbOsumat, kutsut: k.vanhaKutsut }));
+  }
   // Poistuminen purkaa koko ruudun tilan
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   (await page.evaluate(() => document.body.classList.contains("desk-mode")))

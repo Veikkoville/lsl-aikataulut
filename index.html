@@ -1501,6 +1501,14 @@
     display: inline-flex; align-items: center; gap: 0.35rem; text-align: left; }
   .desk .dcard-tab:hover:not([aria-pressed="true"]), .desk .dseg:hover:not([aria-pressed="true"]) { background: var(--hover); }
   .desk .dcard-tab[aria-pressed="true"], .desk .dseg[aria-pressed="true"] { background: var(--blue); color: #fff; }
+  /* Tietopankki (D6): välilehti piilossa, kunnes worker kertoo tuesta (/published kb). Kortti ja selattava lista. */
+  .desk .dcard-tab[hidden] { display: none; }
+  .desk-kb-art { border-left: 5px solid var(--blue); padding: 0.1rem 0 0.1rem 0.9rem; margin: 0 0 0.6rem; }
+  .desk-kb-h { margin: 0 0 0.4rem; font-size: clamp(1.1rem, 1.7vw, 1.35rem); }
+  .desk-kb-body p { margin: 0 0 0.6rem; max-width: 70ch; overflow-wrap: anywhere; }
+  .desk-kb-src, .desk-kb-checked { margin: 0.2rem 0; font-size: 0.92em; overflow-wrap: anywhere; }
+  .desk .desk-kb-list .item { align-items: center; color: var(--blue); }
+  .desk .desk-kb-list .item[aria-current="true"] { background: var(--hover); box-shadow: inset 5px 0 0 var(--blue); color: var(--text); font-weight: var(--wmed); }
   .desk-mapcol { position: sticky; top: 1rem; min-width: 0; }
   .desk-mapbox { padding: 0.8rem 0.9rem; }
   .desk-mapbox h2 { margin: 0 0 0.15rem; }
@@ -5126,6 +5134,11 @@ const STRINGS = {
     deskSearchResults: "Hakutulokset", deskSearching: "Haetaan…", deskNoResults: "Ei osumia haulle {q}.",
     deskCatStops: "Pysäkit", deskCatLines: "Linjat", deskCatPlaces: "Paikat ja osoitteet", deskCatRoute: "Reittihaku",
     deskOptRoute: "Hae reitti {q}",
+    deskCardKb: "Tietopankki", deskCatKb: "Tietopankki",
+    deskKbEmpty: "Kunnan omia vastauskortteja ei ole vielä lisätty. Ylläpito lisää ne kohdasta Tietopankki.",
+    deskKbErr: "Tietopankki ei latautunut.", deskKbPick: "Valitse kortti listasta tai hae yläkentästä.",
+    deskKbAll: "Kaikki vastauskortit ({n})", deskKbChecked: "Tarkistettu {date}", deskKbSource: "Lähde",
+    deskKbCopy: "Kopioi teksti",
     deskCardsLabel: "Valittu kortti", deskCardStop: "Pysäkki", deskCardLine: "Linja", deskCardRoute: "Reitti",
     deskStopNone: "Hae pysäkki yllä olevasta kentästä.",
     deskLineNone: "Hae linja yllä olevasta kentästä, esimerkiksi linjanumerolla.",
@@ -5970,6 +5983,11 @@ const STRINGS = {
     deskSearchResults: "Search results", deskSearching: "Searching…", deskNoResults: "No matches for {q}.",
     deskCatStops: "Stops", deskCatLines: "Lines", deskCatPlaces: "Places and addresses", deskCatRoute: "Journey search",
     deskOptRoute: "Search journey {q}",
+    deskCardKb: "Knowledge base", deskCatKb: "Knowledge base",
+    deskKbEmpty: "The municipality has not added its own answer cards yet. They are added in the admin view under Tietopankki.",
+    deskKbErr: "The knowledge base did not load.", deskKbPick: "Choose a card from the list or search above.",
+    deskKbAll: "All answer cards ({n})", deskKbChecked: "Checked {date}", deskKbSource: "Source",
+    deskKbCopy: "Copy text",
     deskCardsLabel: "Selected card", deskCardStop: "Stop", deskCardLine: "Line", deskCardRoute: "Journey",
     deskStopNone: "Search for a stop in the field above.",
     deskLineNone: "Search for a line in the field above, for example by its number.",
@@ -6808,6 +6826,11 @@ const STRINGS = {
     deskSearchResults: "Sökresultat", deskSearching: "Söker…", deskNoResults: "Inga träffar för {q}.",
     deskCatStops: "Hållplatser", deskCatLines: "Linjer", deskCatPlaces: "Platser och adresser", deskCatRoute: "Reseplanering",
     deskOptRoute: "Sök resa {q}",
+    deskCardKb: "Kunskapsbank", deskCatKb: "Kunskapsbank",
+    deskKbEmpty: "Kommunen har inte lagt till egna svarskort ännu. De läggs till i administrationen under Tietopankki.",
+    deskKbErr: "Kunskapsbanken kunde inte laddas.", deskKbPick: "Välj ett kort i listan eller sök ovan.",
+    deskKbAll: "Alla svarskort ({n})", deskKbChecked: "Kontrollerad {date}", deskKbSource: "Källa",
+    deskKbCopy: "Kopiera texten",
     deskCardsLabel: "Valt kort", deskCardStop: "Hållplats", deskCardLine: "Linje", deskCardRoute: "Resa",
     deskStopNone: "Sök en hållplats i fältet ovan.",
     deskLineNone: "Sök en linje i fältet ovan, till exempel med linjenumret.",
@@ -10023,7 +10046,8 @@ function loadPublished(force) {
     const u = PROXY_URL.replace(/\/$/, "") + "/published?city=" + encodeURIComponent(cityKey);
     publishedPromise = fetch(u)
       .then(r => (r.ok ? r.json() : {}))
-      .then(d => ({ alerts: (d && d.alerts) || [], fares: (d && d.fares) || null, a11y: (d && d.a11y) || null }))
+      // kb: worker tarjoaa tietopankin (/kb). Vanha worker ei palauta kenttää, jolloin tiski ei kutsu reittiä.
+      .then(d => ({ alerts: (d && d.alerts) || [], fares: (d && d.fares) || null, a11y: (d && d.a11y) || null, kb: !!(d && d.kb === true) }))
       .catch(() => ({ alerts: [], fares: null, a11y: null }));   // degradoidu: näytetään muut lähteet / CONFIG-oletukset
   }
   return publishedPromise;
@@ -16683,6 +16707,7 @@ async function viewServiceDesk() {
             <button type="button" class="dcard-tab" data-dcard="stop" aria-pressed="true" aria-controls="deskCardStop">${icon("pin")} ${t("deskCardStop")}</button>
             <button type="button" class="dcard-tab" data-dcard="line" aria-pressed="false" aria-controls="deskCardLine">${icon("bus")} ${t("deskCardLine")}</button>
             <button type="button" class="dcard-tab" data-dcard="route" aria-pressed="false" aria-controls="deskCardRoute">${icon("route")} ${t("deskCardRoute")}</button>
+            <button type="button" class="dcard-tab" data-dcard="kb" aria-pressed="false" aria-controls="deskCardKb" hidden>${icon("book")} ${t("deskCardKb")}</button>
           </div>
           <p id="deskCardStatus" class="sr-only" role="status" aria-live="polite"></p>
           <section class="desk-col desk-col--primary desk-card" id="deskCardStop" data-dcard-panel="stop" aria-labelledby="deskStopH">
@@ -16752,6 +16777,11 @@ async function viewServiceDesk() {
               <button type="button" id="deskPlaceTo">${icon("route")} ${t("deskPlaceTo")}</button>
               <button type="button" id="deskPlaceFrom" class="secondary">${t("deskPlaceFrom")}</button>
             </div>
+          </section>
+          <!-- Tietopankki (D6 4.10.2026): kunnan omat vastauskortit ylläpidosta, yhteishausta tai välilehdeltä selaten. -->
+          <section class="desk-col desk-col--primary desk-card" id="deskCardKb" data-dcard-panel="kb" aria-labelledby="deskKbH" hidden>
+            <h2 id="deskKbH">${icon("book")} ${t("deskCardKb")}</h2>
+            <div id="deskKbCard"><p class="muted">${t("deskSearching")}</p></div>
           </section>
         </div>
         <aside class="desk-mapcol" aria-labelledby="deskMapH">
@@ -17981,11 +18011,71 @@ async function viewServiceDesk() {
     // Tiivistetyssä tilassa (lomake piilossa) lauseen viestit, kuten yhteysvirhe, näkyvät lomakkeen ulkopuolella.
     runNlTrip(text, routeForm && routeForm.hidden ? { ...nlCtl, msg: document.getElementById("deskMsg") } : nlCtl);
   };
+  // ---- Tietopankki (D6 4.10.2026): kunnan omat vastauskortit ----
+  // Kortit tulevat ylläpidosta (worker /kb). Vanhaa workeria vasten (ei kb-tukea /published-vastauksessa) välilehti
+  // pysyy piilossa eikä hakuun tule ryhmää. Valittu kortti näkyy ylimpänä, kaikkien korttien lista sen alla.
+  let kbState = null, curKb = null;
+  const kbTab = document.querySelector('.dcard-tab[data-dcard="kb"]');
+  const setKbState = st => {
+    kbState = st;
+    if (kbTab) kbTab.hidden = !(st && st.on);
+  };
+  const renderKb = () => {
+    const box = document.getElementById("deskKbCard");
+    if (!box || !live()) return;
+    const st = kbState;
+    if (!st) { box.innerHTML = `<p class="muted">${t("deskSearching")}</p>`; return; }
+    if (st.err) {
+      showErr(box, "deskKbErr", () => {
+        box.innerHTML = `<p class="muted">${t("deskSearching")}</p>`;
+        loadKb(true).then(s => { if (live()) { setKbState(s); renderKb(); } });
+      });
+      return;
+    }
+    if (!st.items.length) { box.innerHTML = `<p class="muted desk-kb-empty">${esc(t("deskKbEmpty"))}</p>`; return; }
+    const c = st.items.find(x => x.id === curKb) || null;
+    box.innerHTML = (c ? kbCardHtml(c) : `<p class="muted">${esc(t("deskKbPick"))}</p>`)
+      + `<h3 class="desk-h3" id="deskKbListH">${esc(t("deskKbAll", { n: st.items.length }))}</h3>`
+      + `<ul class="plain desk-kb-list" aria-labelledby="deskKbListH">${st.items.map(x => {
+        const L = kbLocal(x);
+        return `<li><button type="button" class="item desk-kb-pick" data-kb="${esc(x.id)}"${x.id === curKb ? ' aria-current="true"' : ""}>`
+          + `${icon("book")}<span lang="${L.titleLang}">${esc(L.title)}</span></button></li>`;
+      }).join("")}</ul>`;
+    box.querySelector(".desk-kb-copy")?.addEventListener("click", () => copyKb(c));
+    box.querySelectorAll(".desk-kb-pick").forEach(b => b.addEventListener("click", () => openKb(b.dataset.kb)));
+  };
+  // Kopioi teksti: otsikko, vastaus ja lähde tekstiviestiin tai sähköpostiin. Estetty leikepöytä = valittu teksti käsin kopioitavaksi.
+  const copyKb = async c => {
+    const tools = document.querySelector("#deskKbCard .desk-kb-tools");
+    if (!c || !tools) return;
+    const L = kbLocal(c);
+    const all = L.title + "\n" + L.body + (c.url ? "\n" + c.url : "");
+    let copied = false;
+    try { await navigator.clipboard.writeText(all); copied = true; } catch (e) { copied = false; }
+    tools.parentElement.querySelector("textarea.desk-copy-out")?.remove();
+    const st = tools.querySelector(".desk-copy-st");
+    if (st) st.textContent = copied ? t("copied") : t("copyManual");
+    if (!copied) {
+      tools.insertAdjacentHTML("afterend", `<textarea class="desk-copy-out" readonly rows="5" aria-label="${esc(t("deskKbCopy"))}">${esc(all)}</textarea>`);
+      const ta = tools.parentElement.querySelector("textarea.desk-copy-out");
+      ta?.focus(); ta?.select();
+    }
+  };
+  const openKb = (id, opts) => {
+    curKb = id || null;
+    setCard("kb");
+    renderKb();
+    const c = kbState && kbState.items ? kbState.items.find(x => x.id === curKb) : null;
+    announce(t("deskCardKb") + (c ? ": " + kbLocal(c).title : ""));
+    if (!(opts && opts.noHist)) histPush();
+  };
+  loadKb().then(st => { if (live()) { setKbState(st); renderKb(); } });
   // Kortin vaihto välilehdeltä. noHist = selaimen Takaisin palauttaa kortin (ei uutta historiaa).
   const showCard = (k, opts) => {
     setCard(k);
     if (k === "stop" && curStop) { loadDeskDeps(curStop); startDepTimer(); }
     if (k === "line" && curLine) { loadLineDeps(); startLineTimer(); }
+    if (k === "kb") renderKb();
     if (!(opts && opts.noHist)) histPush();
   };
   document.querySelectorAll(".dcard-tab").forEach(b => b.addEventListener("click", () => showCard(b.dataset.dcard)));
@@ -17998,7 +18088,7 @@ async function viewServiceDesk() {
   const onDesk = () => live() && /^#\/palvelutiski/.test(location.hash);
   const histSnap = () => {
     const s = curStopObj;
-    return { card, line: curLine ? { routeId: curLine.routeId, dirIdx: curLine.dirIdx } : null,
+    return { card, kb: curKb, line: curLine ? { routeId: curLine.routeId, dirIdx: curLine.dirIdx } : null,
       place: curPlace ? { name: curPlace.name, lat: curPlace.lat, lon: curPlace.lon, layer: curPlace.layer } : null,
       stop: s && s.gtfsId ? { gtfsId: s.gtfsId, name: s.name, code: s.code, lat: s.lat, lon: s.lon, terminal: !!s.terminal,
         platforms: s.platforms, group: s.group, parentTerm: s.parentTerm || null,
@@ -18006,7 +18096,7 @@ async function viewServiceDesk() {
   };
   // Sama kortti samalla kohteella (esim. uusi reittihaku reittikortilla) korvaa nykyisen tilan: Takaisin ei jää
   // kiertämään samannäköisiä tiloja.
-  const histKey = s => s ? [s.card, s.stop && s.stop.gtfsId, s.line && s.line.routeId, s.place && s.place.name].join("|") : "";
+  const histKey = s => s ? [s.card, s.stop && s.stop.gtfsId, s.line && s.line.routeId, s.place && s.place.name, s.card === "kb" ? s.kb : ""].join("|") : "";
   const histPush = over => {
     if (!onDesk()) return;
     const next = { ...histSnap(), ...(over || {}) };
@@ -18028,6 +18118,7 @@ async function viewServiceDesk() {
     if (st.card === "stop" && st.stop) openStop(st.stop, { noHist: true });
     else if (st.card === "line" && st.line) openLine(st.line.routeId, { noHist: true, dirIdx: st.line.dirIdx, stopId: st.line.stopId });
     else if (st.card === "place" && st.place) openPlace(st.place, { noHist: true });
+    else if (st.card === "kb") openKb(st.kb, { noHist: true });
     else showCard(st.card || "stop", { noHist: true });
   };
   window.addEventListener("popstate", deskPopHandler);
@@ -18075,9 +18166,12 @@ async function viewServiceDesk() {
   const optHtml = it => {
     const id = "deskOpt" + (++US.n);
     US.byId.set(id, it);
-    const attr = { stop: "data-s", line: "data-l", place: "data-p", route: "data-r" }[it.kind];
+    const attr = { stop: "data-s", line: "data-l", place: "data-p", route: "data-r", kb: "data-k" }[it.kind];
     let inner;
-    if (it.kind === "stop") {
+    if (it.kind === "kb") {
+      const L = kbLocal(it.card);
+      inner = `${icon("book")}<span><span lang="${L.titleLang}">${esc(L.title)}</span> <span class="muted" lang="${L.bodyLang}">${esc(kbSnippet(L.body))}</span></span>`;
+    } else if (it.kind === "stop") {
       const ln = dedupeRoutesByShort(it.stop.routes || []).map(r => r.shortName).slice(0, 8).join(", ");
       inner = `${icon("pin")}<span>${esc(it.stop.name)}${it.stop.code ? " (" + esc(it.stop.code) + ")" : ""}${
         ln ? ` <span class="muted">${t("deskDepsLines")} ${esc(ln)}</span>` : ""}</span>`;
@@ -18136,16 +18230,25 @@ async function viewServiceDesk() {
     const nl = parseNlTrip(q);
     const routeIt = (nl.from || nl.to) ? [{ kind: "route", q, nl }] : [];
     if (nl.from && nl.to) { showList(q, groupHtml("deskCatRoute", routeIt)); return; }
+    const kbP = loadKb().catch(() => null);
     const routes = await loadRoutes().catch(() => []);
     const lines = matchLines(routes, nq);
     const lineFirst = lines.length && lines[0].sc <= 1;
     const wantPlaces = nq.length >= 3;
     const placesP = wantPlaces ? searchDeskPlaces(q).catch(() => []) : Promise.resolve([]);
     const stops = nq.length >= 2 ? await searchDeskStops(q).catch(() => []) : [];
+    const kb = await kbP;
     if (my !== US.seq || !live()) return;
+    if (kb) setKbState(kb);
     const stopIts = stops.map(s => ({ kind: "stop", stop: s }));
-    const head = lineFirst ? groupHtml("deskCatLines", lines) + groupHtml("deskCatStops", stopIts)
-                           : groupHtml("deskCatStops", stopIts) + groupHtml("deskCatLines", lines);
+    // Tietopankin osumat: vahva osuma (otsikko tai avainsana alkaa haulla) ylimmäksi, ellei haku ole linjatunnus.
+    const kbHits = kb && kb.on && !kb.err ? kbMatch(kb.items, q) : [];
+    const kbHtml = groupHtml("deskCatKb", kbHits.map(h => ({ kind: "kb", card: h.c })));
+    const kbFirst = kbHits.length && kbHits[0].sc === 0 && !lineFirst;
+    const head = (kbFirst ? kbHtml : "")
+      + (lineFirst ? groupHtml("deskCatLines", lines) + groupHtml("deskCatStops", stopIts)
+                   : groupHtml("deskCatStops", stopIts) + groupHtml("deskCatLines", lines))
+      + (kbFirst ? "" : kbHtml);
     const tail = groupHtml("deskCatRoute", routeIt);
     if (!wantPlaces) { showList(q, (head + tail) || msgLi(t("deskNoResults", { q: esc(q) }))); return; }
     showList(q, head + `<li role="presentation" class="desk-places-slot">${head || tail ? "" : `<p class="muted">${t("deskSearching")}</p>`}</li>` + tail);
@@ -18167,6 +18270,7 @@ async function viewServiceDesk() {
     if (it.kind === "stop") { openStop(it.stop); deskRecentAdd({ kind: "stop", stop: it.stop }); }
     else if (it.kind === "line") { openLine(it.route.gtfsId); deskRecentAdd({ kind: "line", route: it.route }); }
     else if (it.kind === "place") { openPlace(it.place); deskRecentAdd({ kind: "place", place: it.place }); }
+    else if (it.kind === "kb") openKb(it.card.id);
     else openRoute(it.q);   // reittilause tallentuu viimeisimpiin haun valmistuttua (runSearch)
   };
   qEl.addEventListener("input", () => {
@@ -18433,6 +18537,96 @@ async function viewServiceDesk() {
   };
   drawAlerts(false);
   deskAlertTimer = setInterval(() => { drawAlerts(true); }, 60000);
+}
+
+/* ---------- Tietopankki (D6 4.10.2026): kunnan omat vastauskortit palvelutiskille ----------
+   Ylläpito kirjoittaa kortit (worker /admin/api/kb), tiski lukee ne julkisesta /kb-päätepisteestä. Workerin tuki
+   luetaan /published-vastauksen kentästä kb: vanha worker ei tunne reittiä, eikä sitä silloin kutsuta, joten
+   konsoliin ei tule 405-virhettä ja tietopankki pysyy piilossa. Tiski on auki koko päivän, joten kortit haetaan
+   uudelleen, kun edellisestä hausta on yli 10 minuuttia. Epäonnistunut päivitys pitää edelliset kortit. */
+let kbPromise = null, kbAt = 0, kbLast = null;
+const KB_TTL_MS = 10 * 60 * 1000;
+function loadKb(force) {
+  if (!PROXY_URL) return Promise.resolve({ on: false, items: [] });
+  if (kbPromise && !force && Date.now() - kbAt < KB_TTL_MS) return kbPromise;
+  kbAt = Date.now();
+  kbPromise = loadPublished().then(pub => {
+    if (!pub || !pub.kb) return { on: false, items: [] };
+    return fetch(PROXY_URL.replace(/\/$/, "") + "/kb?city=" + encodeURIComponent(cityKey))
+      .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(d => (kbLast = { on: true, items: kbClean(d && d.items) }))
+      .catch(() => kbLast || { on: true, items: [], err: true });
+  }).catch(() => ({ on: false, items: [] }));
+  return kbPromise;
+}
+// Vain odotetun muotoinen kortti kelpaa; lähde vain http(s).
+function kbClean(list) {
+  const s = v => (typeof v === "string" ? v : "");
+  return (Array.isArray(list) ? list : []).filter(c => c && s(c.id) && s(c.title).trim() && s(c.body).trim()).map(c => ({
+    id: c.id, title: c.title, body: c.body,
+    titleSv: s(c.titleSv), bodySv: s(c.bodySv), titleEn: s(c.titleEn), bodyEn: s(c.bodyEn),
+    keywords: Array.isArray(c.keywords) ? c.keywords.filter(k => typeof k === "string" && k.trim()) : [],
+    url: /^https?:\/\/[^\s<>"']+$/i.test(s(c.url)) ? c.url : "",
+    checked: /^\d{4}-\d{2}-\d{2}$/.test(s(c.checked)) ? c.checked : "",
+  }));
+}
+// Kortti käyttöliittymän kielellä, suomi varalla (sama sääntö kuin ylläpidon häiriötiedotteessa). titleLang ja
+// bodyLang kertovat ruudunlukijalle, kumpi osa näkyy suomeksi.
+function kbLocal(c) {
+  const tr = lang === "sv" ? [c.titleSv, c.bodySv] : lang === "en" ? [c.titleEn, c.bodyEn] : ["", ""];
+  return { title: tr[0] || c.title, body: tr[1] || c.body, titleLang: tr[0] ? lang : "fi", bodyLang: tr[1] ? lang : "fi" };
+}
+function kbSnippet(text) {
+  const s = String(text || "").replace(/\s+/g, " ").trim();
+  return s.length > 70 ? s.slice(0, 68).replace(/\s+\S*$/, "") + "…" : s;
+}
+// Hakuosumat otsikosta (käyttöliittymän kielellä, suomi varalla) ja avainsanoista. sc 0 = otsikko tai avainsana
+// alkaa haulla, 1 = jokainen hakusana alkaa jonkin sanan alusta (tai taivutettu hakusana alkaa avainsanalla,
+// "polkupyörän" -> "polkupyörä"), 2 = otsikko sisältää haun. Enintään viisi osumaa.
+function kbMatch(items, q) {
+  const nq = String(q || "").toLowerCase().replace(/\s+/g, " ").trim();
+  if (nq.length < 2) return [];
+  const words = s => s.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const qw = words(nq);
+  return (items || []).map(c => {
+    const title = kbLocal(c).title.toLowerCase();
+    const kws = (c.keywords || []).map(k => k.toLowerCase().trim()).filter(Boolean);
+    const ws = [title, ...kws].flatMap(words);
+    const sc = (title.startsWith(nq) || kws.some(k => k.startsWith(nq))) ? 0
+      : qw.length && qw.every(w => ws.some(x => x.startsWith(w) || (x.length >= 4 && w.startsWith(x)))) ? 1
+      : (nq.length >= 3 && title.includes(nq)) ? 2 : -1;
+    return { c, sc };
+  }).filter(h => h.sc >= 0).sort((a, b) => a.sc - b.sc).slice(0, 5);
+}
+// Ylläpidon teksti turvallisesti: kaikki escapoidaan, tyhjä rivi = uusi kappale, http(s)-osoitteet linkeiksi.
+function kbTextHtml(text) {
+  const linkify = s => {
+    let out = "", last = 0;
+    for (const m of s.matchAll(/https?:\/\/[^\s<>"']+/gi)) {
+      const u = m[0].replace(/[.,;:!?)\]]+$/, "");
+      out += esc(s.slice(last, m.index)) + `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>`;
+      last = m.index + u.length;
+    }
+    return out + esc(s.slice(last));
+  };
+  return String(text || "").replace(/\r\n?/g, "\n").split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
+    .map(p => `<p>${p.split("\n").map(linkify).join("<br>")}</p>`).join("");
+}
+function kbCardHtml(c) {
+  const L = kbLocal(c);
+  const loc = lang === "sv" ? "sv-FI" : lang === "en" ? "en-GB" : "fi-FI";
+  const date = c.checked ? new Date(c.checked + "T12:00").toLocaleDateString(loc, { day: "numeric", month: "numeric", year: "numeric" }) : "";
+  const shown = c.url ? c.url.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "") : "";
+  return `<article class="desk-kb-art">
+    <h3 class="desk-kb-h" lang="${L.titleLang}">${esc(L.title)}</h3>
+    <div class="desk-kb-body" lang="${L.bodyLang}">${kbTextHtml(L.body)}</div>
+    ${c.url ? `<p class="desk-kb-src">${icon("link")} ${esc(t("deskKbSource"))}: <a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(shown.length > 70 ? shown.slice(0, 68) + "…" : shown)}</a></p>` : ""}
+    ${date ? `<p class="muted desk-kb-checked">${esc(t("deskKbChecked", { date }))}</p>` : ""}
+    <div class="desk-tell-tools desk-kb-tools">
+      <button type="button" class="secondary desk-kb-copy">${icon("doc")} ${esc(t("deskKbCopy"))}</button>
+      <span class="desk-copy-st muted" role="status"></span>
+    </div>
+  </article>`;
 }
 
 /* ---------- A→B-reitinhaku (planConnection) ---------- */
