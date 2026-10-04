@@ -1309,7 +1309,8 @@ async function minuuttiLinjaus(page, rootSel, media) {
       return {
         jaettu: typeof lineDirDeps === "function",
         otsikko: document.getElementById("deskLineDepsH")?.textContent.trim() || "",
-        minuutit: rows.map(tr => parseInt(tr.lastElementChild.textContent, 10)),
+        // Erä B (B5): tiskin aika on muotoa "21:19 (5 min)", joten minuutit luetaan sulkeista (muuten alusta).
+        minuutit: rows.map(tr => { const tx = tr.lastElementChild.textContent, m = /\((\d+) min\)/.exec(tx); return m ? Number(m[1]) : parseInt(tx, 10); }),
         lahtopysakit: rows.map(tr => tr.querySelector(".dep-from")?.textContent.trim() || ""),
         viesti: document.querySelector("#deskLineDeps > p.muted")?.textContent || "",
       };
@@ -1705,6 +1706,267 @@ async function minuuttiLinjaus(page, rootSel, media) {
     ? ok("palvelutiski: häiriöiden latausvirhe näkyy virheenä eikä tyhjänä tilana, ja Yritä uudelleen hakee ne")
     : fail("palvelutiski: häiriöiden virhetila: " + JSON.stringify({ ...alErr, alBack }));
 
+  // --- Erä B (4.10.2026): tiski nopeammaksi ja selkeämmäksi kiireessä ---
+  // Tiski piirretään alusta (Lahden oletus = Trion terminaali). Synteettinen reittivastaus ja häiriöt: gql ja
+  // loadAllAlerts kääritään hetkeksi ja palautetaan finally-lohkossa. Ajat ovat nykyhetkestä laskettuja (ei kiinteää
+  // aikavyöhykettä). Lopuksi lomake avataan, näkymän koko palautetaan ja tiski piirretään uudelleen.
+  await page.evaluate(() => { location.hash = "#/"; });
+  await sleep(400);
+  await page.evaluate(() => { location.hash = "#/palvelutiski"; });
+  const termHead = () => page.waitForFunction(() => /kaikki pysäkit/.test(document.querySelector("#deskDeps .stophead")?.textContent || "")
+    && !!document.querySelector("#deskDeps .desk-deps-upd"), { timeout: 30000 }).then(() => true).catch(() => false);
+  const platOpen = () => page.waitForFunction(() => /^Trio \S+$/.test((document.querySelector("#deskDeps .stophead")?.textContent || "").trim())
+    && !!document.getElementById("deskBackTerm"), { timeout: 20000 }).then(() => true).catch(() => false);
+  await termHead();
+  // B9: terminaalista avatun pysäkin kortissa paluunappi terminaaliin, ja selaimen Takaisin palauttaa terminaalin
+  // tiskillä (ennen Takaisin vei pois palvelutiskiltä).
+  await page.evaluate(() => document.querySelector("#deskDeps .desk-terminal-plats a.dep-plat")?.click());
+  const b9a = await platOpen();
+  const b9Btn = await page.evaluate(() => document.getElementById("deskBackTerm")?.textContent.trim() || "");
+  await page.evaluate(() => document.getElementById("deskBackTerm")?.click());
+  const b9b = await termHead();
+  await page.evaluate(() => document.querySelector("#deskDeps .desk-terminal-plats a.dep-plat")?.click());
+  const b9c = await platOpen();
+  await page.evaluate(() => history.back());
+  const b9d = await termHead();
+  const b9s = await page.evaluate(() => ({ hash: location.hash, desk: document.body.classList.contains("desk-mode") }));
+  (b9a && b9Btn === "← Trio, kaikki pysäkit" && b9b && b9c && b9d && b9s.hash === "#/palvelutiski" && b9s.desk)
+    ? ok("palvelutiski B9: pysäkin kortista paluunapilla ja selaimen Takaisin-napilla takaisin Trion terminaaliin, tiski pysyy auki")
+    : fail("palvelutiski B9: paluu terminaaliin: " + JSON.stringify({ b9a, b9Btn, b9b, b9c, b9d, ...b9s }));
+
+  // B5: tiskin lähtölistassa kellonaika ja minuutit samalla rivillä, ja myöhästyminen aikataulun kellonaikoineen.
+  const b5 = await page.evaluate(() => {
+    const now = new Date(), sd = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000;
+    const sec = Math.floor(now.getTime() / 1000 - sd);
+    const st = { serviceDay: sd, scheduledDeparture: sec + 300, realtimeDeparture: sec + 480, realtime: true, headsign: "B5 testi",
+      trip: { route: { shortName: "B5" } } };
+    const html = typeof depTableRows === "function" && typeof DESK_DEP_OPTS !== "undefined" ? depTableRows([st], DESK_DEP_OPTS) : "";
+    const box = document.createElement("table"); box.innerHTML = html;
+    const cell = (box.querySelector("td.dep-when")?.textContent || "").replace(/\s+/g, " ").trim();
+    const rows = document.querySelectorAll("#deskDeps table.deps tbody tr").length;
+    return { cell, clock: fmtSec(sec + 480), sched: fmtSec(sec + 300), rows, whenCells: document.querySelectorAll("#deskDeps td.dep-when").length };
+  });
+  (b5.cell.startsWith(b5.clock + " (8 min)") && b5.cell.includes("myöhässä 3 min") && b5.cell.includes("(aikataulu " + b5.sched + ")")
+    && b5.whenCells === b5.rows)
+    ? ok(`palvelutiski B5: lähtörivillä kellonaika, minuutit ja myöhästyminen ("${b5.cell}"), terminaalin ${b5.rows} riviä samassa muodossa`)
+    : fail("palvelutiski B5: lähtöaika ja viive: " + JSON.stringify(b5));
+
+  // B7: sarkainpolku tulostusnappeihin (ennen linjakortin ensimmäiseen 77 ja pysäkkikortin 35 painallusta).
+  const tabsTo = async sel => {
+    await page.evaluate(() => { const q = document.getElementById("deskStop"); q.value = ""; q.focus(); });
+    for (let i = 1; i <= 60; i++) {
+      await page.keyboard.press("Tab");
+      if (await page.evaluate(s => !!document.activeElement && document.activeElement.matches(s), sel)) return i;
+    }
+    return -1;
+  };
+  await page.evaluate(() => document.querySelector("#deskDeps .desk-terminal-plats a.dep-plat")?.click());
+  await platOpen();
+  await page.waitForSelector("#deskPrintBtn", { timeout: 15000 }).catch(() => {});
+  const tabStop = await tabsTo("#deskPrintBtn");
+  await page.evaluate(() => document.querySelector("#deskLines a.badgelink")?.click());
+  await page.waitForFunction(() => !document.getElementById("deskCardLine").hidden && !!document.querySelector("#deskLineCard .deskLinePrint")
+    && !!document.querySelector("#deskLineDeps table.deps, #deskLineDeps p.muted:not(:empty)"), { timeout: 30000 }).catch(() => {});
+  const tabLine = await tabsTo("#deskLineCard .deskLinePrint");
+  (tabStop > 0 && tabStop <= 15 && tabLine > 0 && tabLine <= 30)
+    ? ok(`palvelutiski B7: sarkainpolku hausta pysäkkikortin tulostusnappiin ${tabStop} ja linjakortin ensimmäiseen tulostenappiin ${tabLine} painallusta`)
+    : fail("palvelutiski B7: sarkainpolku: " + JSON.stringify({ tabStop, tabLine }));
+
+  // B7: pikanäppäimet. "/" ja Ctrl+K hakuun, Alt+3 reittikortti, Alt+1 pysäkkikortti, ? avaa ohjeen ja Esc sulkee sen.
+  const keyState = () => page.evaluate(() => ({ focus: document.activeElement?.id || "", card: document.querySelector(".dcard-tab[aria-pressed=true]")?.dataset.dcard,
+    keys: !!document.getElementById("deskKeys")?.open }));
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press("/");
+  const k1 = await keyState();
+  await page.keyboard.down("Alt"); await page.keyboard.press("Digit3"); await page.keyboard.up("Alt");
+  const k2 = await keyState();
+  await page.evaluate(() => document.getElementById("deskWheelchair")?.focus());
+  await page.keyboard.down("Control"); await page.keyboard.press("KeyK"); await page.keyboard.up("Control");
+  const k3 = await keyState();
+  await page.keyboard.down("Alt"); await page.keyboard.press("Digit1"); await page.keyboard.up("Alt");
+  const k4 = await keyState();
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press("?");
+  const k5 = await keyState();
+  await page.keyboard.press("Escape");
+  const k6 = await keyState();
+  (k1.focus === "deskStop" && k2.card === "route" && k3.focus === "deskStop" && k4.card === "stop" && k5.keys && !k6.keys)
+    ? ok("palvelutiski B7: pikanäppäimet (/, Ctrl+K, Alt+1, Alt+3, ? ja Esc) ja ohje")
+    : fail("palvelutiski B7: pikanäppäimet: " + JSON.stringify({ k1, k2, k3, k4, k5, k6 }));
+
+  // B3 (pysäkki- ja linjakortti): pysäkkiä koskeva häiriö näkyy pysäkkikortin yläosassa ja linjan häiriö linjamerkkinä,
+  // josta avautuvassa linjakortissa tiedote on yläosassa. Synteettiset tiedotteet terminaalin pysäkille ja linjalle.
+  await page.evaluate(() => document.getElementById("deskBackTerm")?.click() || document.querySelector('.dcard-tab[data-dcard="stop"]')?.click());
+  await termHead();
+  const b3 = await page.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const origAlerts = loadAllAlerts;
+    const st = history.state && history.state.desk && history.state.desk.stop;
+    const plat = document.querySelector("#deskDeps .desk-terminal-plats a.dep-plat");
+    const platId = plat ? decodeURIComponent(plat.getAttribute("href").split("/pysakki/")[1]) : "";
+    const route = st && (st.routes || [])[0];
+    if (!platId || !route) return { ohita: true, platId, route };
+    loadAllAlerts = async () => [
+      { alertHeaderText: "B3 pysäkki suljettu", alertDescriptionText: "Vuorot siirretty viereiselle pysäkille.", alertEffect: "NO_SERVICE",
+        alertSeverityLevel: "SEVERE", entities: [{ __typename: "Stop", gtfsId: platId }] },
+      { alertHeaderText: "B3 linjan poikkeusreitti", alertDescriptionText: "Linja kiertää.", alertEffect: "DETOUR",
+        alertSeverityLevel: "WARNING", entities: [{ __typename: "Route", gtfsId: route.gtfsId }] },
+      { alertHeaderText: "B3 tiedote", alertEffect: "OTHER_EFFECT", alertSeverityLevel: "INFO", entities: [{ __typename: "Stop", gtfsId: platId }] }];
+    try {
+      document.querySelector('.dcard-tab[data-dcard="stop"]').click();
+      const box = () => document.getElementById("deskStopAlerts");
+      for (let i = 0; i < 100 && !/B3 pysäkki/.test(box()?.textContent || ""); i++) await wait(100);
+      const stopTxt = (box()?.innerText || "").replace(/\s+/g, " ").trim();
+      const lineBadge = [...(box()?.querySelectorAll(".desk-alert-lines a.badgelink") || [])].map(a => a.textContent.trim());
+      const firstOpen = !!box()?.querySelector("details.alert[open]");
+      box()?.querySelector(".desk-alert-lines a.badgelink")?.click();
+      const lb = () => document.getElementById("deskLineAlerts");
+      for (let i = 0; i < 150 && !/B3 linjan/.test(lb()?.textContent || ""); i++) await wait(100);
+      const lineTxt = (lb()?.innerText || "").replace(/\s+/g, " ").trim();
+      return { stopTxt, lineBadge, firstOpen, lineTxt, route: route.shortName };
+    } finally { loadAllAlerts = origAlerts; }
+  });
+  (!b3.ohita && /Häiriöt tällä pysäkillä/.test(b3.stopTxt) && /B3 pysäkki suljettu/.test(b3.stopTxt) && /viereiselle/.test(b3.stopTxt)
+    && !/B3 tiedote/.test(b3.stopTxt) && b3.firstOpen && b3.lineBadge.includes(b3.route) && /Häiriöt tällä linjalla B3 linjan poikkeusreitti/.test(b3.lineTxt))
+    ? ok(`palvelutiski B3: häiriö pysäkkikortin yläosassa, linjan ${b3.route} häiriö linjamerkkinä ja linjakortin yläosassa (tiedote ei)`)
+    : fail("palvelutiski B3: häiriöt korteissa: " + JSON.stringify(b3));
+
+  // B4: kotipysäkki id:llä. Hämeenlinnan linja-autoaseman paikallispysäkit A-E ovat kahden emoaseman alla, ja nimihaku
+  // osuisi kaukoliikenteen tulolaituriin (Hameenlinna:300360). Kaikilla kaupungeilla on id tai nimi.
+  const b4 = await page.evaluate(async () => {
+    const t = await deskHomeById(CONFIGS.hameenlinna.deskHomeStop).catch(e => ({ virhe: e.message }));
+    const puuttuu = Object.entries(CONFIGS).filter(([k, c]) => k !== "raasepori" && !(c.deskHomeStop && (c.deskHomeStop.id || c.deskHomeStop.ids) && c.deskHomeStop.name)).map(([k]) => k);
+    return { name: t && t.name, terminal: t && t.terminal, n: t && (t.group || []).length, tulo: !!(t && (t.group || []).includes("Hameenlinna:300360")), puuttuu };
+  });
+  (b4.name === "Linja-autoasema" && b4.terminal && b4.n === 5 && !b4.tulo && !b4.puuttuu.length)
+    ? ok("palvelutiski B4: Hämeenlinnan tiski avautuu linja-autoaseman viiteen paikallispysäkkiin (kaksi emoasemaa), ei tulolaituriin; kaikilla kaupungeilla kotipysäkki id:llä")
+    : fail("palvelutiski B4: kotipysäkki: " + JSON.stringify(b4));
+
+  // B6: Joensuun vyöhykehinnat tiskille (deskOnly: ei #/liput-sivua) ja reittivastauksen hintarivi vyöhykkeittäin.
+  const b6j = await page.evaluate(() => {
+    const f = CONFIGS.joensuu && CONFIGS.joensuu.fares;
+    const box = document.createElement("div"); box.innerHTML = f && typeof deskFareLineHtml === "function" ? deskFareLineHtml(f) : "";
+    return { deskOnly: !!(f && f.deskOnly), zones: f ? (f.zones || []).length : 0, url: f && f.url, line: box.textContent.replace(/\s+/g, " ").trim() };
+  });
+  (b6j.deskOnly && b6j.zones === 4 && /jojo\.joensuu\.fi/.test(b6j.url || "") && /1 vyöhyke 3,00 € \/ 1,50 €/.test(b6j.line) && /4 vyöhykettä 9,00 € \/ 4,50 €/.test(b6j.line))
+    ? ok(`palvelutiski B6: Joensuun kertalippuhinnat vyöhykkeittäin tiskille ("${b6j.line.slice(0, 70)}…")`)
+    : fail("palvelutiski B6: Joensuun hinnat: " + JSON.stringify(b6j));
+
+  // B1, B2, B3 (reitti), B6, B7 (pikakohde, viimeisimmät, myöhemmät/aiemmat) ja B8 synteettisellä reittivastauksella.
+  // Pikakohde "Keskussairaala" hakee reitin tiskin omalta pysäkiltä (Trio). Vastaus: vaihdollinen yhteys, jonka
+  // toisella linjalla on häiriö.
+  const b1Setup = await page.evaluate(() => {
+    window.__b = { vars: [], copied: null };
+    window.__bOrig = { gql, loadAllAlerts, write: navigator.clipboard && navigator.clipboard.writeText };
+    const at = m => new Date(Date.now() + m * 60000).toISOString();
+    const leg = (mode, a, b, from, to, line, rid) => ({ mode, duration: (b - a) * 60, distance: 1000, realtimeState: null, interlineWithPreviousLeg: false,
+      start: { scheduledTime: at(a) }, end: { scheduledTime: at(b) },
+      from: { name: from, lat: 60.983 + a / 1000, lon: 25.66, stop: mode === "WALK" ? null : { code: "1", platformCode: "D", name: from } },
+      to: { name: to, lat: 60.99 + b / 1000, lon: 25.6, stop: mode === "WALK" ? null : { code: "2", name: to } },
+      route: line ? { gtfsId: rid, shortName: line } : null, trip: null, intermediateStops: [], intermediatePlaces: [], legGeometry: null,
+      alerts: rid === "SMOKEB:2" ? [{ alertHeaderText: "B3 reitin häiriö", alertSeverityLevel: "WARNING" }] : [] });
+    const node = off => ({ start: at(off), end: at(off + 30), numberOfTransfers: 1, walkDistance: 300, legs: [
+      leg("WALK", off, off + 2, "Trio", "Trio D"), leg("BUS", off + 3, off + 12, "Trio D", "Matkakeskus B", "SB1", "SMOKEB:1"),
+      leg("BUS", off + 15, off + 27, "Matkakeskus B", "Keskussairaala E", "SB2", "SMOKEB:2"), leg("WALK", off + 27, off + 30, "Keskussairaala E", "Keskussairaala")] });
+    gql = async (q, v, o) => {
+      if (q !== PLAN_QUERY) return window.__bOrig.gql(q, v, o);
+      window.__b.vars.push(JSON.parse(JSON.stringify(v)));
+      const base = v.after ? 60 : v.before ? -60 : 5;
+      return { planConnection: { pageInfo: { startCursor: "S" + base, endCursor: "E" + base, hasNextPage: true, hasPreviousPage: true },
+        edges: [node(base), node(base + 20)].map(n => ({ node: n })) } };
+    };
+    loadAllAlerts = async () => [{ alertHeaderText: "B3 reitin häiriö", alertDescriptionText: "Linja SB2 kiertää.", alertEffect: "DETOUR",
+      alertSeverityLevel: "WARNING", entities: [{ __typename: "Route", gtfsId: "SMOKEB:2" }] }];
+    if (navigator.clipboard) navigator.clipboard.writeText = async txt => { window.__b.copied = txt; };
+    const q = (CONFIG.deskQuick || []).findIndex(x => x.k === "hospital");
+    return { q, label: q >= 0 ? (CONFIG.deskQuick[q].fi || "") : "", homeLat: null };
+  });
+  const b1 = [];
+  try {
+    for (const [w, h, dsf] of [[1920, 1080, 1], [1536, 864, 1.25], [1366, 768, 1]]) {
+      await page.setViewport({ width: w, height: h, deviceScaleFactor: dsf });
+      await sleep(300);
+      await page.evaluate(() => { scrollTo(0, 0); document.getElementById("deskResults").innerHTML = ""; });
+      await page.evaluate(q => document.querySelector(`#deskQuick button[data-q="${q}"]`)?.click(), b1Setup.q);
+      await page.waitForSelector("#deskResults .desk-tell .desk-tell-tools", { timeout: 20000 }).catch(() => {});
+      await sleep(400);
+      b1.push(await page.evaluate((w, h) => {
+        const r = document.querySelector("#deskResults .desk-tell")?.getBoundingClientRect();
+        return { vp: w + "x" + h, top: r ? Math.round(r.top) : null, bottom: r ? Math.round(r.bottom) : null, vh: innerHeight, sy: Math.round(scrollY),
+          formHidden: document.getElementById("deskRouteForm").hidden, sum: (document.getElementById("deskRouteSumTxt")?.textContent || "").trim() };
+      }, w, h));
+    }
+    const b1ok = b1.every(x => x.top != null && x.top >= 0 && x.bottom <= x.vh && x.formHidden);
+    const map = await page.evaluate(() => ({ paths: document.querySelectorAll("#deskMap path.leaflet-interactive").length,
+      status: document.getElementById("deskMapStatus")?.textContent || "" }));
+    const v0 = await page.evaluate(() => window.__b.vars[0] || null);
+    (b1ok && b1.every(x => /^Trio → .+/.test(x.sum)) && map.paths >= 2 && /SB1, SB2/.test(map.status))
+      ? ok(`palvelutiski B1: vastaus näkyy kokonaan heti haun jälkeen, myös häiriörivin kanssa (${b1.map(x => `${x.vp} ${x.top}-${x.bottom}/${x.vh}${x.sy ? ", tiski vieritti " + x.sy + " px" : ""}`).join("; ")}), lomake tiivistyy ja reitti piirtyy karttaan`)
+      : fail("palvelutiski B1: vastauksen paikka tai kartta: " + JSON.stringify({ b1, map, v0: !!v0 }));
+    await page.setViewport({ width: 800, height: 600 });
+    await sleep(300);
+    // B3 (reitti) ja B6 (hinta reittivastauksessa).
+    const r3 = await page.evaluate(() => ({
+      alerts: (document.querySelector("#deskResults .desk-card-alerts")?.innerText || "").replace(/\s+/g, " ").trim(),
+      optAlerts: document.querySelectorAll("#deskResults .desk-opt .desk-opt-alert").length,
+      fare: (document.querySelector("#deskResults .desk-tell .desk-tell-fare")?.textContent || "").replace(/\s+/g, " ").trim(),
+      adult: CONFIG.fares?.single?.cardApp?.adult, child: CONFIG.fares?.single?.cardApp?.child }));
+    (/Häiriöt tällä reitillä B3 reitin häiriö/.test(r3.alerts) && r3.optAlerts === 2
+      && r3.fare.includes(`aikuinen ${r3.adult} €`) && r3.fare.includes(`lapsi ${r3.child} €`))
+      ? ok(`palvelutiski B3/B6: reitin häiriö vastauksen yläosassa ja vaihtoehdoissa, hinta vastauksessa ("${r3.fare}")`)
+      : fail("palvelutiski B3/B6: reitin häiriö tai hinta: " + JSON.stringify(r3));
+    // B2: Kopioi vastaus -> lyhyt teksti (enintään noin 160 merkkiä) ja linkki samaan reittiin, näkyvä kuittaus.
+    await page.evaluate(() => document.querySelector("#deskResults .desk-copy")?.click());
+    await page.waitForFunction(() => !!window.__b.copied, { timeout: 5000 }).catch(() => {});
+    const b2 = await page.evaluate(() => {
+      const [txt, link] = String(window.__b.copied || "").split("\n");
+      return { txt, link, st: document.querySelector("#deskResults .desk-copy-st")?.textContent || "",
+        day: new Date().toLocaleDateString("fi-FI", { weekday: "short", day: "numeric", month: "numeric" }) };
+    });
+    (b2.txt && b2.txt.length <= 160 && /^\S+ \d{1,2}\.\d{1,2}\. Trio → Keskussairaala: linja SB1 pysäkiltä Trio D klo \d\d:\d\d, vaihto pysäkillä Matkakeskus B linjaan SB2 klo \d\d:\d\d, perillä \d\d:\d\d\./.test(b2.txt)
+      && /#\/reitti\/[^/]+\/[^/]+/.test(b2.link || "") && b2.st === "Kopioitu!")
+      ? ok(`palvelutiski B2: kopioitu vastaus ${b2.txt.length} merkkiä ja linkki samaan reittiin ("${b2.txt}")`)
+      : fail("palvelutiski B2: kopioitu vastaus: " + JSON.stringify(b2));
+    // B8: Näytä asiakkaalle -> iso vastaus (vähintään 40 px) ja QR-koodi; Esc sulkee ja fokus palaa nappiin.
+    await page.evaluate(() => document.querySelector("#deskResults .desk-show-btn")?.focus());
+    await page.evaluate(() => document.querySelector("#deskResults .desk-show-btn")?.click());
+    await page.waitForSelector("#deskShow #deskShowQr canvas", { timeout: 10000 }).catch(() => {});
+    const b8 = await page.evaluate(() => ({ auki: !document.getElementById("deskShow").hidden,
+      px: parseFloat(getComputedStyle(document.querySelector("#deskShow .desk-show-body") || document.body).fontSize),
+      qr: !!document.querySelector("#deskShow #deskShowQr canvas"), otsikko: document.getElementById("deskShowH")?.textContent || "" }));
+    await page.keyboard.press("Escape");
+    const b8b = await page.evaluate(() => ({ kiinni: document.getElementById("deskShow").hidden,
+      fokus: !!document.activeElement && document.activeElement.classList.contains("desk-show-btn") }));
+    (b8.auki && b8.px >= 40 && b8.qr && b8.otsikko === "Trio → Keskussairaala" && b8b.kiinni && b8b.fokus)
+      ? ok(`palvelutiski B8: asiakkaalle näytettävä tila (teksti ${b8.px} px, QR) ja Esc palaa tiskille`)
+      : fail("palvelutiski B8: asiakasnäkymä: " + JSON.stringify({ ...b8, ...b8b }));
+    // B7: viimeisimmät haut ja myöhemmät/aiemmat vuorot samalla haulla (kursori).
+    await page.evaluate(() => document.getElementById("deskLaterBtn")?.click());
+    await page.waitForFunction(() => window.__b.vars.some(v => v.after), { timeout: 10000 }).catch(() => {});
+    await page.evaluate(() => document.getElementById("deskEarlierBtn")?.click());
+    await page.waitForFunction(() => window.__b.vars.some(v => v.before), { timeout: 10000 }).catch(() => {});
+    const b7 = await page.evaluate(() => {
+      const nx = window.__b.vars.find(v => v.after), pv = window.__b.vars.find(v => v.before), first = window.__b.vars[0];
+      return { after: nx && nx.after, nFirst: nx && nx.first, before: pv && pv.before, nLast: pv && pv.last,
+        sameOrigin: !!(nx && first && JSON.stringify(nx.origin) === JSON.stringify(first.origin)),
+        recent: [...document.querySelectorAll("#deskQuick button[data-r]")].map(b => b.textContent.trim()) };
+    });
+    (b7.after === "E5" && b7.nFirst === 5 && b7.before && b7.nLast === 5 && b7.sameOrigin && b7.recent.some(r => r === "Trio → Keskussairaala"))
+      ? ok(`palvelutiski B7: pikakohde, myöhemmät ja aiemmat vuorot samalla haulla sekä viimeisimmät haut (${b7.recent.length})`)
+      : fail("palvelutiski B7: pikakohde, sivutus tai viimeisimmät: " + JSON.stringify(b7));
+  } finally {
+    await page.evaluate(() => {
+      gql = window.__bOrig.gql; loadAllAlerts = window.__bOrig.loadAllAlerts;
+      if (navigator.clipboard && window.__bOrig.write) navigator.clipboard.writeText = window.__bOrig.write;
+      try { sessionStorage.removeItem("deskRecent:" + cityKey); } catch (e) {}
+    });
+    await page.setViewport({ width: 800, height: 600 });
+    await page.evaluate(() => { location.hash = "#/"; });
+    await sleep(400);
+    await page.evaluate(() => { location.hash = "#/palvelutiski"; });
+    await page.waitForSelector("#deskFrom", { timeout: 15000 }).catch(() => {});
+  }
+
   // 390 px: tiskissä ei vaakavieritystä (viewport palautetaan heti).
   await page.setViewport({ width: 390, height: 800 });
   await sleep(1200);
@@ -1949,6 +2211,14 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (vDeskAccent.hex !== "#0033cc" && vDeskAccent.pinkki && vDeskAccent.kontrasti >= 5.5)
     ? ok(`palvelutiski (Vaasa): aksentti kantaa Liftin pinkkiä (${vDeskAccent.hex}, ${vDeskAccent.kontrasti.toFixed(1)}:1)`)
     : fail("palvelutiski (Vaasa): tiskin aksentti ei ole brändinmukainen/kontrastinen: " + JSON.stringify(vDeskAccent));
+  // Erä B, B4: Vaasan tiski avautuu Liftin asiakaspalvelupisteen ovelle (Raastuvankatu / Rewell 2, kauppakeskus Rewell),
+  // ei matkakeskukselle 506 m päähän. Tunnistus id:llä, koska näkymä on tässä kohtaa ruotsiksi.
+  await page.waitForFunction(() => document.querySelector("#deskDeps .desk-deps-upd, #deskDeps .error"), { timeout: 30000 }).catch(() => {});
+  const vB4Home = await page.evaluate(() => ({ id: (history.state && history.state.desk && history.state.desk.stop || {}).gtfsId || "",
+    nimi: (document.querySelector("#deskDeps .stophead")?.textContent || "").replace(/\s+/g, " ").trim() }));
+  (vB4Home.id === "Vaasa:159824")
+    ? ok(`palvelutiski B4 (Vaasa): oletuksena asiakaspalvelupisteen pysäkki ${vB4Home.nimi}`)
+    : fail("palvelutiski B4 (Vaasa): oletuspysäkki: " + JSON.stringify(vB4Home));
   await page.click("#deskStop");
   await page.type("#deskStop", "Vöyrinkatu", { delay: 25 });
   if (await expect("#deskStopList button[data-s]", "palvelutiski (Vaasa): pysäkkiehdotus", 15000)) {
@@ -3931,6 +4201,14 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (ik.areaScoped && ik.pysakit > 0 && ik.linjallisia > 0 && ik.vieraat.length === 0 && ikReqs.length === 1)
     ? ok(`palvelutiski V2 (Inkoo): hakulistan pysäkeillä linjanumerot (${ik.linjallisia}/${ik.pysakit} pysäkkiä, alueen linjat, 1 linjakysely)`)
     : fail("palvelutiski V2 (Inkoo): pysäkkirivien linjat: " + JSON.stringify({ ...ik, linjakyselyt: ikReqs.length }));
+  // Erä B, B6: Inkoon tiskillä on linkki kunnan joukkoliikennesivulle (liput ja hinnat), mutta ei keksittyä hintaa:
+  // virallista kertalipun hintaa ei löytynyt (Matkahuolto, matkan pituuden mukaan).
+  await page.waitForSelector("#deskFaresSlot a", { timeout: 15000 }).catch(() => {});
+  const ikFares = await page.evaluate(() => ({ linkki: document.querySelector("#deskFaresSlot a[href*='inkoo.fi']")?.textContent.trim() || "",
+    hinta: /\d,\d\d\s*€/.test(document.getElementById("deskFaresSlot")?.textContent || "") }));
+  (ikFares.linkki && !ikFares.hinta)
+    ? ok(`palvelutiski B6 (Inkoo): linkki viralliselle lippusivulle ("${ikFares.linkki}"), ei arvattua hintaa`)
+    : fail("palvelutiski B6 (Inkoo): hintalinkki: " + JSON.stringify(ikFares));
   await page.goto(BASE + "/?city=lahti#/", { waitUntil: "networkidle2" });
   await page.waitForSelector("#homeFromInput", { timeout: 15000 }).catch(() => {});
   const extLahti = await page.evaluate(() => ({
