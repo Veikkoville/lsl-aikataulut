@@ -887,16 +887,17 @@ async function minuuttiLinjaus(page, rootSel, media) {
   }
 
   // --- Kaksikielisyys (Vaasa, SV): UI + CONFIG.cityNames.sv + GTFS-datan pysäkkinimet ---
-  // Kielenvaihto SV → otsikko "Busstidtabeller i Vasa" (cityNames.sv) ja linjasivun
+  // Kielenvaihto SV → otsikko "Reittari Vasa" (cityNames.sv) ja alaotsikko "Lifti" (headerSub.sv), linjasivun
   // suuntavalinnassa ruotsinkielinen pysäkkinimi (name@L → translations.txt-data).
-  // EI hyväksytä FI-fallbackia: "Busstidtabeller" ja vägen/gatan/esplanaden ovat sv-spesifejä.
+  // EI hyväksytä FI-fallbackia: "Vasa" (ei "Vaasa") ja vägen/gatan/esplanaden ovat sv-spesifejä.
   await page.goto(BASE + "/?city=vaasa#/", { waitUntil: "networkidle2" });
   await page.click('[data-lang-opt="sv"]');
   const svHome = await page.waitForFunction(
     () => document.documentElement.lang === "sv"
-      && (document.getElementById("appTitle")?.textContent || "").includes("Busstidtabeller i Vasa"),
+      && (document.getElementById("appTitle")?.textContent || "") === "Reittari Vasa"
+      && (document.getElementById("appSub")?.textContent || "") === "Lifti",
     { timeout: 10000 }).then(() => true).catch(() => false);
-  svHome ? ok("kaksikielisyys (Vaasa, SV): otsikko 'Busstidtabeller i Vasa' + lang=sv")
+  svHome ? ok("kaksikielisyys (Vaasa, SV): otsikko 'Reittari Vasa', alaotsikko 'Lifti' + lang=sv")
          : fail("kaksikielisyys (Vaasa, SV): otsikko/lang ei vaihtunut ruotsiksi");
   await page.waitForSelector('#routeList a[href^="#/linja/"]', { timeout: 20000 });
   const svRouteHref = await page.evaluate(() =>

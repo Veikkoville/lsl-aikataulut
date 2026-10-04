@@ -1,6 +1,6 @@
 {
   "id": "/lsl-aikataulut/",
-  "name": "Reittari bussiaikataulut",
+  "name": "Reittari Lahti",
   "short_name": "Reittari",
   "description": "Epävirallinen aikataulupalvelu: pysäkkiaikataulut, linjat, reaaliaika, häiriöt ja tulosteet.",
   "start_url": ".",

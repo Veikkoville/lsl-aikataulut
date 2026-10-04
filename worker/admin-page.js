@@ -44,7 +44,8 @@ export const ADMIN_HTML = `<!doctype html>
   .top { background:var(--surface); border-top:4px solid var(--accent); border-bottom:1px solid var(--line); }
   .top-in { max-width:1180px; margin:0 auto; padding:var(--s3) var(--s4); display:flex; align-items:center; gap:var(--s3) var(--s4); flex-wrap:wrap; }
   .brand { display:flex; align-items:center; gap:var(--s3); flex:1 1 auto; min-width:0; }
-  .glyph { width:36px; height:36px; border-radius:9px; background:var(--accent); color:#fff; display:grid; place-items:center; font-weight:800; font-size:1.05rem; flex:none; }
+  .glyph { width:36px; height:36px; border-radius:9px; background:var(--accent); color:#fff; display:grid; place-items:center; flex:none; }
+  .glyph svg { width:100%; height:100%; display:block; }
   .eyebrow { margin:0; font-size:var(--fs-xs); font-weight:700; color:var(--muted); line-height:1.2; }
   h1 { margin:0; font-size:var(--fs-lg); font-weight:800; line-height:1.2; display:flex; align-items:center; gap:var(--s2); flex-wrap:wrap; }
   .city-chip { font-size:var(--fs-sm); font-weight:700; color:var(--accent); background:var(--accent-soft); border-radius:999px; padding:2px 10px; }
@@ -176,7 +177,7 @@ export const ADMIN_HTML = `<!doctype html>
 <header class="top">
   <div class="top-in">
     <div class="brand">
-      <span class="glyph" id="glyph" aria-hidden="true">R</span>
+      <span class="glyph" id="glyph" aria-hidden="true"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><g transform="translate(-1 -2.5)"><path d="M40 92V30H62C86 30 86 62 62 62H52L80 90" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><circle cx="40" cy="92" r="9" fill="currentColor"/><circle cx="82" cy="92" r="9" fill="currentColor"/></g></svg></span>
       <div>
         <p class="eyebrow">Reittari</p>
         <h1>Ylläpito <span class="city-chip" id="cityName"></span></h1>
@@ -474,7 +475,6 @@ let TYOTILA = false;
 async function init(){
   $("openApp").href = "https://demo.reittari.fi/?city=" + CITY;
   $("cityName").textContent = CITY_NAME;
-  $("glyph").textContent = CITY_NAME.charAt(0);
   document.title = "Ylläpito · " + CITY_NAME + " · Reittari";
   const s = await api("admin/api/session?city=" + CITY, { method:"GET" });
   // Työtilassa kirjautuminen ja uloskirjautuminen ovat työtilan palkissa, ja palvelu avautuu työtilan polulta.

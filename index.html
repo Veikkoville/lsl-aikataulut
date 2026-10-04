@@ -2206,7 +2206,8 @@
   .header-inner { gap: 0.5rem 1.5rem; }
   .brand { flex: 0 1 auto; }
   .brand-glyph { width: 34px; height: 34px; border-radius: 8px; background: var(--btn-bg); color: #fff;
-    display: grid; place-items: center; font-weight: 800; font-size: 1.05rem; line-height: 1; flex: none; }
+    display: grid; place-items: center; flex: none; }
+  .brand-glyph svg { width: 100%; height: 100%; display: block; }
   header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.005em; line-height: 1.2; }
   header p { color: var(--ink-muted); opacity: 1; font-size: 0.78rem; }
   .hdr-nav { display: flex; gap: 1.25rem; flex: 1 1 auto; min-width: 0; }
@@ -2321,10 +2322,12 @@
 <header>
   <div class="header-inner">
     <a class="brand" id="brandLink" href="#/" aria-label="Etusivulle">
-      <span class="brand-glyph" id="brandGlyph" aria-hidden="true">L</span>
+      <!-- Reittari-merkki (4.10.2026, Villen päätös): kaupungin alkukirjain korvattu R-reittiviivalla.
+           Tausta pysyy kaupungin värinä (--btn-bg), viiva currentColor. Sama merkki kuin icon.svg:ssä. -->
+      <span class="brand-glyph" id="brandGlyph" aria-hidden="true"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><g transform="translate(-1 -2.5)"><path d="M40 92V30H62C86 30 86 62 62 62H52L80 90" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><circle cx="40" cy="92" r="9" fill="currentColor"/><circle cx="82" cy="92" r="9" fill="currentColor"/></g></svg></span>
       <div>
-        <h1 id="appTitle">Lahden bussiaikataulut</h1>
-        <p id="appSub">Epävirallinen palvelu · data: Lahden seudun liikenne / Waltti (CC BY 4.0)</p>
+        <h1 id="appTitle">Reittari Lahti</h1>
+        <p id="appSub">Lahden seudun liikenne</p>
       </div>
     </a>
     <!-- Päävalikko (ilme 25.9.2026): kuntalaisen etusivu, tulosteet, tiski ja henkilöstön tilanne.
@@ -2626,6 +2629,7 @@ const CONFIGS = {
     cityNames: { sv: "Vasa" },
     cityGenitives: { sv: "Vasa" },
     operator: "Vaasan paikallisliikenne",
+    headerSub: { sv: "Lifti" },
     operatorShort: "Lifti",
     feedMatch: /vaasa/i,
     rail: "VS",
@@ -2840,6 +2844,7 @@ const CONFIGS = {
     cityNames: { sv: "Raseborg" },
     cityGenitives: { sv: "Raseborgs" },
     operator: "Raaseporin joukkoliikenne",
+    headerSub: { sv: "BOSSE" },
     operatorShort: "BOSSE",
     feedMatch: /raasepori/i,
     // Kaksi asemaa, tiskin oletuspysäkin mukainen ensin. Tammisaari (TMS) on
@@ -3690,6 +3695,7 @@ const CONFIGS = {
     cityNames: { sv: "Åbo" },
     cityGenitives: { sv: "Åbo" },
     operator: "Föli, Turun seudun joukkoliikenne",
+    headerSub: { sv: "Föli" },
     operatorShort: "Föli",
     feedMatch: /^FOLI$/i,          // ankkuroitu: FUNI (Föri + funikulaari) on eri feed
     rail: "TKU",                    // Turku asema (rata.digitraffic)
@@ -3820,6 +3826,7 @@ const CONFIGS = {
     cityGenitives: { sv: "Ingå" },
     // Uudenmaan ELY-keskus ei ole ollut joukkoliikenteen tilaaja 1.1.2026 jälkeen.
     operator: "Traficom ja alueen liikennöitsijät",
+    headerSub: { fi: "Inkoon joukkoliikenne", sv: "Ingå kollektivtrafik", en: "Inkoo public transport" },
     // Inkoo on ruotsinkielisenemmistöinen: tulosteessa tilaajarivi ei saa jäädä suomeksi.
     operators: { sv: "Traficom och trafikidkarna i området",
                  en: "Traficom and local operators" },
@@ -4047,11 +4054,13 @@ const app = document.getElementById("app");
 const STRINGS = {
   fi: {
     // sovelluskehys
-    appTitle: "{cityGen} bussiaikataulut",
-    appTitleTag: "{cityGen} bussiaikataulut (epävirallinen)",
+    // Nimi (Villen päätös 4.10.2026): tuotenimi + kaupunki, sama kuin kotinäytön ikonin nimi
+    // (manifestit "Reittari Turku"). Alaotsikko on liikenteen virallinen nimi (headerSubText).
+    appTitle: "Reittari {city}",
+    appTitleTag: "Reittari {city} (epävirallinen)",
     metaDesc: "{cityGen} bussien aikataulut, reaaliaikaiset lähdöt, reittiopas, häiriötiedotteet, liput ja kartat selaimessa. Epävirallinen palvelu avoimen Waltti-/Digitransit-datan päälle.",
     metaDescNoRt: "{cityGen} bussien aikataulut, pysäkkien lähdöt, reittiopas, häiriötiedotteet, liput ja kartat selaimessa. Epävirallinen palvelu avoimen Waltti-/Digitransit-datan päälle.",
-    headerSub: "Aikataulut ja reitit selkeästi, avoimesta datasta",
+    headerSub: "{operator}",
     heroTitle: "Mihin matka?",
     heroTagline: "Hae nopein bussireitti perille reaaliaikaisilla lähtöajoilla.",
     heroTaglineNoRt: "Hae nopein bussireitti perille ja katso pysäkin seuraavat lähdöt.",
@@ -4773,11 +4782,11 @@ const STRINGS = {
     copied: "Kopioitu!", copyManual: "Kopiointi estetty. Valitse ja kopioi käsin.",
   },
   en: {
-    appTitle: "{city} bus timetables",
-    appTitleTag: "{city} bus timetables (unofficial)",
+    appTitle: "Reittari {city}",
+    appTitleTag: "Reittari {city} (unofficial)",
     metaDesc: "{city} bus timetables, real-time departures, journey planner, disruption alerts, tickets and maps in your browser. Unofficial service built on open Waltti/Digitransit data.",
     metaDescNoRt: "{city} bus timetables, stop departures, journey planner, disruption alerts, tickets and maps in your browser. Unofficial service built on open Waltti/Digitransit data.",
-    headerSub: "Timetables and routes made clear, from open data",
+    headerSub: "{operator}",
     heroTitle: "Where to?",
     heroTagline: "Find the fastest bus route with real-time departures.",
     heroTaglineNoRt: "Find the fastest bus route and see the next departures from your stop.",
@@ -5473,11 +5482,11 @@ const STRINGS = {
     copied: "Copied!", copyManual: "Copy blocked. Select and copy manually.",
   },
   sv: {
-    appTitle: "Busstidtabeller i {city}",
-    appTitleTag: "Busstidtabeller i {city} (inofficiell)",
+    appTitle: "Reittari {city}",
+    appTitleTag: "Reittari {city} (inofficiell)",
     metaDesc: "Busstidtabeller i {city}, avgångar i realtid, reseplanerare, störningsmeddelanden, biljetter och kartor i webbläsaren. Inofficiell tjänst byggd på öppna Waltti-/Digitransit-data.",
     metaDescNoRt: "Busstidtabeller i {city}, hållplatsernas avgångar, reseplanerare, störningsmeddelanden, biljetter och kartor i webbläsaren. Inofficiell tjänst byggd på öppna Waltti-/Digitransit-data.",
-    headerSub: "Tidtabeller och rutter tydligt, från öppna data",
+    headerSub: "{operator}",
     heroTitle: "Vart vill du?",
     heroTagline: "Hitta den snabbaste bussrutten med avgångar i realtid.",
     heroTaglineNoRt: "Hitta den snabbaste bussrutten och se nästa avgångar från hållplatsen.",
@@ -6274,6 +6283,10 @@ function nlExample(i) {
 }
 
 function t(key, params) { return tIn(lang, key, params); }
+// Yläpalkin alaotsikko: liikenteen virallinen nimi (CONFIG.operator). Kaupunki voi ohittaa sen
+// kielittäin (CONFIG.headerSub = {fi, sv, en}), jos operator-kenttä ei sovi otsikoksi tai
+// ruotsinkielinen nimi on eri (Inkoo, Raasepori, Vaasa).
+function headerSubText() { return (CONFIG.headerSub && CONFIG.headerSub[lang]) || t("headerSub"); }
 // ●-selite ("= reaaliaikainen arvio") vain kaupungeissa, joiden lähdöissä on reaaliaikaa.
 function rtLegendHtml(key) {
   return CONFIG.departureRealtime === false ? "" : `<p class="muted"><span class="rt">●</span> ${t(key)}</p>`;
@@ -6342,9 +6355,8 @@ function updateChrome() {
   setMeta('meta[name="twitter:description"]', t("metaDesc"));
   setMeta('meta[property="og:locale"]', lang === "sv" ? "sv_SE" : lang === "en" ? "en_GB" : "fi_FI");
   document.getElementById("appTitle").textContent = t("appTitle");
-  document.getElementById("appSub").textContent = t("headerSub");
+  document.getElementById("appSub").textContent = headerSubText();
   document.getElementById("brandLink").setAttribute("aria-label", t("toHomeAria"));
-  document.getElementById("brandGlyph").textContent = String(CONFIG.city || "R").charAt(0).toUpperCase();
   const nav = document.getElementById("hdrNav");
   nav.setAttribute("aria-label", t("navAria"));
   const navItems = APP_MODE === "resident" ? [["", "#/", t("navHome")]]
@@ -6359,7 +6371,7 @@ function updateChrome() {
   document.getElementById("appFooter").innerHTML = `
     <div class="foot-cols">
       <div class="foot-brand">
-        <div><strong>${t("appTitle")}</strong><br><span class="muted">${t("headerSub")}</span>
+        <div><strong>${t("appTitle")}</strong><br><span class="muted">${headerSubText()}</span>
           <p class="foot-provider" id="footProvider"><span class="muted">${t("footProvider")}:</span>
             <a class="foot-sk" href="https://savikurki.fi" target="_blank" rel="noopener"><svg class="foot-sk-mark" viewBox="0 0 120 120" width="18" height="18" aria-hidden="true" focusable="false"><rect width="120" height="120" rx="24" fill="#b8764f"/><path d="M32 92 C 58 97, 88 92, 88 71 C 88 52, 36 62, 36 41 C 36 28, 50 22, 64 27" fill="none" stroke="#fbfaf7" stroke-width="15" stroke-linecap="round"/><path d="M66 28 L 96 37" fill="none" stroke="#fbfaf7" stroke-width="9" stroke-linecap="round"/></svg>Savikurki Digital Oy</a>,
             <a href="mailto:ville@reittari.fi">ville@reittari.fi</a></p>
