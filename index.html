@@ -18506,6 +18506,9 @@ async function viewServiceDesk() {
         sel.value = list.includes(curAns()) ? curAns() : "";
         sel.addEventListener("change", () => { ansLang = sel.value; applyAnsLang(); });
       }
+      // Kielirivi valmistuu vasta vierityksen jälkeen ja voi kasvattaa vastauslaatikkoa (selitysteksti rivittyy):
+      // vieritetään uudelleen, ettei alareuna jää näytön alle (CI:n 1366x768: alareuna 782/768).
+      revealTell();
     }).catch(() => {});
     if (curAns() !== lang) applyAnsLang();
   };
