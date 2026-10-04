@@ -909,13 +909,14 @@ async function minuuttiLinjaus(page, rootSel, media) {
   // Erä A (4.10.2026), A1: vaihdot = kulkuneuvo-osuudet toisesta alkaen. Matka alkaa kävelyllä, joten ennen ensimmäinen
   // bussi luettiin vaihdoksi ("1 vaihto, pysäkillä Harjutie L"). Sama lause Kerro asiakkaalle-, viimeinen bussi- ja
   // Seuraava bussi -kohdissa; junaosuus kerrotaan asemana ja junana.
+  // Ajat sivun omassa aikavyöhykkeessä (isoWithOffset): CI ajaa UTC:ssä, ja kiinteä +03:00 näkyi siellä 3 h aiempana.
   const xf = await page.evaluate(() => {
-    const L = (mode, from, to, s, e, line) => ({ mode, start: { scheduledTime: "2026-06-23T" + s + ":00+03:00" },
-      end: { scheduledTime: "2026-06-23T" + e + ":00+03:00" }, from: { name: from }, to: { name: to }, route: line ? { shortName: line } : null });
-    const bus = { start: "2026-06-23T18:10:00+03:00", end: "2026-06-23T19:09:00+03:00", numberOfTransfers: 1, legs: [
+    const L = (mode, from, to, s, e, line) => ({ mode, start: { scheduledTime: isoWithOffset("2026-06-23T" + s) },
+      end: { scheduledTime: isoWithOffset("2026-06-23T" + e) }, from: { name: from }, to: { name: to }, route: line ? { shortName: line } : null });
+    const bus = { start: isoWithOffset("2026-06-23T18:10"), end: isoWithOffset("2026-06-23T19:09"), numberOfTransfers: 1, legs: [
       L("WALK", "Origin", "Harjutie L", "18:10", "18:18"), L("BUS", "Harjutie L", "Kansanopisto P", "18:18", "18:40", "9"),
       L("BUS", "Kansanopisto P", "Mukkula", "18:45", "19:05", "32"), L("WALK", "Mukkula", "Destination", "19:05", "19:09")] };
-    const rail = { start: "2026-06-23T07:55:00+03:00", end: "2026-06-23T09:20:00+03:00", numberOfTransfers: 1, legs: [
+    const rail = { start: isoWithOffset("2026-06-23T07:55"), end: isoWithOffset("2026-06-23T09:20"), numberOfTransfers: 1, legs: [
       L("WALK", "Origin", "Kirkkoherranvirasto P", "07:55", "08:00"), L("BUS", "Kirkkoherranvirasto P", "Karjaa", "08:00", "08:20", "192"),
       L("RAIL", "Karjaa", "Helsinki", "08:31", "09:20", "")] };
     const txt = h => { const d = document.createElement("div"); d.innerHTML = h; return d.textContent.replace(/\s+/g, " ").trim(); };
@@ -923,7 +924,7 @@ async function minuuttiLinjaus(page, rootSel, media) {
     const same = JSON.parse(JSON.stringify(bus));
     const later = { ...JSON.parse(JSON.stringify(bus)), legs: [L("WALK", "Origin", "Harjutie L", "18:40", "18:48"),
       L("BUS", "Harjutie L", "Kansanopisto P", "18:48", "19:10", "9"), L("BUS", "Kansanopisto P", "Mukkula", "19:15", "19:35", "32")] };
-    const railFirst = { start: "2026-06-23T07:05:00+03:00", end: "2026-06-23T07:30:00+03:00", numberOfTransfers: 0, legs: [
+    const railFirst = { start: isoWithOffset("2026-06-23T07:05"), end: isoWithOffset("2026-06-23T07:30"), numberOfTransfers: 0, legs: [
       L("WALK", "Origin", "Nastola", "07:05", "07:10"), L("RAIL", "Nastola", "Lahti", "07:10", "07:30", "R")] };
     return { tell: txt(deskTellHtml([bus], bus, true)), last: txt(deskBusSentence(bus)), card: txt(deskNextBusHtml(bus)),
       rail: txt(deskTellHtml([rail], rail, true)), same: txt(deskTellHtml([bus, same], bus, true)),
