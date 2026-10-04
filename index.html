@@ -2659,6 +2659,7 @@
    vaihtaa tästä, ja minkä tahansa esiasetuksen saa käyttöön myös
    URL-parametrilla ?city=kuopio — ks. README "Käyttö toisessa
    Waltti-kaupungissa". */
+
 const CONFIGS = {
   lahti: {
     city: "Lahti",                        // nominatiivi (EN/SV-tekstit, feed-haku)
@@ -2842,6 +2843,92 @@ const CONFIGS = {
     corridors: [
       { key: "siilinjarvi", name: "Siilinjärven suunta", lines: ["31", "31T", "35"] },
     ],
+    // Kertalippujen hinnat (erä E1 4.10.2026). Lähteet: Vilkun hinnasto-PDF "Joukkoliikenteen lippujen hinnat 2026"
+    // (voimassa 1.1.2026 alkaen, https://vilkku.kuopio.fi/sites/default/files/generic/2026-03/Joukkoliikenteen%20lippujen%20hinnat%202026.pdf)
+    // ja sivu https://vilkku.kuopio.fi/liput-ja-hinnat, molemmat luettu 4.10.2026. Vyöhykkeet E ja F ovat PDF:ssä yksi rivi
+    // (sama hinta). cardApp = Waltti-kortin arvolippu ja mobiililippu: aikuisen ja lapsen hinnat ovat samat PDF:n arvolippu-
+    // ja mobiililipputaulukoissa. reduced = nuoriso 17-19 v ja opiskelija PDF:n arvolipputaulukosta (sama hinta). Sivun
+    // hintasuodatin näytti 4.10.2026 nuorison F-vyöhykkeelle 2,47 € ja seniorin E-vyöhykkeelle 2,49 € (PDF: 2,95 € ja
+    // 2,50 €), joten reduced on PDF:stä ja seniorin klo 9-14-hinta jätetään pois. Lähimaksu on sama kaikille. Käteisellä
+    // nuori ja opiskelija maksavat aikuisen hinnan, joten cash.reduced on tyhjä. Yöhinta (klo 23-04) kerrotaan tekstissä.
+    fares: {
+      checked: "4.10.2026",
+      url: "https://vilkku.kuopio.fi/liput-ja-hinnat",
+      cardFee: "",
+      zones: [
+        { label: { fi: "Vyöhyke AB", sv: "Zon AB", en: "Zone AB" },
+          single: { cardApp: { adult: "2,85", child: "1,45", reduced: "2,00" },
+                    contactless: "2,85",
+                    cash: { adult: "4,00", child: "2,20", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "Vyöhyke C", sv: "Zon C", en: "Zone C" },
+          single: { cardApp: { adult: "3,40", child: "1,70", reduced: "2,35" },
+                    contactless: "3,40",
+                    cash: { adult: "4,80", child: "2,50", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "Vyöhyke D", sv: "Zon D", en: "Zone D" },
+          single: { cardApp: { adult: "4,05", child: "2,05", reduced: "2,85" },
+                    contactless: "4,05",
+                    cash: { adult: "5,80", child: "3,00", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "Vyöhyke E tai F", sv: "Zon E eller F", en: "Zone E or F" },
+          single: { cardApp: { adult: "4,20", child: "2,10", reduced: "2,95" },
+                    contactless: "4,20",
+                    cash: { adult: "6,40", child: "3,20", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "2 vyöhykettä", sv: "2 zoner", en: "2 zones" },
+          single: { cardApp: { adult: "4,75", child: "2,40", reduced: "3,35" },
+                    contactless: "4,75",
+                    cash: { adult: "7,00", child: "3,50", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "3 vyöhykettä", sv: "3 zoner", en: "3 zones" },
+          single: { cardApp: { adult: "5,30", child: "2,65", reduced: "3,70" },
+                    contactless: "5,30",
+                    cash: { adult: "7,60", child: "3,80", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "4 vyöhykettä", sv: "4 zoner", en: "4 zones" },
+          single: { cardApp: { adult: "5,90", child: "2,95", reduced: "4,10" },
+                    contactless: "5,90",
+                    cash: { adult: "8,50", child: "4,20", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "5 vyöhykettä", sv: "5 zoner", en: "5 zones" },
+          single: { cardApp: { adult: "6,80", child: "3,40", reduced: "4,75" },
+                    contactless: "6,80",
+                    cash: { adult: "10,40", child: "5,20", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "6 vyöhykettä", sv: "6 zoner", en: "6 zones" },
+          single: { cardApp: { adult: "8,90", child: "4,45", reduced: "6,20" },
+                    contactless: "8,90",
+                    cash: { adult: "13,50", child: "6,80", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+      ],
+      i18n: {
+        flatTitle: { fi: "Hinta määräytyy vyöhykkeiden mukaan", sv: "Priset bestäms enligt zonerna",
+          en: "The fare depends on the zones" },
+        flatBody: {
+          fi: "Hinta riippuu siitä, millä vyöhykkeellä tai monenko vyöhykkeen läpi matka kulkee. Waltti-kortin arvolipussa aikuinen on 20 vuotta täyttänyt ja 17–19-vuotiaat maksavat opiskelijan hinnan. Käteis- ja mobiililipussa aikuisen hinta koskee 17 vuotta täyttäneitä.",
+          sv: "Priset beror på i vilken zon eller genom hur många zoner resan går. För värdebiljetten på Waltti-kort är vuxna 20 år eller äldre, och 17–19-åringar betalar studerandepriset. För kontant- och mobilbiljetter gäller vuxenpriset från 17 år.",
+          en: "The fare depends on the zone or the number of zones the journey crosses. For the Waltti card value ticket, adults are 20 or over and 17–19-year-olds pay the student price. For cash and mobile tickets the adult price applies from age 17." },
+        transfer: {
+          fi: "Kertalipussa on AB-vyöhykkeellä 60 minuutin vaihtoaika, muilla vyöhykkeillä ja vyöhykkeiden välisillä matkoilla 90 minuuttia. Klo 23–04 kertalipuissa on voimassa yöhinta.",
+          sv: "Engångsbiljetten har 60 minuters bytestid i zon AB och 90 minuter i övriga zoner och mellan zoner. Kl. 23–04 gäller nattpris för engångsbiljetter.",
+          en: "Single tickets include a 60-minute transfer time in zone AB and 90 minutes in other zones and between zones. A night fare applies to single tickets from 23:00 to 04:00." },
+        colAdult: { fi: "Aikuinen", sv: "Vuxen", en: "Adult" },
+        colChild: { fi: "Lapsi (7–16 v)", sv: "Barn (7–16 år)", en: "Child (7–16)" },
+        colReduced: { fi: "Nuoriso (17–19 v) / opiskelija, Waltti-kortilla", sv: "Unga (17–19 år) / studerande, med Waltti-kort",
+          en: "Youth (17–19) / student, Waltti card" },
+        methodCardApp: { fi: "Waltti-kortin arvo tai mobiililippu", sv: "Värde på Waltti-kort eller mobilbiljett",
+          en: "Waltti card value or mobile ticket" },
+        methodContactless: { fi: "Lähimaksu (sama kaikille)", sv: "Närbetalning (samma för alla)", en: "Contactless (same for all)" },
+        methodCash: { fi: "Käteinen kuljettajalta", sv: "Kontant av föraren", en: "Cash from the driver" },
+        sourceNote: {
+          fi: "Sivulla ovat kertalippujen hinnat (voimassa 1.1.2026 alkaen). Ne on koottu sivustolta vilkku.kuopio.fi ja tarkistettu {date}. Kausi- ja vuorokausiliput: katso virallinen hinnasto. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot virallisesta hinnastosta.",
+          sv: "Sidan visar priserna för engångsbiljetter (gäller från 1.1.2026). De är sammanställda från vilkku.kuopio.fi och kontrollerade {date}. Period- och dygnsbiljetter: se den officiella prislistan. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor i den officiella prislistan.",
+          en: "This page shows single-ticket prices (valid from 1.1.2026). They are compiled from vilkku.kuopio.fi and checked on {date}. Season and day tickets: see the official price list. This is an unofficial service: please confirm current prices and terms in the official price list." },
+        sourceLink: { fi: "Virallinen hinnasto (vilkku.kuopio.fi)", sv: "Officiell prislista (vilkku.kuopio.fi)",
+          en: "Official price list (vilkku.kuopio.fi)" },
+      },
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       focus: { lat: 62.8924, lon: 27.6782 },
@@ -2851,8 +2938,8 @@ const CONFIGS = {
   },
   // Salo-demo (?city=salo). Salolla EI ole omaa modernia reittiopasta (vain PDF:t)
   // → tämä on "ensimmäinen moderni palvelu" -näyttödemo. Kaikki sisältö tulee
-  // avoimesta Waltti/Digitransit-GTFS:stä (sama feed kuin muillakin). EI fares-
-  // tietoja (Salon hintoja ei ole varmennettu → ei näytetä vääriä), EI hubeja
+  // avoimesta Waltti/Digitransit-GTFS:stä (sama feed kuin muillakin). Kertalippujen
+  // hinnat (fares) lisätty 4.10.2026 salonpaikku.fi:stä (ks. fares-lohko), EI hubeja
   // (virallista keskuspysäkkilistaa ei ole varmennettu), EI cmsAlertsia (ei lsl.fi-
   // tyyppistä WordPress-syötettä). GTFS-RT-häiriöt toimivat silti. Lisää nämä vasta
   // varmennetulla datalla jos diili etenee.
@@ -2885,6 +2972,43 @@ const CONFIGS = {
     corridors: [
       { key: "suomusjarvi", name: "Suomusjärven suunta", lines: ["110", "603"] },
     ],
+    // Kertalippujen hinnat (erä E1 4.10.2026). Lähde: https://salonpaikku.fi/liput-ja-hinnat/ (hinnasto 1.2.2025 alkaen,
+    // sivu päivitetty 28.7.2026), luettu 4.10.2026. cardApp = arvolippu ja mobiililippu (sivun mukaan sama hinta),
+    // contactless = lähimaksu bussissa (vain aikuisen lippu), salespoint = linja-autoaseman itsepalvelukassa, cash =
+    // käteisellä ajoneuvosta. Lapsi = enintään 15 v, aikuinen = vähintään 16 v.
+    fares: {
+      checked: "4.10.2026",
+      url: "https://salonpaikku.fi/liput-ja-hinnat/",
+      single: {
+        cardApp: { adult: "3,15", child: "1,65", reduced: "" },
+        contactless: "3,45",
+        salespoint: { adult: "3,45", child: "1,80", reduced: "" },
+        cash: { adult: "4,00", child: "2,00", reduced: "" },
+      },
+      season: [], day: [], capDay: "", capWeek: "", cardFee: "",
+      i18n: {
+        flatBody: { fi: "Maksavan asiakkaan kanssa matkustavat 0–6-vuotiaat lapset matkustavat maksutta.",
+          sv: "Barn 0–6 år som reser med en betalande kund reser gratis.",
+          en: "Children aged 0–6 travelling with a paying customer travel free." },
+        transfer: { fi: "Kaikissa lipuissa on 2 tunnin vaihtoaika.", sv: "Alla biljetter har 2 timmars bytestid.",
+          en: "All tickets include a 2-hour transfer time." },
+        colAdult: { fi: "Aikuinen (16 v tai yli)", sv: "Vuxen (16 år eller äldre)", en: "Adult (16 or over)" },
+        colChild: { fi: "Lapsi (enintään 15 v)", sv: "Barn (högst 15 år)", en: "Child (15 or under)" },
+        methodCardApp: { fi: "Waltti-kortin arvo tai Waltti Mobiili", sv: "Värde på Waltti-kort eller Waltti Mobiili",
+          en: "Waltti card value or Waltti Mobiili app" },
+        methodContactless: { fi: "Lähimaksu bussissa (vain aikuisen lippu)", sv: "Närbetalning i bussen (endast vuxenbiljett)",
+          en: "Contactless on the bus (adult ticket only)" },
+        methodSalespoint: { fi: "Itsepalvelukassa (linja-autoasema)", sv: "Självbetjäningskassa (busstationen)",
+          en: "Self-service till (bus station)" },
+        methodCash: { fi: "Käteinen bussissa", sv: "Kontant i bussen", en: "Cash on the bus" },
+        sourceNote: {
+          fi: "Sivulla ovat kertalippujen hinnat (voimassa 1.2.2025 alkaen). Ne on koottu sivustolta salonpaikku.fi ja tarkistettu {date}. Kausi- ja vuorokausiliput: katso virallinen hinnasto. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot virallisesta hinnastosta.",
+          sv: "Sidan visar priserna för engångsbiljetter (gäller från 1.2.2025). De är sammanställda från salonpaikku.fi och kontrollerade {date}. Period- och dygnsbiljetter: se den officiella prislistan. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor i den officiella prislistan.",
+          en: "This page shows single-ticket prices (valid from 1.2.2025). They are compiled from salonpaikku.fi and checked on {date}. Season and day tickets: see the official price list. This is an unofficial service: please confirm current prices and terms in the official price list." },
+        sourceLink: { fi: "Virallinen hinnasto (salonpaikku.fi)", sv: "Officiell prislista (salonpaikku.fi)",
+          en: "Official price list (salonpaikku.fi)" },
+      },
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       focus: { lat: 60.3835, lon: 23.1175 },
@@ -2895,8 +3019,8 @@ const CONFIGS = {
   // Kajaani-demo (?city=kajaani). Sama minimimalli kuin Salo: kaikki sisältö tulee
   // avoimesta Waltti/Digitransit-GTFS:stä. feedId "Kajaani" varmennettu feeds-kyselyllä
   // proxyn kautta 19.6.2026 (17 BUS-linjaa, ml. liikennöitsijä-duplikaatit 7/11/16 jotka
-  // sovellus deduppaa). Uusi linjasto 1–16 voimaan 8.6.2026. EI fares/hubs/cmsAlerts
-  // (Kajaanin hintoja, keskuspysäkkejä eikä häiriö-CMS:ää varmennettu) → lisää vasta
+  // sovellus deduppaa). Uusi linjasto 1–16 voimaan 8.6.2026. Kertalippujen hinnat (fares)
+  // lisätty 4.10.2026. EI hubs/cmsAlerts (keskuspysäkkejä eikä häiriö-CMS:ää varmennettu) → lisää vasta
   // varmennetulla datalla jos diili etenee. GTFS-RT-häiriöt toimivat silti.
   kajaani: {
     city: "Kajaani",
@@ -2929,6 +3053,70 @@ const CONFIGS = {
     corridors: [
       { key: "keskusta", name: "Keskustan suunta", lines: ["1", "2"] },
     ],
+    // Kertalippujen hinnat (erä E1 4.10.2026). Lähde: https://kajaaninjoukkoliikenne.fi/liput-ja-hinnat/ ("Joukkoliikenteen
+    // hinnasto 12.8.2026 alkaen"), luettu 4.10.2026. Vyöhykkeet A-E; 4 ja 5 vyöhykettä maksavat saman. cardApp = Waltti-
+    // arvolippu tai mobiililippu (hinnastossa yksi sarake), contactless = lähimaksu (lapsen lähimaksu = aikuisen hinta),
+    // capDay = lähimaksun päiväkatto, cash = käteisellä ostettava kertalippu. Eläkeläisen arvolippu on tekstissä.
+    fares: {
+      checked: "4.10.2026",
+      url: "https://kajaaninjoukkoliikenne.fi/liput-ja-hinnat/",
+      cardFee: "",
+      zones: [
+        { label: { fi: "1 vyöhyke", sv: "1 zon", en: "1 zone" },
+          single: { cardApp: { adult: "2,80", child: "1,45", reduced: "" },
+                    contactless: "2,80",
+                    cash: { adult: "3,70", child: "2,10", reduced: "" } },
+          season: [], day: [], capDay: "8,40", capWeek: "" },
+        { label: { fi: "2 vyöhykettä", sv: "2 zoner", en: "2 zones" },
+          single: { cardApp: { adult: "3,00", child: "1,60", reduced: "" },
+                    contactless: "3,00",
+                    cash: { adult: "4,10", child: "2,10", reduced: "" } },
+          season: [], day: [], capDay: "9,00", capWeek: "" },
+        { label: { fi: "3 vyöhykettä", sv: "3 zoner", en: "3 zones" },
+          single: { cardApp: { adult: "3,20", child: "1,80", reduced: "" },
+                    contactless: "3,20",
+                    cash: { adult: "4,40", child: "2,30", reduced: "" } },
+          season: [], day: [], capDay: "9,60", capWeek: "" },
+        { label: { fi: "4 vyöhykettä", sv: "4 zoner", en: "4 zones" },
+          single: { cardApp: { adult: "6,50", child: "3,20", reduced: "" },
+                    contactless: "6,50",
+                    cash: { adult: "8,20", child: "4,20", reduced: "" } },
+          season: [], day: [], capDay: "16,25", capWeek: "" },
+        { label: { fi: "5 vyöhykettä", sv: "5 zoner", en: "5 zones" },
+          single: { cardApp: { adult: "6,50", child: "3,20", reduced: "" },
+                    contactless: "6,50",
+                    cash: { adult: "8,20", child: "4,20", reduced: "" } },
+          season: [], day: [], capDay: "16,25", capWeek: "" },
+      ],
+      i18n: {
+        flatTitle: { fi: "Hinta määräytyy vyöhykkeiden mukaan", sv: "Priset bestäms enligt zonerna",
+          en: "The fare depends on the number of zones" },
+        flatBody: {
+          fi: "Hinta määräytyy vyöhykkeiden A–E mukaan. Eläkeläisen Waltti-arvolippu on vyöhykkeillä A–C 2,10 € (vain kaupunkiliikenteen linjoilla 1–7). Lähimaksulla voi maksaa vain aikuisen kertalipun.",
+          sv: "Priset bestäms enligt zonerna A–E. Pensionärens värdebiljett på Waltti-kort kostar 2,10 € i zonerna A–C (endast på stadstrafikens linjer 1–7). Med närbetalning kan man bara betala en vuxenbiljett.",
+          en: "The fare depends on zones A–E. The pensioner value ticket on a Waltti card costs €2.10 in zones A–C (city lines 1–7 only). Contactless payment is for adult single tickets only." },
+        transfer: {
+          fi: "Käteis- ja arvolipulla voi jatkaa matkaa vaihtolipulla A-vyöhykkeellä 60 minuutin ajan. Mobiililippu on voimassa 60 minuuttia ostohetkestä, ja lähimaksulla ostetussa kertalipussa on 70 minuutin vaihto-oikeus.",
+          sv: "Med kontant- och värdebiljett kan man fortsätta resan med bytesbiljett i zon A i 60 minuter. Mobilbiljetten gäller 60 minuter från köpet, och en engångsbiljett köpt med närbetalning har 70 minuters bytesrätt.",
+          en: "Cash and value tickets allow a transfer within zone A for 60 minutes. A mobile ticket is valid for 60 minutes from purchase, and a contactless single ticket includes 70 minutes of transfers." },
+        colAdult: { fi: "Aikuinen", sv: "Vuxen", en: "Adult" },
+        colChild: { fi: "Lapsi (7–16 v)", sv: "Barn (7–16 år)", en: "Child (7–16)" },
+        methodCardApp: { fi: "Waltti-kortin arvo tai Waltti Mobiili", sv: "Värde på Waltti-kort eller Waltti Mobiili",
+          en: "Waltti card value or Waltti Mobiili app" },
+        methodContactless: { fi: "Lähimaksu (aikuisen hinta kaikille)", sv: "Närbetalning (vuxenpris för alla)",
+          en: "Contactless (adult price for all)" },
+        methodCash: { fi: "Käteinen kuljettajalta", sv: "Kontant av föraren", en: "Cash from the driver" },
+        caps: { fi: "Lähimaksun päiväkatto tällä vyöhykemäärällä: {day} €. Saman päivän matkoista ei veloiteta enempää.",
+          sv: "Närbetalningens dagstak för detta antal zoner: {day} €. Dagens resor debiteras inte utöver detta.",
+          en: "Contactless daily cap for this number of zones: €{day}. Trips on the same day are not charged beyond this." },
+        sourceNote: {
+          fi: "Sivulla ovat kertalippujen hinnat (voimassa 12.8.2026 alkaen). Ne on koottu sivustolta kajaaninjoukkoliikenne.fi ja tarkistettu {date}. Kausi- ja vuorokausiliput: katso virallinen hinnasto. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot virallisesta hinnastosta.",
+          sv: "Sidan visar priserna för engångsbiljetter (gäller från 12.8.2026). De är sammanställda från kajaaninjoukkoliikenne.fi och kontrollerade {date}. Period- och dygnsbiljetter: se den officiella prislistan. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor i den officiella prislistan.",
+          en: "This page shows single-ticket prices (valid from 12.8.2026). They are compiled from kajaaninjoukkoliikenne.fi and checked on {date}. Season and day tickets: see the official price list. This is an unofficial service: please confirm current prices and terms in the official price list." },
+        sourceLink: { fi: "Virallinen hinnasto (kajaaninjoukkoliikenne.fi)", sv: "Officiell prislista (kajaaninjoukkoliikenne.fi)",
+          en: "Official price list (kajaaninjoukkoliikenne.fi)" },
+      },
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       focus: { lat: 64.224087, lon: 27.733423 },
@@ -3110,8 +3298,8 @@ const CONFIGS = {
   // Kaikki sisältö avoimesta Waltti/Digitransit-GTFS:stä. feedId "Kotka" varmennettu
   // feeds-kyselyllä proxyn kautta 22.6.2026 (68 BUS-linjaa: Kotkan + Karhulan paikallis-
   // liikenne sekä seutu Hamina/Pyhtää). HUOM feedMatch ankkuroitu (/^kotka$/i) ettei osu
-  // erilliseen "KotkaLautat"-lauttafeediin. EI fares/hubs/cmsAlerts (Kotkan hintoja,
-  // virallista keskuspysäkkilistaa eikä häiriö-CMS:ää varmennettu) → lisää vasta
+  // erilliseen "KotkaLautat"-lauttafeediin. Kertalippujen hinnat (fares) lisätty 4.10.2026.
+  // EI hubs/cmsAlerts (virallista keskuspysäkkilistaa eikä häiriö-CMS:ää varmennettu) → lisää vasta
   // varmennetulla datalla jos diili etenee. GTFS-RT-häiriöt toimivat silti.
   // brandColor = Jonne ja Minne -logon oranssi syvennettynä (#a8500f, AA valkoiselle 5.5:1);
   // per-kaupunki teemaylikirjoitus (oranssi+vihreä) on CSS:ssä html[data-city="kotka"].
@@ -3153,6 +3341,54 @@ const CONFIGS = {
       { key: "karhula", name: "Karhulan suunta", lines: ["25T", "25Y"] },
     ],
     brandColor: "#a8500f",          // Jonne ja Minne -oranssi (headerBgColor() pitää AA:n valkoiselle)
+    // Kertalippujen hinnat (erä E1 4.10.2026). Lähde: https://jonnejaminne.fi/liput-ja-hinnastot/hinnasto/, luettu 4.10.2026.
+    // Vyöhyke A = Kotka, B = Hamina ja Pyhtää. cardApp = arvo Waltti-kortilla ja Waltti Mobiili (aikuisen ja juniorin
+    // hinnat samat); reduced = opiskelija ja seniori 65+ Waltti-kortilla (mobiilissa vain seniori, kerrotaan sarakkeen
+    // nimessä). contactless = lähimaksu (kaikki ikäryhmät), cash = käteinen. Kymenlaakso-lippu (juna + bussi) jätetty pois.
+    fares: {
+      checked: "4.10.2026",
+      url: "https://jonnejaminne.fi/liput-ja-hinnastot/hinnasto/",
+      cardFee: "",
+      zones: [
+        { label: { fi: "1 vyöhyke", sv: "1 zon", en: "1 zone" },
+          single: { cardApp: { adult: "3,25", child: "1,95", reduced: "2,25" },
+                    contactless: "3,80",
+                    cash: { adult: "3,80", child: "2,50", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "2 vyöhykettä", sv: "2 zoner", en: "2 zones" },
+          single: { cardApp: { adult: "5,10", child: "3,05", reduced: "3,55" },
+                    contactless: "6,00",
+                    cash: { adult: "6,00", child: "3,50", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+      ],
+      i18n: {
+        flatTitle: { fi: "Hinta määräytyy vyöhykkeiden mukaan", sv: "Priset bestäms enligt zonerna",
+          en: "The fare depends on the number of zones" },
+        flatBody: {
+          fi: "Kotkan kaupungin alue on vyöhyke A, Haminan ja Pyhtään alueet vyöhyke B. Pyhtäältä Haminaan tai toisinpäin tarvitaan 2 vyöhykkeen lippu. Alle 7-vuotiaat matkustavat maksutta maksavan matkustajan seurassa.",
+          sv: "Kotka stads område är zon A, Fredrikshamns och Pyttis områden zon B. Mellan Pyttis och Fredrikshamn behövs en biljett för 2 zoner. Barn under 7 år reser gratis i sällskap med en betalande passagerare.",
+          en: "The City of Kotka is zone A, and Hamina and Pyhtää are zone B. Between Pyhtää and Hamina you need a 2-zone ticket. Children under 7 travel free with a paying passenger." },
+        transfer: {
+          fi: "Lähimaksu- ja mobiililippu ovat voimassa 90 minuuttia. Käteis- ja arvolippu ovat voimassa 60 minuuttia yhden vyöhykkeen lipussa ja 90 minuuttia kahden vyöhykkeen lipussa.",
+          sv: "Närbetalnings- och mobilbiljetter gäller i 90 minuter. Kontant- och värdebiljetter gäller i 60 minuter för 1 zon och i 90 minuter för 2 zoner.",
+          en: "Contactless and mobile tickets are valid for 90 minutes. Cash and value tickets are valid for 60 minutes for 1 zone and 90 minutes for 2 zones." },
+        colAdult: { fi: "Aikuinen (17 v tai yli)", sv: "Vuxen (17 år eller äldre)", en: "Adult (17 or over)" },
+        colChild: { fi: "Juniori (7–16 v)", sv: "Junior (7–16 år)", en: "Junior (7–16)" },
+        colReduced: { fi: "Opiskelija (vain Waltti-kortilla) / seniori (65+)", sv: "Studerande (endast Waltti-kort) / senior (65+)",
+          en: "Student (Waltti card only) / senior (65+)" },
+        methodCardApp: { fi: "Waltti-kortin arvo tai Waltti Mobiili", sv: "Värde på Waltti-kort eller Waltti Mobiili",
+          en: "Waltti card value or Waltti Mobiili app" },
+        methodContactless: { fi: "Lähimaksu (kaikki ikäryhmät)", sv: "Närbetalning (alla åldersgrupper)",
+          en: "Contactless (all age groups)" },
+        methodCash: { fi: "Käteinen", sv: "Kontant", en: "Cash" },
+        sourceNote: {
+          fi: "Sivulla ovat kertalippujen hinnat. Ne on koottu sivustolta jonnejaminne.fi ja tarkistettu {date}. Kausi- ja vuorokausiliput: katso virallinen hinnasto. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot virallisesta hinnastosta.",
+          sv: "Sidan visar priserna för engångsbiljetter. De är sammanställda från jonnejaminne.fi och kontrollerade {date}. Period- och dygnsbiljetter: se den officiella prislistan. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor i den officiella prislistan.",
+          en: "This page shows single-ticket prices. They are compiled from jonnejaminne.fi and checked on {date}. Season and day tickets: see the official price list. This is an unofficial service: please confirm current prices and terms in the official price list." },
+        sourceLink: { fi: "Virallinen hinnasto (jonnejaminne.fi)", sv: "Officiell prislista (jonnejaminne.fi)",
+          en: "Official price list (jonnejaminne.fi)" },
+      },
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       // focus = Kauppatori (Kotkansaari); rect kattaa kaikki linjapysäkit
@@ -3332,8 +3568,8 @@ const CONFIGS = {
   // omaan linjaluetteloon: kaikki 37 julkaistua linjaa löytyvät, lisäksi palveluliikenne
   // P1–P8 ja ELY:n Kouvola–Taavetti. Kausivaihto kesä → talvi 12.8.2026 (vuoroja/pv 206 →
   // 301), talvifeed oli jo luettavissa varmistushetkellä. EI brandColor (Koutsin reittioppaan
-  // oma primary on musta → käytetään sovelluksen oletussineä, Salo/Kajaani-malli), EI fares/
-  // hubs/cmsAlerts (hintoja, virallista laiturilistaa eikä häiriö-CMS:ää varmennettu) →
+  // oma primary on musta → käytetään sovelluksen oletussineä, Salo/Kajaani-malli). Kertalippujen
+  // hinnat (fares) lisätty 4.10.2026. EI hubs/cmsAlerts (virallista laiturilistaa eikä häiriö-CMS:ää varmennettu) →
   // lisää vasta varmennetulla datalla jos diili etenee. GTFS-RT-häiriöt toimivat feedistä.
   kouvola: {
     city: "Kouvola",
@@ -3362,6 +3598,44 @@ const CONFIGS = {
       { key: "kuusankoski", name: "Kuusankosken suunta", lines: ["1", "3"] },
       { key: "koria", name: "Korian suunta", lines: ["2", "6"] },
     ],
+    // Kertalippujen hinnat (erä E1 4.10.2026). Lähde: https://www.kouvola.fi/asuminen-ja-ymparisto/kadut-ja-liikenne/joukkoliikenne/liput-ja-hinnat/,
+    // luettu 4.10.2026. Tasataksa koko Kouvolan alueella. cardApp = arvolippu Waltti-kortilla, app = Waltti Mobiili
+    // (lapsen hinta eri kuin kortilla), contactless = lähimaksu (aina aikuisen hinta), capDay/capWeek = lähimaksun
+    // hintakatto 24 h / 7 vrk, cash = käteismaksu.
+    fares: {
+      checked: "4.10.2026",
+      url: "https://www.kouvola.fi/asuminen-ja-ymparisto/kadut-ja-liikenne/joukkoliikenne/liput-ja-hinnat/",
+      single: {
+        cardApp: { adult: "2,90", child: "1,45", reduced: "" },
+        app: { adult: "2,90", child: "1,60", reduced: "" },
+        contactless: "2,90",
+        cash: { adult: "3,60", child: "1,90", reduced: "" },
+      },
+      season: [], day: [], capDay: "8,30", capWeek: "29", cardFee: "",
+      i18n: {
+        flatTitle: { fi: "Tasataksa koko Kouvolan alueella", sv: "Enhetstaxa i hela Kouvola", en: "Flat fare across Kouvola" },
+        flatBody: { fi: "Alle 7-vuotiaat lapset matkustavat maksutta.", sv: "Barn under 7 år reser gratis.",
+          en: "Children under 7 travel free." },
+        transfer: { fi: "Kerta- ja arvolippu ovat voimassa kaksi tuntia.", sv: "Engångs- och värdebiljetten gäller i två timmar.",
+          en: "Single and value tickets are valid for two hours." },
+        colAdult: { fi: "Aikuinen", sv: "Vuxen", en: "Adult" },
+        colChild: { fi: "Lapsi (7–16 v)", sv: "Barn (7–16 år)", en: "Child (7–16)" },
+        methodCardApp: { fi: "Waltti-kortin arvolippu", sv: "Värdebiljett på Waltti-kort", en: "Waltti card value ticket" },
+        methodApp: { fi: "Waltti Mobiili", sv: "Waltti Mobiili", en: "Waltti Mobiili app" },
+        methodContactless: { fi: "Lähimaksu (aina aikuisen hinta)", sv: "Närbetalning (alltid vuxenpris)",
+          en: "Contactless (always adult price)" },
+        methodCash: { fi: "Käteinen kuljettajalta", sv: "Kontant av föraren", en: "Cash from the driver" },
+        caps: { fi: "Lähimaksun hintakatto: {day} € / 24 h ja {week} € / 7 vrk. Useammasta matkasta ei veloiteta enempää.",
+          sv: "Närbetalningens pristak: {day} € / 24 h och {week} € / 7 dygn. Fler resor debiteras inte utöver detta.",
+          en: "Contactless price cap: €{day} / 24 h and €{week} / 7 days. Additional trips are not charged beyond this." },
+        sourceNote: {
+          fi: "Sivulla ovat kertalippujen hinnat. Ne on koottu sivustolta kouvola.fi ja tarkistettu {date}. Kausi- ja vuorokausiliput: katso virallinen hinnasto. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot virallisesta hinnastosta.",
+          sv: "Sidan visar priserna för engångsbiljetter. De är sammanställda från kouvola.fi och kontrollerade {date}. Period- och dygnsbiljetter: se den officiella prislistan. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor i den officiella prislistan.",
+          en: "This page shows single-ticket prices. They are compiled from kouvola.fi and checked on {date}. Season and day tickets: see the official price list. This is an unofficial service: please confirm current prices and terms in the official price list." },
+        sourceLink: { fi: "Virallinen hinnasto (kouvola.fi)", sv: "Officiell prislista (kouvola.fi)",
+          en: "Official price list (kouvola.fi)" },
+      },
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       // focus = Kouvola Matkakeskus linja-autoasema; rect kattaa kaikki linjapysäkit
@@ -3380,8 +3654,8 @@ const CONFIGS = {
   // 4T, 5, 6, 7, 10), maaseutuliikenne 11/12 julkaistusta reittikokonaisuudesta (Mikkeli–
   // Juva–Savonlinna ei ole feedissä). Markkinaehtoinen kaukoliikenne ei ole missään Waltti-
   // feedissä. Kausivaihto kesä → talvi 12.8.2026 (vuoroja/pv 195 → 376). Paikallislinjat ovat
-  // silmukkalinjoja (lähtevät Hallitustorilta ja palaavat sinne). EI fares/hubs/cmsAlerts
-  // (hintoja, virallista laiturilistaa eikä häiriö-CMS:ää varmennettu). GTFS-RT-häiriöt
+  // silmukkalinjoja (lähtevät Hallitustorilta ja palaavat sinne). Kertalippujen hinnat (fares)
+  // lisätty 4.10.2026. EI hubs/cmsAlerts (virallista laiturilistaa eikä häiriö-CMS:ää varmennettu). GTFS-RT-häiriöt
   // toimivat feedistä.
   mikkeli: {
     city: "Mikkeli",
@@ -3418,6 +3692,85 @@ const CONFIGS = {
     // Mikkelin oman reittioppaan teemaväri (mikkeli.digitransit.fi meta theme-color +
     // colors.primary, luettu 2.8.2026). headerBgColor() pitää AA:n valkoiselle.
     brandColor: "#167CAC",
+    // Kertalippujen hinnat (erä E1 4.10.2026). Lähde: Mikkelin kaupungin sivu
+    // https://mikkeli.fi/asuminen-ja-ymparisto/liikenne-ja-kadut/joukkoliikenne-2-2/joukkoliikenteen-liput-ja-hinnat/ ja sen
+    // alasivut kertaliput/, arvoliput/, mobiililippu/ ja lahimaksu-on-tulossa/ (arvo- ja mobiililiput 1.1.2025 alkaen,
+    // lähimaksu 2.4.2025 alkaen), luettu 4.10.2026. Vyöhykkeet A-G, hinta vyöhykemäärän (1-7) mukaan. cardApp = arvolippu
+    // ja Waltti Mobiili (samat hinnat; opiskelijan hinta vain kortilla), contactless + capDay = lähimaksu ja sen päiväkatto
+    // (vain 1-3 vyöhykettä), cash = kertalippu kuljettajalta tai itsepalveluautomaatilta (nuoriso, seniori ja opiskelija
+    // maksavat aikuisen hinnan, joten cash.reduced on tyhjä).
+    fares: {
+      checked: "4.10.2026",
+      url: "https://mikkeli.fi/asuminen-ja-ymparisto/liikenne-ja-kadut/joukkoliikenne-2-2/joukkoliikenteen-liput-ja-hinnat/",
+      cardFee: "",
+      zones: [
+        { label: { fi: "1 vyöhyke", sv: "1 zon", en: "1 zone" },
+          single: { cardApp: { adult: "2,51", child: "1,26", reduced: "1,75" },
+                    contactless: "2,51",
+                    cash: { adult: "3,70", child: "1,90", reduced: "" } },
+          season: [], day: [], capDay: "7,50", capWeek: "" },
+        { label: { fi: "2 vyöhykettä", sv: "2 zoner", en: "2 zones" },
+          single: { cardApp: { adult: "3,38", child: "1,69", reduced: "2,51" },
+                    contactless: "3,38",
+                    cash: { adult: "5,10", child: "2,50", reduced: "" } },
+          season: [], day: [], capDay: "10,10", capWeek: "" },
+        { label: { fi: "3 vyöhykettä", sv: "3 zoner", en: "3 zones" },
+          single: { cardApp: { adult: "4,15", child: "2,07", reduced: "3,11" },
+                    contactless: "4,15",
+                    cash: { adult: "6,20", child: "3,10", reduced: "" } },
+          season: [], day: [], capDay: "12,00", capWeek: "" },
+        { label: { fi: "4 vyöhykettä", sv: "4 zoner", en: "4 zones" },
+          single: { cardApp: { adult: "5,24", child: "2,62", reduced: "3,93" },
+                    contactless: "",
+                    cash: { adult: "7,90", child: "3,90", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "5 vyöhykettä", sv: "5 zoner", en: "5 zones" },
+          single: { cardApp: { adult: "6,44", child: "3,22", reduced: "4,75" },
+                    contactless: "",
+                    cash: { adult: "9,60", child: "4,80", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "6 vyöhykettä", sv: "6 zoner", en: "6 zones" },
+          single: { cardApp: { adult: "8,40", child: "4,20", reduced: "6,33" },
+                    contactless: "",
+                    cash: { adult: "12,40", child: "6,20", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "7 vyöhykettä", sv: "7 zoner", en: "7 zones" },
+          single: { cardApp: { adult: "10,25", child: "5,13", reduced: "7,64" },
+                    contactless: "",
+                    cash: { adult: "15,20", child: "7,60", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+      ],
+      i18n: {
+        flatTitle: { fi: "Hinta määräytyy vyöhykkeiden mukaan", sv: "Priset bestäms enligt zonerna",
+          en: "The fare depends on the number of zones" },
+        flatBody: {
+          fi: "Hinta määräytyy sen mukaan, monenko vyöhykkeen (A–G) läpi matka kulkee. Alle 7-vuotias lapsi matkustaa maksutta. Nuoriso tarkoittaa 17–19-vuotiaita ja seniori 65 vuotta täyttäneitä; opiskelijan hinta on vain Waltti-kortilla. Lähimaksu käy kaupunkiliikenteen linjoilla ja osassa maaseudun linjoista.",
+          sv: "Priset bestäms av hur många zoner (A–G) resan går genom. Barn under 7 år reser gratis. Unga avser 17–19-åringar och seniorer personer som fyllt 65; studerandepriset gäller endast med Waltti-kort. Närbetalning fungerar på stadstrafikens linjer och på en del av landsbygdslinjerna.",
+          en: "The fare depends on how many zones (A–G) the journey crosses. Children under 7 travel free. Youth means ages 17–19 and senior means 65 or over; the student price applies with a Waltti card only. Contactless payment works on city lines and some rural lines." },
+        transfer: {
+          fi: "Kertalipulla voi vaihtaa maksutta 90 minuutin sisällä A-vyöhykkeellä, muutoin kahden tunnin sisällä. Lähimaksulla ostetussa kertalipussa on 90 minuutin vaihto-oikeus.",
+          sv: "Med engångsbiljetten kan man byta gratis inom 90 minuter i zon A och annars inom två timmar. En engångsbiljett köpt med närbetalning har 90 minuters bytesrätt.",
+          en: "Single tickets allow free transfers within 90 minutes in zone A and within two hours otherwise. A contactless single ticket includes 90 minutes of transfers." },
+        colAdult: { fi: "Aikuinen (20–64 v)", sv: "Vuxen (20–64 år)", en: "Adult (20–64)" },
+        colChild: { fi: "Lapsi (7–16 v)", sv: "Barn (7–16 år)", en: "Child (7–16)" },
+        colReduced: { fi: "Nuoriso / seniori / opiskelija", sv: "Unga / senior / studerande", en: "Youth / senior / student" },
+        methodCardApp: { fi: "Waltti-kortin arvo tai Waltti Mobiili", sv: "Värde på Waltti-kort eller Waltti Mobiili",
+          en: "Waltti card value or Waltti Mobiili app" },
+        methodContactless: { fi: "Lähimaksu (aikuisen hinta, 1–3 vyöhykettä)", sv: "Närbetalning (vuxenpris, 1–3 zoner)",
+          en: "Contactless (adult price, 1–3 zones)" },
+        methodCash: { fi: "Kertalippu kuljettajalta tai itsepalveluautomaatilta", sv: "Engångsbiljett av föraren eller från självbetjäningsautomaten",
+          en: "Single ticket from the driver or a self-service machine" },
+        caps: { fi: "Lähimaksun päiväkatto tällä vyöhykemäärällä: {day} €. Saman päivän matkoista ei veloiteta enempää.",
+          sv: "Närbetalningens dagstak för detta antal zoner: {day} €. Dagens resor debiteras inte utöver detta.",
+          en: "Contactless daily cap for this number of zones: €{day}. Trips on the same day are not charged beyond this." },
+        sourceNote: {
+          fi: "Sivulla ovat kertalippujen hinnat. Ne on koottu sivustolta mikkeli.fi ja tarkistettu {date}. Kausi- ja vuorokausiliput: katso virallinen hinnasto. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot virallisesta hinnastosta.",
+          sv: "Sidan visar priserna för engångsbiljetter. De är sammanställda från mikkeli.fi och kontrollerade {date}. Period- och dygnsbiljetter: se den officiella prislistan. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor i den officiella prislistan.",
+          en: "This page shows single-ticket prices. They are compiled from mikkeli.fi and checked on {date}. Season and day tickets: see the official price list. This is an unofficial service: please confirm current prices and terms in the official price list." },
+        sourceLink: { fi: "Virallinen hinnasto (mikkeli.fi)", sv: "Officiell prislista (mikkeli.fi)",
+          en: "Official price list (mikkeli.fi)" },
+      },
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       // focus = Hallitustori; rect kattaa kaikki linjapysäkit
@@ -3433,7 +3786,7 @@ const CONFIGS = {
   // kautta 7.8.2026: 99 BUS-linjaobjektia (90 aktiivista talvikoetuksella), 1 417 pysäkkiä.
   // Feed sisältää laajaa seutuliikennettä (Lammi/Hauho/Turenki/Tervakoski/Iittala).
   // Kausivaihto näkyy feedissä (vuoroja 4 koetuspäivänä kesä 1 416 → talvi 1 627).
-  // EI fares/hubs/cmsAlerts (ei varmennettu) → lisää vasta varmennetulla datalla.
+  // Kertalippujen hinnat (fares) lisätty 4.10.2026. EI hubs/cmsAlerts (ei varmennettu).
   hameenlinna: {
     city: "Hämeenlinna",
     cityGenitive: "Hämeenlinnan",
@@ -3469,6 +3822,59 @@ const CONFIGS = {
     // Reittioppaan teemaväri (hameenlinna.digitransit.fi meta theme-color rgb(196,40,31),
     // luettu 7.8.2026). headerBgColor() pitää AA:n valkoiselle.
     brandColor: "#C4281F",
+    // Kertalippujen hinnat (erä E1 4.10.2026). Lähde: https://hameenlinnanjoukkoliikenne.fi/liput-ja-hinnat/lippuhinnat/
+    // (hinnat voimassa 1.1.2025 alkaen, sivu päivitetty 22.9.2026), luettu 4.10.2026. Vyöhykkeet A, B ja C: 1 vyöhyke =
+    // A-A, B-B tai C-C, 2 = A-B tai B-C, 3 = A-C. cardApp = arvolippu Waltti-kortilla, app = Waltti Mobiili, contactless =
+    // lähimaksu (aina aikuisen hinta), cash = käteinen (aikuisen hinta koskee myös senioria ja opiskelijaa). Riihimäen
+    // vyöhykkeet (oma sivunsa) on jätetty pois.
+    fares: {
+      checked: "4.10.2026",
+      url: "https://hameenlinnanjoukkoliikenne.fi/liput-ja-hinnat/lippuhinnat/",
+      cardFee: "",
+      zones: [
+        { label: { fi: "1 vyöhyke", sv: "1 zon", en: "1 zone" },
+          single: { cardApp: { adult: "2,40", child: "1,70", reduced: "" },
+                    app: { adult: "2,70", child: "1,70", reduced: "" },
+                    contactless: "2,40",
+                    cash: { adult: "3,40", child: "1,70", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "2 vyöhykettä", sv: "2 zoner", en: "2 zones" },
+          single: { cardApp: { adult: "3,50", child: "2,50", reduced: "" },
+                    app: { adult: "3,80", child: "2,50", reduced: "" },
+                    contactless: "3,50",
+                    cash: { adult: "5,00", child: "2,50", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+        { label: { fi: "3 vyöhykettä", sv: "3 zoner", en: "3 zones" },
+          single: { cardApp: { adult: "4,80", child: "3,40", reduced: "" },
+                    app: { adult: "5,10", child: "3,40", reduced: "" },
+                    contactless: "4,80",
+                    cash: { adult: "6,80", child: "3,40", reduced: "" } },
+          season: [], day: [], capDay: "", capWeek: "" },
+      ],
+      i18n: {
+        flatTitle: { fi: "Hinta määräytyy vyöhykkeiden mukaan", sv: "Priset bestäms enligt zonerna",
+          en: "The fare depends on the number of zones" },
+        flatBody: {
+          fi: "Hinta määräytyy vyöhykkeiden A, B ja C mukaan: matka yhden vyöhykkeen sisällä (esimerkiksi Hämeenlinnan kantakaupungissa) on 1 vyöhyke, A–B tai B–C 2 vyöhykettä ja A–C 3 vyöhykettä. 0–6-vuotiaat kulkevat maksutta aikuisen seurassa. 70 vuotta täyttäneet matkustavat Waltti-kortin arvolla arkisin klo 9–14 lapsen hinnalla.",
+          sv: "Priset bestäms enligt zonerna A, B och C: en resa inom en zon (till exempel i Tavastehus centrum) är 1 zon, A–B eller B–C 2 zoner och A–C 3 zoner. Barn 0–6 år reser gratis i sällskap med en vuxen. Personer som fyllt 70 reser med värde på Waltti-kort till barnpris vardagar kl. 9–14.",
+          en: "The fare depends on zones A, B and C: a trip within one zone (for example central Hämeenlinna) is 1 zone, A–B or B–C is 2 zones and A–C is 3 zones. Children aged 0–6 travel free with an adult. People aged 70 or over pay the child price with Waltti card value on weekdays 9–14." },
+        transfer: { fi: "Lähimaksulla maksettaessa vaihtoaika on aina 90 minuuttia.",
+          sv: "Vid närbetalning är bytestiden alltid 90 minuter.", en: "With contactless payment the transfer time is always 90 minutes." },
+        colAdult: { fi: "Aikuinen (17 v tai yli)", sv: "Vuxen (17 år eller äldre)", en: "Adult (17 or over)" },
+        colChild: { fi: "Lapsi (7–16 v)", sv: "Barn (7–16 år)", en: "Child (7–16)" },
+        methodCardApp: { fi: "Waltti-kortin arvo", sv: "Värde på Waltti-kort", en: "Waltti card value" },
+        methodApp: { fi: "Waltti Mobiili", sv: "Waltti Mobiili", en: "Waltti Mobiili app" },
+        methodContactless: { fi: "Lähimaksu (aina aikuisen hinta)", sv: "Närbetalning (alltid vuxenpris)",
+          en: "Contactless (always adult price)" },
+        methodCash: { fi: "Käteinen bussissa", sv: "Kontant i bussen", en: "Cash on the bus" },
+        sourceNote: {
+          fi: "Sivulla ovat kertalippujen hinnat (voimassa 1.1.2025 alkaen). Ne on koottu sivustolta hameenlinnanjoukkoliikenne.fi ja tarkistettu {date}. Kausi- ja vuorokausiliput: katso virallinen hinnasto. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot virallisesta hinnastosta.",
+          sv: "Sidan visar priserna för engångsbiljetter (gäller från 1.1.2025). De är sammanställda från hameenlinnanjoukkoliikenne.fi och kontrollerade {date}. Period- och dygnsbiljetter: se den officiella prislistan. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor i den officiella prislistan.",
+          en: "This page shows single-ticket prices (valid from 1.1.2025). They are compiled from hameenlinnanjoukkoliikenne.fi and checked on {date}. Season and day tickets: see the official price list. This is an unofficial service: please confirm current prices and terms in the official price list." },
+        sourceLink: { fi: "Virallinen hinnasto (hameenlinnanjoukkoliikenne.fi)", sv: "Officiell prislista (hameenlinnanjoukkoliikenne.fi)",
+          en: "Official price list (hameenlinnanjoukkoliikenne.fi)" },
+      },
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       // focus = Turuntien silta; rect kattaa linjapysäkit (7.8.2026: lat 60.733–61.241,
@@ -3618,7 +4024,8 @@ const CONFIGS = {
   // — varmennettu feeds-kyselyllä proxyn kautta 7.8.2026: 82 BUS-linjaobjektia (80
   // aktiivista), 2 171 pysäkkiä. Kausivaihto näkyy feedissä (vuoroja 4 koetuspäivänä
   // kesä 4 350 → talvi 4 978). Feedissä yksi roskamainen shortName ("Uuraisten Liikenne")
-  // — ei vaadi toimia, dedup/aktiivisuussuodatus käsittelee. EI fares/hubs/cmsAlerts.
+  // — ei vaadi toimia, dedup/aktiivisuussuodatus käsittelee. Kertalippujen
+  // hinnat (fares) lisätty 4.10.2026. EI hubs/cmsAlerts.
   jyvaskyla: {
     city: "Jyväskylä",
     cityGenitive: "Jyväskylän",
@@ -3651,6 +4058,61 @@ const CONFIGS = {
     // Linkin teemaväri (jyvaskyla.digitransit.fi meta theme-color, luettu 7.8.2026).
     // Vaalea vihreä → headerBgColor() tummentaa AA:n verran.
     brandColor: "#7DC02D",
+    // Kertalippujen hinnat (erä E1 4.10.2026). Lähde: https://linkki.jyvaskyla.fi/liput-ja-hinnat/hinnasto, luettu 4.10.2026;
+    // ryhmien määrittelyt sivulta https://linkki.jyvaskyla.fi/liput-ja-hinnat/alennukset-tuetut-liput-ja-etuudet. Maksu-
+    // vyöhykkeet A, B ja C. cardApp = arvolippu Waltti-kortilla ja mobiililippu Waltti Mobiilista (aikuisen ja lapsen hinnat
+    // samat); reduced = nuori 17-24 v, opiskelija ja seniori 65+ vain arvolipussa Waltti-kortilla. contactless + capDay =
+    // lähimaksulippu ja sen maksukatto päivässä, cash = käteislippu.
+    fares: {
+      checked: "4.10.2026",
+      url: "https://linkki.jyvaskyla.fi/liput-ja-hinnat/hinnasto",
+      cardFee: "",
+      zones: [
+        { label: { fi: "1 vyöhyke", sv: "1 zon", en: "1 zone" },
+          single: { cardApp: { adult: "2,70", child: "1,35", reduced: "1,90" },
+                    contactless: "2,70",
+                    cash: { adult: "4,00", child: "2,00", reduced: "" } },
+          season: [], day: [], capDay: "8,10", capWeek: "" },
+        { label: { fi: "2 vyöhykettä", sv: "2 zoner", en: "2 zones" },
+          single: { cardApp: { adult: "3,90", child: "1,95", reduced: "2,70" },
+                    contactless: "3,90",
+                    cash: { adult: "6,00", child: "3,00", reduced: "" } },
+          season: [], day: [], capDay: "11,70", capWeek: "" },
+        { label: { fi: "3 vyöhykettä", sv: "3 zoner", en: "3 zones" },
+          single: { cardApp: { adult: "5,00", child: "2,50", reduced: "3,50" },
+                    contactless: "5,00",
+                    cash: { adult: "8,00", child: "4,00", reduced: "" } },
+          season: [], day: [], capDay: "15,00", capWeek: "" },
+      ],
+      i18n: {
+        flatTitle: { fi: "Hinta määräytyy vyöhykkeiden mukaan", sv: "Priset bestäms enligt zonerna",
+          en: "The fare depends on the number of zones" },
+        flatBody: {
+          fi: "Linkin alueella on kolme maksuvyöhykettä A, B ja C: A on Jyväskylän keskustan ympärillä ja C kauimpana keskustasta. Lipun on oltava voimassa kaikilla vyöhykkeillä, joiden kautta matka kulkee. Alle 7-vuotiaat matkustavat maksutta maksavan huoltajan seurassa.",
+          sv: "Linkki-området har tre betalzoner A, B och C: A ligger runt Jyväskylä centrum och C längst från centrum. Biljetten ska gälla i alla zoner som resan går genom. Barn under 7 år reser gratis i sällskap med en betalande vårdnadshavare.",
+          en: "The Linkki area has three fare zones A, B and C: A surrounds central Jyväskylä and C is furthest from the centre. The ticket must be valid in every zone the journey passes through. Children under 7 travel free with a paying guardian." },
+        transfer: { fi: "Käteislipulla klo 23.00–04.00 tehtävän matkan hintaan lisätään 1 euron yölisä.",
+          sv: "För resor med kontantbiljett kl. 23.00–04.00 tillkommer ett nattillägg på 1 euro.",
+          en: "A night surcharge of €1 is added to cash tickets for trips between 23:00 and 04:00." },
+        colAdult: { fi: "Aikuinen", sv: "Vuxen", en: "Adult" },
+        colChild: { fi: "Lapsi (7–16 v)", sv: "Barn (7–16 år)", en: "Child (7–16)" },
+        colReduced: { fi: "Nuori (17–24 v) / opiskelija / seniori (65+), Waltti-kortilla",
+          sv: "Ung (17–24 år) / studerande / senior (65+), med Waltti-kort", en: "Youth (17–24) / student / senior (65+), Waltti card" },
+        methodCardApp: { fi: "Waltti-kortin arvo tai Waltti Mobiili", sv: "Värde på Waltti-kort eller Waltti Mobiili",
+          en: "Waltti card value or Waltti Mobiili app" },
+        methodContactless: { fi: "Lähimaksu (aikuisen hinta)", sv: "Närbetalning (vuxenpris)", en: "Contactless (adult price)" },
+        methodCash: { fi: "Käteinen kuljettajalta", sv: "Kontant av föraren", en: "Cash from the driver" },
+        caps: { fi: "Lähimaksun maksukatto tällä vyöhykemäärällä: {day} € / päivä. Saman päivän matkoista ei veloiteta enempää.",
+          sv: "Närbetalningens pristak för detta antal zoner: {day} € / dag. Dagens resor debiteras inte utöver detta.",
+          en: "Contactless price cap for this number of zones: €{day} per day. Trips on the same day are not charged beyond this." },
+        sourceNote: {
+          fi: "Sivulla ovat kertalippujen hinnat. Ne on koottu sivustolta linkki.jyvaskyla.fi ja tarkistettu {date}. Kausi- ja vuorokausiliput: katso virallinen hinnasto. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot virallisesta hinnastosta.",
+          sv: "Sidan visar priserna för engångsbiljetter. De är sammanställda från linkki.jyvaskyla.fi och kontrollerade {date}. Period- och dygnsbiljetter: se den officiella prislistan. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor i den officiella prislistan.",
+          en: "This page shows single-ticket prices. They are compiled from linkki.jyvaskyla.fi and checked on {date}. Season and day tickets: see the official price list. This is an unofficial service: please confirm current prices and terms in the official price list." },
+        sourceLink: { fi: "Virallinen hinnasto (linkki.jyvaskyla.fi)", sv: "Officiell prislista (linkki.jyvaskyla.fi)",
+          en: "Official price list (linkki.jyvaskyla.fi)" },
+      },
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       // focus = Urhonkatu; rect kattaa linjapysäkit (7.8.2026: lat 61.875–62.872,
@@ -3992,7 +4454,7 @@ const CONFIGS = {
   // Kaikki sisältö avoimesta Waltti/Digitransit-GTFS:stä. HUOM feedId on "OULU" —
   // varmennettu feeds-kyselyllä proxyn kautta 7.8.2026: 97 BUS-linjaobjektia (93
   // aktiivista), 1 977 pysäkkiä — suurin demokaupunki (vuoroja 4 koetuspäivänä kesä
-  // 5 581 → talvi 6 251). EI fares/hubs/cmsAlerts (ei varmennettu).
+  // 5 581 → talvi 6 251). Kertalippujen hinnat (fares) lisätty 4.10.2026. EI hubs/cmsAlerts (ei varmennettu).
   oulu: {
     city: "Oulu",
     cityGenitive: "Oulun",
@@ -4024,6 +4486,48 @@ const CONFIGS = {
     ],
     // OSL:n teemaväri (oulu.digitransit.fi meta theme-color, luettu 7.8.2026).
     brandColor: "#E10669",
+    // Kertalippujen hinnat (erä E1 4.10.2026). Lähteet: https://www.osl.fi/liput-ja-hinnat/kertalippu/ (kertalipun hinnat)
+    // ja https://www.osl.fi/liput-ja-hinnat/lahimaksu/ (lähimaksun maksukatot), luettu 4.10.2026. Tasataksa koko
+    // OSL-alueella. cardApp = OSL-sovellus, OSL-kortin arvo ja R-kioski (hinnastossa yksi sarake). Nuori 17-24 v ja seniori
+    // maksavat aikuisen hinnan, joten reduced on tyhjä; seniorin aleaikahinta (2,20 €) kerrotaan tekstissä. cash = käteinen
+    // kuljettajalta. capDay/capWeek = lähimaksun 1 ja 7 vrk:n maksukatot (30 vrk:n katto tekstissä).
+    fares: {
+      checked: "4.10.2026",
+      url: "https://www.osl.fi/liput-ja-hinnat/kertalippu/",
+      single: {
+        cardApp: { adult: "2,90", child: "1,45", reduced: "" },
+        contactless: "2,90",
+        cash: { adult: "5,00", child: "2,00", reduced: "" },
+      },
+      season: [], day: [], capDay: "11,00", capWeek: "44,50", cardFee: "",
+      i18n: {
+        flatTitle: { fi: "Tasataksa: sama hinta koko OSL-alueella", sv: "Enhetstaxa: samma pris i hela OSL-området",
+          en: "Flat fare: one price across the OSL area" },
+        flatBody: {
+          fi: "Kaikilla lipuilla voi matkustaa koko OSL-alueella: Oulu, Hailuoto, Ii, Kempele, Liminka, Lumijoki, Muhos ja Tyrnävä. 65 vuotta täyttäneen kertalippu sovelluksella, kortin arvolla tai R-kioskilta on 2,20 € ma–pe klo 9.30–14.30.",
+          sv: "Alla biljetter gäller i hela OSL-området: Uleåborg, Karlö, Ijo, Kempele, Limingo, Lumijoki, Muhos och Tyrnävä. För personer som fyllt 65 kostar engångsbiljetten i appen, med kortvärde eller från R-kiosken 2,20 € mån–fre kl. 9.30–14.30.",
+          en: "All tickets are valid across the OSL area: Oulu, Hailuoto, Ii, Kempele, Liminka, Lumijoki, Muhos and Tyrnävä. For people aged 65 or over the single ticket in the app, with card value or from R-kioski costs €2.20 Mon–Fri 9.30–14.30." },
+        transfer: {
+          fi: "Kertalippu on voimassa 90 minuuttia ostohetkestä. Käteisellä ostetusta kertalipusta peritään klo 23.00–4.30 kaksinkertainen hinta.",
+          sv: "Engångsbiljetten gäller i 90 minuter från köpet. För en engångsbiljett köpt kontant tas dubbelt pris ut kl. 23.00–4.30.",
+          en: "A single ticket is valid for 90 minutes from purchase. Cash single tickets cost double between 23:00 and 4:30." },
+        colAdult: { fi: "Aikuinen (17 v tai yli)", sv: "Vuxen (17 år eller äldre)", en: "Adult (17 or over)" },
+        colChild: { fi: "Lapsi (7–16 v)", sv: "Barn (7–16 år)", en: "Child (7–16)" },
+        methodCardApp: { fi: "OSL-sovellus, OSL-kortin arvo tai R-kioski", sv: "OSL-appen, värde på OSL-kortet eller R-kiosk",
+          en: "OSL app, OSL card value or R-kioski" },
+        methodContactless: { fi: "Lähimaksu (sama kaikille)", sv: "Närbetalning (samma för alla)", en: "Contactless (same for all)" },
+        methodCash: { fi: "Käteinen kuljettajalta", sv: "Kontant av föraren", en: "Cash from the driver" },
+        caps: { fi: "Lähimaksun maksukatot: {day} € / vrk, {week} € / 7 vrk ja 64,00 € / 30 vrk. Samalla maksuvälineellä maksetuista matkoista ei veloiteta enempää.",
+          sv: "Närbetalningens pristak: {day} € / dygn, {week} € / 7 dygn och 64,00 € / 30 dygn. Resor som betalas med samma betalmedel debiteras inte utöver detta.",
+          en: "Contactless price caps: €{day} per day, €{week} per 7 days and €64.00 per 30 days. Trips paid with the same card are not charged beyond this." },
+        sourceNote: {
+          fi: "Sivulla ovat kertalippujen hinnat. Ne on koottu sivustolta osl.fi ja tarkistettu {date}. Kausi- ja vuorokausiliput: katso virallinen hinnasto. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot virallisesta hinnastosta.",
+          sv: "Sidan visar priserna för engångsbiljetter. De är sammanställda från osl.fi och kontrollerade {date}. Period- och dygnsbiljetter: se den officiella prislistan. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor i den officiella prislistan.",
+          en: "This page shows single-ticket prices. They are compiled from osl.fi and checked on {date}. Season and day tickets: see the official price list. This is an unofficial service: please confirm current prices and terms in the official price list." },
+        sourceLink: { fi: "Virallinen hinnasto (osl.fi)", sv: "Officiell prislista (osl.fi)",
+          en: "Official price list (osl.fi)" },
+      },
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       // focus = Pokkitörmä; rect kattaa linjapysäkit (7.8.2026: lat 64.762–65.372,
@@ -4039,7 +4543,7 @@ const CONFIGS = {
   // /^pori$/ EI saa osua Raasepori-feediin): 54 BUS-linjaobjektia (51 aktiivista),
   // 1 084 pysäkkiä. Feed sisältää seutuliikennettä (Kankaanpää/Kokemäki/Harjavalta).
   // Kausivaihto maltillinen (vuoroja 4 koetuspäivänä kesä 1 946 → talvi 1 960).
-  // EI fares/hubs/cmsAlerts (ei varmennettu).
+  // Kertalippujen hinnat (fares) lisätty 4.10.2026. EI hubs/cmsAlerts (ei varmennettu).
   pori: {
     city: "Pori",
     cityGenitive: "Porin",
@@ -4072,6 +4576,40 @@ const CONFIGS = {
     ],
     // Reittioppaan teemaväri (pori.digitransit.fi meta theme-color, luettu 7.8.2026).
     brandColor: "#1F1F66",
+    // Kertalippujen hinnat (erä E1 4.10.2026). Lähde: https://pjl.pori.fi/etusivu/liput-ja-hinnat/, luettu 4.10.2026.
+    // Ryhmät: lapsi 8-16 v, nuori 17-25 v ja aikuinen 26 v tai yli; nuoren kertalippu maksaa saman kuin aikuisen, joten
+    // sarakkeet ovat aikuinen ja lapsi. cardApp = arvolippu Waltti-kortilla, contactless = lähimaksu (vain aikuisen lippu),
+    // cash = kertalippu käteisellä tai Waltti Mobiilissa (sivulla yksi hinta molemmille). Citylippu kerrotaan tekstissä.
+    fares: {
+      checked: "4.10.2026",
+      url: "https://pjl.pori.fi/etusivu/liput-ja-hinnat/",
+      single: {
+        cardApp: { adult: "3,00", child: "2,00", reduced: "" },
+        contactless: "3,50",
+        cash: { adult: "3,50", child: "2,00", reduced: "" },
+      },
+      season: [], day: [], capDay: "", capWeek: "", cardFee: "",
+      i18n: {
+        flatBody: {
+          fi: "0–7-vuotiaat matkustavat maksutta: yhden aikuisen kanssa saa kulkea maksutta kaksi 0–7-vuotiasta lasta. Citylippu (1,00 €, sama kaikille) kelpaa vain linjalla 1 Puuvillan ja Isomäen välisillä pysäkeillä, eikä siinä ole vaihto-oikeutta.",
+          sv: "Barn 0–7 år reser gratis: två barn 0–7 år får resa gratis med en vuxen. Citybiljetten (1,00 €, samma för alla) gäller endast på linje 1 vid hållplatserna mellan Puuvilla och Isomäki och har ingen bytesrätt.",
+          en: "Children aged 0–7 travel free: one adult may bring two children aged 0–7 free of charge. The City ticket (€1.00, same for all) is valid only on line 1 at the stops between Puuvilla and Isomäki and includes no transfers." },
+        transfer: { fi: "Kerta- ja arvolipussa on 60 minuutin vaihtoaika.", sv: "Engångs- och värdebiljetten har 60 minuters bytestid.",
+          en: "Single and value tickets include a 60-minute transfer time." },
+        colAdult: { fi: "Aikuinen ja nuori (17 v tai yli)", sv: "Vuxen och ung (17 år eller äldre)", en: "Adult and youth (17 or over)" },
+        colChild: { fi: "Lapsi (8–16 v)", sv: "Barn (8–16 år)", en: "Child (8–16)" },
+        methodCardApp: { fi: "Waltti-kortin arvolippu", sv: "Värdebiljett på Waltti-kort", en: "Waltti card value ticket" },
+        methodContactless: { fi: "Lähimaksu (vain aikuisen lippu)", sv: "Närbetalning (endast vuxenbiljett)",
+          en: "Contactless (adult ticket only)" },
+        methodCash: { fi: "Käteinen tai Waltti Mobiili", sv: "Kontant eller Waltti Mobiili", en: "Cash or Waltti Mobiili app" },
+        sourceNote: {
+          fi: "Sivulla ovat kertalippujen hinnat. Ne on koottu sivustolta pjl.pori.fi ja tarkistettu {date}. Kausi- ja vuorokausiliput: katso virallinen hinnasto. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot virallisesta hinnastosta.",
+          sv: "Sidan visar priserna för engångsbiljetter. De är sammanställda från pjl.pori.fi och kontrollerade {date}. Period- och dygnsbiljetter: se den officiella prislistan. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor i den officiella prislistan.",
+          en: "This page shows single-ticket prices. They are compiled from pjl.pori.fi and checked on {date}. Season and day tickets: see the official price list. This is an unofficial service: please confirm current prices and terms in the official price list." },
+        sourceLink: { fi: "Virallinen hinnasto (pjl.pori.fi)", sv: "Officiell prislista (pjl.pori.fi)",
+          en: "Official price list (pjl.pori.fi)" },
+      },
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       // focus = Teljäntori; rect kattaa linjapysäkit (7.8.2026: lat 61.389–61.683,
@@ -4086,7 +4624,7 @@ const CONFIGS = {
   // Waltti/Digitransit-GTFS:stä. feedId "Rovaniemi" varmennettu feeds-kyselyllä proxyn
   // kautta 7.8.2026: 14 BUS-linjaobjektia (12 aktiivista), 433 pysäkkiä — pienin
   // demokaupunki, mutta täysi paikallisverkko (vuoroja 4 koetuspäivänä kesä 497 →
-  // talvi 683). EI fares/hubs/cmsAlerts (ei varmennettu).
+  // talvi 683). Kertalippujen hinnat (fares) lisätty 4.10.2026. EI hubs/cmsAlerts (ei varmennettu).
   rovaniemi: {
     city: "Rovaniemi",
     cityGenitive: "Rovaniemen",
@@ -4118,6 +4656,60 @@ const CONFIGS = {
     // Reittioppaan teemaväri (rovaniemi.digitransit.fi meta theme-color, luettu 7.8.2026).
     // headerBgColor() tummentaa AA:n verran.
     brandColor: "#34B233",
+    // Kertalippujen hinnat (erä E1 4.10.2026). Lähde: Linkkarin hinnasto-PDF "Hintataulukko_07012026.pdf" (päivätty
+    // 7.1.2026; linkki "Katso lippujen hinnat tästä" sivulla https://linkkari.fi/Liput-ja-hinnasto, PDF-osoite
+    // https://linkkari.fi/loader.aspx?id=20055aad-76e2-4416-8eb7-2e89583c4979), luettu 4.10.2026. Waltti-liikennettä on
+    // vyöhykkeillä A ja B: 1 vyöhyke = A tai B, 2 = AB. reduced = nuoret 17-24 v. cardApp = Waltti-kortin arvo, app = Waltti
+    // Mobiili, contactless = lähimaksu bussista (sama kaikille), capDay = lähimaksun hintakatto, cash = käteisellä bussista.
+    // Seniorin aleaikahinta kerrotaan tekstissä.
+    fares: {
+      checked: "4.10.2026",
+      url: "https://linkkari.fi/Liput-ja-hinnasto",
+      cardFee: "",
+      zones: [
+        { label: { fi: "1 vyöhyke (A tai B)", sv: "1 zon (A eller B)", en: "1 zone (A or B)" },
+          single: { cardApp: { adult: "2,90", child: "1,40", reduced: "2,00" },
+                    app: { adult: "3,30", child: "1,65", reduced: "3,30" },
+                    contactless: "3,60",
+                    cash: { adult: "3,60", child: "1,80", reduced: "3,60" } },
+          season: [], day: [], capDay: "9,00", capWeek: "" },
+        { label: { fi: "2 vyöhykettä (AB)", sv: "2 zoner (AB)", en: "2 zones (AB)" },
+          single: { cardApp: { adult: "4,50", child: "2,20", reduced: "3,15" },
+                    app: { adult: "5,10", child: "2,55", reduced: "5,10" },
+                    contactless: "5,60",
+                    cash: { adult: "5,60", child: "2,80", reduced: "5,60" } },
+          season: [], day: [], capDay: "14,00", capWeek: "" },
+      ],
+      i18n: {
+        flatTitle: { fi: "Hinta määräytyy vyöhykkeiden mukaan", sv: "Priset bestäms enligt zonerna",
+          en: "The fare depends on the number of zones" },
+        flatBody: {
+          fi: "Rovaniemellä Waltti-liikennettä on vyöhykkeillä A ja B, ja hinta riippuu siitä, kuinka monella vyöhykkeellä liikut saman matkan aikana. Yli 65-vuotiaan Waltti-kortin arvolippu on arkisin klo 9–14 ja klo 17 jälkeen sekä viikonloppuisin 2,00 € (1 vyöhyke) tai 3,15 € (2 vyöhykettä). Yhdestä kahteen alle 7-vuotiasta lasta matkustaa maksutta maksavan aikuisen kanssa.",
+          sv: "I Rovaniemi finns Waltti-trafik i zonerna A och B, och priset beror på hur många zoner du reser i under samma resa. För personer över 65 kostar värdebiljetten på Waltti-kort 2,00 € (1 zon) eller 3,15 € (2 zoner) vardagar kl. 9–14 och efter kl. 17 samt på veckoslut. Ett eller två barn under 7 år reser gratis med en betalande vuxen.",
+          en: "In Rovaniemi Waltti services run in zones A and B, and the fare depends on how many zones you travel in during one journey. For people over 65 the Waltti card value ticket costs €2.00 (1 zone) or €3.15 (2 zones) on weekdays 9–14 and after 17 and at weekends. One or two children under 7 travel free with a paying adult." },
+        transfer: {
+          fi: "Kerta- ja arvolipuissa on 60 minuutin vaihto-oikeus ensimmäisen matkan alkamisesta. Waltti Mobiililla ostetun kertalipun vaihtoaika alkaa ostohetkestä.",
+          sv: "Engångs- och värdebiljetter har 60 minuters bytesrätt från början av den första resan. För en engångsbiljett köpt i Waltti Mobiili börjar bytestiden vid köpet.",
+          en: "Single and value tickets include 60 minutes of transfers from the start of the first trip. For a single ticket bought in Waltti Mobiili the transfer time starts at purchase." },
+        colAdult: { fi: "Aikuinen", sv: "Vuxen", en: "Adult" },
+        colChild: { fi: "Lapsi (0–16 v)", sv: "Barn (0–16 år)", en: "Child (0–16)" },
+        colReduced: { fi: "Nuori (17–24 v)", sv: "Ung (17–24 år)", en: "Youth (17–24)" },
+        methodCardApp: { fi: "Waltti-kortin arvo", sv: "Värde på Waltti-kort", en: "Waltti card value" },
+        methodApp: { fi: "Waltti Mobiili", sv: "Waltti Mobiili", en: "Waltti Mobiili app" },
+        methodContactless: { fi: "Lähimaksu bussissa (sama kaikille)", sv: "Närbetalning i bussen (samma för alla)",
+          en: "Contactless on the bus (same for all)" },
+        methodCash: { fi: "Käteinen bussissa", sv: "Kontant i bussen", en: "Cash on the bus" },
+        caps: { fi: "Lähimaksun hintakatto tällä vyöhykemäärällä: {day} € / vrk. Useammasta matkasta ei veloiteta enempää.",
+          sv: "Närbetalningens pristak för detta antal zoner: {day} € / dygn. Fler resor debiteras inte utöver detta.",
+          en: "Contactless price cap for this number of zones: €{day} per day. Additional trips are not charged beyond this." },
+        sourceNote: {
+          fi: "Sivulla ovat kertalippujen hinnat. Ne on koottu sivustolta linkkari.fi ja tarkistettu {date}. Kausi- ja vuorokausiliput: katso virallinen hinnasto. Tämä on epävirallinen palvelu: varmista ajantasaiset hinnat ja ehdot virallisesta hinnastosta.",
+          sv: "Sidan visar priserna för engångsbiljetter. De är sammanställda från linkkari.fi och kontrollerade {date}. Period- och dygnsbiljetter: se den officiella prislistan. Detta är en inofficiell tjänst: kontrollera aktuella priser och villkor i den officiella prislistan.",
+          en: "This page shows single-ticket prices. They are compiled from linkkari.fi and checked on {date}. Season and day tickets: see the official price list. This is an unofficial service: please confirm current prices and terms in the official price list." },
+        sourceLink: { fi: "Virallinen hinnasto (linkkari.fi)", sv: "Officiell prislista (linkkari.fi)",
+          en: "Official price list (linkkari.fi)" },
+      },
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       // focus = Poliisilaitos; rect kattaa linjapysäkit (7.8.2026: lat 66.368–66.547,
@@ -14492,6 +15084,7 @@ async function viewFares() {
   const zoned = zones.length > 1;
   const zoneLabel = z => (z.label ? String(z.label[lang] ?? z.label.fi) : "");
   const hasReduced = zones.some(z => has(z.single.cardApp.reduced)
+    || has(z.single.app && z.single.app.reduced)
     || has(z.single.salespoint && z.single.salespoint.reduced)
     || has(z.single.cash && z.single.cash.reduced)
     || z.season.some(s => has(s.reduced)));
@@ -14504,6 +15097,11 @@ async function viewFares() {
       ${cells(vals)}</tr>`;
   const singleRows = z => [
     row(ftx("methodCardApp", null, "faresMethodCardApp"), grpVals(z.single.cardApp)),
+    // Sovelluksen hinta omana rivinään, kun se eroaa kortin hinnasta (Kouvola: lapsi kortilla 1,45 €, Waltti
+    // Mobiilissa 1,60 €). Sama kenttä kuin tiskillä (deskFaresHtml, single.app).
+    z.single.app && grpVals(z.single.app).some(has)
+      ? row(ftx("methodApp", null, "faresMethodApp"), grpVals(z.single.app))
+      : "",
     has(z.single.contactless)
       ? row(ftx("methodContactless", null, "faresMethodContactless"),
           grpVals({ adult: z.single.contactless, child: z.single.contactless, reduced: z.single.contactless }))
@@ -15385,7 +15983,10 @@ async function withAreaStopRoutes(stops) {
    lauseessa "Matkakeskukselta keskussairaalaan"). Lyhenne tai sana (keskus)sairaala tunnistetaan, sairaalan
    Pelias-kohde (venue) nostetaan kärkeen (rankPlaceHits), ja jos sitä ei ole tuloksissa, se haetaan erikseen pelkistä
    kohteista (layers=venue): Lahden rajattu haku palautti "keskussairaala"-sanalla vain kadun osoitteita.
-   Lyhenteen koko nimeä käytetään, kun lyhenne ei löydy Peliaksesta lainkaan (KSKS Jyväskylässä). */
+   Lyhenteen koko nimeä käytetään, kun lyhenne ei löydy Peliaksesta lainkaan (KSKS Jyväskylässä).
+   Erä E2 (4.10.2026): KOKS = Kymenlaakson keskussairaala (kymenhva.fi/toimipisteet-ja-yhteystiedot/sairaalat/:
+   "lempinimeltään KOKS"; Peliaksen kohde "Kymenlaakson keskussairaala (KOKS)"). Kouvolan, Mikkelin ja Salon
+   sairaaloille ei löytynyt vakiintunutta lyhennettä virallisista lähteistä, joten niitä ei lisätty. */
 const HOSPITAL_ABBR = {
   phks: "Päijät-Hämeen keskussairaala", tyks: "Turun yliopistollinen keskussairaala",
   kys: "Kuopion yliopistollinen sairaala", oys: "Oulun yliopistollinen sairaala",
@@ -15393,6 +15994,7 @@ const HOSPITAL_ABBR = {
   pkks: "Pohjois-Karjalan keskussairaala", khks: "Kanta-Hämeen keskussairaala",
   sks: "Satakunnan keskussairaala", ekks: "Etelä-Karjalan keskussairaala",
   lks: "Lapin keskussairaala", vks: "Vaasan keskussairaala", kaks: "Kainuun keskussairaala",
+  koks: "Kymenlaakson keskussairaala",
 };
 const HOSPITAL_WORD = /^(keskussairaala|sairaala|yliopistollinen sairaala|centralsjukhus(et)?|sjukhus(et)?|universitetssjukhus(et)?|hospital|central hospital|university hospital)$/;
 function hospitalQuery(q) {

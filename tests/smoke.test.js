@@ -606,6 +606,25 @@ async function minuuttiLinjaus(page, rootSel, media) {
     && /^Turun yliopistollinen keskussairaala/.test(hospT.tyks) && /^Kauppatori(,| [A-Z]\d)/.test(hospT.tori))
     ? ok("paikkahaku (erä C): PHKS, keskussairaala ja TYKS -> sairaala, 'kauppatorille' -> Kauppatori")
     : fail("paikkahaku (erä C): " + JSON.stringify({ ...hosp, ...hospT }));
+  // E2 (4.10.2026): sairaalahaku kaupungeissa, joita C4 ei kata. KOKS on Kymenlaakson keskussairaalan virallinen
+  // lempinimi (kymenhva.fi), ja keskussairaala / sairaala / KAKS osuvat kaupungin omaan sairaalaan. Kieli on tässä
+  // vaiheessa suomi (Peliaksen nimet suomeksi). Lopuksi palataan Lahteen kuten C4:n jälkeen.
+  const hospE2 = {};
+  for (const [c, qs] of [["kotka", ["KOKS", "keskussairaala"]], ["mikkeli", ["keskussairaala", "sairaala"]],
+    ["kajaani", ["KAKS", "keskussairaala"]]]) {
+    await page.goto(BASE + `/?city=${c}#/`, { waitUntil: "networkidle2" });
+    hospE2[c] = await page.evaluate(async qs => {
+      const out = {};
+      for (const q of qs) out[q] = ((await searchPlaces(q))[0] || {}).name || "";
+      return out;
+    }, qs);
+  }
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });   // palauta Lahti
+  (/^Kymenlaakson keskussairaala/.test(hospE2.kotka.KOKS) && /^Kymenlaakson keskussairaala/.test(hospE2.kotka.keskussairaala)
+    && /^Mikkelin keskussairaala/.test(hospE2.mikkeli.keskussairaala) && /^Mikkelin keskussairaala/.test(hospE2.mikkeli.sairaala)
+    && /^Kainuun keskussairaala/.test(hospE2.kajaani.KAKS) && /^Kainuun keskussairaala/.test(hospE2.kajaani.keskussairaala))
+    ? ok("paikkahaku (erä E2): KOKS ja keskussairaala Kotkassa, (keskus)sairaala Mikkelissä, KAKS ja keskussairaala Kajaanissa -> kaupungin oma sairaala")
+    : fail("paikkahaku (erä E2): " + JSON.stringify(hospE2));
 
   // C5: etusivun A->B-kenttiin aikavalinta (Saapumisaika) ja oma sijainti.
   await page.waitForSelector("#homeWhenSel", { timeout: 10000 }).catch(() => {});
@@ -2302,6 +2321,45 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (lFares.vyohykeotsikot === 0 && lFares.taulukot >= 2)
     ? ok("hinnat (Lahti, tasataksa): sivu ennallaan ilman vyöhykeotsikoita")
     : fail("hinnat (Lahti): tasataksasivu muuttui vyöhyketuen myötä: " + JSON.stringify(lFares));
+
+  // --- Kertalippujen hinnat 11 kaupungissa (erä E1 4.10.2026) ---
+  // Rakenteellinen tarkistus, ei euromääriä kaupungeittain: #/liput avautuu (ei ohjausta etusivulle), kertalippu-
+  // taulukoita on yksi vyöhykettä kohden ja vyöhykeotsikot vain vyöhykekaupungissa, jokainen hintasolu on "n,nn €"
+  // tai "–", lähdelinkki osoittaa kaupungin oman hinnaston palvelimelle, ja samasta hinnastosta piirtyvät tiskin
+  // hintalohko (yksi sarake per vyöhyke) ja reittikortin hintarivi. Yksi luku esimerkiksi: Oulun aikuisen kertalippu
+  // 2,90 € (osl.fi, luettu 4.10.2026). Smoke on tässä kohtaa ruotsiksi; tarkistus ei lue tekstejä, joten kieli ei
+  // vaikuta, eikä se vaihda kieltä. Lopuksi palataan Vaasaan kuten ennenkin (alla).
+  const e1Kaupungit = ["kuopio", "salo", "kajaani", "kotka", "kouvola", "mikkeli", "hameenlinna", "jyvaskyla", "oulu", "pori", "rovaniemi"];
+  const e1 = [];
+  for (const c of e1Kaupungit) {
+    await page.goto(BASE + `/?city=${c}#/liput`, { waitUntil: "networkidle2" });
+    await page.waitForSelector("table.fare", { timeout: 15000 }).catch(() => {});
+    e1.push(await page.evaluate(k => {
+      const f = CONFIG.fares;
+      const zones = f && Array.isArray(f.zones) && f.zones.length ? f.zones.length : 1;
+      const tables = [...document.querySelectorAll("table.fare")];
+      const cells = tables.flatMap(tb => [...tb.querySelectorAll("tbody td")].map(td => td.textContent.trim()));
+      const host = f && f.url ? new URL(f.url).host : "?";
+      const box = document.createElement("div");
+      box.innerHTML = f ? deskFaresHtml(f) : "";
+      return { k, city: document.documentElement.dataset.city, hash: location.hash, zones,
+        h4: document.querySelectorAll("h4.fare-zone").length, taulukot: tables.length,
+        sarakkeet: tables[0] ? tables[0].querySelectorAll("thead th").length : 0,
+        solut: cells.length, solutOk: cells.every(s => /^\d+,\d\d\s€$|^–$/.test(s)), lukuja: cells.filter(s => /\d/.test(s)).length,
+        lahde: [...document.querySelectorAll(".fares-source a")].some(a => a.host === host),
+        tiskiSarakkeet: box.querySelectorAll("table.desk-fares thead th").length,
+        tiskiRivit: box.querySelectorAll("table.desk-fares tbody tr:not(.desk-fares-method)").length,
+        reitti: f ? /\d+,\d\d\s€/.test(planFareHtml(f)) : false,
+        luku: k === "oulu" ? (document.getElementById("app")?.innerText || "").includes("2,90") : true };
+    }, c));
+  }
+  const e1Vika = e1.filter(r => !(r.city === r.k && r.hash === "#/liput" && r.taulukot === r.zones
+    && r.h4 === (r.zones > 1 ? r.zones : 0) && r.sarakkeet >= 3 && r.solut >= 2 * r.zones && r.solutOk
+    && r.lukuja >= 2 * r.zones && r.lahde && r.tiskiSarakkeet === (r.zones > 1 ? r.zones : 0) && r.tiskiRivit >= 2
+    && r.reitti && r.luku));
+  e1Vika.length === 0
+    ? ok(`hinnat (erä E1): kertalippuhinnasto renderöityy ${e1.length} kaupungissa (#/liput, tiski, reittikortti; ${e1.reduce((s, r) => s + r.zones, 0)} hintataulukkoa, Oulu 2,90 €)`)
+    : fail("hinnat (erä E1): kertalippuhinnasto puuttuu tai on rikki: " + JSON.stringify(e1Vika));
   // Takaisin Vaasaan: seuraavat tarkistukset (teema, tiski) lukevat sivun tilan
   // navigoimatta itse, joten Lahti-välikäynti ei saa jäädä voimaan.
   await page.goto(BASE + "/?city=vaasa#/", { waitUntil: "networkidle2" });
