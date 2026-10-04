@@ -411,6 +411,224 @@ async function minuuttiLinjaus(page, rootSel, media) {
     ? ok("reittihaku: saapumisaikahaussa myöhäisin perille ehtivä ensin, lähtöaikahaun tasapelissä aiemmin perillä ja vähemmän kävelyä")
     : fail("reittihaku: oletusjärjestys: " + JSON.stringify(sortChk));
 
+  // --- Erä C (4.10.2026): kuntalaisen reittihaku virallisen oppaan tasolle ---
+  // Synteettinen reittivastaus (gql kääritään, palautetaan aina finally-lohkossa), ajat sivun omassa aikavyöhykkeessä.
+  // planVars kerää reittikyselyjen muuttujat; tilat (aika, planState, lisäasetukset, näkymän koko) palautetaan.
+  const eraCSearch = async (nodesSrc, hashExtra = "") => {
+    await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+    await page.evaluate((src, extra) => {
+      const n = new Date(), day = isoOf(new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1));
+      const at = hm => isoWithOffset(day + "T" + hm);
+      const walk = (a, b, m, from, to) => ({ mode: "WALK", duration: 240, distance: m, start: { scheduledTime: at(a) }, end: { scheduledTime: at(b) },
+        from: { name: from, lat: 60.977, lon: 25.658 }, to: { name: to, lat: 60.978, lon: 25.659 }, intermediatePlaces: [], legGeometry: { points: "" }, alerts: [] });
+      const bus = (a, b, line, alerts) => ({ mode: "BUS", duration: 540, distance: 4000, realtimeState: "SCHEDULED",
+        start: { scheduledTime: at(a) }, end: { scheduledTime: at(b) },
+        from: { name: "Matkakeskus B", lat: 60.977, lon: 25.658, stop: { code: "307405", platformCode: "B" } },
+        to: { name: "PHKS L", lat: 60.991, lon: 25.567, stop: { code: "103661" } }, route: { gtfsId: "SMOKEC:" + line, shortName: line },
+        trip: { tripHeadsign: "Tiilikangas" }, intermediateStops: [], intermediatePlaces: [], legGeometry: { points: "" }, alerts: alerts || [] });
+      const node = (a, b, line, alerts) => ({ start: at(a), end: at(b), numberOfTransfers: 0, walkDistance: 375,
+        legs: [walk(a, "08:12", 251, "Origin", "Matkakeskus B"), bus("08:13", "08:22", line, alerts), walk("08:22", b, 124, "PHKS L", "Destination")] });
+      const S = { node, walk, at, day };
+      window.__eraCOrig = window.__eraCOrig || gql;
+      window.__eraCVars = [];
+      const make = new Function("S", "v", "n", "return (" + src + ")(S, v, n);");
+      gql = async (q, v, o) => {
+        if (q === PLAN_QUERY) { window.__eraCVars.push(v); const r = make(S, v, window.__eraCVars.length); if (r instanceof Error) throw r; return r; }
+        if (q === DIRECT_QUERY) return { planConnection: { edges: [] } };
+        return window.__eraCOrig(q, v, o);
+      };
+      location.hash = "#/reitti/" + encodeURIComponent("60.97735,25.65889,Matkakeskus") + "/" +
+        encodeURIComponent("60.99165,25.56746,Päijät-Hämeen keskussairaala") + "/" + encodeURIComponent("t=" + day + "T08:00" + extra);
+    }, nodesSrc, hashExtra);
+    await page.waitForFunction(() => document.querySelector("#planResults details.itin[data-itin]") || document.querySelector("#planResults .card"),
+      { timeout: 20000 }).catch(() => {});
+    await sleep(500);
+  };
+  const eraCRestore = () => page.evaluate(() => {
+    if (window.__eraCOrig) { gql = window.__eraCOrig; delete window.__eraCOrig; }
+    planState.time = ""; planState.timeMode = "dep"; planState.wheelchair = false; planState.nlNote = "";
+    try { localStorage.removeItem("planOpts"); } catch (e) {}
+  });
+  const ONE_ALERT = `(S) => ({ planConnection: { pageInfo: { hasNextPage: true, hasPreviousPage: false, endCursor: "c1" }, edges: [
+    { node: S.node("08:08", "08:23", "4", [{ alertHeaderText: "Linja 4 poikkeusreitillä", alertSeverityLevel: "WARNING", alertEffect: "DETOUR" }]) },
+    { node: S.node("08:18", "08:33", "14", [{ alertHeaderText: "Lipputiedote", alertSeverityLevel: "INFO", alertEffect: "OTHER_EFFECT" }]) }] } })`;
+  try {
+    // C1 + C3: suljetussa kortissa lähtöpysäkki ja bussin lähtöaika, ruudunlukijalle linja ja pysäkki, häiriömerkki
+    // linjan kohdalle (vain aito häiriö: lipputiedote INFO + OTHER_EFFECT ei saa merkkiä).
+    await eraCSearch(ONE_ALERT);
+    const c1 = await page.evaluate(() => {
+      const s = i => document.querySelector(`details.itin[data-itin="${i}"] summary`);
+      return { board: s(0)?.querySelector(".ih-board")?.textContent.trim() || "", hidden: s(0)?.querySelector(".itin-head")?.getAttribute("aria-hidden"),
+        sr: s(0)?.querySelector(".sr-only")?.textContent || "", warn0: !!s(0)?.querySelector(".legbar .seg-warn"),
+        alert0: s(0)?.querySelector(".ih-alert")?.textContent.trim() || "", warn1: !!s(1)?.querySelector(".legbar .seg-warn, .ih-alert"),
+        pad: s(0) ? parseFloat(getComputedStyle(s(0)).paddingRight) : 0 };
+    });
+    (c1.board === "Bussi 4 lähtee pysäkiltä Matkakeskus B klo 08:13" && c1.hidden === "true" && /Bussi 4 lähtee pysäkiltä Matkakeskus B klo 08:13/.test(c1.sr)
+      && /^Lähtö 08:08, perillä 08:23/.test(c1.sr) && c1.warn0 && c1.alert0 === "Häiriö linjalla 4" && /Häiriö linjalla 4/.test(c1.sr) && !c1.warn1 && c1.pad >= 40)
+      ? ok("reittihaku (erä C): kortissa lähtöpysäkki ja bussin lähtöaika, ruudunlukijalle linja ja pysäkki, häiriömerkki vain aidolle häiriölle, nuolelle tila")
+      : fail("reittihaku (erä C): tuloskortin tiivistelmä: " + JSON.stringify(c1));
+    // Hinta (jaettu hinnasto) ja Tulosta avatussa kortissa; paperille vain reittituloste.
+    await page.evaluate(() => document.querySelector('details.itin[data-itin="0"] summary')?.click());
+    await page.waitForFunction(() => !document.querySelector("details.itin[open] .plan-fare")?.hidden, { timeout: 10000 }).catch(() => {});
+    const fare = await page.evaluate(() => (document.querySelector("details.itin[open] .plan-fare")?.textContent || "").replace(/\s+/g, " ").trim());
+    await page.evaluate(() => { window.__eraCPrint = window.print; window.print = () => { window.__eraCPrinted = (window.__eraCPrinted || 0) + 1; }; });
+    await page.evaluate(() => document.querySelector("details.itin[open] .itin-print-btn")?.click());
+    await page.waitForFunction(() => window.__eraCPrinted >= 1, { timeout: 10000 }).catch(() => {});
+    await page.emulateMediaType("print");
+    const pr = await page.evaluate(() => {
+      const vis = el => !!el && getComputedStyle(el).display !== "none" && el.getClientRects().length > 0;
+      return { printed: window.__eraCPrinted || 0, sum: (document.querySelector("#planPrintOut .itin-print .ip-sum")?.textContent || "").replace(/\s+/g, " "),
+        out: vis(document.querySelector("#planPrintOut .itin-print")), form: vis(document.getElementById("planForm")), list: vis(document.querySelector(".plan-grid")) };
+    });
+    await page.emulateMediaType(null);
+    await page.evaluate(() => { window.print = window.__eraCPrint; delete window.__eraCPrint; delete window.__eraCPrinted; document.body.classList.remove("plan-printing"); });
+    (/^Kertalippu, aikuinen: \d+,\d\d\s€ \(.+\) · Liput ja hinnat$/.test(fare) && pr.printed === 1 && /08:08/.test(pr.sum) && pr.out && !pr.form && !pr.list)
+      ? ok(`reittihaku (erä C): avatussa kortissa hinta (${fare.split(" (")[0]}) ja Tulosta, paperille vain reittituloste`)
+      : fail("reittihaku (erä C): hinta tai Tulosta: " + JSON.stringify({ fare, pr }));
+    // Näytä myöhemmät -virhe ei pyyhi näkyviä reittejä (erän A sivuhavainto), vaan näkyy napin paikalla Yritä uudelleen -napilla.
+    await page.evaluate(() => { const o = gql; gql = async (q, v, x) => (q === PLAN_QUERY && v.after ? Promise.reject(new Error("Network error")) : o(q, v, x)); window.__eraCMore = o; });
+    await page.evaluate(() => document.getElementById("moreBtn")?.click());
+    await page.waitForSelector("#planResults .plan-append-err", { timeout: 8000 }).catch(() => {});
+    const more = await page.evaluate(() => ({ n: document.querySelectorAll("#planResults details.itin[data-itin]").length,
+      err: !!document.querySelector("#planResults .plan-append-err .plan-append-retry") }));
+    await page.evaluate(() => { gql = window.__eraCMore; delete window.__eraCMore; });
+    (more.n === 2 && more.err)
+      ? ok("reittihaku (erä C): Näytä myöhemmät -virhe jättää reitit näkyviin ja tarjoaa Yritä uudelleen")
+      : fail("reittihaku (erä C): myöhempien virhe: " + JSON.stringify(more));
+
+    // Näppäimistöpolku: Enter valmiiksi täytetyssä kentässä lähettää haun, fokus siirtyy tuloslistan otsikkoon, josta
+    // ensimmäiseen reittiehdotukseen on enintään 5 Tab-painallusta (ennen Mistä-kentästä 25).
+    await page.focus("#toInput");
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => document.activeElement?.id === "planResultsH", { timeout: 10000 }).catch(() => {});
+    const kb = { active: await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName), tabs: null };
+    for (let i = 1; i <= 12; i++) {
+      await page.keyboard.press("Tab");
+      if (await page.evaluate(() => !!document.activeElement?.closest('details.itin[data-itin="0"]'))) { kb.tabs = i; break; }
+    }
+    (kb.active === "planResultsH" && kb.tabs != null && kb.tabs <= 5)
+      ? ok(`reittihaku (erä C): haun jälkeen fokus tuloslistan otsikkoon, ensimmäiseen ehdotukseen ${kb.tabs} Tab`)
+      : fail("reittihaku (erä C): näppäimistöpolku: " + JSON.stringify(kb));
+
+    // C2: mobiili 390x844, lomake tiivistyy haun jälkeen ja ensimmäinen bussivaihtoehto on ensimmäisellä ruudulla.
+    await page.setViewport({ width: 390, height: 844 });
+    await eraCSearch(ONE_ALERT);
+    const mob = await page.evaluate(() => {
+      const el = document.querySelector("#planResults details.itin[data-itin]"), r = el?.getBoundingClientRect();
+      const vis = e => !!e && getComputedStyle(e).display !== "none";
+      return { top: r ? Math.round(r.top + scrollY) : null, bottom: r ? Math.round(r.bottom + scrollY) : null, vh: innerHeight,
+        card: vis(document.getElementById("planCard")), bar: vis(document.getElementById("planSumbar")),
+        route: document.getElementById("psRoute")?.textContent || "", sw: document.documentElement.scrollWidth };
+    });
+    await page.evaluate(() => document.getElementById("planEditBtn")?.click());
+    const edit = await page.evaluate(() => { const c = document.getElementById("planCard");
+      return { card: !!c && getComputedStyle(c).display !== "none", focus: document.activeElement?.id }; });
+    await page.setViewport({ width: 800, height: 600 });
+    (mob.top != null && mob.bottom <= mob.vh && !mob.card && mob.bar && /Matkakeskus → Päijät-Hämeen keskussairaala/.test(mob.route)
+      && mob.sw <= 390 && edit.card && edit.focus === "fromInput")
+      ? ok(`reittihaku (erä C, 390 px): lomake tiivistyy, 1. bussivaihtoehto ${mob.top}-${mob.bottom} px (näkymä ${mob.vh}), Muokkaa avaa lomakkeen`)
+      : fail("reittihaku (erä C, 390 px): " + JSON.stringify({ mob, edit }));
+
+    // C6: lisäasetukset (hidas kävely, vaihtoaika) reitittimelle ja selaimen muistiin; esteetön haku ilman bussia selitetään.
+    await eraCSearch(ONE_ALERT);
+    await page.evaluate(() => {
+      const w = document.getElementById("walkSpeedSel"), sl = document.getElementById("slackSel");
+      if (w && sl) { w.value = "slow"; sl.value = "300"; }
+      window.__eraCVars.length = 0; document.querySelector("#planForm button[type=submit]")?.click();
+    });
+    await page.waitForFunction(() => window.__eraCVars.length > 0, { timeout: 10000 }).catch(() => {});
+    const optVars = await page.evaluate(() => window.__eraCVars[0]?.preferences || null);
+    await eraCRestore();
+    await page.evaluate(() => { try { localStorage.setItem("planOpts", JSON.stringify({ walk: "slow", slack: 180 })); } catch (e) {} });
+    await page.goto(BASE + "/#/reitti", { waitUntil: "networkidle2" });
+    const kept = await page.evaluate(() => ({ w: document.getElementById("walkSpeedSel")?.value, s: document.getElementById("slackSel")?.value }));
+    await page.evaluate(() => { try { localStorage.removeItem("planOpts"); } catch (e) {} });
+    (optVars?.street?.walk?.speed === 0.9 && optVars?.transit?.transfer?.slack === "PT300S" && kept.w === "slow" && kept.s === "180")
+      ? ok("reittihaku (erä C): lisäasetukset (hidas kävely 0,9 m/s, vaihtoaika 5 min) reitittimelle ja muistiin")
+      : fail("reittihaku (erä C): lisäasetukset: " + JSON.stringify({ optVars, kept }));
+    await eraCSearch(`(S) => ({ planConnection: { pageInfo: {}, edges: [{ node: { start: S.at("10:00"), end: S.at("10:21"), numberOfTransfers: 0,
+      walkDistance: 1498, legs: [S.walk("10:00", "10:21", 1498, "Origin", "Destination")] } }] } })`, "&wc=1");
+    const wc = await page.evaluate(() => (document.querySelector("#planResults .plan-wc-note")?.textContent || "").trim());
+    /Esteetöntä bussiyhteyttä ei löytynyt valitulla ajalla/.test(wc)
+      ? ok("reittihaku (erä C): esteetön haku ilman bussiyhteyttä selitetään")
+      : fail("reittihaku (erä C): esteettömän haun selitys puuttuu: " + JSON.stringify(wc));
+    await eraCRestore();
+
+    // C3: vakava häiriö bannerina reittisivulla. Häiriölähde kääritään: vain aito (effect) ja vakava (SEVERE) nousee,
+    // ei pysyvä SEVERE-tiedote eikä tavallinen poikkeusreitti.
+    await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+    await page.evaluate(() => { window.__eraCAlerts = loadAllAlerts; loadAllAlerts = async () => [
+      { alertHeaderText: "Pysäkit suljettu (smoke)", alertSeverityLevel: "SEVERE", alertEffect: "NO_SERVICE" },
+      { alertHeaderText: "Linjasto uudistui (smoke)", alertSeverityLevel: "SEVERE", alertEffect: "OTHER_EFFECT" },
+      { alertHeaderText: "Poikkeusreitti (smoke)", alertSeverityLevel: "WARNING", alertEffect: "DETOUR" }]; });
+    await page.evaluate(() => { location.hash = "#/reitti"; });
+    await page.waitForSelector("#planAlerts details.alert", { timeout: 8000 }).catch(() => {});
+    const ban = await page.evaluate(() => [...document.querySelectorAll("#planAlerts details.alert summary")].map(s => s.textContent.trim()));
+    await page.evaluate(() => { loadAllAlerts = window.__eraCAlerts; delete window.__eraCAlerts; });
+    (ban.length === 1 && ban[0] === "Pysäkit suljettu (smoke)")
+      ? ok("reittihaku (erä C): vakava häiriö bannerina, pysyvä tiedote ja tavallinen poikkeusreitti eivät nouse")
+      : fail("reittihaku (erä C): häiriöbanneri: " + JSON.stringify(ban));
+  } finally {
+    await page.setViewport({ width: 800, height: 600 });
+    await eraCRestore().catch(() => {});
+  }
+
+  // C4: Enter valitsee ehdotuksen (ennen virhe "Valitse lähtöpaikka..."), Mistä -> Minne -> haku. Oikea paikkahaku.
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  await page.evaluate(() => { planState.from = null; planState.to = null; });
+  await page.goto(BASE + "/#/reitti", { waitUntil: "networkidle2" });
+  await page.click("#fromInput");
+  await page.keyboard.type("matkak", { delay: 40 });
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => document.activeElement?.id === "toInput", { timeout: 15000 }).catch(() => {});
+  const ent1 = await page.evaluate(() => ({ v: document.getElementById("fromInput").value, a: document.activeElement?.id,
+    msg: document.getElementById("planMsg").textContent.trim() }));
+  await page.keyboard.type("Mukkulankatu 2", { delay: 30 });
+  await page.keyboard.press("Enter");
+  await page.waitForSelector("#planResults details.itin[data-itin]", { timeout: 25000 }).catch(() => {});
+  const ent2 = await page.evaluate(() => ({ v: document.getElementById("toInput").value, n: document.querySelectorAll("#planResults details.itin[data-itin]").length,
+    msg: document.getElementById("planMsg").textContent.trim() }));
+  (/^Matkakeskus/.test(ent1.v) && ent1.a === "toInput" && !ent1.msg && /^Mukkulankatu 2/.test(ent2.v) && ent2.n > 0 && !ent2.msg)
+    ? ok(`reittihaku (erä C): Enter valitsee ehdotuksen (${ent1.v} -> ${ent2.v.split(",")[0]}) ja käynnistää haun`)
+    : fail("reittihaku (erä C): Enter-valinta: " + JSON.stringify({ ent1, ent2 }));
+  // C4: sairaalalyhenne ja sana keskussairaala osuvat sairaalaan, taivutettu muoto perusmuodolla (Turku).
+  const hosp = await page.evaluate(async () => {
+    const top = async q => ((await searchPlaces(q))[0] || {}).name || "";
+    return { phks: await top("PHKS"), kesk: await top("keskussairaala") };
+  });
+  await page.goto(BASE + "/?city=turku#/reitti", { waitUntil: "networkidle2" });
+  const hospT = await page.evaluate(async () => {
+    const top = async q => ((await searchPlaces(q))[0] || {}).name || "";
+    return { tyks: await top("TYKS"), tori: await top("kauppatorille") };
+  });
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });   // palauta Lahti
+  (/^Päijät-Hämeen keskussairaala/.test(hosp.phks) && /^Päijät-Hämeen keskussairaala/.test(hosp.kesk)
+    && /^Turun yliopistollinen keskussairaala/.test(hospT.tyks) && /^Kauppatori(,| [A-Z]\d)/.test(hospT.tori))
+    ? ok("paikkahaku (erä C): PHKS, keskussairaala ja TYKS -> sairaala, 'kauppatorille' -> Kauppatori")
+    : fail("paikkahaku (erä C): " + JSON.stringify({ ...hosp, ...hospT }));
+
+  // C5: etusivun A->B-kenttiin aikavalinta (Saapumisaika) ja oma sijainti.
+  await page.waitForSelector("#homeWhenSel", { timeout: 10000 }).catch(() => {});
+  await page.evaluate(() => { const f = document.getElementById("homeFromInput"); if (f) f.value = ""; planState.from = null; });
+  await page.click("#homeGeoBtn").catch(() => {});
+  await page.waitForFunction(() => document.getElementById("homeFromInput")?.value === "Oma sijainti", { timeout: 10000 }).catch(() => {});
+  const geoHome = await page.evaluate(() => ({ v: document.getElementById("homeFromInput")?.value, lat: planState.from?.lat }));
+  await page.evaluate(() => {
+    planState.to = { name: "Päijät-Hämeen keskussairaala", lat: 60.99165, lon: 25.56746 };
+    const s = document.getElementById("homeWhenSel"), wi = document.getElementById("homeWhenInput");
+    if (s && wi) { s.value = "arr"; s.dispatchEvent(new Event("change")); wi.value = "2026-10-12T08:15"; }
+    document.getElementById("heroSearch")?.click();
+  });
+  await page.waitForFunction(() => /^#\/reitti\//.test(location.hash), { timeout: 10000 }).catch(() => {});
+  const whenHash = await page.evaluate(() => decodeURIComponent(decodeURIComponent(location.hash)));
+  await page.evaluate(() => { planState.time = ""; planState.timeMode = "dep"; });
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  (geoHome.v === "Oma sijainti" && Math.abs(geoHome.lat - 60.9833) < 0.001 && /t=2026-10-12T08:15/.test(whenHash) && /m=arr/.test(whenHash))
+    ? ok("etusivu (erä C): A->B-kentissä oma sijainti ja aikavalinta (saapumisaika välittyy hakuun)")
+    : fail("etusivu (erä C): oma sijainti tai aikavalinta: " + JSON.stringify({ geoHome, whenHash: whenHash.slice(0, 140) }));
+  // Tila puhtaaksi seuraaville tarkistuksille: täysi uudelleenlataus nollaa planStaten (Oma sijainti ja PHKS).
+  await page.goto(BASE + "/?city=lahti#/", { waitUntil: "networkidle2" });
+
   // --- Etusivun hero-reittihaku: Mistä/Minne → "Hae yhteydet" → reittinäkymä ---
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   await page.waitForSelector("#homeFromInput", { timeout: 10000 }).catch(() => {});
