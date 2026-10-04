@@ -1413,8 +1413,11 @@
   .desk-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
     border-bottom: 3px solid var(--blue); padding-bottom: 0.6rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
   .desk-top h1 { margin: 0; font-size: clamp(1.5rem, 2.6vw, 2.4rem); font-weight: var(--wmed); }
-  .desk-grid { display: grid; grid-template-columns: 1.7fr 1fr; gap: 1.4rem; align-items: start; }
-  @media (max-width: 820px) { .desk-grid { grid-template-columns: 1fr; } }
+  /* minmax(0, ...): pelkkä 1fr ei kutistu sisältönsä min-contentia kapeammaksi, joten junataulukon
+     nowrap-solut venyttivät tiskin 390 px:n näytöllä yli ruudun (4.10.2026, Raasepori 436 px). Leveä
+     taulukko vierii nyt omassa .matrix-wrapissaan. */
+  .desk-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 1.4rem; align-items: start; }
+  @media (max-width: 820px) { .desk-grid { grid-template-columns: minmax(0, 1fr); } }
   .desk-col { border: 2px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; background: #fff; }
   .desk-col h2 { font-size: clamp(1.2rem, 1.9vw, 1.6rem); }
   .desk-field { margin: 0 0 0.9rem; }
@@ -1482,8 +1485,8 @@
   .desk-pin-row { margin: 0.6rem 0 0; display: flex; flex-wrap: wrap; gap: 0.6rem;
     align-items: center; }
   .desk .deps td, .desk .deps th { font-size: 1em; padding: 0.45rem 0.5rem; }
-  .desk-aux { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.4rem; align-items: start; margin-top: 1.4rem; }
-  @media (max-width: 820px) { .desk-aux { grid-template-columns: 1fr; } }
+  .desk-aux { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.4rem; align-items: start; margin-top: 1.4rem; }
+  @media (max-width: 820px) { .desk-aux { grid-template-columns: minmax(0, 1fr); } }
   .desk-aux .alert { font-size: 0.95em; }
   /* Junapalsta kahden rivin korkuiseksi: hinnat nousevat häiriöiden alle eivätkä odota junapalstan
      loppua (saapuvat junat 24.9.2026 pidensivät palstaa, ja hinnat valuivat 174-358 px alemmas). */
@@ -1500,10 +1503,18 @@
   /* Maksutavan väliotsikkorivi tiskin hintataulukossa: erottaa kortti-, lähimaksu- ja
      ostopaikkahinnat toisistaan, koska ne ovat eri hintoja samalle lipulle. */
   table.desk-fares tr.desk-fares-method th { padding-top: 0.75rem; color: var(--blue);
-    font-size: 0.94em; font-weight: var(--wmed); border-bottom: none; }
+    font-size: 0.94em; font-weight: var(--wmed); border-bottom: none;
+    /* Rivin ainoa solu on myös :last-child, joten table.deps-sääntö teki siitä nowrap: Raaseporin
+       "Kuljettajalta, Luckanista tai R-kioskilta (Tammisaari)" levitti tiskin 415 px:iin (4.10.2026). */
+    white-space: normal; }
   table.desk-fares tr.desk-fares-method:first-child th { padding-top: 0.2rem; }
   table.desk-fares td { text-align: right; font-weight: var(--wmed); }
   table.desk-fares th { font-size: 1em; color: var(--text); }
+  /* Vyöhykeotsikko ("3 vyöhykettä") saa rivittyä: nowrap levitti Vaasan tiskin 427 px:iin 390 px:n näytöllä. */
+  table.desk-fares thead th:last-child { white-space: normal; }
+  /* Vyöhykehintojen nelisarakkeinen taulukko (Vaasa, Lappeenranta) ei mahdu 390 px:n näytön ~320 px:iin:
+     se vierii omassa kääreessään eikä levitä sivua. */
+  .desk-fares-wrap { overflow-x: auto; }
   /* Inline-ikonit: kokoa em:nä → skaalautuu tekstikoon mukaan, väri perii currentColorin */
   .ic { width: 1.15em; height: 1.15em; vertical-align: -0.18em; flex: none; }
   h1 .ic, h2 .ic, h3 .ic { color: var(--blue); margin-right: 0.1rem; }
@@ -14597,9 +14608,9 @@ function deskFaresHtml(f) {
   return `<section class="desk-col" aria-labelledby="deskFaresH">
     <h2 id="deskFaresH">${icon("ticket")} ${t("deskFaresTitle")}</h2>
     <p class="desk-fares-single">${t("deskFaresSingle")}</p>
-    <table class="deps desk-fares">${head}<tbody>
+    <div class="desk-fares-wrap"><table class="deps desk-fares">${head}<tbody>
       ${body}
-    </tbody></table>${flatBody ? `
+    </tbody></table></div>${flatBody ? `
     <p class="muted">${flatBody}</p>` : ""}${srcLink ? `
     <p class="muted fares-source"><a href="${esc(f.url || "#")}" target="_blank" rel="noopener">${srcLink}</a></p>` : ""}
   </section>`;
