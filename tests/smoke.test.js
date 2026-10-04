@@ -2003,6 +2003,351 @@ async function minuuttiLinjaus(page, rootSel, media) {
     await page.waitForSelector("#deskFrom", { timeout: 15000 }).catch(() => {});
   }
 
+  // --- Erä V3 (4.10.2026): taskuaikataulu A->B (D3), vastaus asiakkaan kielellä (D4), terminaalin Minne?-suodatin (B10)
+  // ja pysäkkikortin asiakasnäkymä. Synteettinen data: gql kääritään ja palautetaan finally-lohkossa, joten tulos ei
+  // riipu päivän aikataulusta eikä kellonajasta (ajopäivät lasketaan tästä päivästä, kellonajat sekunteina). Tila
+  // palautetaan: Iso teksti, muutosvahdin välimuisti, kääntäjä, muistit ja kielivalinta (tiski piirretään uudelleen).
+  const v3Term = () => page.waitForFunction(() => /kaikki pysäkit/.test(document.querySelector("#deskDeps .stophead")?.textContent || "")
+    && !!document.querySelector("#deskDeps .desk-deps-upd"), { timeout: 30000 }).then(() => true).catch(() => false);
+  await v3Term();
+  const v3Large = await page.evaluate(() => localStorage.getItem("printLarge"));
+  const v3Setup = await page.evaluate(() => {
+    const day0 = new Date(); day0.setHours(12, 0, 0, 0);
+    const ad = dows => { const out = []; for (let i = 0; i < 60; i++) { const d = new Date(day0); d.setDate(d.getDate() + i);
+      if (dows.includes((d.getDay() + 6) % 7)) out.push(isoOf(d).replace(/-/g, "")); } return out; };
+    const H = (h, m) => h * 3600 + m * 60;
+    const st = (id, dep, arr, pick, drop) => ({ scheduledArrival: arr == null ? dep : arr, scheduledDeparture: dep,
+      pickupType: pick || "SCHEDULED", dropoffType: drop || "SCHEDULED", stop: { gtfsId: id } });
+    const trip = (sid, dows, sts) => ({ serviceId: sid, activeDates: ad(dows), stoptimes: sts });
+    const ARKI = [0, 1, 2, 3, 4];
+    // P1 (S1): A -> M -> B -> Z. B:n saapuminen 07:20 ja lähtö 07:21 (tulosteeseen saapuminen). Perjantain yövuoro saa
+    // kirjaimen. 08:00 ei jätä B:llä ja 09:00 ei ota A:lla kyytiin: kumpikaan ei ole suora lähtö A -> B.
+    // P2 (S2) kulkee B -> A eikä kuulu tulosteeseen. P3 (S3) ajaa vain sunnuntaisin.
+    const TRIPS = {
+      P1: [trip("SMK arki", ARKI, [st("SMK:A", H(7, 0)), st("SMK:M", H(7, 10)), st("SMK:B", H(7, 21), H(7, 20)), st("SMK:Z", H(7, 30))]),
+        trip("SMK pe", [4], [st("SMK:A", H(23, 30)), st("SMK:M", H(23, 40)), st("SMK:B", H(23, 50)), st("SMK:Z", H(23, 55))]),
+        trip("SMK la", [5], [st("SMK:A", H(10, 0)), st("SMK:M", H(10, 8)), st("SMK:B", H(10, 18)), st("SMK:Z", H(10, 25))]),
+        trip("SMK arki", ARKI, [st("SMK:A", H(8, 0)), st("SMK:M", H(8, 10)), st("SMK:B", H(8, 20), null, "SCHEDULED", "NONE"), st("SMK:Z", H(8, 30))]),
+        trip("SMK arki", ARKI, [st("SMK:A", H(9, 0), null, "NONE"), st("SMK:M", H(9, 10)), st("SMK:B", H(9, 20)), st("SMK:Z", H(9, 30))])],
+      P2: [trip("SMK arki", ARKI, [st("SMK:B", H(6, 0)), st("SMK:A", H(6, 30))])],
+      P3: [trip("SMK su", [6], [st("SMK:A", H(12, 0)), st("SMK:B", H(12, 30))])],
+    };
+    const PATS = [
+      { code: "P1", route: { gtfsId: "SMK:R1", shortName: "S1" }, stops: ["SMK:A", "SMK:M", "SMK:B", "SMK:Z"].map(gtfsId => ({ gtfsId })) },
+      { code: "P2", route: { gtfsId: "SMK:R2", shortName: "S2" }, stops: ["SMK:B", "SMK:A"].map(gtfsId => ({ gtfsId })) },
+      { code: "P3", route: { gtfsId: "SMK:R3", shortName: "S3" }, stops: ["SMK:A", "SMK:B"].map(gtfsId => ({ gtfsId })) }];
+    const at = m => new Date(Date.now() + m * 60000).toISOString();
+    const leg = (mode, a, b, from, to, line, fromId, toId) => ({ mode, duration: (b - a) * 60, distance: 800, realtimeState: null,
+      interlineWithPreviousLeg: false, start: { scheduledTime: at(a) }, end: { scheduledTime: at(b) },
+      from: { name: from, lat: 60.983, lon: 25.656, stop: mode === "WALK" ? null : { gtfsId: fromId, code: "1", platformCode: "", name: from } },
+      to: { name: to, lat: 60.99, lon: 25.6, stop: mode === "WALK" ? null : { gtfsId: toId, code: "2", name: to } },
+      route: line ? { gtfsId: "SMK:R" + line, shortName: line } : null, trip: null, intermediateStops: [], intermediatePlaces: [], legGeometry: null, alerts: [] });
+    const direct = { start: at(5), end: at(30), numberOfTransfers: 0, walkDistance: 200, legs: [leg("WALK", 5, 7, "Trio", "Smoke A"),
+      leg("BUS", 8, 28, "Smoke A", "Smoke B", "S1", "SMK:A", "SMK:B"), leg("WALK", 28, 30, "Smoke B", "Kohde")] };
+    const via = { start: at(10), end: at(50), numberOfTransfers: 1, walkDistance: 300, legs: [leg("BUS", 10, 20, "Smoke A", "Smoke M", "S1", "SMK:A", "SMK:M"),
+      leg("BUS", 25, 48, "Smoke M", "Smoke B", "S9", "SMK:M", "SMK:B")] };
+    const muutos = new Date(day0); muutos.setDate(muutos.getDate() + 60);
+    window.__v3 = { gql, print: window.print, write: navigator.clipboard && navigator.clipboard.writeText, T: window.Translator,
+      hadT: "Translator" in window, printed: 0, copied: null, failTrips: false, muutos: isoOf(muutos) };
+    gql = async (q, v, o) => {
+      if (q === PLAN_QUERY) return { planConnection: { pageInfo: { startCursor: null, endCursor: null, hasNextPage: false, hasPreviousPage: false },
+        edges: [{ node: direct }, { node: via }] } };
+      if (String(q).startsWith("query PocketPatterns")) return { stop: { gtfsId: v.id, name: "Smoke A", patterns: PATS } };
+      if (String(q).startsWith("query PocketTrips")) {
+        if (window.__v3.failTrips) throw new Error("synteettinen verkkovirhe");
+        const out = {};
+        Object.keys(v).forEach(k => { out["p" + k.slice(1)] = { trips: TRIPS[v[k]] || [] }; });
+        return out;
+      }
+      return window.__v3.gql(q, v, o);
+    };
+    window.print = () => { window.__v3.printed++; };
+    if (navigator.clipboard) navigator.clipboard.writeText = async txt => { window.__v3.copied = txt; };
+    changeWatchPromise = Promise.resolve({ ajettu: todayISO() + "T09:00:00.000Z", pysakit: [{ id: "SMK:A", tulossa: true, voimaan: isoOf(muutos), voimaanTarkka: true }] });
+    pocketPatMemo.clear(); pocketTripMemo.clear();
+    setPrintLarge(false);
+    const q = (CONFIG.deskQuick || []).findIndex(x => x.k === "hospital");
+    document.getElementById("deskResults").innerHTML = "";
+    document.querySelector(`#deskQuick button[data-q="${q}"]`)?.click();
+    return { q };
+  });
+  try {
+    await page.waitForSelector("#deskResults .deskOptPocket", { timeout: 20000 }).catch(() => {});
+    // D3: taskuaikataulu. Rivit Ma-Pe, La ja Su erikseen, saapumisaika (ei B:n lähtöaika), perjantain kirjain ja selite,
+    // B->A-reitti ja ilman nousua tai jättöä olevat vuorot pois. Kansi: linjat, matka-aika, voimassaolo, ikkuna ja QR.
+    const pocket = async large => page.evaluate(async lg => {
+      setPrintLarge(lg);
+      const po = document.getElementById("deskPrintOut");
+      po.innerHTML = ""; document.getElementById("pageOrient")?.remove();
+      const n0 = window.__v3.printed;
+      document.querySelector("#deskResults .desk-opt .deskOptPocket")?.click();
+      for (let i = 0; i < 300 && window.__v3.printed === n0; i++) await new Promise(r => setTimeout(r, 100));
+      for (let i = 0; i < 50 && !document.getElementById("pageOrient")?.textContent; i++) await new Promise(r => setTimeout(r, 100));
+      const panels = [...po.querySelectorAll(".pk-panel")];
+      const days = {};
+      for (const p of panels) {
+        const h = (p.querySelector(".pk-day-h")?.textContent || "").replace(/, jatkuu$/, "");
+        if (!h) continue;
+        days[h] = (days[h] || []).concat([...p.querySelectorAll(".pk-col li")].map(li => li.textContent.replace(/\s+/g, " ").trim()));
+      }
+      const valid = po.querySelector(".pk-valid");
+      return { printed: window.__v3.printed > n0, orient: document.getElementById("pageOrient")?.textContent || "", days,
+        large: !!po.querySelector(".pocket.pk-large"), sheets: po.querySelectorAll(".pk-sheet").length,
+        legend: [...po.querySelectorAll(".pk-legend")].map(l => l.textContent.trim()),
+        lines: po.querySelector(".pk-lines")?.textContent.replace(/\s+/g, " ").trim() || "",
+        travel: po.querySelector(".pk-travel")?.textContent || "", window: po.querySelector(".pk-window")?.textContent || "",
+        valid: valid?.dataset.valid || "", validTxt: valid?.textContent || "", odotus: fmtDateLong(window.__v3.muutos),
+        qr: !!po.querySelector(".pk-qr img"), title: po.querySelector(".pk-title")?.textContent || "",
+        note: [...document.querySelectorAll("#deskResults .desk-opt")].map(o => !!o.querySelector(".deskOptPocket") + "/" + !!o.querySelector(".desk-pocket-note")) };
+    }, large);
+    const pkMeasure = async () => {
+      await page.emulateMediaType("print");
+      const m = await page.evaluate(() => {
+        const out = { n: 0, min: Infinity, pienin: "", yli: [], tiski: true, tuloste: false };
+        const vis = el => { for (let e = el; e && e.id !== "app"; e = e.parentElement) if (getComputedStyle(e).display === "none") return false; return true; };
+        out.tiski = vis(document.querySelector(".desk"));
+        out.tuloste = vis(document.querySelector("#deskPrintOut .pocket"));
+        for (const p of document.querySelectorAll("#deskPrintOut .pk-panel"))
+          if (p.scrollHeight > p.clientHeight + 1) out.yli.push(p.className + " " + p.scrollHeight + ">" + p.clientHeight);
+        for (const el of document.querySelectorAll("#deskPrintOut .pocket *")) {
+          if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue;
+          const cs = getComputedStyle(el);
+          if (cs.display === "none" || cs.visibility === "hidden" || !el.getClientRects().length) continue;
+          const px = parseFloat(cs.fontSize);
+          out.n++;
+          if (px < out.min) { out.min = px; out.pienin = el.className + ": " + el.textContent.trim().slice(0, 30); }
+        }
+        return out;
+      });
+      await page.emulateMediaType(null);
+      return m;
+    };
+    const pn = await pocket(false);
+    const mn = await pkMeasure();
+    const row = (list, re) => (list || []).find(r => re.test(r));
+    const wk = pn.days["Ma–Pe"] || [], la = pn.days["La"] || [], su = pn.days["Su"] || [];
+    const all = [...wk, ...la, ...su];
+    (pn.printed && /size: A4 portrait; margin: 0/.test(pn.orient) && wk.length === 2 && row(wk, /^07:00→07:20 S1$/) && row(wk, /^23:30a→23:50 S1$/)
+      && la.length === 1 && row(la, /^10:00→10:18 S1$/) && su.length === 1 && row(su, /^12:00→12:30 S3$/)
+      && !all.some(r => /^0[689]:00|^06:30/.test(r)) && pn.legend.some(l => l === "a = vain Pe"))
+      ? ok(`taskuaikataulu (D3): suorat lähdöt A -> B saapumisaikoineen Ma–Pe ${wk.length}, La ${la.length}, Su ${su.length}, kirjain ja selite ("${pn.legend[0]}"), A4 neljäksi paneeliksi`)
+      : fail("taskuaikataulu (D3): lähdöt tai päivätyypit väärin: " + JSON.stringify(pn));
+    (pn.title === "Smoke A → Smoke B" && /^Linjat S1 S3$/.test(pn.lines) && pn.travel === "Matka-aika 18–30 min" && pn.valid === "until"
+      && pn.validTxt.includes("Smoke A") && pn.validTxt.includes(pn.odotus) && /\d{4} aikataulusta\.$/.test(pn.window) && pn.qr
+      && pn.note[0] === "true/false" && pn.note[1] === "false/true")
+      ? ok(`taskuaikataulu (D3): kansi (linjat, matka-aika, voimassaolo "${pn.validTxt}", ikkuna, QR) ja vaihdolliselle ohje reittitulosteeseen`)
+      : fail("taskuaikataulu (D3): kansi tai vaihdollisen ohje: " + JSON.stringify(pn));
+    (!mn.tiski && mn.tuloste && !mn.yli.length && mn.n >= 10)
+      ? ok(`taskuaikataulu (D3): paperille vain tuloste, mikään paneeli ei vuoda yli (${mn.n} tekstiä, pienin ${(mn.min * 0.75).toFixed(1)} pt)`)
+      : fail("taskuaikataulu (D3): printtihygienia tai ylivuoto: " + JSON.stringify(mn));
+    const pl = await pocket(true);
+    const ml = await pkMeasure();
+    const allL = Object.values(pl.days).flat();
+    (pl.printed && pl.large && allL.length === all.length && !ml.yli.length && ml.n >= 10 && ml.min >= 18.6)
+      ? ok(`taskuaikataulu (D3): Iso teksti, pienin teksti ${(ml.min * 0.75).toFixed(1)} pt, ${pl.sheets} arkki(a), ei ylivuotoa`)
+      : fail("taskuaikataulu (D3): iso teksti alle 14 pt, ylivuoto tai rivejä puuttuu: " + JSON.stringify({ ml, sheets: pl.sheets, n: allL.length }));
+    // Verkkovirhe: ei tulostetta eikä "ei lähtöjä" -paperia, vaan virheilmoitus.
+    const pe = await page.evaluate(async () => {
+      pocketTripMemo.clear(); window.__v3.failTrips = true;
+      const po = document.getElementById("deskPrintOut"); po.innerHTML = "";
+      const n0 = window.__v3.printed;
+      const b = document.querySelector("#deskResults .desk-opt .deskOptPocket");
+      b?.click();
+      const stEl = b?.parentElement.querySelector('[role="status"]');
+      for (let i = 0; i < 100 && !/Yritä uudelleen/.test(stEl?.textContent || ""); i++) await new Promise(r => setTimeout(r, 100));
+      window.__v3.failTrips = false;
+      return { st: stEl?.textContent || "", printed: window.__v3.printed > n0, pocket: !!po.querySelector(".pocket") };
+    });
+    (pe.st === "Taskuaikataulua ei saatu koottua. Yritä uudelleen." && !pe.printed && !pe.pocket)
+      ? ok("taskuaikataulu (D3): verkkovirhe ei tulosta vajaata paperia vaan kertoo virheen")
+      : fail("taskuaikataulu (D3): virhetila: " + JSON.stringify(pe));
+
+    // D4: Kerro asiakkaalle asiakkaan kielellä. SV valmiista käännöksistä: vastaus, kopio ja asiakasnäkymä ruotsiksi,
+    // pysäkin ja linjan nimet ennallaan.
+    const ans = () => page.evaluate(() => { const b = document.querySelector("#deskResults .desk-tell-body");
+      return { lang: b?.lang || "", dir: b?.dir || "", txt: (b?.textContent || "").trim(), note: document.querySelector("#deskResults .desk-ans-mt-note")?.textContent || "",
+        pressed: [...document.querySelectorAll("#deskResults .desk-ans-lang button[aria-pressed=true]")].map(x => x.dataset.alang),
+        sel: !!document.querySelector("#deskResults .desk-ans-mt"), nomt: document.querySelector("#deskResults .desk-ans-nomt")?.textContent || "" }; });
+    const fi0 = await ans();
+    await page.evaluate(() => document.querySelector('#deskResults .desk-ans-lang button[data-alang="sv"]')?.click());
+    const sv = await ans();
+    await page.evaluate(() => { window.__v3.copied = null; document.querySelector("#deskResults .desk-copy")?.click(); });
+    await page.waitForFunction(() => !!window.__v3.copied, { timeout: 5000 }).catch(() => {});
+    await page.evaluate(() => document.querySelector("#deskResults .desk-show-btn")?.click());
+    await page.waitForSelector("#deskShow #deskShowQr canvas", { timeout: 10000 }).catch(() => {});
+    const svShow = await page.evaluate(() => ({ k: document.querySelector("#deskShow .desk-show-k")?.textContent || "",
+      body: document.querySelector("#deskShow .desk-show-body")?.textContent.trim() || "", lang: document.querySelector("#deskShow .desk-show-body")?.lang || "",
+      cap: document.querySelector("#deskShow figcaption")?.textContent || "", copied: window.__v3.copied || "" }));
+    await page.keyboard.press("Escape");
+    (fi0.pressed.join() === "fi" && /^Linja S1 pysäkiltä Smoke A klo \d\d:\d\d( \(seuraava \d\d:\d\d\))?\. Jää pois pysäkillä Smoke B/.test(fi0.txt)
+      && sv.lang === "sv" && sv.pressed.join() === "sv" && /^Linje S1 från hållplats Smoke A kl\. \d\d:\d\d( \(\S+ \d\d:\d\d\))?\. Stig av vid hållplats Smoke B/.test(sv.txt)
+      && /^\S+ \d{1,2}\.\d{1,2}\.? .*linje S1 från hållplats Smoke A kl\. \d\d:\d\d, framme \d\d:\d\d\.\n.*#\/reitti\//.test(svShow.copied)
+      && /^Rutt · /.test(svShow.k) && svShow.body === sv.txt && svShow.lang === "sv" && svShow.cap === "Skanna koden med telefonen så öppnas rutten där.")
+      ? ok(`vastaus asiakkaan kielellä (D4): SV vastaus, kopio ja asiakasnäkymä ruotsiksi, nimet ennallaan ("${sv.txt.slice(0, 60)}…")`)
+      : fail("vastaus asiakkaan kielellä (D4): SV: " + JSON.stringify({ fi0, sv, svShow }));
+    // D4: ilman selaimen kääntäjää muut kielet piiloon ja selitys; kääntäjän kanssa (synteettinen, laitteella) kielilista,
+    // konekäännös merkittynä, nimet ja kellonajat ennallaan ja sama teksti kopioon ja asiakasnäkymään. Jos kääntäjä
+    // hukkaa nimen, käännöstä ei näytetä.
+    const rerun = async () => {
+      await page.evaluate(q => { mtListP = null; document.getElementById("deskResults").innerHTML = "";
+        document.querySelector(`#deskQuick button[data-q="${q}"]`)?.click(); }, v3Setup.q);
+      await page.waitForSelector("#deskResults .desk-tell .desk-ans-lang", { timeout: 20000 }).catch(() => {});
+      await sleep(300);
+    };
+    await page.evaluate(() => { window.Translator = undefined; });
+    await rerun();
+    const noT = await ans();
+    await page.evaluate(() => {
+      window.__v3.mtCalls = 0;
+      window.Translator = { availability: async o => (o.targetLanguage === "uk" ? "available" : "unavailable"),
+        create: async o => ({ translate: async s => { window.__v3.mtCalls++; return window.__v3.mtBreak ? s.replace(/73\d\d/g, "X") : "[" + o.targetLanguage + "] " + s; } }) };
+      mtTranslators.clear(); mtCache.clear();
+    });
+    await rerun();
+    const opts = await page.evaluate(() => [...document.querySelectorAll("#deskResults .desk-ans-mt option")].map(o => o.value));
+    await page.select("#deskResults .desk-ans-mt", "uk").catch(() => {});
+    await page.waitForFunction(() => /Konekäännös|ei onnistunut/.test(document.querySelector("#deskResults .desk-ans-mt-note")?.textContent || ""), { timeout: 10000 }).catch(() => {});
+    const uk = await ans();
+    await page.evaluate(() => { window.__v3.copied = null; document.querySelector("#deskResults .desk-copy")?.click(); });
+    await page.waitForFunction(() => !!window.__v3.copied, { timeout: 5000 }).catch(() => {});
+    await page.evaluate(() => document.querySelector("#deskResults .desk-show-btn")?.click());
+    await sleep(500);
+    const ukShow = await page.evaluate(() => ({ body: document.querySelector("#deskShow .desk-show-body")?.textContent.trim() || "",
+      lang: document.querySelector("#deskShow .desk-show-body")?.lang || "", mt: document.querySelector("#deskShow .desk-show-mt")?.textContent || "",
+      k: document.querySelector("#deskShow .desk-show-k")?.textContent || "", copied: window.__v3.copied || "" }));
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => { window.__v3.mtBreak = true; mtCache.clear(); document.querySelector('#deskResults .desk-ans-lang button[data-alang="fi"]')?.click(); });
+    await page.select("#deskResults .desk-ans-mt", "uk").catch(() => {});
+    await page.waitForFunction(() => /Konekäännös|ei onnistunut/.test(document.querySelector("#deskResults .desk-ans-mt-note")?.textContent || ""), { timeout: 10000 }).catch(() => {});
+    const broken = await ans();
+    (noT.nomt === "Muut kielet vain Chrome- ja Edge-selaimessa" && !noT.sel)
+      ? ok("vastaus asiakkaan kielellä (D4): ilman selaimen kääntäjää muut kielet piilossa ja syy näkyy")
+      : fail("vastaus asiakkaan kielellä (D4): kääntäjätön tila: " + JSON.stringify(noT));
+    (opts.join() === ",uk" && uk.lang === "uk" && /^\[uk\] Line S1 from stop Smoke A at \d\d:\d\d( \(\S+ \d\d:\d\d\))?\. Get off at stop Smoke B/.test(uk.txt)
+      && /^Konekäännös: ukraina/.test(uk.note) && /Alkuperäinen: Linja S1 pysäkiltä Smoke A/.test(uk.note)
+      && /^\[uk\] .*bus line S1 from stop Smoke A at \d\d:\d\d.*\n.*#\/reitti\//.test(ukShow.copied)
+      && ukShow.body === uk.txt && ukShow.lang === "uk" && /^\[uk\] Machine translation/.test(ukShow.mt) && /^\[uk\] Route · /.test(ukShow.k)
+      && /^Linja S1 pysäkiltä Smoke A/.test(broken.txt) && broken.note === "Konekäännös ei onnistunut. Vastaus näkyy alkuperäisellä kielellä.")
+      ? ok(`vastaus asiakkaan kielellä (D4): konekäännös merkittynä, nimet ja kellonajat ennallaan, sama teksti kopioon ja asiakasnäkymään, hukattu nimi = ei käännöstä ("${uk.txt.slice(0, 50)}…")`)
+      : fail("vastaus asiakkaan kielellä (D4): konekäännös: " + JSON.stringify({ opts, uk, ukShow, broken }));
+  } finally {
+    await page.evaluate(lg => {
+      gql = window.__v3.gql; window.print = window.__v3.print;
+      if (navigator.clipboard && window.__v3.write) navigator.clipboard.writeText = window.__v3.write;
+      if (window.__v3.hadT) window.Translator = window.__v3.T; else delete window.Translator;
+      mtListP = null; mtTranslators.clear(); mtCache.clear(); pocketPatMemo.clear(); pocketTripMemo.clear();
+      changeWatchPromise = null;
+      setPrintLarge(lg === "1"); if (lg == null) localStorage.removeItem("printLarge"); printLargeMem = null;
+      document.getElementById("deskPrintOut").innerHTML = "";
+      setPageOrientation("portrait");
+      try { sessionStorage.removeItem("deskRecent:" + cityKey); } catch (e) {}
+    }, v3Large);
+    // Tiski alusta: kielivalinta (ansLang) ja suodatin nollautuvat.
+    await page.evaluate(() => { location.hash = "#/"; });
+    await sleep(400);
+    await page.evaluate(() => { location.hash = "#/palvelutiski"; });
+  }
+
+  // B10: terminaalin Minne?-suodatin. Synteettiset reitit ja lähdöt Trion oikeille pysäkeille: kohde löytyy reitin
+  // välipysäkiltä (ei vain kilvestä), linja tarkalla tunnuksella, ja haku koskee vain osuvia pysäkkejä 4 tunnin ajalta.
+  // Tuntematon haku ei näytä "ei lähtöjä" -tekstiä. Valinta nollautuu pysäkkiä vaihdettaessa.
+  await v3Term();
+  const b10Setup = await page.evaluate(() => {
+    const plats = [...document.querySelectorAll("#deskDeps .desk-terminal-plats a.dep-plat")].map(a => decodeURIComponent(a.getAttribute("href").split("/pysakki/")[1]));
+    if (plats.length < 2) return { ohita: true, plats };
+    const [P0, P1] = plats;
+    const now = new Date(), sd = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000;
+    const base = Math.floor(now.getTime() / 1000 - sd);
+    const dep = (plat, code, line, head, min) => { const s = base + min * 60; return { scheduledDeparture: s, realtimeDeparture: s, realtime: false, serviceDay: sd, headsign: head,
+      trip: { pattern: { code }, wheelchairAccessible: null, occupancy: null, route: { gtfsId: "SMK:" + line, shortName: line },
+        departureStoptime: { scheduledDeparture: s, stop: { gtfsId: plat } }, arrivalStoptime: { scheduledArrival: s + 1800, stop: { gtfsId: "X:end" } } } }; };
+    const D = { [P0]: [], [P1]: [] };
+    for (let i = 0; i < 10; i++) D[P0].push(dep(P0, "TP1", "V31", "Kaukokylä", 5 + i * 20));
+    for (let i = 0; i < 24; i++) D[P0].push(dep(P0, "TPX", "V39", "Muu suunta", 1 + i * 5));
+    for (let i = 0; i < 13; i++) D[P1].push(dep(P1, "TP2", "V32", "Muualla", 3 + i * 15));
+    const PATS = { [P0]: [{ code: "TP1", headsign: "Kaukokylä", route: { gtfsId: "SMK:V31", shortName: "V31" }, stops: [{ gtfsId: P0, name: "Trio" }, { gtfsId: "X:1", name: "Välikylä" }, { gtfsId: "X:2", name: "Kaukokylä" }] },
+      { code: "TPX", headsign: "Muu suunta", route: { gtfsId: "SMK:V39", shortName: "V39" }, stops: [{ gtfsId: P0, name: "Trio" }, { gtfsId: "X:5", name: "Muu" }] },
+      { code: "TP0", headsign: "Trio", route: { gtfsId: "SMK:V30", shortName: "V30" }, stops: [{ gtfsId: "X:6", name: "Välikylä" }, { gtfsId: P0, name: "Trio" }] }],
+      [P1]: [{ code: "TP2", headsign: "Muualla", route: { gtfsId: "SMK:V32", shortName: "V32" }, stops: [{ gtfsId: P1, name: "Trio" }, { gtfsId: "X:3", name: "Muualla" }] }] };
+    window.__b10 = { gql, vars: [] };
+    gql = async (q, v, o) => {
+      if (q === DESK_TERM_PATTERNS_QUERY) return { stops: v.ids.map(id => ({ gtfsId: id, patterns: PATS[id] || [] })) };
+      if (q === DESK_TERM_DEPS_QUERY) { window.__b10.vars.push(JSON.parse(JSON.stringify(v)));
+        return { stops: v.ids.map(id => ({ gtfsId: id, name: "Trio", platformCode: "", lat: 60.98, lon: 25.65, routes: [], stoptimesWithoutPatterns: D[id] || [] })) }; }
+      return window.__b10.gql(q, v, o);
+    };
+    return { P0, P1 };
+  });
+  const v3TermQ = async q => {
+    await page.evaluate(() => { const i = document.getElementById("deskTermQ"); if (i) i.value = ""; });
+    await page.type("#deskTermQ", q, { delay: 10 }).catch(() => {});
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => !/Haetaan|Loading|Hämtar/.test(document.getElementById("deskTermInfo")?.textContent || ""), { timeout: 20000 }).catch(() => {});
+    await sleep(200);
+    return page.evaluate(() => {
+      const rows = [...document.querySelectorAll("#deskDeps table.deps tbody tr")];
+      const mins = rows.map(tr => { const m = /(\d\d):(\d\d)/.exec(tr.querySelector("td.dep-when")?.textContent || ""); return m ? +m[1] * 60 + +m[2] : null; }).filter(x => x != null);
+      return { info: document.getElementById("deskTermInfo")?.textContent || "", n: rows.length,
+        lines: [...new Set(rows.map(tr => tr.querySelector(".badge")?.textContent.trim()))],
+        span: mins.length > 1 ? ((mins[mins.length - 1] - mins[0]) + 1440) % 1440 : 0,
+        muted: [...document.querySelectorAll("#deskDeps p.muted:not(.desk-deps-upd)")].map(p => p.textContent), vars: window.__b10 && window.__b10.vars.slice(-1)[0] };
+    });
+  };
+  try {
+    if (b10Setup.ohita) fail("terminaalin Minne?-suodatin (B10): Trion pysäkit puuttuvat: " + JSON.stringify(b10Setup));
+    else {
+      const kohde = await v3TermQ("Välikylä");
+      const linja = await v3TermQ("v32");
+      const tyhja = await v3TermQ("qqqx");
+      (kohde.n === 10 && kohde.lines.join() === "V31" && kohde.span >= 170 && /V31/.test(kohde.info) && !/V30|V39/.test(kohde.info)
+        && kohde.vars && kohde.vars.ids.join() === b10Setup.P0 && kohde.vars.range === 14400 && kohde.vars.n === 100
+        && linja.n === 12 && linja.lines.join() === "V32" && /^Linja V32: lähdöt seuraavan 4 tunnin ajalta\.$/.test(linja.info)
+        && tyhja.n === 0 && /^Haulla "qqqx" ei löytynyt/.test(tyhja.info) && !tyhja.muted.some(m => /Ei tulevia/.test(m)))
+        ? ok(`terminaalin Minne?-suodatin (B10): kohde reitin varrelta ${kohde.n} lähtöä ${kohde.span} min ajalta, linja V32 ${linja.n} lähtöä, tuntematon haku ilman "ei lähtöjä" -väitettä`)
+        : fail("terminaalin Minne?-suodatin (B10): " + JSON.stringify({ kohde, linja, tyhja }));
+    }
+  } finally {
+    await page.evaluate(() => { if (window.__b10) gql = window.__b10.gql; });
+  }
+  // Pysäkin vaihto nollaa suodattimen (oikea data: pysäkin kortti ja paluu terminaaliin).
+  await page.evaluate(() => document.querySelector("#deskDeps .desk-terminal-plats a.dep-plat")?.click());
+  await page.waitForSelector("#deskBackTerm", { timeout: 20000 }).catch(() => {});
+  // Pysäkkikortin asiakasnäkymä: seuraavat lähdöt isolla ja QR pysäkin sivulle (synteettiset lähdöt), Esc palaa.
+  const sShow = await page.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const orig = gql;
+    const now = new Date(), sd = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000, b = Math.floor(now.getTime() / 1000 - sd);
+    const id = history.state && history.state.desk && history.state.desk.stop && history.state.desk.stop.gtfsId;
+    const mk = (min, line, head) => ({ scheduledDeparture: b + min * 60, realtimeDeparture: b + min * 60, realtime: false, serviceDay: sd, headsign: head,
+      trip: { route: { gtfsId: "SMK:" + line, shortName: line }, departureStoptime: null, arrivalStoptime: { scheduledArrival: b + min * 60 + 900, stop: { gtfsId: "X:end" } } } });
+    gql = async (q, v, o) => q === DESK_DEPS_QUERY ? { stop: { gtfsId: v.id, name: "Trio Smoke", code: "999", lat: 60.98, lon: 25.65, routes: [],
+      stoptimesWithoutPatterns: [mk(3, "W1", "Asema"), mk(9, "W2", "Sairaala"), mk(14, "W1", "Asema")] } } : orig(q, v, o);
+    try {
+      document.querySelector('.dcard-tab[data-dcard="stop"]').click();
+      for (let i = 0; i < 100 && !/Trio Smoke/.test(document.querySelector("#deskDeps .stophead")?.textContent || ""); i++) await wait(100);
+      const btn = document.getElementById("deskShowStopBtn");
+      btn?.focus(); btn?.click();
+      for (let i = 0; i < 100 && !document.querySelector("#deskShow #deskShowQr canvas"); i++) await wait(100);
+      const list = document.querySelector("#deskShow .desk-show-deps");
+      return { id, auki: !document.getElementById("deskShow").hidden, rivit: [...(list?.querySelectorAll("li") || [])].map(li => li.textContent.replace(/\s+/g, " ").trim()),
+        px: list ? parseFloat(getComputedStyle(list).fontSize) : 0, qr: !!document.querySelector("#deskShow #deskShowQr canvas"),
+        h: document.getElementById("deskShowH")?.textContent || "", k: document.querySelector("#deskShow .desk-show-k")?.textContent || "" };
+    } finally { gql = orig; }
+  });
+  await page.keyboard.press("Escape");
+  const sShow2 = await page.evaluate(() => ({ kiinni: document.getElementById("deskShow").hidden, fokus: document.activeElement?.id || "" }));
+  (sShow.auki && sShow.rivit.length === 3 && /^W1 Asema \d\d:\d\d \(3 min\)$/.test(sShow.rivit[0]) && sShow.px >= 40 && sShow.qr
+    && /^Trio Smoke 999$/.test(sShow.h) && /^Seuraavat lähdöt · /.test(sShow.k) && sShow2.kiinni && sShow2.fokus === "deskShowStopBtn")
+    ? ok(`pysäkkikortin asiakasnäkymä: ${sShow.rivit.length} lähtöä ${sShow.px} px:llä ja QR, Esc palaa nappiin`)
+    : fail("pysäkkikortin asiakasnäkymä: " + JSON.stringify({ ...sShow, ...sShow2 }));
+  await page.evaluate(() => document.getElementById("deskBackTerm")?.click());
+  await v3Term();
+  const b10Reset = await page.evaluate(() => ({ arvo: document.getElementById("deskTermQ")?.value ?? null, info: document.getElementById("deskTermInfo")?.textContent ?? null,
+    rivit: document.querySelectorAll("#deskDeps table.deps tbody tr").length }));
+  (b10Reset.arvo === "" && b10Reset.info === "")
+    ? ok(`terminaalin Minne?-suodatin (B10): valinta nollautuu pysäkkiä vaihdettaessa (${b10Reset.rivit} riviä ilman suodatinta)`)
+    : fail("terminaalin Minne?-suodatin (B10): nollaus: " + JSON.stringify(b10Reset));
+
   // 390 px: tiskissä ei vaakavieritystä (viewport palautetaan heti).
   await page.setViewport({ width: 390, height: 800 });
   await sleep(1200);
