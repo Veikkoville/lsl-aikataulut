@@ -1002,6 +1002,12 @@ function writeReport() {
         //          window.print stubataan ennen klikkiä — tuloste ei saa avata dialogia.
         const runDeskPrint = DESK_PRINT_CITIES ? DESK_PRINT_CITIES.includes(city.key) : !!city.deskPrint;
         if (runDeskPrint) {
+          // Terminaalinäkymässä (Lahti: Trion kaikki laiturit, erä A 4.10.2026) tuloste tehdään laiturin omalta
+          // kortilta: avataan ensimmäisen lähtörivin laituri, jonka kortissa tulostusnappi on.
+          if (!(await page.$("#deskPrintBtn")) && await page.$("#deskDeps a.dep-plat")) {
+            await page.evaluate(() => document.querySelector("#deskDeps a.dep-plat").click());
+            await page.waitForSelector("#deskPrintBtn", { timeout: 20000 }).catch(() => {});
+          }
           const btn = await page.$("#deskPrintBtn");
           if (!btn) {
             fail(city.key, "tiskiltä tulostus", "#deskPrintBtn puuttuu oletuspysäkin kohdalta");
