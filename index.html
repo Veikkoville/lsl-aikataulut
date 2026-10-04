@@ -14730,6 +14730,63 @@ function exitDeskMode() {
 const DESK_STOP_QUERY = `query ($name: String!) {
   stops(name: $name) { gtfsId name@L code lat lon routes { gtfsId shortName longName@L } }
 }`;
+const DESK_STOPS_BY_IDS = `query ($ids: [String]) {
+  stops(ids: $ids) { gtfsId name@L code lat lon routes { gtfsId shortName longName@L } }
+}`;
+
+// Pysäkkihaku käyttöliittymän kielellä, kun se on eri kuin feedin natiivikieli. stops(name:) vertaa vain feedin
+// omiin nimiin: Raaseporissa (natiivi sv) "Tammisaari" ei löytänyt yhtään pysäkkiä eikä Turussa ruotsinkielinen
+// "Salutorget" Kauppatoria (mitattu 4.10.2026). Kaupungin pysäkit haetaan siksi kerran käännetyin nimin
+// (Raasepori 44 kt, Turku 162 kt) ja nimi etsitään niistä paikallisesti. Englanniksi feedeissä ei ole
+// käännöksiä (nimi = natiivinimi), joten en-kielellä ja samankielisessä haussa (Lahti fi) tätä ei tehdä.
+const langStopSearch = () => lang !== FEED_LANG && lang !== "en";
+let langStopNamesCache = null;
+async function loadLangStopNames() {
+  const l = lang;
+  if (langStopNamesCache && langStopNamesCache.lang === l) return langStopNamesCache.stops;
+  await findFeed();
+  const r = AREA.rect;
+  const data = await gql(
+    `query ($minLat: Float!, $minLon: Float!, $maxLat: Float!, $maxLon: Float!) {
+       stopsByBbox(minLat: $minLat, minLon: $minLon, maxLat: $maxLat, maxLon: $maxLon) { gtfsId name@L }
+     }`, { minLat: r.minLat, minLon: r.minLon, maxLat: r.maxLat, maxLon: r.maxLon });
+  const stops = (data.stopsByBbox || []).filter(s => s.name && inCityFeed(s.gtfsId));
+  langStopNamesCache = { lang: l, stops };
+  return stops;
+}
+// Suomen taivutus muuttaa sanan loppua ("Tammisaari" -> "Tammisaaren linja-autoasema"): hakusanan sana kelpaa,
+// kun se on nimen sanan alku tai eroaa siitä vain lopusta (5+ merkin sanassa 1 merkki, 8+ merkin sanassa 2).
+function stopNameScore(name, nq) {
+  const n = name.toLowerCase();
+  if (n.startsWith(nq)) return 3;
+  if (n.includes(nq)) return 2;
+  const words = n.split(/[\s\-\/,.()]+/).filter(Boolean);
+  const near = (w, x) => {
+    if (x.startsWith(w)) return true;
+    if (w.length < 5) return false;
+    let i = 0;
+    while (i < w.length && w[i] === x[i]) i++;
+    return i >= w.length - (w.length >= 8 ? 2 : 1);
+  };
+  return nq.split(" ").every(w => words.some(x => near(w, x))) ? 1 : 0;
+}
+// Osumat linjoineen tiskin yhteishakuun: ehdokkaita otetaan reilusti, linjat haetaan yhdellä kyselyllä,
+// ja vilkkain pysäkki (eniten linjoja) nousee saman osumatason sisällä ensimmäiseksi.
+async function searchLangStops(q, limit) {
+  const nq = (q || "").toLowerCase().replace(/\s+/g, " ").trim();
+  if (nq.length < 2) return [];
+  const hits = (await loadLangStopNames())
+    .map(s => ({ id: s.gtfsId, sc: stopNameScore(s.name, nq) }))
+    .filter(h => h.sc > 0)
+    .sort((a, b) => b.sc - a.sc)
+    .slice(0, 20);
+  if (!hits.length) return [];
+  const sc = new Map(hits.map(h => [h.id, h.sc]));
+  const data = await gql(DESK_STOPS_BY_IDS, { ids: hits.map(h => h.id) });
+  return (data.stops || []).filter(s => s && (s.routes || []).length)
+    .sort((a, b) => (sc.get(b.gtfsId) - sc.get(a.gtfsId)) || (b.routes.length - a.routes.length))
+    .slice(0, limit);
+}
 
 // Pysäkin reaaliaikaiset lähdöt (palvelutiskin "seuraavat lähdöt nyt"). Sama datamuoto
 // kuin lähellä-/pysäkkinäkymä → renderöinti stopDepGroupHtml/depTableRows-funktioilla.
@@ -15537,8 +15594,13 @@ async function viewServiceDesk() {
 
   // Esteetön reitti: sama valinta reittihakuun ja viimeiseen bussiin.
   const deskPrefs = () => ({ accessibility: { wheelchair: { enabled: !!document.getElementById("deskWheelchair")?.checked } } });
+  // Reittihaku ja viimeinen bussi kirjoittavat samaan tuloslohkoon. Vain viimeksi käynnistetty haku piirtää,
+  // ettei hitaampi vanha vastaus korvaa uudempaa tulosta (esim. Nyt-nappi ja heti perään viimeinen bussi).
+  let deskResSeq = 0;
   const runSearch = async () => {
     const msg = document.getElementById("deskMsg");
+    const my = ++deskResSeq;
+    const stale = () => !live() || my !== deskResSeq;
     if (!dFrom || !dTo) { msg.innerHTML = `<p class="muted">${t("deskNeedBoth")}</p>`; return; }
     msg.innerHTML = `<p class="muted">${t("searchingRoutes")}</p>`;
     const origin = { location: { coordinate: { latitude: dFrom.lat, longitude: dFrom.lon } } };
@@ -15551,8 +15613,8 @@ async function viewServiceDesk() {
     const railCtx = { time: dateTime ? dateEl.value + "T" + timeEl.value.slice(0, 5) : "", timeMode: arr ? "arr" : "dep", to: dTo };
     let data;
     try { data = await gql(PLAN_QUERY, { origin, destination, first: 5, dateTime, preferences }); }
-    catch (e) { msg.innerHTML = `<div class="error">${t("deskSearchErr")}</div>`; return; }
-    if (!live()) return;
+    catch (e) { if (!stale()) msg.innerHTML = `<div class="error">${t("deskSearchErr")}</div>`; return; }
+    if (stale()) return;
     msg.innerHTML = "";
     const nodes = (data.planConnection?.edges || []).map(e => localizePlanNode(e.node));
     const res = document.getElementById("deskResults");
@@ -15576,7 +15638,7 @@ async function viewServiceDesk() {
         busNode = (nb.planConnection?.edges || []).map(e => localizePlanNode(e.node)).find(firstTransitLeg) || null;
       } catch (e) { busNode = null; }
     }
-    if (!live()) return;
+    if (stale()) return;
     res.innerHTML = usedHtml + deskTellHtml(tellNodes, busNode, !!dateTime)
       + (fastestHasBus ? "" : deskNextBusHtml(busNode))   // erillinen "Seuraava bussi" -kortti vain kun kävely voittaa
       + `<h3 class="desk-h3">${t("deskOptionsTitle")}</h3>`
@@ -16117,10 +16179,15 @@ async function viewServiceDesk() {
   // alueen linjoihin rajattuna (withAreaStopRoutes).
   const searchDeskStops = async q => {
     if (CONFIG.areaScoped) return withAreaStopRoutes(await searchStopsByName(q, 8));
-    const data = await gql(DESK_STOP_QUERY, { name: q });
+    const [data, own] = await Promise.all([
+      gql(DESK_STOP_QUERY, { name: q }),
+      langStopSearch() ? searchLangStops(q, 8).catch(() => []) : [],
+    ]);
     const pref = feedId ? feedId + ":" : "";
-    return (data.stops || []).filter(s => !pref || String(s.gtfsId).startsWith(pref))
-      .filter(s => (s.routes || []).length).slice(0, 8);
+    // Käyttöliittymän kielellä löytyneet ensin, sitten natiivinimen osumat ilman kaksoiskappaleita.
+    const seen = new Set(own.map(s => s.gtfsId));
+    return [...own, ...(data.stops || []).filter(s => !pref || String(s.gtfsId).startsWith(pref))
+      .filter(s => (s.routes || []).length && !seen.has(s.gtfsId))].slice(0, 8);
   };
   // Paikat ja osoitteet: pysäkit näkyvät jo omassa ryhmässään, joten geokooderin pysäkit pois.
   const searchDeskPlaces = async q => {
@@ -16228,6 +16295,8 @@ async function viewServiceDesk() {
   document.getElementById("deskLastBusBtn")?.addEventListener("click", async () => {
     const msg = document.getElementById("deskMsg");
     const res = document.getElementById("deskResults");
+    const my = ++deskResSeq;
+    const stale = () => !live() || my !== deskResSeq;
     if (!dFrom || !dTo) { msg.innerHTML = `<p class="muted">${t("deskNeedBoth")}</p>`; return; }
     msg.innerHTML = `<p class="muted">${t("searchingRoutes")}</p>`;
     const origin = { location: { coordinate: { latitude: dFrom.lat, longitude: dFrom.lon } } };
@@ -16238,8 +16307,8 @@ async function viewServiceDesk() {
     const none = esc(lastBusText("deskLastBusNone", "deskLastBusNoneDay"));
     let data;
     try { data = await gql(DESK_LASTBUS_QUERY, { origin, destination, dateTime: { latestArrival: eod.toISOString() }, preferences: deskPrefs() }); }
-    catch (e) { msg.innerHTML = `<div class="error">${t("deskSearchErr")}</div>`; return; }
-    if (!live()) return;
+    catch (e) { if (!stale()) msg.innerHTML = `<div class="error">${t("deskSearchErr")}</div>`; return; }
+    if (stale()) return;
     msg.innerHTML = "";
     const nodes = (data.planConnection?.edges || []).map(e => localizePlanNode(e.node)).filter(firstTransitLeg);
     if (!nodes.length) { res.innerHTML = `<p class="muted">${none}</p>`; return; }

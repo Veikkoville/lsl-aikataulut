@@ -896,6 +896,33 @@ async function minuuttiLinjaus(page, rootSel, media) {
     && r5d.vinkki && r5d.piilossa && r5d.junat.length === 0)
     ? ok(`palvelutiski V2: junavinkki alkaa haun ajasta (${r6.junat.length} junaa) ja piiloutuu, kun haun ajalle ei ole junadataa`)
     : fail("palvelutiski V2: junavinkki: " + JSON.stringify({ r6, r5d }));
+  // Hakujen järjestys (4.10.2026): reittihaun vastaus viivästetään 5 s ja viimeinen bussi klikataan perään.
+  // Viimeisen bussin tulos ei saa vaihtua, kun viivästetty reittivastaus saapuu. gql palautetaan aina.
+  await v2SetWhen(v2Day.iso, "12:00");
+  const order = await page.evaluate(async () => {
+    const orig = gql, wait = ms => new Promise(r => setTimeout(r, ms));
+    let viivastetty = 0, saapui = 0;
+    gql = async (query, vars, opts) => {
+      if (!viivastetty && query === PLAN_QUERY) { viivastetty = Date.now(); await wait(5000); saapui = Date.now(); }
+      return orig(query, vars, opts);
+    };
+    try {
+      const res = document.getElementById("deskResults");
+      res.innerHTML = "";
+      document.getElementById("deskRouteBtn").click();
+      await wait(100);
+      document.getElementById("deskLastBusBtn").click();
+      for (let i = 0; i < 100 && !res.innerHTML.trim(); i++) await wait(100);
+      const ennen = res.innerHTML, ennenAika = Date.now();
+      for (let i = 0; i < 100 && !saapui; i++) await wait(100);
+      await wait(2500);   // viivästetty reittihaku ehtii piirtää, jos se piirtäisi
+      return { viivastetty: !!viivastetty, ehtiEnnen: !!ennen && ennenAika < (saapui || Infinity), saapui: !!saapui,
+        sama: res.innerHTML === ennen, otsikko: res.querySelector(".desk-tell-h")?.textContent.trim() || res.textContent.trim().slice(0, 60) };
+    } finally { gql = orig; }
+  });
+  (order.viivastetty && order.ehtiEnnen && order.saapui && order.sama)
+    ? ok(`palvelutiski: myöhästyvä reittivastaus ei korvaa uudempaa viimeisen bussin tulosta (${order.otsikko})`)
+    : fail("palvelutiski: hakujen järjestys: " + JSON.stringify(order));
   await page.evaluate(() => {
     document.getElementById("deskWheelchair").checked = false;
     document.getElementById("deskResults").innerHTML = "";
@@ -2761,6 +2788,15 @@ async function minuuttiLinjaus(page, rootSel, media) {
     !!document.getElementById("deskFrom") && !!document.getElementById("deskTo") && !!document.getElementById("deskNlInput"));
   extDesk ? ok("oma reittihaku (Raasepori): palvelutiskin reittihaku ennallaan")
           : fail("oma reittihaku (Raasepori): palvelutiskin reittihaku katosi");
+  // Käännetty pysäkkinimi (4.10.2026): Raaseporin feedin nimet ovat ruotsiksi, ja stops(name:) vertaa vain niihin.
+  // Suomeksi "Tammisaari" ei löytänyt yhtään pysäkkiä; nyt linja-autoasema löytyy linjoineen listan kärjestä.
+  await page.evaluate(() => { const q = document.getElementById("deskStop"); q.focus(); q.value = "Tammisaari"; q.dispatchEvent(new Event("input", { bubbles: true })); });
+  await page.waitForSelector("#deskStopList button[data-s]", { timeout: 20000 }).catch(() => {});
+  const tms = await page.evaluate(() => ({ kieli: lang,
+    rivit: [...document.querySelectorAll("#deskStopList button[data-s]")].map(b => b.textContent.replace(/\s+/g, " ").trim()) }));
+  (tms.kieli === "fi" && (tms.rivit[0] || "").startsWith("Tammisaaren linja-autoasema") && /\d/.test(tms.rivit[0]))
+    ? ok(`palvelutiski (Raasepori): suomenkielinen "Tammisaari" löytää pysäkit (${tms.rivit.length}, ensin ${tms.rivit[0]})`)
+    : fail("palvelutiski (Raasepori): Tammisaari-haku: " + JSON.stringify(tms));
   // Palvelutiski V2 (4.10.2026): areaScoped-kaupungin (Inkoo) yhteishaun pysäkkiriveillä on linjanumerot,
   // ja ne ovat alueen linjoja (loadRoutes). Linjat haetaan yhdellä stops(ids:)-kyselyllä per haku.
   await page.goto(BASE + "/?city=inkoo#/palvelutiski", { waitUntil: "networkidle2" });
