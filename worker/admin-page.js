@@ -243,6 +243,14 @@ export const ADMIN_HTML = `<!doctype html>
               <label for="body">Kuvaus</label>
               <textarea id="body" maxlength="2000"></textarea>
             </div>
+            <details class="sv" id="alertLangDetails">
+              <summary>Ruotsin- ja englanninkielinen versio</summary>
+              <p class="hint" style="margin:0 0 var(--s3)">Valinnaisia. Sovellus näyttää tiedotteen käyttäjän kielellä. Jos käännös puuttuu, näkyy suomenkielinen teksti.</p>
+              <div class="field"><label for="titleSv">Otsikko ruotsiksi</label><input type="text" id="titleSv" maxlength="200" lang="sv"></div>
+              <div class="field"><label for="bodySv">Kuvaus ruotsiksi</label><textarea id="bodySv" maxlength="2000" lang="sv"></textarea></div>
+              <div class="field"><label for="titleEn">Otsikko englanniksi</label><input type="text" id="titleEn" maxlength="200" lang="en"></div>
+              <div class="field"><label for="bodyEn">Kuvaus englanniksi</label><textarea id="bodyEn" maxlength="2000" lang="en"></textarea></div>
+            </details>
             <div class="grid2">
               <div class="field">
                 <label for="severity">Vakavuus</label>
@@ -563,7 +571,9 @@ async function loadList(){
     return "<article class='alert-item" + (st === "past" ? " past" : "") + "'>"
       + "<div class='alert-head'><h4>" + esc(a.title) + "</h4>"
       + "<span class='badge " + stClass[st] + "'>" + stLabel[st] + "</span>"
-      + "<span class='badge sev-" + esc(sev) + "'>" + esc(sevLabel) + "</span></div>"
+      + "<span class='badge sev-" + esc(sev) + "'>" + esc(sevLabel) + "</span>"
+      + (a.titleSv ? "<span class='badge b-past' title='Ruotsinkielinen versio'>SV</span>" : "")
+      + (a.titleEn ? "<span class='badge b-past' title='Englanninkielinen versio'>EN</span>" : "") + "</div>"
       + (a.body ? "<p class='alert-body'>" + esc(a.body) + "</p>" : "")
       + "<p class='alert-meta'>" + esc(fmtRange(a)) + (a.lines && a.lines.length ? " · Linjat " + esc(a.lines.join(", ")) : "") + "</p>"
       + "<div class='alert-acts'><button type='button' class='btn btn-ghost btn-sm' data-edit='" + esc(a.id) + "'>Muokkaa</button>"
@@ -580,6 +590,9 @@ function startEdit(a){
   $("alertId").value = a.id;
   $("title").value = a.title || "";
   $("body").value = a.body || "";
+  $("titleSv").value = a.titleSv || ""; $("bodySv").value = a.bodySv || "";
+  $("titleEn").value = a.titleEn || ""; $("bodyEn").value = a.bodyEn || "";
+  $("alertLangDetails").open = !!(a.titleSv || a.bodySv || a.titleEn || a.bodyEn);
   $("severity").value = a.severity || "WARNING";
   $("lines").value = (a.lines||[]).join(", ");
   $("startsAt").value = toLocalInput(a.startsAt);
@@ -597,6 +610,7 @@ function resetForm(){
   editing = null;
   $("alertForm").reset();
   $("alertId").value = "";
+  $("alertLangDetails").open = false;
   $("severity").value = "WARNING";
   $("formTitle").textContent = "Uusi tiedote";
   $("saveBtn").textContent = "Julkaise";
@@ -611,6 +625,10 @@ $("alertForm").addEventListener("submit", async e => {
     id: $("alertId").value || undefined,
     title: $("title").value.trim(),
     body: $("body").value.trim(),
+    titleSv: $("titleSv").value.trim(),
+    bodySv: $("bodySv").value.trim(),
+    titleEn: $("titleEn").value.trim(),
+    bodyEn: $("bodyEn").value.trim(),
     severity: $("severity").value,
     lines: $("lines").value.split(",").map(s=>s.trim()).filter(Boolean),
     startsAt: toEpoch($("startsAt").value),
@@ -618,9 +636,13 @@ $("alertForm").addEventListener("submit", async e => {
     url: $("url").value.trim(),
   };
   if (!payload.title){ msg($("formMsg"),"Otsikko on pakollinen.",false); return; }
+  // Sama sääntö kuin workerissa: käännetty kuvaus tarvitsee saman kielen otsikon.
+  const trMissing = payload.bodySv && !payload.titleSv ? "ruotsiksi" : payload.bodyEn && !payload.titleEn ? "englanniksi" : "";
+  if (trMissing){ $("alertLangDetails").open = true; msg($("formMsg"),"Kirjoita myös otsikko " + trMissing + ", kun kuvaus on " + trMissing + ".",false); return; }
   const r = await api("admin/api/alerts", { method:"POST", body: JSON.stringify(payload) });
   if (r.ok){ resetForm(); msg($("formMsg"),"Tallennettu ja julkaistu.",true); setTimeout(()=>msg($("formMsg"),"",true),2500); loadList(); }
   else if (r.status===403){ msg($("formMsg"),"Istunto vanheni. Kirjaudu uudelleen.",false); }
+  else if (r.data && r.data.error==="translation_title"){ msg($("formMsg"),"Käännetty kuvaus tarvitsee saman kielen otsikon.",false); }
   else msg($("formMsg"),"Tallennus epäonnistui.",false);
 });
 
