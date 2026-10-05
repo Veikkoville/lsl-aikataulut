@@ -18941,7 +18941,7 @@ async function viewServiceDesk() {
     // Saapumisaikahaussa asiakkaalle kerrotaan myöhäisin lähtö, joka ehtii perille, ja vaihtoehdot ovat samassa
     // järjestyksessä (planOrder): ensimmäinen vaihtoehto ja sen tulostenappi ovat sama vuoro kuin kerrottu. Ennen
     // vaihtoehdot olivat lähtöajan mukaan nousevasti, ja ylin tulostenappi tulosti tuntia aiemman vuoron (M9).
-    if (arr) nodes.sort(planOrder(true));
+    if (arr) deskArrOrder(nodes);
     const tellNodes = arr ? [nodes[0]] : nodes;
     // Aina seuraava bussi näkyviin: jos ensisijaisessa haussa ei ole bussia (kävely voittaa tai
     // vuoroja ei juuri nyt aja), aja pakotettu bussikysely leveällä ikkunalla.
@@ -20419,6 +20419,22 @@ function applyPlanOpts(prefs, o) {
 
 // Reittiehdotusten oletusjärjestys: lähtöaikahaussa aikaisin lähtö ensin, tasapelissä aiemmin perillä ja sitten
 // vähemmän kävelyä; saapumisaikahaussa (arr) myöhäisin perille ehtivä lähtö ensin.
+// Tiskin saapumisaikahaku: helpot vaihtoehdot ensin, kukin ryhmä myöhäisin lähtö ensin. Helppo = kävelyä enintään 150 m yli
+// vähimmän eikä vaihtoja yli vähimmän. Pelkkä myöhäisin lähtö kertoi Trio C → PHKS (perillä 8.00) linjan 4 Kansanopisto E:ltä
+// 7.40, 357 m ylämäkeä, vaikka linja 9 lähtee Trio C:ltä 7.26 ja on perillä 7.38 (Ville 5.10.2026). Jos helppo lähtee yli
+// 20 min aiemmin kuin myöhäisin, järjestys pysyy: silloin odotus olisi pidempi kuin kävely.
+function deskArrOrder(nodes) {
+  nodes.sort(planOrder(true));
+  const walk = n => n.walkDistance || 0, xfer = n => n.numberOfTransfers || 0;
+  const minWalk = Math.min(...nodes.map(walk)), minXfer = Math.min(...nodes.map(xfer));
+  const easy = n => walk(n) <= minWalk + 150 && xfer(n) <= minXfer;
+  const first = nodes.find(easy);
+  if (!first || new Date(nodes[0].start) - new Date(first.start) > 20 * 60000) return nodes;
+  const ordered = [...nodes.filter(easy), ...nodes.filter(n => !easy(n))];
+  nodes.splice(0, nodes.length, ...ordered);
+  return nodes;
+}
+
 function planOrder(arr) {
   const ms = x => new Date(x).getTime();
   return (a, b) => (arr ? ms(b.start) - ms(a.start) : ms(a.start) - ms(b.start))
