@@ -88,11 +88,24 @@ async function gql(query, variables, router) {
   }
 }
 
-// Sama luokittelu kuin index.html:n päivätyyppiryhmittelyssä (yksi totuus tuotteessa,
-// tämä on sen kopio vahtia varten — jos tuotteen regex muuttuu, päivitä tämä).
-const classify = sid =>
-  (/koul/i.test(sid) || /\bKP\b/.test(sid)) ? "koul"
-  : (/loma/i.test(sid) || /\bLP\b/.test(sid)) ? "loma" : "";
+// koul/loma: sama luokittelu kuin index.html:n schoolOf (yksi totuus tuotteessa, tämä on sen kopio
+// vahtia varten, jos tuotteen regex muuttuu, päivitä tämä). Lisäksi vain vahdin omat luokat
+// "kausi" (talvi, kesä, syksy, kevät) ja "viikonpaiva" (ma-pe, la-su, MaTo, Su ...), jotta
+// kausivaihdoksen WARN-rivit eivät peity luokittelemattomien alle. Tapahtumavuorot (rally, fest,
+// lisä, yksittäinen päivämäärä) jäävät tuntemattomiksi, vaikka nimessä olisi La.
+const DAY = "(?:ma|ti|ke|to|pe|la|su)";
+const DAY_RE = new RegExp("(?<![A-Za-z])" + DAY + "(?:[-_,]?" + DAY + ")*(?![A-Za-z])", "i");
+const classify = sid => {
+  sid = sid || "";
+  if (/\bei[\s_-]*loma/i.test(sid)) return "koul";
+  if (/\bei[\s_-]*koul/i.test(sid) || (/loma/i.test(sid) && /koul/i.test(sid))) return "loma";
+  if (/koul/i.test(sid) || /\bKP\b/.test(sid)) return "koul";
+  if (/loma|joulu(?:aatto|p[aä]iv[aä])/i.test(sid) || /\bLP\b/.test(sid)) return "loma";
+  if (/rally|fest|lis[aä]|\d{1,2}\.\d{1,2}\.|\d{4}-\d{2}-\d{2}/i.test(sid)) return "";
+  if (DAY_RE.test(sid)) return "viikonpaiva";
+  if (/talvi|kes[aä]|syys|kev[aä]t/i.test(sid)) return "kausi";
+  return "";
+};
 
 const compact = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 const plusDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
@@ -132,18 +145,22 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
     .filter(Boolean).sort();
   const known = new Set(baseline[key] || []);
   const fresh = sids.filter(s => !known.has(s));
-  const counts = { koul: 0, loma: 0, muu: 0 };
+  const counts = { koul: 0, loma: 0, kausi: 0, viikonpaiva: 0, muu: 0 };
   sids.forEach(s => counts[classify(s) || "muu"]++);
   if (!baseline[key]) {
     log("WARN", key, "serviceId-baseline", `puuttuu — ${sids.length} serviceId:tä kirjattu ehdotukseen`);
+  } else if (fresh.length && fresh.every(classify)) {
+    log("PASS", key, "serviceId-uudet", `${fresh.length} uutta serviceId:tä, kaikki luokiteltu: ` +
+      fresh.slice(0, 6).map(s => `"${s}" (${classify(s)})`).join(", ") + (fresh.length > 6 ? " …" : "") +
+      " → päivitä baseline kun katsottu");
   } else if (fresh.length) {
     const unclassified = fresh.filter(s => !classify(s));
     log("WARN", key, "serviceId-uudet",
-      `${fresh.length} uutta serviceId:tä (${unclassified.length} ilman koul/loma-luokkaa): ` +
+      `${fresh.length} uutta serviceId:tä (${unclassified.length} ilman luokkaa): ` +
       fresh.slice(0, 6).map(s => `"${s}"`).join(", ") + (fresh.length > 6 ? " …" : "") +
       " → tarkista tunnistus ja päivitä baseline");
   } else {
-    log("PASS", key, "serviceId-inventaario", `${sids.length} serviceId:tä, ei uusia (koul ${counts.koul} / loma ${counts.loma} / muu ${counts.muu})`);
+    log("PASS", key, "serviceId-inventaario", `${sids.length} serviceId:tä, ei uusia (koul ${counts.koul} / loma ${counts.loma} / kausi ${counts.kausi} / viikonpaiva ${counts.viikonpaiva} / muu ${counts.muu})`);
   }
   baseline["__ehdotus_" + key] = sids; // ehdotus talteen raporttiin
   await sleep(QUERY_GAP_MS);
@@ -243,7 +260,7 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
   }
 }
 
-(async () => {
+if (require.main === module) (async () => {
   const configs = extractConfigs();
   const cityFilter = process.argv.slice(2);
   const cities = Object.keys(configs).filter(k => !cityFilter.length || cityFilter.includes(k));
@@ -271,3 +288,5 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
   console.log("raportti: " + REPORT_PATH);
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error("kausivalidointi kaatui: " + e.message); process.exit(2); });
+
+module.exports = { classify };

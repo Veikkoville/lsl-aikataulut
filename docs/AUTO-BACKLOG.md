@@ -47,7 +47,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
 
 ## Avoimet
 
-- [ ] `tests/kausivalidointi.js`: serviceId-luokitin tuntee vain koulun ja loman
+- [x] `tests/kausivalidointi.js`: serviceId-luokitin tuntee vain koulun ja loman
       (`/koul/i`, `KP`, `/loma/i`, `LP`), joten kausi- ja viikonpaivavariantit
       putoavat luokittelemattomiksi ja jokainen kausivaihdos tuottaa WARN-riveja joita ei voi
       erottaa aidosta muutoksesta. Ajossa 2026-08-25 tuli 7 WARNia, 22 uutta serviceId:ta,
@@ -82,7 +82,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
           "OULU:T_T 26-27 Pe KP alk 14_9", "OULU:T_T 26-27 Pe KP alk 24_8",
           "OULU:T_T 26-27 Su alk 14_9", "OULU:T_T 26-27 Su alk 24_8"
       Nykyinen luokitin: 7 koul (Salo 1, Kajaani 2, Oulun 4 KP-tunnistetta), 15 ilman luokkaa
-      (ajon WARN-rivien summa). Tarkennuksen (3) mukaan "La Historic Rally" jaa tuntemattomaksi.
+      (ajon WARN-rivien summa). Tarkennuksen (3) mukaan "La Historic Rally" jaa tuntemattomaksi. (PR, 2026-10-02)
 
 ## Tehdyt
 
