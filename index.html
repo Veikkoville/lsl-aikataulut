@@ -16553,8 +16553,10 @@ function bindPlaceInput(input, listEl, onPick, opts = {}) {
 // kirjaston, joten epäonnistuessa geocoderin sumeus + graceful fallback paikkaavat).
 // -us/-ys-sanojen vartalo on -ukse-/-ykse-: "Matkakeskukselta" jäi muotoon "Matkakeskukse"
 // ja haku osui Matkamiehenkatuun (Lappeenranta, auditointi 25.9.2026).
-function trimFiOrig(w) { return w.replace(/:?(sta|stä|lta|ltä)$/i, "").replace(/(u|y)kse$/i, "$1s"); }
-function trimFiDest(w) {
+// Astevaihtelu yleisimmissä paikannimen loppuosissa: "Löylykadulta" -> Löylykatu, "Myllypolulle" -> Myllypolku.
+const nlGradeBase = w => w.replace(/kadu$/i, "katu").replace(/polu$/i, "polku");
+function trimFiOrig(w) { return nlGradeBase(w.replace(/:?(sta|stä|lta|ltä)$/i, "").replace(/(u|y)kse$/i, "$1s")); }
+function trimFiDestRaw(w) {
   // Lyhenteen pääte kaksoispisteen jälkeen pois kokonaan: "PHKS:aan" jäi muotoon "PHKSa" ja "TYKS:iin" muotoon "TYKSi".
   if (/:[a-zåäö]+$/i.test(w)) return w.replace(/:[a-zåäö]+$/i, "");
   return w
@@ -16563,12 +16565,20 @@ function trimFiDest(w) {
     .replace(/:?([aeiouyåäö])\1n$/i, "$1")   // illatiivi vokaalinpidennyksellä: Turkuun→Turku, Helsinkiin→Helsinki
     .replace(/:?h([aeiouyåäö])n$/i, "");      // illatiivi -hVn: maahan→maa
 }
+function trimFiDest(w) { return nlGradeBase(trimFiDestRaw(w)); }
 const isFiOrig = w => /:?(sta|stä|lta|ltä)$/i.test(w);
 const isFiDest = w => /:?(lle|seen)$/i.test(w) || /:?([aeiouyåäö])\1n$/i.test(w) || /:?h([aeiouyåäö])n$/i.test(w);
 const isFiLoc = w => /:?(ssa|ssä|lla|llä)$/i.test(w);
 function trimFiLoc(w) { return w.replace(/:?(ssa|ssä|lla|llä)$/i, "").replace(/(u|y)kse$/i, "$1s"); }
 // Genetiivi perusmuotoon: "Trion" -> Trio, "Matkakeskuksen" -> Matkakeskus, "PHKS:n" -> PHKS.
 const nlGenBase = w => w.replace(/:n$/i, "").replace(/(u|y)ksen$/i, "$1s").replace(/n$/i, "");
+// Kaupungin oma genetiivi paikan alussa on tarkenne eikä osa nimeä: "lahden löylykatu" haki Lahdenkadun ja jätti
+// Löylykadun löytymättä (Villen havainto 5.10.2026). Pudotetaan vain, kun perässä on muuta ("Lahden" yksin jää).
+function nlDropCityGen(q, gen = cityGenName()) {
+  if (!q || !gen) return q;
+  const m = String(q).match(/^(\S+)\s+(.+)$/);
+  return m && m[1].toLowerCase() === String(gen).toLowerCase() ? m[2] : q;
+}
 
 /* Asiakkaan viesti sellaisenaan (5.10.2026). Esimerkki palvelutiskiltä: "Minun pitäisi olla huomenna klo 8.00 PHKS.ssa.
    Meneekö Trion edestä sinne bussi ja monelta on siinä pysäkillä? Tai. Meneekö vanhan Anttilan pysäkiltä bussi?"
@@ -16707,6 +16717,12 @@ const NL_WEEKDAY = { sunnuntai: 0, maanantai: 1, tiistai: 2, keskiviikko: 3, tor
 // Jäsentää matkalauseen tai viestin → { from, to, time, day, dayText, timeMode, alts, msg } (merkkijonoina; paikat
 // resolvoidaan geocodella). msg = paikat poimittiin viestistä, alts = viestin muut lähtö- ja määränpääparit.
 function parseNlTrip(raw) {
+  const o = parseNlTripRaw(raw);
+  o.from = nlDropCityGen(o.from); o.to = nlDropCityGen(o.to);
+  o.alts = (o.alts || []).map(a => ({ from: nlDropCityGen(a.from), to: nlDropCityGen(a.to) }));
+  return o;
+}
+function parseNlTripRaw(raw) {
   const out = { from: null, to: null, time: null, day: null, dayText: "", timeMode: null, alts: [], msg: false };
   const msg = nlLooksLikeMessage(String(raw || "").trim());
   // Lyhenteen sijapääte pisteellä ("PHKS.ssa") kaksoispisteeksi, ettei piste katkaise virkettä.
@@ -16796,7 +16812,12 @@ function nlSplitTrip(s, out) {
       out.from = clean(o.join(" ")); out.to = clean(d.join(" ")); return out;
     }
     const o = words.slice(0, oi + 1); o[o.length - 1] = trimFiOrig(o[o.length - 1]);
-    out.from = clean(o.join(" ")); return out;   // vain lähtö saatiin
+    out.from = clean(o.join(" "));
+    // Määränpää perusmuodossa lähdön perässä: "Löylykadulta PHKS" jätti PHKS:n pois (Villen havainto 5.10.2026).
+    // Arkisanat ja olotilan sijat eivät ole paikkoja ("Matkakeskukselta bussilla").
+    const rest = words.slice(oi + 1).filter(w => !NL_MSG_SKIP.has(w.toLowerCase()) && !isFiLoc(w));
+    if (rest.length) out.to = clean(rest.join(" "));
+    return out;
   }
   // 5) Pelkkä määränpää
   const di = words.findIndex(isFiDest);
