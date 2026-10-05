@@ -687,6 +687,8 @@ async function minuuttiLinjaus(page, rootSel, media) {
     ["paikasta Matkakeskus paikkaan Kauppatori", "Matkakeskus", "Kauppatori", null],
     ["från Matkakeskus till Kauppatori", "Matkakeskus", "Kauppatori", null],
     ["Kauppatorilta Asemalle", "Kauppatori", "Asema", null],
+    ["Löylykadulta PHKS", "Löylykatu", "PHKS", null],
+    ["Matkakeskukselta Kauppatori bussilla", "Matkakeskus", "Kauppatori", null],
     ["Salosta Turkuun klo 9", "Salo", "Turku", "09:00"],
     ["haluan mennä Kauppatorilta Asemalle", "Kauppatori", "Asema", null],
     // puhutut SV/EN-muodot (mikrofoni tiskillä): käänteinen to/from, kohteliaisuudet, intent-alut
@@ -708,6 +710,16 @@ async function minuuttiLinjaus(page, rootSel, media) {
   }
   nlPass === nlCases.length ? ok(`NL-jäsennys: ${nlPass}/${nlCases.length} lausetta oikein (FI/EN/SV + aika)`)
                             : fail(`NL-jäsennys: vain ${nlPass}/${nlCases.length} oikein`);
+  // Kaupungin oma genetiivi on tarkenne (Villen havainto 5.10.2026: "lahden löylykadulta PHKS" antoi Lahdenkadun
+  // eikä PHKS:ää). Lause rakennetaan sivun oman kaupungin genetiivistä, koska smoke on tilallinen.
+  const nlGen = await page.evaluate(() => {
+    if (typeof nlDropCityGen !== "function") return { puuttuu: true };
+    const g = cityGenName(), r = parseNlTrip("haluaisin mennä " + String(g).toLowerCase() + " löylykadulta PHKS");
+    return { g, from: r.from, to: r.to, yksin: nlDropCityGen(g, g), muu: nlDropCityGen("Salon tori", "Lahden") };
+  });
+  (!nlGen.puuttuu && nlGen.from === "löylykatu" && nlGen.to === "PHKS" && nlGen.yksin === nlGen.g && nlGen.muu === "Salon tori")
+    ? ok("NL: kaupungin oma genetiivi pois paikan alusta ja perusmuotoinen määränpää lähdön perässä")
+    : fail("NL: kaupungin genetiivi / perusmuotoinen määränpää: " + JSON.stringify(nlGen));
   // A3: päivä ja kellonaika hakuhetkeksi kiinteällä "nyt"-hetkellä (su 4.10.2026 klo 17.26), jotta tulos ei riipu
   // ajohetkestä. Mennyt kellonaika ilman päivää siirtyy huomiseen ja merkitään (bumped).
   const nlw = await page.evaluate(() => {
@@ -734,7 +746,8 @@ async function minuuttiLinjaus(page, rootSel, media) {
     const cases = [
       [terhi, "Trio", "PHKS", "08:00", "arr", "vanha Anttila → PHKS"],
       ["Lähden klo 7.15 Matkakeskukselta ja minun pitäisi olla Heinolassa ennen yhdeksää.", "Matkakeskus", "Heinola", "07:15", "dep", ""],
-      ["Miten pääsen Lahden matkakeskukselta Päijät-Hämeen keskussairaalaan?", "Lahden matkakeskus", "Päijät-Hämeen keskussairaala", null, null, ""],
+      // Kaupungin oma genetiivi putoaa (Lahdessa "matkakeskus", muualla "Lahden matkakeskus").
+      ["Miten pääsen Lahden matkakeskukselta Päijät-Hämeen keskussairaalaan?", nlDropCityGen("Lahden matkakeskus"), "Päijät-Hämeen keskussairaala", null, null, ""],
       ["Vastaisitteko kysymykseen: miten pääsen Triosta PHKS:lle?", "Trio", "PHKS", null, null, ""],
       ["Hi, is there a bus from Trio to Kauppatori tomorrow at 7? Thanks", "Trio", "Kauppatori", "07:00", null, ""],
       ["Triosta TYKS:iin", "Trio", "TYKS", null, null, ""],
