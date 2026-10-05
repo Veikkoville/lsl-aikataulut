@@ -5445,6 +5445,7 @@ const STRINGS = {
     cvLoading: "Ladataan kaupungin näkymää…", cvLoadError: "Kaupungin näkymää ei voitu ladata. Tarkista verkkoyhteys ja yritä uudelleen.",
     deskExit: "← Poistu palvelutiskistä",
     deskRouteTitle: "Reittihaku (A→B)",
+    deskNlAlts: "Viestissä kysyttiin myös:",
     deskEditRoute: "Muokkaa hakua", deskSumDep: "lähtö {when}", deskSumArr: "perillä viimeistään {when}",
     deskEarlier: "← Aiemmat vuorot", deskLater: "Myöhemmät vuorot →",
     deskEarlierShown: "Näytetään aiemmat vuorot.", deskLaterShown: "Näytetään myöhemmät vuorot.",
@@ -6339,6 +6340,7 @@ const STRINGS = {
     cvLoading: "Loading the city view…", cvLoadError: "The city view could not be loaded. Check the network connection and try again.",
     deskExit: "← Exit service desk",
     deskRouteTitle: "Journey search (A→B)",
+    deskNlAlts: "The message also asked about:",
     deskEditRoute: "Edit search", deskSumDep: "departure {when}", deskSumArr: "arrive by {when}",
     deskEarlier: "← Earlier trips", deskLater: "Later trips →",
     deskEarlierShown: "Showing earlier trips.", deskLaterShown: "Showing later trips.",
@@ -7216,6 +7218,7 @@ const STRINGS = {
     cvLoading: "Stadens vy laddas…", cvLoadError: "Stadens vy kunde inte laddas. Kontrollera nätverksanslutningen och försök igen.",
     deskExit: "← Avsluta servicedisk",
     deskRouteTitle: "Resesökning (A→B)",
+    deskNlAlts: "Meddelandet frågade också om:",
     deskEditRoute: "Ändra sökningen", deskSumDep: "avgång {when}", deskSumArr: "framme senast {when}",
     deskEarlier: "← Tidigare turer", deskLater: "Senare turer →",
     deskEarlierShown: "Tidigare turer visas.", deskLaterShown: "Senare turer visas.",
@@ -12521,7 +12524,7 @@ function viewRoutes() {
     setFrom: p => { planState.from = p; },
     setTo: p => { planState.to = p; },
     // Lauseen päivä ja kellonaika (nlWhen); note = näkyvä huomautus reittisivulle, kun haku siirtyi huomiseen.
-    setTime: (hhmm, date, note) => { planState.time = (date || todayISO()) + "T" + hhmm; planState.timeMode = "dep"; planState.nlNote = note || ""; },
+    setTime: (hhmm, date, note, mode) => { planState.time = (date || todayISO()) + "T" + hhmm; planState.timeMode = mode === "arr" ? "arr" : "dep"; planState.nlNote = note || ""; },
     // Lause ilman aikaa = etusivun aikavalinta (oletus "Lähtö nyt"): muuten istunnon aiempi hakuaika jäi voimaan.
     resetTime: () => { applyHomeWhen(); planState.nlNote = ""; },
     focus: el => el.focus(),
@@ -12559,6 +12562,7 @@ function viewRoutes() {
     if (parsed.from && parsed.to) { e.preventDefault(); runNlTrip(v, nlCtx); }
   });
   bindNlMic(document.getElementById("homeNlMic"), homeFrom, nlCtx);
+  bindMsgPaste(homeFrom);
   document.getElementById("heroSearch").addEventListener("click", runHome);
   // Oma sijainti lähtöpaikaksi (C5), sama tapa kuin reittihakusivun "Käytä omaa sijaintia".
   document.getElementById("homeGeoBtn")?.addEventListener("click", () => {
@@ -16551,6 +16555,8 @@ function bindPlaceInput(input, listEl, onPick, opts = {}) {
 // ja haku osui Matkamiehenkatuun (Lappeenranta, auditointi 25.9.2026).
 function trimFiOrig(w) { return w.replace(/:?(sta|stä|lta|ltä)$/i, "").replace(/(u|y)kse$/i, "$1s"); }
 function trimFiDest(w) {
+  // Lyhenteen pääte kaksoispisteen jälkeen pois kokonaan: "PHKS:aan" jäi muotoon "PHKSa" ja "TYKS:iin" muotoon "TYKSi".
+  if (/:[a-zåäö]+$/i.test(w)) return w.replace(/:[a-zåäö]+$/i, "");
   return w
     .replace(/(u|y)kse(en|lle)$/i, "$1s")    // Matkakeskukseen, Matkakeskukselle -> Matkakeskus
     .replace(/:?(lle|seen)$/i, "")
@@ -16559,6 +16565,128 @@ function trimFiDest(w) {
 }
 const isFiOrig = w => /:?(sta|stä|lta|ltä)$/i.test(w);
 const isFiDest = w => /:?(lle|seen)$/i.test(w) || /:?([aeiouyåäö])\1n$/i.test(w) || /:?h([aeiouyåäö])n$/i.test(w);
+const isFiLoc = w => /:?(ssa|ssä|lla|llä)$/i.test(w);
+function trimFiLoc(w) { return w.replace(/:?(ssa|ssä|lla|llä)$/i, "").replace(/(u|y)kse$/i, "$1s"); }
+// Genetiivi perusmuotoon: "Trion" -> Trio, "Matkakeskuksen" -> Matkakeskus, "PHKS:n" -> PHKS.
+const nlGenBase = w => w.replace(/:n$/i, "").replace(/(u|y)ksen$/i, "$1s").replace(/n$/i, "");
+
+/* Asiakkaan viesti sellaisenaan (5.10.2026). Esimerkki palvelutiskiltä: "Minun pitäisi olla huomenna klo 8.00 PHKS.ssa.
+   Meneekö Trion edestä sinne bussi ja monelta on siinä pysäkillä? Tai. Meneekö vanhan Anttilan pysäkiltä bussi?"
+   Ennen koko teksti jaettiin ensimmäisestä -stä-sanasta, ja Mistä-kenttään meni "Minun pitäisi olla PHKS.ssa. Meneekö
+   Trion ede". Viestistä poimitaan paikat virkkeittäin sijamuodon mukaan: lähtö -sta/-lta ja "X:n edestä/pysäkiltä",
+   määränpää -lle/-Vn/-seen ja "(pitäisi) olla X:ssa". Ensimmäinen lähtö ja määränpää haetaan, muut parit ovat
+   vaihtoehtoja (alts). Kellonaika olla-, perillä- tai ennen-virkkeessä on saapumisaika (timeMode "arr"). */
+// Viesti: rivinvaihto, kysymysmerkki, useampi virke, yli 8 sanaa tai kysymys- tai modaaliverbi ("Lähden klo 7.15
+// Matkakeskukselta ja minun pitäisi olla Heinolassa" jäi lausejäsennykselle, ja lähtö oli "Lähden Matkakeskus").
+const nlLooksLikeMessage = raw => /[\r\n?]/.test(raw) || /[.!]\s+\S/.test(raw) || String(raw).trim().split(/\s+/).length > 8
+  || /(^|\s)(pitäisi|pitää|täytyy|meneekö|pääsenkö|onko|kulkeeko|lähteekö|olen|asun)(?=$|[\s,.!?])/i.test(raw);
+// Rivinvaihto virkkeen rajaksi: yksirivinen kenttä liimaisi rivit yhteen ("pysäkillä?Tai.", "HeiMinun").
+const nlJoinLines = txt => String(txt || "").trim().replace(/([.!?,;:])?[ \t]*(?:\r?\n[ \t]*)+/g, (m, p) => p ? p + " " : ". ");
+const nlWordSet = s => new Set(s.split(" "));
+// Sijamuodossa olevat sanat, jotka eivät ole paikkoja (kysymyssanat, pronominit, aika, kulkuväline, arkikohteet).
+const NL_MSG_SKIP = nlWordSet("mistä mihin minne missä millä miltä mille monelta sinne tänne tuonne siellä täällä tuolla " +
+  "sieltä täältä tuolta tästä siitä tuosta tähän siihen tuohon tässä siinä tuossa jostain johonkin kotoa kotiin perille " +
+  "perillä paikalla paikalle töihin töissä lääkäriin lääkärissä kauppaan vastaanotolle vastaanotolla tapaamiseen aikaan " +
+  "ajoissa asti saakka lähtien mennessä jälkeen etukäteen uudelleen vasta kanssa ihan kohtaan aamusta illasta alusta " +
+  "lopulta osalta puolesta minulta sinulta häneltä meiltä teiltä heiltä minulle sinulle hänelle meille teille heille " +
+  "minulla sinulla hänellä meillä teillä heillä bussiin bussista bussilla bussille linjaan linjalla junaan junalla " +
+  "kyytiin kyydillä taksilla autolla pyörällä sille siltä sillä bussi linja juna");
+// -n-loppuiset sanat, jotka eivät ole paikan nimen genetiivimäärite (verbit, pronominit).
+const NL_MSG_NOTGEN = nlWordSet("pääsen menen lähden olen tulen haluan voin tarvitsen aion kysyn asun en on minun sinun " +
+  "hänen meidän teidän heidän sen tämän tuon jonkin bussin linjan kun niin sitten terveisin ystävällisin");
+const NL_NUMWORD = /^(yhde|yhte|kahde|kahte|kolme|neljä|viide|viite|kuude|kuute|seitsemä|kahdeksa|yhdeksä|kymmene)(ltä|lta|en|än|an)$/i;
+const NL_POST_ORIG = nlWordSet("edestä vierestä luota läheltä kohdalta takaa puolelta pysäkiltä kulmalta kulmasta suunnasta");
+const NL_POST_DEST = nlWordSet("eteen viereen luo luokse lähelle kohdalle taakse pysäkille kulmalle suuntaan");
+const NL_POST_LOC = nlWordSet("edessä vieressä luona lähellä kohdalla pysäkillä kulmalla");
+const NL_CUE_DEST = nlWordSet("olla oltava aika ajanvaraus vastaanotto");   // "pitäisi olla X:ssa" = määränpää
+const NL_CUE_ORIG = nlWordSet("olen olemme ollaan asun asumme");             // "olen X:ssa" = lähtö
+const NL_ARR = nlWordSet("olla oltava perillä perille paikalla paikalle ehtiä ehdin ehtisin ehtii mennessä viimeistään " +
+  "ennen aika ajanvaraus vastaanotto alkaa arrive framme senast");
+const NL_DEP = nlWordSet("lähteä lähden lähtisin lähtee lähtö jälkeen depart leave avgång");
+// Paikan sana: lähtö- tai määränpääehdokkaista nämä ja isolla kirjoitetut ohittavat arkisanat ("kysymykseen").
+const NL_PLACEWORD = /sairaala|asema|keskus|tori|katu|tie|kuja|koulu|kirkko|halli|kenttä|satama|kampus|kirjasto|kauppa|terminaali/;
+
+// Viestin paikat → { from: [{ v, proper }], to: [...] } tekstin järjestyksessä, paikan sanat ja nimet ensin.
+// Virke käydään oikealta vasemmalle: pää (sijamuotoinen sana tai postpositio) vie määritteensä, jotka eivät ole enää omia
+// paikkojaan. "Hämeen" (Päijät-Hämeen keskussairaalaan) ja "vanhan" (vanhan Anttilan pysäkiltä) näyttävät illatiivilta.
+function nlMessagePlaces(text) {
+  const found = [];
+  text.split(/[.!?;]+(?:\s+|$)/).forEach((sent, si) => {
+    const w = sent.split(/\s+/).map(x => x.replace(/^[("'«»“”]+|[)"'«»“”,:]+$/g, "")).filter(Boolean);
+    const lc = w.map(x => x.toLowerCase());
+    const used = new Set();
+    const skip = l => NL_MSG_SKIP.has(l) || NL_NUMWORD.test(l);
+    // Nimen sana nominatiivissa: ei arkisana eikä verbi ("Lähtisin", "Meneekö").
+    const nameWord = k => /^[A-ZÅÄÖ0-9]/.test(w[k]) && !skip(lc[k]) && !NL_MSG_NOTGEN.has(lc[k]) && !/(isin|ko|kö)$/.test(lc[k]);
+    // Määritteet nimen edestä, enintään kaksi. Postpositiossa (post) pienellä alkava genetiivi on adjektiivi ("vanhan
+    // Anttilan pysäkiltä" -> vanha Anttila); muuten genetiivi kelpaa vain isolla ("Päijät-Hämeen keskussairaalaan") ja
+    // pieni sana vain samassa sijassa ("vanhalta asemalta"). Virkkeen ensimmäinen sana on yleensä verbi ("Menisin").
+    const mods = (i, post, trim, sfx) => {
+      const out = [];
+      for (let k = i - 1; k >= 1 && out.length < 2; k--) {
+        const x = w[k], l = lc[k], lower = x === l;
+        if (l.length < 3 || skip(l) || NL_MSG_NOTGEN.has(l) || /isin$/.test(l)) break;
+        if (post && /n$/.test(l)) out.unshift(lower ? nlGenBase(x) : x);
+        else if (!post && !lower && /n$/.test(l)) out.unshift(x);
+        else if (!post && lower && sfx && l.endsWith(sfx)) out.unshift(trim(x));
+        else break;
+      }
+      return out;
+    };
+    // Osoitteen numero ("Mukkulankatu 2:een"): edellinen sana on kadun nimi.
+    const phrase = (i, base, post, trim) => {
+      if (/^\d+[a-z]?$/i.test(base) && i > 0) return { v: w[i - 1] + " " + base, i0: i - 1 };
+      const m = mods(i, post, trim, lc[i].slice(-3));
+      return { v: [...m, base].join(" "), i0: i - m.length };
+    };
+    // Olotilan sija (-ssa, -lla) on paikka vain vihjesanan perässä: "pitäisi olla X:ssa" = määränpää, "olen X:ssa" = lähtö.
+    const locRole = i => {
+      const back = lc.slice(Math.max(0, i - 4), i);
+      return back.some(x => NL_CUE_DEST.has(x)) ? "to" : back.some(x => NL_CUE_ORIG.has(x)) ? "from" : null;
+    };
+    const take = (role, p, end) => {
+      if (!p.v) return;
+      found.push({ role, v: p.v, si, i0: p.i0 });
+      for (let k = Math.min(p.i0, end); k <= Math.max(p.i0, end); k++) used.add(k);
+    };
+    for (let i = w.length - 1; i >= 0; i--) {
+      if (used.has(i)) continue;
+      const x = w[i], l = lc[i];
+      if (NL_POST_ORIG.has(l) || NL_POST_DEST.has(l) || NL_POST_LOC.has(l)) {
+        const role = NL_POST_ORIG.has(l) ? "from" : NL_POST_DEST.has(l) ? "to" : locRole(i);
+        const g = i - 1;
+        if (!role) continue;
+        if (g >= 0 && /[a-zåäö0-9]n$/i.test(w[g]) && !skip(lc[g]) && !NL_MSG_NOTGEN.has(lc[g])) {
+          take(role, phrase(g, nlGenBase(w[g]), true), i);
+        } else if (g >= 0 && nameWord(g)) {
+          // Nominatiivi edessä: "Laune pysäkiltä", "Trio C pysäkiltä".
+          let k = g;
+          while (k > g - 2 && k > 0 && nameWord(k - 1)) k--;
+          take(role, { v: w.slice(k, i).join(" "), i0: k }, i);
+        } else {
+          // Nimi perässä: "pysäkiltä Trio C".
+          let k = i + 1;
+          while (k < w.length && k < i + 4 && !used.has(k) && /^[A-ZÅÄÖ0-9]/.test(w[k])) k++;
+          if (k > i + 1) take(role, { v: w.slice(i + 1, k).join(" "), i0: i + 1 }, k - 1);
+        }
+        continue;
+      }
+      if (l.length < 3 || skip(l)) continue;
+      const [role, trim] = isFiOrig(x) ? ["from", trimFiOrig] : isFiDest(x) ? ["to", trimFiDest]
+        : isFiLoc(x) ? [locRole(i), trimFiLoc] : [null, null];
+      if (role) take(role, phrase(i, trim(x), false, trim), i);
+    }
+  });
+  found.sort((a, b) => a.si - b.si || a.i0 - b.i0);
+  const lists = { from: [], to: [] };
+  for (const f of found) {
+    const v = f.v.replace(/^[\s,;:.\-]+|[\s,;:.\-]+$/g, "").trim(), list = lists[f.role];
+    if (v.length < 2 || list.some(x => x.v.toLowerCase() === v.toLowerCase())) continue;
+    list.push({ v, proper: /[A-ZÅÄÖ]{2}|\d/.test(v) || NL_PLACEWORD.test(v.toLowerCase()) || (f.i0 > 0 && /(^|\s)[A-ZÅÄÖ]/.test(v)) });
+  }
+  const order = list => [...list.filter(x => x.proper), ...list.filter(x => !x.proper)];
+  return { from: order(lists.from), to: order(lists.to) };
+}
 
 // Päivä lauseesta (auditointi 4.10.2026, K3): ennen "huomenna klo 7" haki tämän päivän klo 7, ja sana jäi
 // lähtöpaikan nimeen ("huomenna Matkakeskus"). offset = päiviä tästä päivästä, weekday = 0 (su) ... 6 (la).
@@ -16576,28 +16704,68 @@ const NL_WEEKDAY = { sunnuntai: 0, maanantai: 1, tiistai: 2, keskiviikko: 3, tor
   söndag: 0, måndag: 1, tisdag: 2, onsdag: 3, torsdag: 4, fredag: 5, lördag: 6,
   sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
 
-// Jäsentää matkalauseen → { from, to, time, day, dayText } (merkkijonoina; paikat resolvoidaan geocodella).
+// Jäsentää matkalauseen tai viestin → { from, to, time, day, dayText, timeMode, alts, msg } (merkkijonoina; paikat
+// resolvoidaan geocodella). msg = paikat poimittiin viestistä, alts = viestin muut lähtö- ja määränpääparit.
 function parseNlTrip(raw) {
-  const out = { from: null, to: null, time: null, day: null, dayText: "" };
-  let s = String(raw || "").trim().replace(/\s+/g, " ");
+  const out = { from: null, to: null, time: null, day: null, dayText: "", timeMode: null, alts: [], msg: false };
+  const msg = nlLooksLikeMessage(String(raw || "").trim());
+  // Lyhenteen sijapääte pisteellä ("PHKS.ssa") kaksoispisteeksi, ettei piste katkaise virkettä.
+  let s = (msg ? nlJoinLines(raw) : String(raw || "").trim())
+    .replace(/\b([A-ZÅÄÖ]{2,6})[.'’]([a-zåäö]{1,5})(?![a-zåäö])/g, "$1:$2").replace(/\s+/g, " ");
   if (!s) return out;
   // Aika: klo/kello/kl./at HH(.MM/:MM); nyt/now/nu poistetaan (oletus = nyt)
   const tm = s.match(/\b(?:klo|kello|kl\.?|at)\s*(\d{1,2})(?:[.:](\d{2}))?\b/i);
   if (tm) {
     out.time = String(Math.min(23, parseInt(tm[1], 10))).padStart(2, "0") + ":" + (tm[2] || "00");
+    // Saapumisaika: kellonajan virkkeessä (viestissä myös muualla) olla-, perillä-, ennen- tai ehtiä-sana eikä lähtösanaa.
+    const words = v => v.toLowerCase().split(/[\s,.!?;:]+/);
+    const mode = ws => ws.some(x => NL_DEP.has(x)) ? "dep" : ws.some(x => NL_ARR.has(x)) ? "arr" : null;
+    out.timeMode = mode(words(s.slice(0, tm.index).split(/[.!?]\s/).pop() + " " + s.slice(tm.index).split(/[.!?](?:\s|$)/)[0]))
+      || (msg ? mode(words(s)) : null);
     s = s.replace(tm[0], " ");
+  }
+  // Päivämäärä "6.10." tai "6.10.2026" (sähköpostit). Ilman vuotta mennyt päivä tarkoittaa ensi vuotta.
+  const dm = s.match(/(^|[\s,;(])(\d{1,2})\.(\d{1,2})\.(\d{4})?(?=$|[\s,;!?).])/);
+  if (dm && +dm[3] >= 1 && +dm[3] <= 12 && +dm[2] >= 1 && +dm[2] <= 31) {
+    const n = new Date(), today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    let d = new Date(dm[4] ? +dm[4] : n.getFullYear(), dm[3] - 1, +dm[2]);
+    if (!dm[4] && d < today) d = new Date(d.getFullYear() + 1, d.getMonth(), d.getDate());
+    out.day = { date: isoOf(d) }; out.dayText = dm[0].trim();
+    s = s.slice(0, dm.index) + dm[1] + " " + s.slice(dm.index + dm[0].length);
   }
   // \b ei toimi ä/ö-alkuisissa ja -loppuisissa sanoissa ("tänään", "övermorgon"), joten rajat ovat välilyöntejä.
   for (const d of NL_DAYS) {
     const m = s.match(new RegExp(`(^|[\\s,;])(${d.re})${NL_PART}(?=$|[\\s,;.!?])`, "i"));
     if (!m) continue;
-    out.day = d.offset != null ? { offset: d.offset } : { weekday: NL_WEEKDAY[m[3].toLowerCase()] };
-    out.dayText = m[0].replace(/^[\s,;]+/, "").trim();
+    if (!out.day) {
+      out.day = d.offset != null ? { offset: d.offset } : { weekday: NL_WEEKDAY[m[3].toLowerCase()] };
+      out.dayText = m[0].replace(/^[\s,;]+/, "").trim();
+    }
     s = s.slice(0, m.index) + m[1] + " " + s.slice(m.index + m[0].length);
     break;
   }
   s = s.replace(/(^|\s)(aamulla|aamupäivällä|iltapäivällä|illalla)(?=\s|$)/gi, " ");
   s = s.replace(/\b(nyt|now|nu|please|tack|kiitos)\b/gi, " ").replace(/\s+/g, " ").trim();
+  if (!msg) return nlSplitTrip(s, out);
+  const pl = nlMessagePlaces(s);
+  if (pl.from.length || pl.to.length) {
+    // Vaihtoehdoiksi vain nimet ja paikan sanat: "Trio → kysymys" (Vastaisitteko kysymykseen) ei ole matka.
+    out.msg = true; out.from = pl.from[0]?.v || null; out.to = pl.to[0]?.v || null;
+    out.alts = [...pl.from.slice(1).filter(f => f.proper).map(f => ({ from: f.v, to: out.to })),
+      ...pl.to.slice(1).filter(d => d.proper).map(d => ({ from: out.from, to: d.v }))]
+      .filter(a => a.from && a.to && a.from.toLowerCase() !== a.to.toLowerCase()).slice(0, 3);
+    return out;
+  }
+  // Ei suomen sijamuotoja (esim. "Is there a bus from Trio to Kauppatori?"): virke kerrallaan lausejäsennyksellä.
+  for (const sent of s.split(/[.!?;]+(?:\s+|$)/)) {
+    const r = nlSplitTrip(sent.trim(), { from: null, to: null });
+    if (r.from || r.to) { out.msg = true; out.from = r.from; out.to = r.to; break; }
+  }
+  return out;
+}
+
+// Yksi matkalause → out.from / out.to (nuoli, from/to, från/till, suomen sijapäätteet).
+function nlSplitTrip(s, out) {
   // Intent-/verbietuliitteet pois (puhutut muodot: "how do I get to", "hur kommer jag till",
   // "I need to get", "jag ska åka", "take me", "vi ska")
   s = s.replace(/^(?:haluan|haluaisin|asiakas haluaa|menen|miten p[aä][aä]sen|kuinka p[aä][aä]sen|i want to go|i would like to go|i'?d like to go|i need to (?:go|get)|i'?m going|i am going|take me|get me|can i (?:go|get)|how (?:do|can|could) i (?:get|go|travel)|which bus goes|jag vill (?:åka|resa)|jag ska(?: åka| resa)?|jag beh[öo]ver (?:åka|komma)|vi ska(?: åka)?|hur (?:kommer|tar|åker) jag(?: mig)?|kan jag (?:åka|komma)|vilken buss går)\b/i, "").trim();
@@ -16648,7 +16816,10 @@ function nlWhen(p, now = new Date()) {
   const hm = p.time ? p.time.split(":").map(Number) : null;
   const past = !!hm && hm[0] * 60 + hm[1] < now.getHours() * 60 + now.getMinutes() - 30;
   let off = 0, bumped = false;
-  if (p.day && p.day.offset != null) off = p.day.offset;
+  if (p.day && p.day.date) {
+    const [y, mo, d] = p.day.date.split("-").map(Number);
+    off = Math.round((new Date(y, mo - 1, d) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 864e5);
+  } else if (p.day && p.day.offset != null) off = p.day.offset;
   else if (p.day && p.day.weekday != null) {
     off = (p.day.weekday - now.getDay() + 7) % 7;
     if (off === 0 && past) off = 7;
@@ -16670,20 +16841,38 @@ function fmtDayShort(iso) {
 // muuten täytä saatu, kohdista puuttuvaan kenttään + lempeä vihje (ei kovaa virhettä).
 // Yhteysvirhe paikkahaussa näytetään virheenä Yritä uudelleen -napilla eikä vihjeenä "en saanut kiinni",
 // joka sai verkkokatkon näyttämään kirjoitusvirheeltä (auditointi 4.10.2026, K5).
-async function runNlTrip(text, c) {
+// Viestistä poimittu paikka hyväksytään vain, jos ylin osuma vastaa sitä (pisimmän sanan alku nimessä tai haettu
+// sairaala): "vanha Anttila" antoi Lahdessa Vanhan Ahtialantien pysäkin. Hylätty teksti jää kenttään ehdotuksineen.
+const nlHitMatches = (q, hit) => {
+  const w = String(q).toLowerCase().split(/[\s,]+/).sort((a, b) => b.length - a.length)[0] || "";
+  return String(hit?.name || "").toLowerCase().includes(w.slice(0, Math.max(4, w.length - 3)))
+    || hospitalRank(hit, hospitalQuery(q)) === 2;
+};
+// pick = viestin vaihtoehtoisen parin indeksi (c.alts-napit): se haetaan, ja alkuperäinen pari siirtyy vaihtoehdoksi.
+async function runNlTrip(text, c, pick) {
   const p = parseNlTrip(text);
+  if (pick != null && p.alts[pick]) {
+    const a = p.alts[pick];
+    p.alts = [{ from: p.from, to: p.to }, ...p.alts.filter((_, i) => i !== pick)];
+    p.from = a.from; p.to = a.to;
+  }
   const hint = msg => { c.msg.innerHTML = msg ? `<p class="muted">${esc(msg)}</p>` : ""; };
+  if (c.alts) c.alts(null);
   if (!p.from && !p.to) { hint(t("nlNeedBoth")); c.focus(c.fromInput); return; }
   if (c.busy) c.busy();
   hint(t("searchingRoutes"));
   let failed = false;
-  const top = async q => { try { const r = await searchPlaces(q); return r[0] || null; } catch (e) { failed = true; return null; } };
+  const top = async q => {
+    try { const h = (await searchPlaces(q))[0] || null; return h && p.msg && !nlHitMatches(q, h) ? null : h; }
+    catch (e) { failed = true; return null; }
+  };
   const [fp, tp] = await Promise.all([p.from ? top(p.from) : Promise.resolve(null), p.to ? top(p.to) : Promise.resolve(null)]);
-  if (fp) { c.setFrom(fp); c.fromInput.value = fp.name; }
-  if (tp) { c.setTo(tp); c.toInput.value = tp.name; }
+  const keep = (el, q) => { if (p.msg && q) { el.value = q; el.dispatchEvent(new Event("input", { bubbles: true })); } };
+  if (fp) { c.setFrom(fp); c.fromInput.value = fp.name; } else keep(c.fromInput, p.from);
+  if (tp) { c.setTo(tp); c.toInput.value = tp.name; } else keep(c.toInput, p.to);
   const when = nlWhen(p);
   if (when && c.setTime) c.setTime(when.time, when.date,
-    when.bumped ? t("nlTomorrowNote", { time: when.time, day: fmtDayShort(when.date) }) : "");
+    when.bumped ? t("nlTomorrowNote", { time: when.time, day: fmtDayShort(when.date) }) : "", p.timeMode);
   else if (!when && c.resetTime) c.resetTime();   // lause ilman aikaa ja päivää = nyt
   if (failed && !(fp && tp)) {
     c.msg.innerHTML = `<div class="error" role="alert">${esc(t("nlSearchErr"))} ` +
@@ -16691,7 +16880,7 @@ async function runNlTrip(text, c) {
     c.msg.querySelector(".nl-retry")?.addEventListener("click", () => runNlTrip(text, c));
     return;
   }
-  if (fp && tp) { hint(""); c.run(); }                                   // molemmat varmasti → aja heti
+  if (fp && tp) { hint(""); if (c.alts && p.alts.length) c.alts({ text, pairs: p.alts }); c.run(); }   // molemmat → aja heti
   else if (fp && !tp) { hint(t("nlNeedDest")); c.focus(c.toInput); }
   else if (!fp && tp) { hint(t("nlNeedOrigin")); c.focus(c.fromInput); }
   else { hint(t("nlNeedBoth")); c.focus(c.fromInput); }
@@ -16738,7 +16927,18 @@ function bindNlField(input, micBtn, c) {
   input.addEventListener("keydown", e => {
     if (e.key === "Enter") { e.preventDefault(); const v = input.value.trim(); if (v) runNlTrip(v, c); }
   });
+  bindMsgPaste(input);
   bindNlMic(micBtn, input, c);
+}
+// Liitetty monirivinen viesti: yksirivinen kenttä poistaisi rivinvaihdot, joten ne muutetaan virkkeen rajoiksi.
+function bindMsgPaste(input) {
+  input?.addEventListener("paste", e => {
+    const txt = e.clipboardData?.getData("text/plain") || "";
+    if (!/[\r\n]/.test(txt.trim())) return;
+    e.preventDefault();
+    input.setRangeText(nlJoinLines(txt), input.selectionStart ?? input.value.length, input.selectionEnd ?? input.value.length, "end");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
 }
 
 /* ---------- Palvelutiski-tila (#/palvelutiski) ---------- */
@@ -18282,6 +18482,7 @@ async function viewServiceDesk() {
   // whenNote: luonnollisen kielen lauseen huomautus ("kello 7 on jo mennyt, haku huomiselle"). Näkyy hakutuloksen
   // yllä niin kauan kuin lauseen asettama aika on voimassa; ajan muokkaus tai tilan vaihto poistaa sen.
   let whenNote = "";
+  let nlAlts = null;   // { text, pairs, from, to }: liitetyn viestin muut parit (nlCtl.alts)
   const fillNow = () => { const v = nowLocalInput(); dateEl.value = v.slice(0, 10); timeEl.value = v.slice(11, 16); };
   const setWhen = mode => {
     whenMode = mode;
@@ -18723,6 +18924,9 @@ async function viewServiceDesk() {
       ? `<p class="muted desk-when-used">${t(arr ? "deskSearchedArr" : "deskSearchedDep", { when: esc(whenText()) })}</p>` : "")
       + (paging ? `<p class="muted desk-when-used">${esc(t(page === "next" ? "deskLaterShown" : "deskEarlierShown"))}</p>` : "")
       + (whenNote && !paging ? `<p class="desk-when-note" role="status">${icon("clock")} ${esc(whenNote)}</p>` : "")
+      + (nlAlts && !paging && nlAlts.from === rsFrom && nlAlts.to === rsTo ? `<p class="muted desk-nl-alts">${esc(t("deskNlAlts"))} `
+        + nlAlts.pairs.map((a, i) => `<button type="button" class="linkish desk-nl-alt" data-alt="${i}">${esc(a.from)} → ${esc(a.to)}</button>`).join(" ")
+        + `</p>` : "")
       + outsideNoteHtml(rsFrom, rsTo, !nodes.length);
     if (!nodes.length) {
       setBusy(false);
@@ -18833,14 +19037,20 @@ async function viewServiceDesk() {
     setTo: p => { dTo = p; toCtl.set(p); },
     // Lauseen päivä ja kellonaika (nlWhen): "huomenna klo 7" asettaa päiväkenttään huomisen. note = näkyvä
     // huomautus, kun mennyt kellonaika siirsi haun huomiseen.
-    setTime: (hhmm, date, note) => { setWhen("dep"); dateEl.value = date || todayISO(); timeEl.value = hhmm; whenNote = note || ""; syncLastBusBtn(); },
+    setTime: (hhmm, date, note, mode) => { setWhen(mode === "arr" ? "arr" : "dep"); dateEl.value = date || todayISO(); timeEl.value = hhmm; whenNote = note || ""; syncLastBusBtn(); },
     resetTime: () => setWhen("now"),
+    // Viestin muut parit ("Tai ... vanhan Anttilan pysäkiltä") napeiksi hakutuloksen ylle, kun haku on tämä pari.
+    alts: v => { nlAlts = v ? { ...v, from: dFrom, to: dTo } : null; },
     busy: () => setBusy(true),
     // Lauseesta puuttuu paikka: tiivistetty lomake avataan, jotta kenttään voi kirjoittaa.
     focus: el => { expandRoute(); el.focus(); },
     run: () => runSearch(),
   };
   bindNlField(document.getElementById("deskNlInput"), document.getElementById("deskNlMic"), nlCtl);
+  document.getElementById("deskResults")?.addEventListener("click", e => {
+    const b = e.target.closest(".desk-nl-alt");
+    if (b && nlAlts) runNlTrip(nlAlts.text, routeForm && routeForm.hidden ? { ...nlCtl, msg: document.getElementById("deskMsg") } : nlCtl, Number(b.dataset.alt));
+  });
   document.querySelectorAll(".desk-when .dseg").forEach(b => b.addEventListener("click", () => {
     setWhen(b.dataset.tm);
     if (b.dataset.tm !== "now") timeEl.focus();
@@ -19620,6 +19830,7 @@ async function viewServiceDesk() {
   // muuten pysäkit ensin; paikat (geokoodaus) lisätään listan loppuun kun ne saapuvat, joten
   // jo näkyvien vaihtoehtojen järjestys ei muutu kesken valinnan.
   const qEl = document.getElementById("deskStop");
+  bindMsgPaste(qEl);   // asiakkaan viesti voi tulla myös tähän ("Reitin voi kirjoittaa suoraan")
   const qList = document.getElementById("deskStopList");
   const US = { timer: null, seq: 0, shownQ: "", pendingQ: "", pendingP: null, byId: new Map(), active: null, n: 0 };
   const optEls = () => [...qList.querySelectorAll('[role="option"]')];
@@ -19651,7 +19862,8 @@ async function viewServiceDesk() {
       inner = `${icon(PLACE_ICONS[it.place.layer] || "pin")}<span>${esc(it.place.name)}${placeHint(it.place)}</span>`;
     } else {
       const nl = it.nl;
-      const txt = `${nl.from || "…"} → ${nl.to || "…"}${nl.dayText ? ", " + nl.dayText : ""}${nl.time ? ", " + nl.time : ""}`;
+      const tm = nl.time && nl.timeMode === "arr" ? t("deskSumArr", { when: nl.time }) : nl.time;
+      const txt = `${nl.from || "…"} → ${nl.to || "…"}${nl.dayText ? ", " + nl.dayText : ""}${tm ? ", " + tm : ""}`;
       inner = `${icon("route")}<span>${t("deskOptRoute", { q: esc(txt) })}</span>`;
     }
     return `<li role="presentation"><button type="button" role="option" id="${id}" class="item" tabindex="-1" aria-selected="false" ${attr}="1">${inner}</button></li>`;
