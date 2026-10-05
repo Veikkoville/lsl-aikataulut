@@ -826,6 +826,18 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (deskAlertCount === homeDisruptionCount)
     ? ok(`palvelutiski: 'Aktiiviset häiriöt' näyttää vain häiriöt (${deskAlertCount} = etusivun häiriöt, ei tiedotteita)`)
     : fail(`palvelutiski: häiriömäärä ${deskAlertCount} ≠ etusivun häiriölohko ${homeDisruptionCount} (vuotaako tiedotteita?)`);
+  // Tulosteet-välilehden Yhteys-ryhmä ennen reittihakua (5.10.2026): ei tulostenappeja, vaan ohje ja nappi,
+  // joka vie Neuvonnan Reitti-kortille. Nappi jättää Neuvonnan auki, joten seuraava haku toimii sellaisenaan.
+  await page.click('.dtab[data-dtab="tulosteet"]');
+  const yh0 = await page.evaluate(() => ({ target: document.querySelector("#deskPrintsTrip .dp-target")?.textContent || "",
+    itin: !!document.getElementById("deskTripItin"), pocket: !!document.getElementById("deskTripPocket"), go: !!document.getElementById("deskTripGo") }));
+  if (yh0.go) await page.click("#deskTripGo");
+  const yh1 = await page.evaluate(() => ({ advice: document.querySelector('[data-dpanel="neuvonta"]').hidden === false,
+    card: document.querySelector('.dcard-tab[data-dcard="route"]').getAttribute("aria-pressed"), focus: document.activeElement?.id || "" }));
+  (/Reitti-kortilla/.test(yh0.target) && !yh0.itin && !yh0.pocket && yh0.go && yh1.advice && yh1.card === "true" && yh1.focus === "deskFrom")
+    ? ok("palvelutiski: Tulosteiden Yhteys-ryhmä ennen hakua ohjaa Reitti-kortille")
+    : fail("palvelutiski: Yhteys-ryhmä ennen hakua: " + JSON.stringify({ yh0, yh1 }));
+  if (!yh1.advice) await page.click('.dtab[data-dtab="neuvonta"]');
   // Näppäinflow: lähtö → Enter (valitsee ylimmän + siirtää määränpäähän) → Enter ajaa haun.
   // V1 (4.10.2026): reittihaku on oma korttinsa; tiski avautuu pysäkkikorttiin, joten Reitti-kortti
   // avataan ensin (piilotettua kenttää ei voi klikata).
@@ -890,6 +902,16 @@ async function minuuttiLinjaus(page, rootSel, media) {
       (dl.panel && dl.adviceHidden && dl.lines > 10 && dl.ryhmat === 2 && dl.stopNappi && dl.stopNimi.length > 2)
         ? ok(`palvelutiski: Tulosteet-välilehti (${dl.lines} linjaa, ${dl.ryhmat} ryhmää, pysäkki ${dl.stopNimi})`)
         : fail("palvelutiski: tulostevälilehti puutteellinen tai pysäkkisidonnainen: " + JSON.stringify(dl));
+      // Yhteys-ryhmä seuraa Neuvonnan reittivastausta: reittituloste aina, taskuaikataulu täsmälleen silloin,
+      // kun jollakin vaihtoehdolla on taskuaikataulun nappi (live-haku, joten suoruutta ei oleteta).
+      const yh = await page.evaluate(() => ({ haettu: !!document.querySelector("#deskResults .desk-tell"),
+        target: (document.querySelector("#deskPrintsTrip .dp-target")?.textContent || "").replace(/\s+/g, " ").trim(),
+        itin: !!document.getElementById("deskTripItin"), pocket: !!document.getElementById("deskTripPocket"),
+        optPocket: !!document.querySelector("#deskResults .deskOptPocket") }));
+      if (!yh.haettu) info("palvelutiski: Yhteys-ryhmää ei tarkistettu, koska reittihaku ei tuottanut vastausta");
+      else (/ → .+ · \d{1,2}[.:]\d{2}–\d{1,2}[.:]\d{2}$/.test(yh.target) && yh.itin && yh.pocket === yh.optPocket)
+        ? ok(`palvelutiski: Tulosteiden Yhteys-ryhmä näyttää haetun yhteyden (${yh.target}, taskuaikataulu ${yh.pocket ? "on" : "ei, vaihdollinen"})`)
+        : fail("palvelutiski: Yhteys-ryhmä ei seuraa reittivastausta: " + JSON.stringify(yh));
       // Nappien tilat: 0 valittua = kaikki pois, 1 = yhden linjan tulosteet + vihko,
       // 2 = vihko + yhdistetty suunta mutta EI yhden linjan tulosteita. Nappi joka ei tee
       // mitään on pahempi kuin harmaa nappi: asiakaspalvelija ei näe kumpi tapahtui.
@@ -2161,6 +2183,28 @@ async function minuuttiLinjaus(page, rootSel, media) {
     (pe.st === "Taskuaikataulua ei saatu koottua. Yritä uudelleen." && !pe.printed && !pe.pocket)
       ? ok("taskuaikataulu (D3): verkkovirhe ei tulosta vajaata paperia vaan kertoo virheen")
       : fail("taskuaikataulu (D3): virhetila: " + JSON.stringify(pe));
+    // Sama taskuaikataulu ja reittituloste Tulosteet-välilehden Yhteys-ryhmästä (5.10.2026). Välilehdet vaihdetaan
+    // JS-klikkauksella, koska tulostuksen valmisteluruutu jää mockatun printin jälkeen sivun päälle.
+    const yp = await page.evaluate(async () => {
+      document.querySelector('.dtab[data-dtab="tulosteet"]').click();
+      pocketTripMemo.clear();
+      const po = document.getElementById("deskPrintOut");
+      const run = async (id, sel) => {
+        po.innerHTML = "";
+        const n0 = window.__v3.printed;
+        document.getElementById(id)?.click();
+        for (let i = 0; i < 300 && window.__v3.printed === n0; i++) await new Promise(r => setTimeout(r, 100));
+        return { printed: window.__v3.printed > n0, out: !!po.querySelector(sel), title: po.querySelector(".pk-title")?.textContent || "" };
+      };
+      const note = document.querySelector("#deskPrintsTrip .dp-note")?.textContent || "";
+      const r = { pocket: await run("deskTripPocket", ".pk-sheet"), itin: await run("deskTripItin", ".itin-print"), note };
+      document.querySelector('.dtab[data-dtab="neuvonta"]').click();
+      return r;
+    });
+    (yp.pocket.printed && yp.pocket.out && yp.pocket.title === "Smoke A → Smoke B" && yp.itin.printed && yp.itin.out
+      && yp.note.includes("Smoke A") && yp.note.includes("Smoke B"))
+      ? ok("palvelutiski: Tulosteiden Yhteys-ryhmä tulostaa saman taskuaikataulun ja reittitulosteen kuin Neuvonta")
+      : fail("palvelutiski: Yhteys-ryhmän tulosteet: " + JSON.stringify(yp));
 
     // D4: Kerro asiakkaalle asiakkaan kielellä. SV valmiista käännöksistä: vastaus, kopio ja asiakasnäkymä ruotsiksi,
     // pysäkin ja linjan nimet ennallaan.

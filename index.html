@@ -5863,6 +5863,9 @@ const STRINGS = {
     deskGroupStop: "Pysäkki", deskGroupLine: "Yksi linja", deskGroupLines: "Usea linja",
     deskGroupOther: "Muut tulosteet",
     deskNeedStop: "Valitse pysäkki Neuvonta-välilehdeltä.",
+    // Yhteys-ryhmä (5.10.2026): Neuvonnan viimeisin reittivastaus, reittituloste ja taskuaikataulu.
+    deskGroupTrip: "Yhteys", deskNeedTrip: "Hae ensin yhteys Neuvonta-välilehden Reitti-kortilla.", deskTripGo: "Hae yhteys",
+    deskTripPocketFor: "Taskuaikataulussa ovat kaikki suorat lähdöt pysäkiltä {from} pysäkille {to}.",
     deskNeedOneLine: "Valitse yksi linja.", deskNeedOneOfMany: "Valittuna {n} linjaa: valitse yksi.",
     deskNeedLines: "Valitse vähintään yksi linja.", deskNeedTwoLines: "Valitse vähintään kaksi linjaa.",
     deskStopPoster: "Pysäkkijuliste (A4)",
@@ -6744,6 +6747,8 @@ const STRINGS = {
     deskGroupStop: "Stop", deskGroupLine: "One line", deskGroupLines: "Several lines",
     deskGroupOther: "Other printouts",
     deskNeedStop: "Choose a stop on the Advice tab.",
+    deskGroupTrip: "Connection", deskNeedTrip: "First search for a connection on the Journey card of the Advice tab.", deskTripGo: "Search for a connection",
+    deskTripPocketFor: "The pocket timetable lists all direct departures from {from} to {to}.",
     deskNeedOneLine: "Choose one line.", deskNeedOneOfMany: "{n} lines selected: choose one.",
     deskNeedLines: "Choose at least one line.", deskNeedTwoLines: "Choose at least two lines.",
     deskStopPoster: "Stop poster (A4)",
@@ -7619,6 +7624,8 @@ const STRINGS = {
     deskGroupStop: "Hållplats", deskGroupLine: "En linje", deskGroupLines: "Flera linjer",
     deskGroupOther: "Övriga utskrifter",
     deskNeedStop: "Välj en hållplats på fliken Rådgivning.",
+    deskGroupTrip: "Förbindelse", deskNeedTrip: "Sök först en förbindelse på kortet Resa under fliken Rådgivning.", deskTripGo: "Sök förbindelse",
+    deskTripPocketFor: "Fickturlistan har alla direkta avgångar från {from} till {to}.",
     deskNeedOneLine: "Välj en linje.", deskNeedOneOfMany: "{n} linjer valda: välj en.",
     deskNeedLines: "Välj minst en linje.", deskNeedTwoLines: "Välj minst två linjer.",
     deskStopPoster: "Hållplatsaffisch (A4)",
@@ -17995,6 +18002,12 @@ async function viewServiceDesk() {
                 </div>
                 <p class="muted dp-note" id="deskStopPosterStatus" role="status"></p>
               </div>
+              <!-- Yhteys (5.10.2026): Neuvonnan viimeisin reittivastaus, sisältö syncPrintsTripistä. -->
+              <div class="dp-group">
+                <h3>${t("deskGroupTrip")}</h3>
+                <div id="deskPrintsTrip"></div>
+                <p class="muted dp-note" id="deskTripStatus" role="status"></p>
+              </div>
               <div class="dp-group">
                 <h3>${t("deskGroupLine")}</h3>
                 <div class="dp-btns">
@@ -18774,7 +18787,38 @@ async function viewServiceDesk() {
     const e = document.getElementById("deskEarlierBtn"), l = document.getElementById("deskLaterBtn");
     if (e) e.hidden = !(pi && pi.startCursor);
     if (l) l.hidden = !(pi && pi.endCursor);
+    syncPrintsTrip();   // reittivastaus vaihtui: myös Tulosteet-välilehden Yhteys-ryhmä
   };
+  // Tulosteet-välilehden Yhteys-ryhmä (5.10.2026): sama reittivastaus kuin Neuvonnassa, joten reittituloste ja
+  // taskuaikataulu löytyvät myös tulosteiden joukosta. Taskuaikataulu kerrotusta yhteydestä, jos se on suora,
+  // muuten ensimmäisestä suorasta vaihtoehdosta. Tulostus on samoilla funktioilla kuin Neuvonnan napeissa.
+  const tripEl = document.getElementById("deskPrintsTrip");
+  const tripPocketNode = rs => [rs.node, ...(rs.nodes || [])].find(deskPocketLeg);
+  const syncPrintsTrip = () => {
+    if (!tripEl) return;
+    const rs = routeShown;
+    document.getElementById("deskTripStatus").textContent = "";
+    if (!rs || !rs.node) {
+      tripEl.innerHTML = `<p class="dp-target">${t("deskNeedTrip")}</p>
+        <div class="dp-btns"><button type="button" id="deskTripGo" class="secondary">${icon("route")} ${t("deskTripGo")}</button></div>`;
+      return;
+    }
+    const pk = tripPocketNode(rs), leg = pk && deskPocketLeg(pk);
+    tripEl.innerHTML = `<p class="dp-target"><strong>${esc(placeShort(rs.from))}</strong> → <strong>${esc(placeShort(rs.to))}</strong>
+      · ${fmtClock(rs.node.start)}–${fmtClock(rs.node.end)}</p>
+      <div class="dp-btns"><button type="button" id="deskTripItin" class="secondary">${icon("print")} ${t("deskItinPrintBtn")}</button>
+      ${pk ? `<button type="button" id="deskTripPocket" class="secondary">${icon("print")} ${t("deskPocketBtn")}</button>` : ""}
+      ${printLargeOptHtml()}</div>
+      <p class="muted dp-note">${pk ? esc(t("deskTripPocketFor", { from: leg.from.name || "", to: leg.to.name || "" })) : t("deskPocketIndirect")}</p>`;
+  };
+  tripEl?.addEventListener("click", e => {
+    const b = e.target.closest("button"), rs = routeShown, st = document.getElementById("deskTripStatus");
+    if (!b) return;
+    if (b.id === "deskTripGo") { selectTab("neuvonta"); showCard("route"); expandRoute(); fromEl.focus(); }
+    else if (b.id === "deskTripItin" && rs?.node) deskPrintItinerary(rs.node, rs.nodes, rs.from, rs.to, st);
+    else if (b.id === "deskTripPocket" && rs?.node) deskPrintPocket(tripPocketNode(rs), rs.from, rs.to, st);
+  });
+  syncPrintsTrip();
   document.getElementById("deskEarlierBtn")?.addEventListener("click", () => runSearch("prev"));
   document.getElementById("deskLaterBtn")?.addEventListener("click", () => runSearch("next"));
 
