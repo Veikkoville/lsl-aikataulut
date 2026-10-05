@@ -1559,12 +1559,13 @@ async function minuuttiLinjaus(page, rootSel, media) {
   const arrDesk = await page.evaluate(async dayIso => {
     const orig = gql, wait = ms => new Promise(r => setTimeout(r, ms));
     const at = hm => isoWithOffset(dayIso + "T" + hm);
-    const node = (dep, arr, line) => ({ start: at(dep), end: at(arr), numberOfTransfers: 0, walkDistance: 300, legs: [
+    const node = (dep, arr, line, walk = 300) => ({ start: at(dep), end: at(arr), numberOfTransfers: 0, walkDistance: walk, legs: [
       { mode: "BUS", duration: 600, distance: 3000, start: { scheduledTime: at(dep) }, end: { scheduledTime: at(arr) },
         from: { name: "Matkakeskus B", lat: 60.977, lon: 25.658, stop: { platformCode: "B" } },
         to: { name: "Keskussairaala", lat: 60.99, lon: 25.68, stop: {} }, route: { gtfsId: "SMOKEA:" + line, shortName: line },
         trip: { tripHeadsign: "Keskussairaala" }, intermediateStops: [], intermediatePlaces: [], legGeometry: { points: "" }, alerts: [] }] });
-    const nodes = [node("05:49", "06:00", "4"), node("06:48", "06:57", "14"), node("06:18", "06:30", "4")];
+    // 06:55 lähtee myöhäisimpänä mutta vaatii 350 m enemmän kävelyä: kerrotaan 06:48 (Trio C → PHKS, Ville 5.10.2026).
+    const nodes = [node("05:49", "06:00", "4"), node("06:48", "06:57", "14"), node("06:18", "06:30", "4"), node("06:55", "06:59", "4", 650)];
     gql = async (q, v, o) => q === PLAN_QUERY ? { planConnection: { pageInfo: {}, edges: nodes.map(node => ({ node })) } } : orig(q, v, o);
     window.print = () => {};   // tulostusdialogi pois (sama kuin pysäkkiaikataulun tarkistuksessa)
     try {
@@ -1586,8 +1587,8 @@ async function minuuttiLinjaus(page, rootSel, media) {
     } finally { gql = orig; }
   }, dA.tomorrow);
   (/Linja 14 pysäkiltä Matkakeskus B klo 06:48/.test(arrDesk.tell) && /^06:48/.test(arrDesk.opts[0] || "")
-    && arrDesk.opts.map(x => x.slice(0, 5)).join(" ") === "06:48 06:18 05:49" && /Lähtö 06:48, perillä 06:57/.test(arrDesk.print))
-    ? ok("palvelutiski: saapumisaikahaussa kerrottu vuoro on ensimmäinen vaihtoehto ja sen tulosteessa")
+    && arrDesk.opts.map(x => x.slice(0, 5)).join(" ") === "06:48 06:18 05:49 06:55" && /Lähtö 06:48, perillä 06:57/.test(arrDesk.print))
+    ? ok("palvelutiski: saapumisaikahaussa kerrottu vuoro on ensimmäinen vaihtoehto ja sen tulosteessa, pitkä kävely ei voita")
     : fail("palvelutiski: saapumisaikahaun järjestys/tuloste: " + JSON.stringify(arrDesk));
 
   // Kun kävely voittaa, tiski hakee seuraavan bussin erikseen (NEXT_BUS_QUERY). Varahaku välittää Esteetön reitti
