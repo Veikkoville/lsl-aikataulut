@@ -1,0 +1,55 @@
+# Auto-PR-muistutus: auto-kehitys ei aloita uutta työtä, kun sen edellinen PR odottaa katselmusta.
+# Lokakuussa 2026 avoin auto-PR seisoi viikon, ja silmukka pysähtyi (16 PR:stä 3 mergattu). Tämä työnkulku
+# avaa arkiaamuisin issuen (tai kommentoi avointa), kun auto-PR on odottanut yli kaksi vuorokautta. GitHub
+# lähettää siitä sähköpostin. Kun odottavia ei ole, issue suljetaan. Ei kuluja: Actions-minuutteja sekunteja.
+name: Auto-PR-muistutus
+
+on:
+  schedule:
+    - cron: '41 5 * * 1-5'  # ma-pe 05:41 UTC = 08:41 Suomen kesäaikaa; ei täystuntia
+  workflow_dispatch:
+
+permissions:
+  pull-requests: read
+  issues: write
+
+jobs:
+  muistuta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const RAJA_H = 48;
+            const OTSIKKO = 'Auto-kehityksen PR odottaa katselmusta';
+            const nyt = Date.now();
+            const prs = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 });
+            const odottavat = prs
+              .filter(p => p.user && p.user.login === 'github-actions[bot]')
+              .map(p => ({ p, h: Math.floor((nyt - new Date(p.created_at).getTime()) / 36e5) }))
+              .filter(x => x.h >= RAJA_H);
+            const issues = await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: 'open', per_page: 100 });
+            const auki = issues.find(i => !i.pull_request && i.title === OTSIKKO);
+            if (!odottavat.length) {
+              if (auki) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: auki.number,
+                  body: 'Ei enää yli kaksi vuorokautta odottaneita auto-PR:iä. Suljetaan.' });
+                await github.rest.issues.update({ owner, repo, issue_number: auki.number, state: 'closed' });
+              }
+              core.info('Ei odottavia auto-PR:iä.');
+              return;
+            }
+            const rivit = odottavat.map(({ p, h }) =>
+              `- #${p.number} ${p.title} (odottanut ${Math.floor(h / 24)} vrk ${h % 24} h)`).join('\n');
+            const runko = 'Auto-kehitys ei aloita uutta työtä, ennen kuin nämä on katselmoitu (merge, korjauspyyntö tai sulkeminen):\n\n' +
+              rivit + '\n\nTämä issue suljetaan automaattisesti, kun odottavia ei ole.';
+            if (auki) {
+              await github.rest.issues.update({ owner, repo, issue_number: auki.number, body: runko });
+              await github.rest.issues.createComment({ owner, repo, issue_number: auki.number,
+                body: `Muistutus: ${odottavat.length} auto-PR:ää odottaa yhä.\n\n${rivit}` });
+            } else {
+              await github.rest.issues.create({ owner, repo, title: OTSIKKO, body: runko, assignees: [owner] });
+            }
+            core.info(`${odottavat.length} odottavaa auto-PR:ää.`);
