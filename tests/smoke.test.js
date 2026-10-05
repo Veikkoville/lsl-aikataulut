@@ -725,6 +725,34 @@ async function minuuttiLinjaus(page, rootSel, media) {
     && nlw.sv?.date === "2026-10-05" && nlw.nyt === null;
   nlwOk ? ok("NL: päivä lauseesta (huomenna, ylihuomenna, viikonpäivä, i morgon; mennyt kellonaika huomiseen merkinnällä)")
         : fail("NL: päivän tulkinta: " + JSON.stringify(nlw));
+  // Asiakkaan viesti sellaisenaan (5.10.2026): paikat sijamuodoista virkkeittäin, "pitäisi olla klo 8" = saapumisaika,
+  // viestin toinen lähtö vaihtoehdoksi, lyhenteen pääte (PHKS.ssa, TYKS:iin) pois. Rivinvaihdot kuten liitettäessä.
+  const nlMsg = await page.evaluate(() => {
+    if (typeof nlJoinLines !== "function") return { puuttuu: true };
+    const terhi = nlJoinLines("Hei.\n\nMinun pitäisi olla huomenna klo 8.00 PHKS.ssa.\nMeneekö Trion edestä sinne bussi ja monelta on " +
+      "siinä pysäkillä?\n\nTai.\n\nMeneekö vanhan Anttilan pysäkiltä bussi?\n\nKiitos,\n\nTerhi");
+    const cases = [
+      [terhi, "Trio", "PHKS", "08:00", "arr", "vanha Anttila → PHKS"],
+      ["Lähden klo 7.15 Matkakeskukselta ja minun pitäisi olla Heinolassa ennen yhdeksää.", "Matkakeskus", "Heinola", "07:15", "dep", ""],
+      ["Miten pääsen Lahden matkakeskukselta Päijät-Hämeen keskussairaalaan?", "Lahden matkakeskus", "Päijät-Hämeen keskussairaala", null, null, ""],
+      ["Vastaisitteko kysymykseen: miten pääsen Triosta PHKS:lle?", "Trio", "PHKS", null, null, ""],
+      ["Hi, is there a bus from Trio to Kauppatori tomorrow at 7? Thanks", "Trio", "Kauppatori", "07:00", null, ""],
+      ["Triosta TYKS:iin", "Trio", "TYKS", null, null, ""],
+    ];
+    const bad = cases.map(([s, f, to, tm, mode, alt]) => {
+      const r = parseNlTrip(s);
+      const alts = r.alts.map(a => a.from + " → " + a.to).join("; ");
+      return r.from === f && r.to === to && (r.time || null) === tm && (r.timeMode || null) === mode && alts === alt
+        ? null : s.slice(0, 40) + " → " + JSON.stringify({ from: r.from, to: r.to, time: r.time, mode: r.timeMode, alts });
+    }).filter(Boolean);
+    const now = new Date(2026, 9, 4, 17, 26);
+    const pv = nlWhen(parseNlTrip("Tarvitsisin kyydin keskustasta TYKS:iin 6.10.2026 klo 10"), now);
+    if (!(pv && pv.date === "2026-10-06" && pv.time === "10:00")) bad.push("päivämäärä 6.10.2026: " + JSON.stringify(pv));
+    return { n: cases.length, bad };
+  });
+  !nlMsg.puuttuu && !nlMsg.bad.length
+    ? ok(`NL: asiakkaan viesti sellaisenaan ${nlMsg.n}/${nlMsg.n} (paikat sijamuodoista, saapumisaika, vaihtoehto, PHKS.ssa, 6.10.2026)`)
+    : fail("NL: viestin jäsennys: " + JSON.stringify(nlMsg));
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   // Yhtenäinen haku: ei erillistä NL-lohkoa eikä "— tai —"; mic on Mistä-kentän sisällä
   const unified = await page.evaluate(() => !document.getElementById("homeNlInput") && !document.querySelector(".nl-sep")
