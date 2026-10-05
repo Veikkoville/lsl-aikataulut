@@ -74,7 +74,7 @@ const DESK_PRINT_CITIES = (process.env.SMOKE_DESK_PRINT_CITIES === undefined
   ? null                                   // oletus: CITIES-taulun deskPrint päättää
   : process.env.SMOKE_DESK_PRINT_CITIES.split(",").map(s => s.trim()).filter(Boolean));
 
-// gen = FI-otsikon genetiivi ("<gen> bussiaikataulut") — Lahti-fallbackia ei hyväksytä.
+// name = FI-otsikon kaupunki ("Reittari <name>", 4.10.2026) — Lahti-fallbackia ei hyväksytä.
 // svTitle = kaksikielisen kaupungin SV-otsikko (FI-fallbackia ei hyväksytä).
 // nightStopId/nightLines = Lahden yövuorotarkistus (Matkakeskus A, todennettu datasta
 // 9.7.2026). FAIL-taso ei sido linjanumeroita: feedivaihto saa muuttaa yölinjoja ilman
@@ -101,33 +101,33 @@ const DESK_PRINT_CITIES = (process.env.SMOKE_DESK_PRINT_CITIES === undefined
 // raskain yksittäinen toimenpide, eikä sitä pidä ajaa 16 kertaa saman avaimen budjetista.
 // Ylikirjoitettavissa: SMOKE_BATCH_CITIES=vaasa,lahti (tyhjä = pois käytöstä).
 let CITIES = [ // let eika const: SMOKE_CITIES suodattaa taman eraajossa
-  { key: "lahti",   gen: "Lahden",   nightStopId: "Lahti:85811", nightLines: ["91", "96", "97"],
+  { key: "lahti",   name: "Lahti",   nightStopId: "Lahti:85811", nightLines: ["91", "96", "97"],
     batchPosterLine: "4", deskPrint: true },
-  { key: "kuopio",  gen: "Kuopion" },
-  { key: "salo",    gen: "Salon" },
-  { key: "kajaani", gen: "Kajaanin" },
-  { key: "vaasa",   gen: "Vaasan",   svTitle: "Busstidtabeller i Vasa", deskPrint: true },
-  { key: "kotka",   gen: "Kotkan" },
-  { key: "raasepori", gen: "Raaseporin", svTitle: "Busstidtabeller i Raseborg", deskPrint: true },
-  { key: "kouvola", gen: "Kouvolan", posterStopId: "Kouvola:155786" },
-  { key: "mikkeli", gen: "Mikkelin", posterStopId: "Mikkeli:310514", corridorDirs: 1 },
+  { key: "kuopio",  name: "Kuopio" },
+  { key: "salo",    name: "Salo" },
+  { key: "kajaani", name: "Kajaani" },
+  { key: "vaasa",   name: "Vaasa",   svTitle: "Reittari Vasa", deskPrint: true },
+  { key: "kotka",   name: "Kotka" },
+  { key: "raasepori", name: "Raasepori", svTitle: "Reittari Raseborg", deskPrint: true },
+  { key: "kouvola", name: "Kouvola", posterStopId: "Kouvola:155786" },
+  { key: "mikkeli", name: "Mikkeli", posterStopId: "Mikkeli:310514", corridorDirs: 1 },
   // Kaupunkisweep 7.8.2026: presetit datavarmistettu kesä- JA talvikoetuksella.
   // Rovaniemen 4+5-käytävän yhteinen jakso on yksisuuntainen (linjat kiertävät
   // keskustan eri reittejä) → corridorDirs 1, sama verkon muoto kuin Mikkelissä.
-  { key: "hameenlinna", gen: "Hämeenlinnan" },
-  { key: "joensuu", gen: "Joensuun" },
-  { key: "jyvaskyla", gen: "Jyväskylän" },
-  { key: "lappeenranta", gen: "Lappeenrannan" },
-  { key: "oulu", gen: "Oulun" },
-  { key: "pori", gen: "Porin" },
-  { key: "rovaniemi", gen: "Rovaniemen", corridorDirs: 1 },
+  { key: "hameenlinna", name: "Hämeenlinna" },
+  { key: "joensuu", name: "Joensuu" },
+  { key: "jyvaskyla", name: "Jyväskylä" },
+  { key: "lappeenranta", name: "Lappeenranta" },
+  { key: "oulu", name: "Oulu" },
+  { key: "pori", name: "Pori" },
+  { key: "rovaniemi", name: "Rovaniemi", corridorDirs: 1 },
   // Turku/Föli 29.8.2026: suurin kaupunki (141 linjaa, 26-laiturinen Kauppatori). Erä 2.
   // Presetit talvidatalla; kesäkoetus puuttuu (feed 14.8.-21.11.), kausivalidointi vahtii.
-  { key: "turku", gen: "Turun", svTitle: "Busstidtabeller i Åbo" },
+  { key: "turku", name: "Turku", svTitle: "Reittari Åbo" },
   // Inkoo 29.8.2026: ensimmäinen ei-Waltti-kunta (MATKA-feed, finland-router, aluerajattu
   // linjajoukko). Ei käytäväpresettejä: linjat ovat kaukoliikennettä, joten käytävätaulukko
   // kattaisi koko linjan (192+192M = 183 yhteistä pysäkkiä) eikä mahtuisi tulosteeseen.
-  { key: "inkoo", gen: "Inkoon", svTitle: "Busstidtabeller i Ingå", noCorridors: true },
+  { key: "inkoo", name: "Inkoo", svTitle: "Reittari Ingå", noCorridors: true },
 ];
 
 // Erarajaus. Tuntematon kaupunkiavain on kirjoitusvirhe eika tyhja era: se kaadetaan
@@ -441,9 +441,9 @@ function writeReport() {
         ? pass(city.key, "linjalista", tiles + " linjakorttia")
         : fail(city.key, "linjalista", "ei linjakortteja 30 s kuluessa");
       const title = await page.evaluate(() => document.getElementById("appTitle")?.textContent || "");
-      title.includes(city.gen + " bussiaikataulut")
+      title === "Reittari " + city.name
         ? pass(city.key, "title", '"' + title + '"')
-        : fail(city.key, "title", 'odotettu "' + city.gen + ' bussiaikataulut", oli "' + title + '"');
+        : fail(city.key, "title", 'odotettu "Reittari ' + city.name + '", oli "' + title + '"');
 
       // --- 2) FI/SV-kytkin (vain kaksikieliset kaupungit) ---
       if (city.svTitle) {
@@ -1002,6 +1002,12 @@ function writeReport() {
         //          window.print stubataan ennen klikkiä — tuloste ei saa avata dialogia.
         const runDeskPrint = DESK_PRINT_CITIES ? DESK_PRINT_CITIES.includes(city.key) : !!city.deskPrint;
         if (runDeskPrint) {
+          // Terminaalinäkymässä (Lahti: Trion kaikki laiturit, erä A 4.10.2026) tuloste tehdään laiturin omalta
+          // kortilta: avataan ensimmäisen lähtörivin laituri, jonka kortissa tulostusnappi on.
+          if (!(await page.$("#deskPrintBtn")) && await page.$("#deskDeps a.dep-plat")) {
+            await page.evaluate(() => document.querySelector("#deskDeps a.dep-plat").click());
+            await page.waitForSelector("#deskPrintBtn", { timeout: 20000 }).catch(() => {});
+          }
           const btn = await page.$("#deskPrintBtn");
           if (!btn) {
             fail(city.key, "tiskiltä tulostus", "#deskPrintBtn puuttuu oletuspysäkin kohdalta");

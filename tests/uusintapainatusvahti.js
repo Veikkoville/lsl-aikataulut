@@ -6,7 +6,7 @@
 // se hetki jolloin kunta painoi paperin. Perustaso tallennetaan workerin KV:hen (vaihe 1, 4.9.2026).
 //
 // MIKSI TÄMÄ AJAA SELAIMEN. Nykytilan sormenjälki lasketaan sovelluksessa (reprintLineSnap,
-// reprintCorridorSnap): patternivalinta tulevien vuorojen mukaan, päivätyyppilohkot ja käytävien
+// reprintCorridorSnap, pysäkkijulisteille reprintStopSnaps): patternivalinta tulevien vuorojen mukaan, päivätyyppilohkot ja käytävien
 // corridorBuild. Jos sama logiikka kirjoitettaisiin tähän toiseen kertaan, se alkaisi ajan myötä
 // erota tuotteesta, ja ero näkyisi kunnalle vääränä hälytyksenä juuri siinä kohtaa jossa vahtia
 // pitäisi uskoa. Siksi vertailun ajaa sama sovellus headless-Chromella, samalla koodilla jonka
@@ -36,7 +36,23 @@ async function vertaaSivulla(page, units) {
     const corrs = new Map((CONFIG.corridors || []).map(c => ["corr:" + c.key, c]));
     const date = todayISO();
     const stale = [], failed = [];
+    // Pysäkkijulisteet ("stop:<gtfsId>", 4.10.2026) yhtenä eränä samalla moottorilla kuin juliste
+    // (reprintStopSnaps). Jos sivulla ei ole sitä (vanha versio), ne ovat epäonnistuneita eivätkä
+    // "ajan tasalla": kaupungin tulosta ei silloin lähetetä.
+    const stopIds = Object.keys(units).filter(id => id.startsWith("stop:"));
+    if (stopIds.length) {
+      let snaps = new Map();
+      if (typeof reprintStopSnaps === "function") {
+        try { snaps = await reprintStopSnaps(stopIds.map(id => id.slice(5)), date); } catch (e) { snaps = new Map(); }
+      }
+      for (const id of stopIds) {
+        const snap = snaps.get(id.slice(5));
+        if (!snap) failed.push(id);
+        else if (reprintDiff(units[id].sig, snap).length) stale.push(id);
+      }
+    }
     for (const [id, u] of Object.entries(units)) {
+      if (id.startsWith("stop:")) continue;
       // Poistettu käytäväpreset: tunnus alkaa "corr:" mutta CONFIGissa ei ole vastinetta.
       // Se ei ole "ajan tasalla" vaan tuntematon, joten se menee epäonnistuneisiin.
       // Oma käytävä ("corr:m:192+192M") kantaa linjat tunnuksessaan (reprintManualCorridor).

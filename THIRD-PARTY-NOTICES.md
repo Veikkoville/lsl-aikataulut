@@ -37,6 +37,11 @@ SOFTWARE.
 Tiedosto: vendor/maplibre-gl-lanes-core-1.0.0.min.js. Lähde: https://github.com/c0nsumer/maplibre-gl-lanes
 Lisenssi: MIT, Copyright (c) 2026 Steve Vigneau. Lisenssin koko teksti on tiedoston otsakkeessa.
 
+### Leaflet 1.9.4
+Tiedostot: vendor/leaflet/ (leaflet.js, leaflet.css, images/). Lähde: https://leafletjs.com
+Lisenssi: BSD-2-Clause, Copyright (c) 2010-2023 Volodymyr Agafonkin, (c) 2010-2011 CloudMade.
+Koko teksti tiedostossa vendor/leaflet/LICENSE. Tarjoillaan omalta palvelimelta 2.10.2026 alkaen (ennen unpkg.com).
+
 ## Fontit
 
 ### Hanken Grotesk
@@ -46,7 +51,6 @@ Lisenssi: SIL Open Font License 1.1, koko teksti tiedostossa fonts/OFL.txt.
 
 ## Selaimeen ladattavat kirjastot (ei levitetä tästä arkistosta)
 
-- Leaflet 1.9.4, BSD-2-Clause, Copyright (c) 2010-2023 Volodymyr Agafonkin, (c) 2010-2011 CloudMade (unpkg.com)
 - MQTT.js 5, MIT (unpkg.com)
 
 ## Data
