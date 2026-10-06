@@ -1,0 +1,64 @@
+# Tilasivu (savikurki.fi/tila): tunnin välein ja jokaisen Tuotanto-smoken jälkeen tarkistetaan
+# palvelujen julkiset sivut ja valvonnan viimeisimmät tulokset (tools/tila.js).
+#
+# Tulos viedään orpohaaraan `tila` yhtenä committina (force push, ei historiaa: tilamuutokset ovat
+# tiedoston tapahtumissa). Master-suojaus koskee vain masteria, joten GITHUB_TOKEN riittää eikä
+# tämä ajo tarvitse masteriin kirjoitusoikeutta. GITHUB_TOKENin push ei käynnistä muita ajoja.
+# savikurki.fi/tila/tila.php hakee tiedoston palvelimelta käsin, joten kävijän selain ei ota
+# yhteyttä GitHubiin. GitHubin ajastus voi viivästyä; sivu näyttää yli 12 tuntia vanhan tiedoston
+# vanhentuneena eikä vihreänä.
+name: Tilasivu
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_run:
+    workflows: ["Tuotanto-smoke"]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+  issues: read
+
+concurrency:
+  group: tila
+  cancel-in-progress: false
+
+jobs:
+  tila:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: tools
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Edellinen tila tapahtumia varten
+        run: |
+          if git fetch -q --depth=1 origin tila 2>/dev/null; then
+            git show FETCH_HEAD:tila.json > "$RUNNER_TEMP/edellinen.json"
+          else
+            echo "haaraa tila ei vielä ole, tapahtumat alkavat tästä ajosta"
+          fi
+
+      - name: Tarkista palvelut
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/tila.js --edellinen "$RUNNER_TEMP/edellinen.json" --ulos "$RUNNER_TEMP/tila.json"
+
+      - name: Vie haaraan tila
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir "$RUNNER_TEMP/julkaisu" && cd "$RUNNER_TEMP/julkaisu"
+          git init -q -b tila
+          cp "$RUNNER_TEMP/tila.json" .
+          git add tila.json
+          git -c user.name="tilasivu" -c user.email="tilasivu@users.noreply.github.com" commit -q -m "tila $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" tila
