@@ -47,6 +47,22 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
 
 ## Avoimet
 
+- [x] worker/worker.js: `/feedback/list` ottaa avaimen vastaan myös `Authorization: Bearer <avain>`
+      -otsakkeesta (query-parametri `key` jää toistaiseksi toimimaan), ja CORS sallii
+      `Authorization`-otsakkeen. Syy: query-parametrina avain päätyy lokeihin, selainhistoriaan ja
+      Refereriin (ks. HUOM `handleFeedbackList`issa). Todennus: uusi rivi worker/write-guard.test.js:ään:
+      oikea avain otsakkeessa 200, väärä 403, ilman avainta 403, query-avain toimii yhä.
+      (agentin ehdotus 2026-10-06, lähde: koodi/HUOM worker.js) (PR, 2026-10-06)
+- [ ] README.md: lisää Ominaisuudet-osioon lyhyt kohta pysäkkimonitorista (`#/monitori/<pysäkkiId>`):
+      koko ruudun live-lähtötaulu, jonka kaupunki voi avata infonäytölle tai kioskiselaimeen ilman
+      ylläpitoa. Todennus: kohta näkyy README.md:ssä, URL-muoto täsmää index.html:n reittiin ja
+      kohdassa ei ole hintoja. (agentin ehdotus 2026-10-06, lähde: signaalit 2025-05-27 ja 2023-12-20,
+      markkinasignaalit infonäytöistä ja pysäkkinäytöistä)
+- [ ] README.md: lisää Tekniikka-osioon testien ajo-ohje (worker-yksikkötestit, `node --check
+      tests/smoke.test.js`, kausivalidoinnin luokitintesti `node tests/kausivalidointi-luokitin.test.js`),
+      koska README ei mainitse testejä lainkaan. Todennus: jokainen mainittu komento ajettuna
+      repon juuressa tai worker-kansiossa päättyy koodiin 0. (agentin ehdotus 2026-10-06, lähde: koodi/testit)
+
 - [x] `tests/kausivalidointi.js`: serviceId-luokitin tuntee vain koulun ja loman
       (`/koul/i`, `KP`, `/loma/i`, `LP`), joten kausi- ja viikonpaivavariantit
       putoavat luokittelemattomiksi ja jokainen kausivaihdos tuottaa WARN-riveja joita ei voi

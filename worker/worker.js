@@ -45,7 +45,7 @@ function corsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": isAllowedOrigin(origin) ? origin : "https://veikkoville.github.io",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
   };
@@ -415,13 +415,14 @@ async function handleFeedback(request, env, origin) {
 }
 
 // Omistajan luettavissa salaisuudella (FEEDBACK_ADMIN_KEY). Ilman avainta 403.
-async function handleFeedbackList(url, env, origin) {
-  const key = url.searchParams.get("key") || "";
+async function handleFeedbackList(request, url, env, origin) {
+  const bearer = /^Bearer\s+(.+)$/i.exec(request.headers.get("Authorization") || "");
+  const key = bearer ? bearer[1].trim() : url.searchParams.get("key") || "";
   if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
   // Vakioaikainen vertailu kuten admin-kirjautumisessa: tavallinen !== vuotaa avaimen
-  // pituuden ja alkuosan ajoituksena. HUOM: avain tulee yhä query-parametrina, jolloin se
-  // päätyy palvelinlokeihin, selainhistoriaan ja Referer-otsakkeeseen. Siirto otsakkeeseen
-  // vaatii kutsujan muutoksen, ks. AUTO-BACKLOG.
+  // pituuden ja alkuosan ajoituksena. Suositeltu tapa on Authorization: Bearer -otsake.
+  // HUOM: query-parametri `key` toimii yhä vanhoille kutsujille, mutta se päätyy
+  // palvelinlokeihin, selainhistoriaan ja Referer-otsakkeeseen.
   if (!env.FEEDBACK_ADMIN_KEY || !constantTimeEqual(key, env.FEEDBACK_ADMIN_KEY))
     return jsonResponse({ error: "forbidden" }, 403, origin);
   const out = [];
@@ -2497,7 +2498,7 @@ export default {
     if (url.pathname === "/feedback" && request.method === "POST")
       return handleFeedback(request, env, origin);
     if (url.pathname === "/feedback/list" && request.method === "GET")
-      return handleFeedbackList(url, env, origin);
+      return handleFeedbackList(request, url, env, origin);
 
     // MML-taustakarttatiilet tulosteiden reittikarttaan (ei Origin-porttia, ks. handleMmlTile)
     if (url.pathname.startsWith("/mml/")) {
