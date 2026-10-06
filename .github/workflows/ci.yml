@@ -37,6 +37,9 @@ jobs:
       - name: Kaupunkimanifestit ajan tasalla
         run: node tools/kaupunkimanifestit.js --check
 
+      - name: Tilasivun päätökset (tools/tila.js)
+        run: node --test tools/tila.test.js
+
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 15
