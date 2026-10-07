@@ -70,29 +70,46 @@ jobs:
         with:
           node-version: 22
 
-      # YKSI AVOIN AUTO-PR KERRALLAAN. Ilman tätä agentti valitsi joka ajolla saman
+      # ENINTÄÄN KAKSI AVOINTA AUTO-PR:ÄÄ (7.10.2026). Yhden PR:n portti esti toiston, mutta pysäytti
+      # silmukan aina katselmoinnin ajaksi: 6.-7.10. agentti ajoi joka aamu ja lopetti tekemättä mitään.
+      # Toisto estetään nyt rivitasolla: avoimien auto-PR:ien haaroilla rastitetut backlog-rivit luetaan
+      # tässä ja annetaan agentille varattuina. Rinnakkaisena (yksi PR jo auki) agentti tekee vain valmiin
+      # rivin eikä ideoi, koska ideointi lisää rivejä Avoimet-listan alkuun ja törmäisi toisen PR:n muutokseen.
+      # Historia: yksi avoin auto-PR kerrallaan. Ilman sitä agentti valitsi joka ajolla saman
       # AUTO-BACKLOG.md:n ylimmän avoimen rivin: rivi rastitetaan vain PR:n haaralla, joten
       # masterissa se on yhä auki kunnes ihminen mergeää. Tulos 1.-3.9.2026 oli kolme
       # identtistä PR:ää samasta README-tehtävästä, yksi per ajopäivä, ja tahti oli yksi
       # turha PR joka arkipäivä. Portti pysäyttää sen: kasautunut työ käsitellään ensin.
-      - name: Onko avoin auto-PR jo olemassa
+      - name: Avoimet auto-PR:t ja niiden varaamat backlog-rivit
         id: avoin
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           # Listaus + suodatus, EI --search: haku nojaa GitHubin indeksiin joka laahaa.
-          maara=$(gh pr list --state open --limit 100 --json headRefName \
-            --jq '[.[] | select(.headRefName | startswith("auto/"))] | length')
-          echo "maara=$maara" >> "$GITHUB_OUTPUT"
-          if [ "$maara" -gt 0 ]; then
-            echo "Avoimia auto-PR:iä on $maara. Ei uutta tehtävää ennen kuin ne on mergetty tai suljettu."
-          else
-            echo "Ei avoimia auto-PR:iä, agentti saa tehdä tehtävän."
-          fi
+          haarat=$(gh pr list --state open --limit 100 --json headRefName \
+            --jq '.[] | select(.headRefName | startswith("auto/")) | .headRefName')
+          maara=$(printf '%s\n' "$haarat" | grep -c . || true)
+          # Rivit, jotka avoin haara rastittaa ("- [ ]" masterissa -> "- [x]" haaralla), ovat varattuja.
+          varatut=""
+          for h in $haarat; do
+            git fetch -q --depth 1 origin "$h"
+            r=$(git diff HEAD FETCH_HEAD -- docs/AUTO-BACKLOG.md | sed -n 's/^+- \[x\] //p' | tr -d '\r' | cut -c1-160)
+            if [ -n "$r" ]; then varatut="$varatut$r"$'\n'; fi
+          done
+          if [ "$maara" -lt 2 ]; then saa=true; else saa=false; fi
+          {
+            echo "maara=$maara"
+            echo "saa=$saa"
+            echo "varatut<<VARATUT_EOF"
+            printf '%s' "$varatut"
+            echo "VARATUT_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Avoimia auto-PR:iä $maara, uusi tehtävä sallittu: $saa"
+          printf 'Varatut rivit:\n%s' "$varatut"
 
       - name: Agentti tekee yhden tehtävän ja avaa PR:n
-        if: steps.avoin.outputs.maara == '0'
+        if: steps.avoin.outputs.saa == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -105,12 +122,17 @@ jobs:
             Olet Reittarin (lsl-aikataulut) auto-kehitysagentti. Teet YHDEN rajatun tehtävän ja avaat PR:n.
             Työskentelet repon juuressa, master on checkoutattuna.
 
+            0. Avoimia auto-PR:iä on nyt ${{ steps.avoin.outputs.maara }}. Rivit, joita ne jo toteuttavat
+               (VARATUT: älä valitse, älä muokkaa):
+               ${{ steps.avoin.outputs.varatut || '(ei varattuja rivejä)' }}
+               Jos avoimia auto-PR:iä on 1: valitse ylin "- [ ]"-rivi, joka ei ole VARATUT-listalla. Jos sellaista
+               ei ole, ÄLÄ ideoi äläkä luo haaraa tai PR:ää: lopeta ja kerro syy lokiin.
             1. Lue docs/TUOTEPERIAATTEET.md ja docs/AUTO-BACKLOG.md.
-               a) Jos Avoimet-listalla on rivi "- [ ]": valitse YLIN. Jos se on epäselvä tai vaatii
+               a) Jos Avoimet-listalla on rivi "- [ ]", joka ei ole VARATUT: valitse YLIN. Jos se on epäselvä tai vaatii
                   päätöstä jota et voi tehdä, älä koodaa: avaa PR joka muuttaa vain
                   docs/AUTO-BACKLOG.md:tä lisäämällä tehtävän alle rivin "  - ⚠️ EHDOTUS/KYSYMYS: ..."
                   ja lopeta.
-               b) Jos Avoimet on tyhjä: IDEOI ENSIN. Lue TUOTEPERIAATTEET.md:n lähdejärjestys
+               b) Jos Avoimet on tyhjä ja avoimia auto-PR:iä on 0: IDEOI ENSIN. Lue TUOTEPERIAATTEET.md:n lähdejärjestys
                   (Signaalit-lohko ensin), README.md, docs/, testit ja git log -30. Kirjoita KOLME
                   backlog-riviä Avoimet-listaan järjestyksessä arvo per työmäärä, jokainen
                   TUOTEPERIAATTEET.md:n "Hyvän backlog-rivin muoto" mukaan ja sallittujen tiedostojen
@@ -140,7 +162,7 @@ jobs:
       # GITHUB_TOKENilla avattu PR ei laukaise pull_request-tapahtumaa, joten CI kaynnistetaan
       # erikseen agentin haaralle. Tarkistukset nakyvat PR:ssa head-SHA:n kautta.
       - name: Käynnistä CI agentin haaralle
-        if: steps.avoin.outputs.maara == '0'
+        if: steps.avoin.outputs.saa == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
