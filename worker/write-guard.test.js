@@ -444,6 +444,23 @@ const cityBlocks = [];
   check(!JSON.stringify(ae.p).includes("203.0.113"), "R-07: IP-osoitetta ei kirjata tapahtumaan");
 }
 
+/* ===== Palautelistan avain Authorization-otsakkeessa (query-avain toimii yhä) ===== */
+{
+  reset();
+  const kv = countingKV();
+  await kv.put("fb:1-a", JSON.stringify({ message: "Pysäkki rikki", ts: 1 }));
+  const env = { PUSH_KV: kv, FEEDBACK_ADMIN_KEY: "salainen-avain-123" };
+  const list = (qs, headers) => worker.fetch(new Request("https://worker.test/feedback/list" + qs, { headers }), env, ctx);
+  const okH = await list("", { Authorization: "Bearer salainen-avain-123" });
+  check(okH.status === 200 && (await okH.json()).items.length === 1, "palautelista: oikea avain Authorization-otsakkeessa → 200");
+  check((await list("", { Authorization: "Bearer vaara" })).status === 403, "palautelista: väärä avain otsakkeessa → 403");
+  check((await list("", {})).status === 403, "palautelista: ilman avainta → 403");
+  check((await list("?key=salainen-avain-123", {})).status === 200, "palautelista: query-avain toimii yhä");
+  check((await list("?key=salainen-avain-123", { Authorization: "Bearer vaara" })).status === 403, "palautelista: väärä otsake ei pelastu query-avaimella");
+  const pre = await worker.fetch(new Request("https://worker.test/feedback/list", { method: "OPTIONS", headers: { Origin: "https://demo.reittari.fi" } }), env, ctx);
+  check(/Authorization/.test(pre.headers.get("Access-Control-Allow-Headers") || ""), "palautelista: CORS sallii Authorization-otsakkeen");
+}
+
 Date.now = realNow;
 console.log(fail === 0 ? `\nKAIKKI OK (${total} tarkistusta)` : `\n${fail}/${total} TARKISTUSTA EPÄONNISTUI`);
 process.exit(fail ? 1 : 0);
