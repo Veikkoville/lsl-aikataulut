@@ -18335,7 +18335,11 @@ async function viewServiceDesk() {
   // kerroksensa, jotta edellisen tilauksen myöhästyneet merkit eivät jää kartalle.
   const deskMap = (() => {
     let map = null, overlay = null, vehLayer = null, vehKey = "", initP = null, byNumP = null, mapSeq = 0;
+    // Alueen ulkopuolinen paikka (Kotka Lahden tiskillä): kartta näyttää paikan, mutta "N bussia kartalla" laskisi
+    // alueen busseja, joita kartalla ei näy. Silloin tilarivi kertoo ulkopuolisuudesta (sama teksti kuin reittihuomautus).
+    let outsideTxt = "", lastN = null;
     const setStatus = txt => { const el = document.getElementById("deskMapStatus"); if (el && live()) el.textContent = txt; };
+    const liveStatus = () => outsideTxt || (lastN == null ? t("liveConnecting") : lastN ? t("liveCount", { n: lastN }) : t("liveNone"));
     const accent = () => (getComputedStyle(deskRoot).getPropertyValue("--blue").trim() || "#0033cc");
     const init = () => {
       if (!initP) initP = ensureLeaflet().then(() => {
@@ -18365,23 +18369,32 @@ async function viewServiceDesk() {
       if (vehLayer) map.removeLayer(vehLayer);
       const layer = vehLayer = L.layerGroup().addTo(map);
       if (key === "all") {
-        setStatus(t("liveConnecting"));
+        lastN = null;
+        setStatus(liveStatus());
         if (!byNumP) byNumP = liveRoutesByNum();
         byNumP.then(byNum => {
           if (vehLayer !== layer || !live()) return;
-          startLiveMap(layer, byNum, n => { if (vehLayer === layer) setStatus(n ? t("liveCount", { n }) : t("liveNone")); });
+          startLiveMap(layer, byNum, n => { if (vehLayer === layer) { lastN = n; setStatus(liveStatus()); } });
         });
       } else {
         setStatus(t("deskMapLine", { line: label || "" }));
         startVehicles(layer, routes);
       }
     };
+    // Koko verkon bussit. vehicles() ei tee mitään, jos tilaus on jo "all", joten tilarivi päivitetään tässä
+    // (esim. alueen ulkopuoliselta paikalta takaisin pysäkille: teksti vaihtuu takaisin bussimäärään).
+    const allVehicles = () => {
+      vehicles("all");
+      if (!noRt) setStatus(liveStatus());
+      else if (outsideTxt) setStatus(outsideTxt);
+    };
     return {
       async network() {
         const my = ++mapSeq;
         if (!(await init()) || my !== mapSeq) return;
         overlay.clearLayers();
-        vehicles("all");
+        outsideTxt = "";
+        allVehicles();
       },
       async stop(s) {
         const my = ++mapSeq;
@@ -18392,7 +18405,8 @@ async function viewServiceDesk() {
             .addTo(overlay).bindTooltip(esc(s.name || ""), { direction: "top", offset: [0, -8] });
           map.setView([s.lat, s.lon], 15);
         }
-        vehicles("all");
+        outsideTxt = "";
+        allVehicles();
       },
       async place(p) {
         const my = ++mapSeq;
@@ -18403,13 +18417,16 @@ async function viewServiceDesk() {
             .addTo(overlay).bindTooltip(esc(p.name || ""), { direction: "top", offset: [0, -8] });
           map.setView([p.lat, p.lon], 15);
         }
-        vehicles("all");
+        outsideTxt = !CONFIG.areaScoped && p && outsideAreaRect(p.lat, p.lon)
+          ? t("outsideArea", { place: (p.name || "").split(",")[0] }) : "";
+        allVehicles();
       },
       // Linjakortti: valitun suunnan reitti ja pysäkit, kartalla VAIN tämän linjan bussit.
       async line(cl) {
         const my = ++mapSeq;
         if (!(await init()) || my !== mapSeq) return;
         overlay.clearLayers();
+        outsideTxt = "";
         const p = cl.dirs[cl.dirIdx];
         if (!p) return;
         const color = cl.route.color ? "#" + cl.route.color : accent();
@@ -18437,7 +18454,8 @@ async function viewServiceDesk() {
         const my = ++mapSeq;
         if (!(await init()) || my !== mapSeq) return;
         overlay.clearLayers();
-        if (!node) { vehicles("all"); return; }
+        outsideTxt = "";
+        if (!node) { allVehicles(); return; }
         const pts = [];
         const legs = node.legs || [];
         legs.forEach(leg => {
