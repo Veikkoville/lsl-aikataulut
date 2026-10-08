@@ -45,7 +45,9 @@ Kaksi luokkaa. Ensimmäinen on asioita, joita ei rakenneta lainkaan:
 - Lippujen myyntiä, maksamista, matkakortteja.
 - Reaaliaikaista ajojärjestelyä tai reittioptimointia (kutsuohjausjärjestelmien scope).
 - Natiivisovellusta tai sovelluskauppajakelua (PWA riittää).
-- Mainoksia, seurantaa, analytiikkaa, evästebannereita.
+- Mainoksia, käyttäjäkohtaista seurantaa, evästeitä tai evästebannereita. Sallittu on anonyymi,
+  koostettu käyttötilasto (`track()`: ei tunnisteita, ei evästeitä, ei IP-osoitteita, Do Not Track
+  kunnioitetaan), kunhan se ei välitä vapaata tekstiä, josta voi tunnistaa henkilön (2026-10-08).
 
 Toinen on asioita, jotka **rakennetaan, mutta erikseen päätettynä hankkeena**, ei yöllisen
 agentin omana ehdotuksena, koska niiden rajaus, tietosuoja ja hinnoittelu päätetään ihmisen

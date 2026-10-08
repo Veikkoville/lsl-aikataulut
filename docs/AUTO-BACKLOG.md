@@ -47,6 +47,79 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
 
 ## Avoimet
 
+- [ ] index.html: rivien noin 12957 ja 12985 merkkijonoissa on oikea NUL-tavu lainausmerkkien välissä
+      (`(r.shortName || "") + "<NUL>" + kilpi` ja `(L.route.shortName || "") + "<NUL>" + L.headsign`).
+      Korvaa tavu lähdekoodissa escape-merkinnällä `\u0000`, jolloin ajonaikainen avain pysyy samana.
+      Tee korvaus node-skriptillä (Edit-työkalu ei välttämättä osu NUL-merkkiin). Syy: NUL-tavun takia
+      ripgrep ja Grep-työkalu pitävät index.html:ää binäärinä ja ohittavat sen koko repon haussa
+      (`rg -c deskHomeStop .` ei listaa index.html:ää, vaikka osumia on 27). Lisää
+      tests/tiedostohygienia.test.js: lukee `git ls-files` -listan (tai argumenttina annetut tiedostot), ohittaa
+      png/pdf/woff/woff2/ttf/otf/ico/jpg/mp3, ja kaatuu jos tekstitiedostossa on NUL-tavu; lisää se
+      tests/package.json:n test-ketjun alkuun. Todennus: `node tests/tiedostohygienia.test.js` = 0;
+      sama testi argumentilla, joka osoittaa NUL-tavun sisältävään väliaikaiseen tiedostoon = 1 (mutaatiotodiste
+      PR:n runkoon, tiedosto poistetaan); `git diff --stat` näyttää index.html:ssä 2 muutettua riviä;
+      `node --check` pääskriptille. (auditointi 2026-10-08, lähde: koodi)
+- [ ] index.html + worker/worker.js: analytiikan `search_fail` ei saa välittää vapaata tekstiä, josta voi
+      tunnistaa henkilön. Nyt `bindUnifiedSearch` (rivi noin 11324) lähettää tuloksettoman haun tekstin
+      `track("search_fail", q)` 80 merkkiin asti, joten esimerkiksi kotiosoite tallentuu analytiikkaan.
+      Lisää index.html:ään puhdas funktio `searchSignal(q)`: trimmaa ja muuttaa pienaakkosiksi, ja palauttaa
+      tekstin vain jos se on enintään 40 merkkiä eikä sisällä @-merkkiä eikä numeroa (poikkeus: koko teksti on
+      pelkkä linjatunnus, `/^[0-9]{1,3}[a-zåäö]?$/`); muuten luokan `"[sposti]"`, `"[numero]"` tai `"[pitka]"`
+      tässä järjestyksessä. Kutsu `track("search_fail", searchSignal(q))`. Worker: `buildTrackEvent` soveltaa
+      samaa sääntöä tyyppiin `search_fail` (vaikuttaa vasta worker-deployn jälkeen, ihmisen lupa); päivitä
+      worker/push-logic.test.js:n rivi noin 484 (200 merkin arvo -> `"[pitka]"`). Korjaa `track()`-funktion
+      yläpuolinen kommentti vastaamaan sääntöä. Todennus: push-logic.test.js:ään rivit: "Kotikatu 12" ->
+      "[numero]", "Kauppatori" -> "kauppatori", "22K" -> "22k", 41 merkkiä -> "[pitka]", "a@b.fi" -> "[sposti]";
+      `cd worker && npm test` = 0; smokessa `page.evaluate(() => searchSignal("Kotikatu 12"))` = "[numero]" ja
+      `searchSignal("Kauppatori")` = "kauppatori"; `node --check` pääskriptille. (auditointi 2026-10-08,
+      lähde: koodi; periaate tarkennettu TUOTEPERIAATTEET.md:ssä 2026-10-08)
+- [ ] index.html: näkymän vaihto vie sivun alkuun ja siirtää fokuksen näkymän otsikkoon. Nyt `route()`
+      (rivi noin 25726) piirtää uuden näkymän, mutta vieritys jää ennalleen (mittaus tuotannosta: scrollY 1367
+      ennen ja jälkeen, otsikko -1228 px) ja fokus jää BODYyn; koodissa ei ole yhtään `scrollTo(0`. Kun hash-polun
+      ensimmäinen tai toinen osa muuttuu (ei saman näkymän automaattipäivityksessä eikä pelkän query-parametrin
+      muutoksessa), kutsu piirron jälkeen `window.scrollTo(0, 0)` ja siirrä fokus `#app`in ensimmäiseen `h1`- tai
+      `h2`-otsikkoon (`tabindex="-1"`, `focus({ preventScroll: true })`). Todennus: smoke-lisäys Lahden lohkoon:
+      etusivulla `window.scrollTo(0, 1500)`, vaihda hash linjasivulle, odota otsikko, assertoi `scrollY < 50` ja
+      `document.activeElement.matches("#app h1, #app h2")`. Assertoi rakennetta, ei UI-tekstiä.
+      (auditointi 2026-10-08, lähde: tuotantomittaus + koodi)
+- [ ] index.html: `aria-live` pois `<main id="app">`:sta (rivi noin 2717). Nyt ruudunlukija lukee koko sivun
+      jokaisessa siirtymässä (linjasivulla 10 769 merkkiä) ja pysäkin lähtötaulukon 30 sekunnin välein. Lisää
+      `<main>`in ulkopuolelle `<div id="srStatus" class="sr-only" role="status" aria-live="polite"></div>`
+      (`.sr-only` on jo olemassa) ja funktio `announce(teksti)`, joka kirjoittaa siihen. `route()` kutsuu
+      `announce`a näkymän otsikolla, kun näkymä vaihtuu; lähtötaulukon automaattipäivitys ei kutsu sitä.
+      Todennus: smoke-lisäys: `#app` ei sisällä `aria-live`-attribuuttia, `#srStatus` on olemassa ja sen teksti on
+      linjasivulle siirtymisen jälkeen ei-tyhjä; PR:n runkoon maininta, mistä kohdasta automaattipäivitys kulkee ja
+      ettei se kutsu `announce`a. (auditointi 2026-10-08, lähde: koodi + tuotantomittaus)
+- [ ] index.html: rajapintavirheet selkokielisiksi ja toipuviksi. Nyt `throw new Error(t("errApi") + "HTTP " +
+      res.status)` (rivi noin 8108) näkyy käyttäjälle muodossa "Rajapintavirhe: HTTP 429", verkkovirhe
+      englanniksi "Failed to fetch", eikä uusintaa ole. Tee: (1) GraphQL-haulle 8 s aikakatkaisu
+      `AbortController`illa; (2) yksi automaattinen uusinta 2 s viiveellä tiloille 429, 502, 503, 504 ja
+      aikakatkaisulle; (3) käyttäjälle uusi käännösteksti fi/sv/en ("Aikataulutietoja ei juuri nyt saada. Yritä
+      hetken päästä uudelleen." tai vastaava) ja painike "Yritä uudelleen" (luokka `err-retry`), joka piirtää
+      näkymän uudelleen; tekninen tila vain `console.warn`iin; (4) Asetukset-linkki pois virhenäkymästä.
+      Offline-tilan nykyinen toiminta (välimuistin data) ei saa muuttua. Todennus: smoke-lisäys:
+      `page.setRequestInterception` vastaa proxyn GraphQL-pyyntöihin 503, avaa pysäkkisivu, odota `.err-retry`,
+      assertoi ettei näkyvässä tekstissä ole merkkijonoja "HTTP" eikä "Failed"; poista interceptio, klikkaa
+      `.err-retry`, odota lähtötaulukko. Palauta interceptio pois lohkon lopussa (smoke on tilallinen).
+      (auditointi 2026-10-08, lähde: tuotanto + koodi)
+- [ ] index.html: kuntalaisnäkymän (`APP_MODE === "resident"`) etusivulla ei näytetä henkilöstön reittejä.
+      Nyt `homeToolGroupsHtml` (rivi noin 11751) näyttää linkit "Tulosteet ja näytöt" (`#/tulosteet/...`) ja
+      `#/uusintapainatus`, mutta `route()` (rivi noin 25737) ohjaa `STAFF_ROUTES`-reitit kuntalaistilassa
+      etusivulle, joten linkit ovat kuolleita. Suodata `homeToolGroupsHtml`:ssä pois linkit, joiden reitin
+      ensimmäinen osa on `STAFF_ROUTES`issa, kun `APP_MODE === "resident"`. Henkilöstötila ei muutu. Todennus:
+      smoke-lisäys kuntalaistilassa: etusivun `a[href^="#/"]`-linkeistä yhdenkään ensimmäinen polkuosa ei ole
+      `STAFF_ROUTES`issa (lue joukko sivulta `page.evaluate`illa); henkilöstötilassa linkit ovat yhä mukana.
+      (auditointi 2026-10-08, lähde: tuotantoklikkaus + koodi)
+- [ ] tests/smoke.test.js: saavutettavuuden perustarkistus ilman uusia riippuvuuksia. Uusi apufunktio
+      `a11yPerus(page, label)` laskee näkyvästä DOMista: (1) `input`, `select` ja `textarea` ilman saavutettavaa
+      nimeä (label[for], ympäröivä label, aria-label, aria-labelledby), (2) `button` ja `a[href]` ilman tekstiä tai
+      aria-labelia, (3) `img` ilman `alt`-attribuuttia, (4) toistuvat `id`:t, (5) `<html lang>` vastaa
+      käyttöliittymän kieltä. Aja Lahden etusivulle, pysäkkisivulle, linjasivulle, palvelutiskille ja
+      tulostekeskukseen; FAIL listaa enintään 5 rikkojaa selektoreineen. Assertoi rakennetta, ei UI-tekstiä.
+      Jos nykyinen sivu rikkoo jotain ja korjaus on alle 30 riviä, korjaa index.html:ssä samassa PR:ssä; muuten
+      kirjaa rikkojat PR:n runkoon ja jätä kyseinen kohta INFO-tasolle. Todennus: `node --check
+      tests/smoke.test.js`; CI:n smoke näyttää viisi uutta OK-riviä tai INFO-rivit rikkojineen.
+      (auditointi 2026-10-08, lähde: TUOTEPERIAATTEET "Saavutettavuus on osa määritelmää"; smokessa 0 axe-ajoa)
 - [x] tests/prod-smoke.test.js: mikkelin `posterStopId` "Mikkeli:310514" -> "Mikkeli:310523" (Hallitustori 1T)
       ja kommenttiin syy. 310514 (Hallitustori Raatihuone I) antaa pysäkkijulisteeseen vain 1 lähdön,
       koska muut sen vuorot päättyvät viereiselle laiturille, ja julistetarkistus hyväksyy sen
