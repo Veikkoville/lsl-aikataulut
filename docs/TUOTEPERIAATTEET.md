@@ -61,7 +61,29 @@ kanssa ennen ensimmäistä riviä:
 Lisäksi agentti ei koskaan muuta hintoja, myyntitekstejä tai esitteitä, eikä sw.js:n
 cache-versiota (tehdään käsin julkaisun yhteydessä).
 
+## Tuotekehityksen suunta (2026-10-08)
+
+Ylläpitäjän linjaus: tuote paranee jatkuvasti, ja tuotekehitys on itsekin automaatiota. Kun agentti ideoi,
+vähintään yksi kolmesta rivistä osuu näihin teemoihin. Järjestys: ensin se, mitä yleinen julistegeneraattori tai
+kopio ei pysty tekemään, eli oikeellisuus ja muutokset.
+
+1. **Poikkeukset ennen kuin matkustaja huomaa ne:** loma-ajat, pyhät ja perutut vuorot feedistä ruudulle,
+   monitoriin ja tulosteisiin.
+2. **Muutokset näkyviksi:** muutosvahti kertoo, mitä muuttui, ja tulosteet tarkistetaan automaattisesti ennen painoa.
+3. **Datan laatu kunnalle:** feedin virheet ja puutteet koottuna ennen kuin matkustaja kohtaa ne.
+4. **Tulosteiden tuotanto valmiiksi:** koot, määrät, painojärjestys ja vain muuttuneiden uusintapainatus.
+5. **Todistettu saavutettavuus:** ruudunlukija, näppäimistö ja 320 px suurimmalla tekstikoolla jokaisessa näkymässä.
+6. **Kunnalle näkyvä tieto käytöstä:** mitä kuntalaiset etsivät löytämättä, anonyymisti periaatteen mukaan.
+7. **Monikielisyys ilman lisätyötä:** tiedotteet ja tekstit ruotsiksi ja englanniksi ihmisen hyväksymänä.
+8. **Tiski vastaa kysymykseen:** suorat yhteydet ja lähdöt feedin datasta, lähde näkyvissä, tulostettava.
+9. **Näytöt ja ensimmäinen ruutu:** monitori valmiina infonäytölle, kuntalaisen etusivu alkaa lähimmistä lähdöistä.
+
+Tekoälyä käytetään ilman maksullista kielimallirajapintaa (selaimen omat rajapinnat ja deterministinen logiikka
+feedin datasta), kunnes ylläpitäjä toisin päättää.
+
 ## Mistä ideat haetaan, tässä järjestyksessä
+
+Teemat tulevat luvusta Tuotekehityksen suunta. Lähteet tässä järjestyksessä:
 
 1. `docs/AUTO-BACKLOG.md` lohko **Signaalit**: asiakkailta ja tapaamisista tulleet havainnot,
    jotka ylläpitäjä on kirjannut. Nämä ovat arvokkaimpia.

@@ -120,6 +120,94 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       kirjaa rikkojat PR:n runkoon ja jätä kyseinen kohta INFO-tasolle. Todennus: `node --check
       tests/smoke.test.js`; CI:n smoke näyttää viisi uutta OK-riviä tai INFO-rivit rikkojineen.
       (auditointi 2026-10-08, lähde: TUOTEPERIAATTEET "Saavutettavuus on osa määritelmää"; smokessa 0 axe-ajoa)
+- [ ] index.html: julisteen ja vihkon alaviite kertoo seuraavan koulujen loma-ajan, jolloin koulupäivien vuorot eivät aja.
+      Nyt juliste sanoo "Ma-Pe · koulupäivinä" (rivi noin 8608), mutta ei sitä, milloin seuraava loma on (esim. syysloma
+      19.-23.10.). Lisää puhdas funktio `lomajaksot(paivat)`, joka saa listan arkipäivistä (seuraavat 90 päivää), joina
+      pysäkin koulupäivävuorot eivät aja, ja palauttaa yhtenäiset jaksot (`[{alku, loppu}]`, viikonloppu ei katkaise
+      jaksoa). Päivät lasketaan feedistä samalla koulupäivä-luokituksella, jota juliste jo käyttää. Alaviite fi/sv/en:
+      "Koulujen loma-aikoina (seuraava 19.-23.10.) osa vuoroista ei aja." Jos jaksoa ei löydy, alaviitettä ei näytetä.
+      Todennus: smokessa `page.evaluate` syöttää `lomajaksot`ille kiinteän päivälistan (ma-pe 19.-23.10. + ma 26.10.) ja
+      odottaa kahta jaksoa; julisteen tulostenäkymässä alaviitteen elementti on olemassa Lahden testipysäkillä, jolla on
+      koulupäivävuoroja, tai PR:n runkoon perustelu miksi ei. (tuotekehityksen kärki 2026-10-08, P1, lähde: auditointi)
+- [ ] index.html: sama poikkeuskooste kuntalaisen etusivulle ja monitoriin. Käytä edellisen rivin `lomajaksot`-funktiota:
+      kun seuraava jakso alkaa 14 päivän sisällä, näytä etusivulla ja `#/monitori`-näkymässä yksi rivi fi/sv/en ("Syysloma
+      19.-23.10.: osa vuoroista ei aja"), joka linkittää pysäkin tai linjan aikatauluun. Ei näytetä, jos jaksoa ei ole.
+      Todennus: smokessa jakso pakotetaan sivulle (`window.__lomaTesti = [{alku, loppu}]` tai vastaava testikoukku) ja
+      odotetaan rivin elementti etusivulla ja monitorissa; ilman koukkua ja ilman jaksoa elementtiä ei ole.
+      (tuotekehityksen kärki 2026-10-08, P1, lähde: auditointi; edellyttää edellistä riviä)
+- [ ] index.html: perutut vuorot näkyviin. Lähtökyselyt eivät pyydä `realtimeState`a (auditointi: 0 osumaa lähtökyselyissä).
+      Lisää kenttä pysäkin ja monitorin lähtökyselyihin, ja kun `realtimeState === "CANCELED"`, näytä lähtö yliviivattuna
+      sanalla "Peruttu" (fi/sv/en, ruudunlukijalle tekstinä, ei pelkkä yliviivaus). Tulosteisiin ei muutosta. Todennus:
+      smokessa `page.setRequestInterception` palauttaa yhden lähdön `realtimeState: "CANCELED"` -tilassa ja tarkistaa, että
+      rivillä on peruttu-luokka ja sr-teksti; muut rivit ennallaan. Palauta interceptio lohkon lopussa. (tuotekehityksen kärki 2026-10-08, P1, lähde: auditointi)
+- [ ] index.html: muutosvahti näyttää, mitä muuttui. Nyt muutosvahti kertoo, mikä juliste vanhenee ja milloin, mutta ei
+      eroa. Tarkista ensin, mitä muutosvahdin data (`changeWatchPromise`, `docs/muutosvahti/`) sisältää. Jos lähtöajat tai
+      tiivisteen lähdeaineisto ovat datassa, näytä pysäkin muutosrivillä enintään 5 eroa ("linja 4 klo 7.34 -> 7.36",
+      "linja 24 uusi lähtö 6.02", "linja 3 klo 22.10 poistuu"). Jos ero vaatii muutosvahdin ajon muuttamista tiedostossa,
+      joka ei ole sallittujen listalla, älä koodaa: kirjaa "⚠️ EHDOTUS" tämän rivin alle ja lopeta. Todennus: smoke-lisäys
+      vakioaineistolla (malli tests/smoke.test.js:1089, `changeWatchPromise`), eroluettelon elementti näkyy ja sisältää
+      odotetut rivit rakenteena. (tuotekehityksen kärki 2026-10-08, P2, lähde: auditointi)
+- [ ] index.html + tests/smoke.test.js: julisteen laatuvahti ennen painoa. Auditointi: iso solmupysäkki tulostuu 3 sivuna,
+      minuutit 8 pt ja sivu 1 alkaa "jatkuu"-otsakkeella. Korjaa: ensimmäisellä sivulla ei "jatkuu"-otsaketta. Smokeen
+      tarkistus print-mediassa (`page.emulateMediaType("print")`) Lahden suurimmalle testipysäkille: (1) ensimmäisen sivun
+      alussa ei ole jatkuu-otsakkeen luokkaa, (2) minuuttisolujen laskettu fonttikoko on vähintään 10,67 px (8 pt),
+      (3) yhtään tyhjää sivua ei synny (jokaisessa sivulohkossa on vähintään yksi aikarivi). Assertoi rakennetta.
+      (tuotekehityksen kärki 2026-10-08, P2, lähde: auditointi)
+- [ ] index.html: datan laaturaportti kunnalle henkilöstönäkymään (uusi reitti `#/laatu`, lisää `STAFF_ROUTES`iin).
+      Listaa feedistä: (1) pysäkit, joilta ei lähde yhtään vuoroa seuraavan 7 päivän aikana, (2) pysäkit, joiden kaikki
+      vuorot vain saapuvat (pickupType NONE) mutta nimi on sama kuin lähtöpysäkillä (esim. Kauppatori A), (3) kaksikielisessä
+      kaupungissa pysäkit ilman ruotsinkielistä nimeä. Jokaisesta pysäkin nimi, tunnus ja linkki pysäkkisivulle sekä
+      CSV-vienti. Kyselyt eräinä, ettei Digitransit-kiintiö kuormitu (enintään 1 kysely sekunnissa). Todennus: smoke
+      henkilöstötilassa: `#/laatu` aukeaa, kolme osiota on olemassa (voivat olla tyhjiä) ja CSV-nappi on olemassa;
+      kuntalaistilassa reitti ohjaa etusivulle. (tuotekehityksen kärki 2026-10-08, P3, lähde: auditointi)
+- [ ] index.html: tiskin pysäkkihaku järjestää lähtöjä tarjoavat pysäkit ensin. Auditointi: Kauppatori-haun ensimmäinen osuma
+      on pelkkien saapuvien pysäkki, ja Enterin jälkeen näkyy "Ei tulevia lähtöjä". Järjestä osumat niin, että pysäkit,
+      joilta lähtee vuoroja, tulevat ensin; saapuvien pysäkin kohdalla kerro "Päätepysäkki: lähdöt pysäkiltä X" ja linkki.
+      Todennus: smoke tiskillä Lahden "Kauppatori"-haulla: ensimmäinen osuma ei ole saapuvien pysäkki (tarkista
+      rakenteesta, ei tekstistä). (tuotekehityksen kärki 2026-10-08, P3, lähde: auditointi)
+- [ ] index.html: julisteiden jakelutieto tulostekeskukseen. Weaselin generaattori antaa jakelutiedon (koko pysäkeittäin,
+      määrät ja painojärjestys); Reittarissa on vain uusintapainatuslista. Lisää tulostekeskuksen julisteosioon CSV-vienti:
+      pysäkin tunnus, nimi, ehdotettu koko (A4, A3 tai A2 sivumäärän ja linjojen määrän mukaan, säännöt koodin
+      kommenttiin), sivumäärä, painojärjestys (alueittain tai linjoittain) ja muuttunut-sarake muutosvahdista. Todennus:
+      smokessa CSV-napin tuottama sisältö luetaan `page.evaluate`illa: otsikkorivi oikein ja vähintään yksi datarivi.
+      (tuotekehityksen kärki 2026-10-08, P4, lähde: auditointi)
+- [ ] index.html: saavutettavuus, näppäimistö ja ruudunlukija. (1) "Siirry sisältöön" -ohituslinkki ensimmäiseksi
+      fokusoitavaksi; (2) reittihaun ja hakukentän fokus 3 px renkaaksi kuten muualla (nyt `outline:none`, rivit noin 1879
+      ja 2007); (3) reaaliaikamerkille "●" tekstivastine (`sr-only` "reaaliaikainen" + `aria-hidden` merkille, rivit noin
+      11627, 11660, 13731). Todennus: smoke: ensimmäinen Tab vie ohituslinkkiin, hakukentän `:focus`-tilan outline- tai
+      box-shadow-leveys on vähintään 2 px, reaaliaikamerkin vieressä on sr-only-elementti. (tuotekehityksen kärki 2026-10-08, P5, lähde: auditointi)
+- [ ] index.html: saavutettavuus, kapea näyttö ja ehdotuslistat. (1) Suurimmalla tekstikoolla 320 px:ssä lähtötaulukko
+      `table.deps` ei saa vieriä vaakasuunnassa (WCAG 1.4.10): pinoutuva asettelu kapealla. (2) Etusivun ja reittihaun
+      ehdotuslistoille combobox-semantiikka tiskin mallin mukaan (rivit noin 18076 ja 19875: role, aria-expanded,
+      aria-controls, aria-activedescendant). Todennus: smoke 320 px + suurin tekstikoko: `document.documentElement.scrollWidth
+      <= innerWidth`; hakukentällä `role="combobox"` ja listalla `role="listbox"` kun ehdotuksia näkyy. (tuotekehityksen kärki 2026-10-08, P5, lähde: auditointi)
+- [ ] worker/admin-page.js: suunnittelijan näkymä tuloksettomiin hakuihin. Tarkista ensin, mitä tilastonäkymä jo näyttää
+      (`admin/api/stats`, `failedSearches`, admin-page.js rivi noin 1036). Lisää tai täydennä: 30 päivän 20 yleisintä
+      tuloksetonta hakua määrineen, vertailu edelliseen 30 päivään ja CSV-vienti. Vain `searchSignal`-säännön läpäisseet
+      arvot (tietosuojarivi tämän listan alussa ensin). Todennus: worker/*.test.js:ään rivi, joka tarkistaa näkymän HTML:n
+      sisältävän top-listan ja CSV-napin elementit; `cd worker && npm test` = 0. (tuotekehityksen kärki 2026-10-08, P6, lähde: auditointi)
+- [ ] worker/admin-page.js: häiriötiedotteen käännösehdotus. Ylläpitäjä kirjoittaa tiedotteen suomeksi; "Ehdota käännös"
+      -nappi täyttää ruotsin- ja englanninkieliset kentät (titleSv, titleEn ja vastaavat kuvauskentät, rivi noin 255)
+      selaimen omalla käännösrajapinnalla (`Translator`, ominaisuustunnistus), ja ihminen tarkistaa ennen tallennusta. Jos
+      rajapintaa ei ole, nappia ei näytetä. Ei maksullista rajapintaa eikä palvelinpuolen käännöstä. Todennus:
+      worker/*.test.js: sivun HTML sisältää napin, joka on oletuksena piilossa, ja skriptin ominaisuustunnistuksen;
+      `cd worker && npm test` = 0. (tuotekehityksen kärki 2026-10-08, P7, lähde: auditointi)
+- [ ] index.html: tiski vastaa suoraan yhteyteen. Asiakaspalvelija valitsee kaksi pysäkkiä (mistä, mihin) ja näkee
+      seuraavat enintään 5 lähtöä linjoilla, joiden reitti kulkee molempien kautta oikeassa järjestyksessä, saapumisaikoineen
+      ja tulostettavana. Vain suorat yhteydet samalla linjalla (TUOTEPERIAATTEET: ei reittiopasta, ei vaihtoja). Data vain
+      feedistä, lähde näkyy. Todennus: smoke tiskillä kahdella saman Lahden linjan pysäkillä: vähintään yksi tulosrivi
+      rakenteena; kahdella pysäkillä ilman yhteistä linjaa tulos on tyhjä ja kertoo ohjauksen reittioppaaseen.
+      (tuotekehityksen kärki 2026-10-08, P8, lähde: auditointi)
+- [ ] index.html: monitori valmiiksi infonäytölle. (1) Rivimäärä ruudun korkeudesta, ettei 12. rivi ja alatunniste
+      leikkaudu 1920x1080:ssa, ja LÄHTEE-otsikko samaan sarakkeeseen (auditointi L1); (2) kaksikielisessä kaupungissa
+      otsikot vuorottelevat fi/sv 10 s välein; (3) voimassa oleva häiriötiedote bannerina; (4) `?eink=1` harmaasävy ilman
+      animaatioita e-paper-näytöille. Todennus: smoke 1920x1080: viimeinen rivi ja alatunniste ovat kokonaan näkyvissä;
+      `?eink=1` lisää body-luokan ja animaatiot ovat pois (`getAnimations().length === 0`). (tuotekehityksen kärki 2026-10-08, P9, lähde: auditointi)
+- [ ] index.html: kuntalaisen etusivu aloittaa vastauksesta. Mobiilissa (360 px) pysäkkihaku ja lähimmät lähdöt
+      ensimmäiseen ruutuun (nyt 980 ja 907 px), A->B toiseksi; yläpalkki enintään 12 % ruudun korkeudesta (nyt 20 %):
+      kieli, tekstikoko ja kontrasti yhden valikkonapin taakse, yksinäinen "Etusivu"-välilehti pois kuntalaistilassa.
+      Henkilöstötila ei muutu. Todennus: smoke 360x780 mobiiliemulaatiolla kuntalaistilassa: pysäkkihaun kentän ja
+      lähimmät lähdöt -napin `getBoundingClientRect().top < 780`; yläpalkin korkeus alle 94 px. (tuotekehityksen kärki 2026-10-08, P9, lähde: auditointi)
 - [x] tests/prod-smoke.test.js: mikkelin `posterStopId` "Mikkeli:310514" -> "Mikkeli:310523" (Hallitustori 1T)
       ja kommenttiin syy. 310514 (Hallitustori Raatihuone I) antaa pysäkkijulisteeseen vain 1 lähdön,
       koska muut sen vuorot päättyvät viereiselle laiturille, ja julistetarkistus hyväksyy sen

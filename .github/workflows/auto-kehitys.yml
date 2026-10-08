@@ -128,18 +128,20 @@ jobs:
                Jos avoimia auto-PR:iä on 1: valitse ylin "- [ ]"-rivi, joka ei ole VARATUT-listalla. Jos sellaista
                ei ole, ÄLÄ ideoi äläkä luo haaraa tai PR:ää: lopeta ja kerro syy lokiin.
             1. Lue docs/TUOTEPERIAATTEET.md ja docs/AUTO-BACKLOG.md.
-               a) Jos Avoimet-listalla on rivi "- [ ]", joka ei ole VARATUT: valitse YLIN. Jos se on epäselvä tai vaatii
+               a) JATKUVA IDEOINTI (ylläpitäjän linjaus 2026-10-08: tuotekehitys on itsekin automaatiota): jos avoimia
+                  auto-PR:iä on 0 ja Avoimet-listalla on alle KOLME avointa "- [ ]"-riviä, IDEOI ENSIN. Lue
+                  TUOTEPERIAATTEET.md:n luku "Tuotekehityksen suunta" ja lähdejärjestys (Signaalit-lohko ensin),
+                  README.md, docs/, testit ja git log -30. Kirjoita KOLME backlog-riviä Avoimet-listan LOPPUUN
+                  (avointen rivien jälkeen, ennen otsikkoa "## Tehdyt"), järjestyksessä arvo per työmäärä, jokainen
+                  TUOTEPERIAATTEET.md:n "Hyvän backlog-rivin muoto" mukaan ja sallittujen tiedostojen sisällä.
+                  Vähintään yksi kolmesta osuu "Tuotekehityksen suunta" -luvun teemaan. Merkitse jokaiseen
+                  "(agentin ehdotus <pvm>, lähde: <teema/signaali/testi/koodi>)". Signaalit-lohkon havainto, jonka
+                  muutit riviksi, merkitään "→ backlog <pvm>". PR-runkoon oma osio "Ehdotetut backlog-rivit"
+                  perusteluineen, jotta ihminen voi hylätä ehdotuksen sulkemalla PR:n.
+               b) Valitse sitten Avoimet-listan YLIN "- [ ]"-rivi, joka ei ole VARATUT. Jos se on epäselvä tai vaatii
                   päätöstä jota et voi tehdä, älä koodaa: avaa PR joka muuttaa vain
                   docs/AUTO-BACKLOG.md:tä lisäämällä tehtävän alle rivin "  - ⚠️ EHDOTUS/KYSYMYS: ..."
                   ja lopeta.
-               b) Jos Avoimet on tyhjä ja avoimia auto-PR:iä on 0: IDEOI ENSIN. Lue TUOTEPERIAATTEET.md:n lähdejärjestys
-                  (Signaalit-lohko ensin), README.md, docs/, testit ja git log -30. Kirjoita KOLME
-                  backlog-riviä Avoimet-listaan järjestyksessä arvo per työmäärä, jokainen
-                  TUOTEPERIAATTEET.md:n "Hyvän backlog-rivin muoto" mukaan ja sallittujen tiedostojen
-                  sisällä. Merkitse jokaiseen "(agentin ehdotus <pvm>, lähde: <signaali/testi/koodi>)".
-                  Signaalit-lohkon havainto, jonka muutit riviksi, merkitään "→ backlog <pvm>".
-                  Jatka sitten toteuttamalla ylin näistä. PR-runkoon oma osio "Ehdotetut backlog-rivit"
-                  perusteluineen, jotta ihminen voi hylätä ehdotuksen sulkemalla PR:n.
             2. Luo haara: git checkout -b auto/<pvm>-<lyhyt-aihe>.
             3. Toteuta tehtävä. Sallitut tiedostot: index.html, tests/**, worker/**, docs/AUTO-BACKLOG.md, README.md.
                KIELLETTY: docs/TUOTEPERIAATTEET.md (vain ihminen muuttaa periaatteita), sw.js:n cache-versio,
