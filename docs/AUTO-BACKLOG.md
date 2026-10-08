@@ -47,6 +47,15 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
 
 ## Avoimet
 
+- [ ] tests/prod-smoke.test.js: mikkelin `posterStopId` "Mikkeli:310514" -> "Mikkeli:310523" (Hallitustori 1T)
+      ja kommenttiin syy. 310514 (Hallitustori Raatihuone I) antaa pysäkkijulisteeseen vain 1 lähdön,
+      koska muut sen vuorot päättyvät viereiselle laiturille, ja julistetarkistus hyväksyy sen
+      (`poster.days >= 1`), joten vahti ei huomaisi julisteen tyhjenemistä. Mitattu ylläpitäjän
+      ajossa 2026-10-08 tuotannosta (demo.reittari.fi, sama klikkaussekvenssi kuin kohdassa 5):
+      310514 = 1 lähtö, 310523 = 34/14/11 lähtöä (Ma-Pe/La/Su). Älä muuta index.html:n
+      `deskHomeStop`ia. Todennus: `node --check tests/prod-smoke.test.js` ja kausivaihtovahdin
+      (kohta 4b) logiikalla 310523:lla on lähtöjä seuraavana arkipäivänä (proxyn
+      `stoptimesWithoutPatterns`, Origin https://demo.reittari.fi). (ylläpitäjä 2026-10-08)
 - [x] worker/worker.js: `/feedback/list` ottaa avaimen vastaan myös `Authorization: Bearer <avain>`
       -otsakkeesta (query-parametri `key` jää toistaiseksi toimimaan), ja CORS sallii
       `Authorization`-otsakkeen. Syy: query-parametrina avain päätyy lokeihin, selainhistoriaan ja
