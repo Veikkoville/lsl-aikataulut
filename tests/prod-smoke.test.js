@@ -110,7 +110,9 @@ let CITIES = [ // let eika const: SMOKE_CITIES suodattaa taman eraajossa
   { key: "kotka",   name: "Kotka" },
   { key: "raasepori", name: "Raasepori", svTitle: "Reittari Raseborg", deskPrint: true },
   { key: "kouvola", name: "Kouvola", posterStopId: "Kouvola:155786" },
-  { key: "mikkeli", name: "Mikkeli", posterStopId: "Mikkeli:310514", corridorDirs: 1 },
+  // Hallitustori 1T (310523): 34/14/11 lähtöä (Ma-Pe/La/Su). Entinen 310514 (Raatihuone I)
+  // antoi julisteeseen vain 1 lähdön, ja `poster.days >= 1` hyväksyi sen, joten tyhjenevä juliste ei olisi hälyttänyt.
+  { key: "mikkeli", name: "Mikkeli", posterStopId: "Mikkeli:310523", corridorDirs: 1 },
   // Kaupunkisweep 7.8.2026: presetit datavarmistettu kesä- JA talvikoetuksella.
   // Rovaniemen 4+5-käytävän yhteinen jakso on yksisuuntainen (linjat kiertävät
   // keskustan eri reittejä) → corridorDirs 1, sama verkon muoto kuin Mikkelissä.
