@@ -47,7 +47,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
 
 ## Avoimet
 
-- [ ] index.html: rivien noin 12957 ja 12985 merkkijonoissa on oikea NUL-tavu lainausmerkkien välissä
+- [x] index.html: rivien noin 12957 ja 12985 merkkijonoissa on oikea NUL-tavu lainausmerkkien välissä
       (`(r.shortName || "") + "<NUL>" + kilpi` ja `(L.route.shortName || "") + "<NUL>" + L.headsign`).
       Korvaa tavu lähdekoodissa escape-merkinnällä `\u0000`, jolloin ajonaikainen avain pysyy samana.
       Tee korvaus node-skriptillä (Edit-työkalu ei välttämättä osu NUL-merkkiin). Syy: NUL-tavun takia
@@ -58,7 +58,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       tests/package.json:n test-ketjun alkuun. Todennus: `node tests/tiedostohygienia.test.js` = 0;
       sama testi argumentilla, joka osoittaa NUL-tavun sisältävään väliaikaiseen tiedostoon = 1 (mutaatiotodiste
       PR:n runkoon, tiedosto poistetaan); `git diff --stat` näyttää index.html:ssä 2 muutettua riviä;
-      `node --check` pääskriptille. (auditointi 2026-10-08, lähde: koodi)
+      `node --check` pääskriptille. (auditointi 2026-10-08, lähde: koodi) (PR, 2026-10-09)
 - [ ] index.html + worker/worker.js: analytiikan `search_fail` ei saa välittää vapaata tekstiä, josta voi
       tunnistaa henkilön. Nyt `bindUnifiedSearch` (rivi noin 11324) lähettää tuloksettoman haun tekstin
       `track("search_fail", q)` 80 merkkiin asti, joten esimerkiksi kotiosoite tallentuu analytiikkaan.
