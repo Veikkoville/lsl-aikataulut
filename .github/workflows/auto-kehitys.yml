@@ -98,6 +98,18 @@ jobs:
             if [ -n "$r" ]; then varatut="$varatut$r"$'\n'; fi
           done
           if [ "$maara" -lt 2 ]; then saa=true; else saa=false; fi
+          # Tuplan esto (9.10.2026): savikurki-ajastin (Cloudflare Worker) käynnistää tämän työnkulun ti-la ajallaan
+          # workflow_dispatchilla. GitHubin oma schedule jää varalle, mutta myöhästyessään (5-7 h) se tulisi samana
+          # päivänä perään ja agentti tekisi toisen PR:n. Schedule-ajo ohitetaan, jos saman UTC-päivän dispatch-ajo on jo.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            tanaan=$(date -u +%F)
+            jo=$(gh run list --workflow auto-kehitys.yml --event workflow_dispatch --limit 20 --json createdAt \
+              --jq "[.[] | select(.createdAt | startswith(\"$tanaan\"))] | length")
+            if [ "${jo:-0}" -gt 0 ]; then
+              saa=false
+              echo "Ajastin käynnisti tämän päivän ajon jo ($jo kpl), GitHubin myöhästynyt schedule-ajo ohitetaan."
+            fi
+          fi
           {
             echo "maara=$maara"
             echo "saa=$saa"
