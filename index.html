@@ -12954,7 +12954,7 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
           kilpi = (loppu && !solmu ? cbStopBase(loppu) : "")
             || (solmu && nimiLoppu === String(CONFIG.city || "").toLowerCase() ? headsign : "") || r.longName || headsign;
         }
-        const key = (r.shortName || "") + " " + kilpi;
+        const key = (r.shortName || "") + "\u0000" + kilpi;
         if (!byLine.has(key)) byLine.set(key, { route: r, headsign: kilpi, trips: [] });
         byLine.get(key).trips.push({
           serviceId: tr.serviceId, activeDates: tr.activeDates,
@@ -12982,7 +12982,7 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
       const bk = g.key;
       if (!blocks.has(bk)) blocks.set(bk, { dows: g.dows, school: g.school, period: g.period, label: g.label, lines: new Map() });
       const b = blocks.get(bk);
-      const lk = (L.route.shortName || "") + " " + L.headsign;
+      const lk = (L.route.shortName || "") + "\u0000" + L.headsign;
       if (!b.lines.has(lk)) b.lines.set(lk, { route: L.route, headsign: L.headsign, times: [] });
       b.lines.get(lk).times.push(...g.trips.map(tr => tr.stoptimes[0].scheduledDeparture));
     }
