@@ -1,0 +1,118 @@
+{
+  "versio": 1,
+  "paivitetty": "2026-10-10T22:23:09.612Z",
+  "vanhenee_tuntia": 12,
+  "palvelut": [
+    {
+      "id": "reittari",
+      "nimi": "Reittari",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-10T22:23:09.612Z",
+      "lahde": "Saatavuustarkistus ja Tuotanto-smoke",
+      "kuvaus": "Esittelysivu demo.reittari.fi vastasi. Viimeisin tuotanto-smoke 10.10.2026 klo 23.03 meni läpi."
+    },
+    {
+      "id": "luvat-ja-kuulutukset",
+      "nimi": "Savikurki Luvat ja kuulutukset",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-10T22:23:09.612Z",
+      "lahde": "Saatavuustarkistus ja aineiston haun syke",
+      "kuvaus": "Esittelysivu demo.savikurki.fi/luvat vastasi. Aineisto haettu viimeksi 10.10.2026 klo 19.17."
+    },
+    {
+      "id": "jatehuollon-asiointi",
+      "nimi": "Savikurki Jätehuollon asiointi",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-10T22:23:09.612Z",
+      "lahde": "Saatavuustarkistus",
+      "kuvaus": "Esittelysivu jatehuolto-osoitteessa.pages.dev vastasi."
+    },
+    {
+      "id": "de-minimis-rekisteri",
+      "nimi": "Savikurki De minimis -rekisteri",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-10T22:23:09.612Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 10.10.2026 klo 22.44: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "tapahtumaluvat",
+      "nimi": "Savikurki Tapahtumaluvat",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-10T22:23:09.612Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 10.10.2026 klo 22.44: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "uimavesitiedotus",
+      "nimi": "Savikurki Uimavesitiedotus",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-10T22:23:09.612Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 10.10.2026 klo 22.44: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "kulttuurivierailut",
+      "nimi": "Savikurki Kulttuurivierailut",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-10T22:23:09.612Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 10.10.2026 klo 22.44: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "elinvoimapaketti",
+      "nimi": "Savikurki Elinvoimapaketti",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-10T22:23:09.612Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 10.10.2026 klo 22.44: demo ja sen ulkoiset lähteet olivat kunnossa."
+    }
+  ],
+  "tapahtumat": [
+    {
+      "aika": "2026-10-10T20:31:21.837Z",
+      "palvelu": "reittari",
+      "teksti": "Reittari: toimii (aiemmin häiriö)."
+    },
+    {
+      "aika": "2026-10-10T19:46:31.918Z",
+      "palvelu": "de-minimis-rekisteri",
+      "teksti": "Savikurki De minimis -rekisteri: toimii (aiemmin ei tietoa)."
+    },
+    {
+      "aika": "2026-10-10T19:46:31.918Z",
+      "palvelu": "tapahtumaluvat",
+      "teksti": "Savikurki Tapahtumaluvat: toimii (aiemmin ei tietoa)."
+    },
+    {
+      "aika": "2026-10-10T19:46:31.918Z",
+      "palvelu": "uimavesitiedotus",
+      "teksti": "Savikurki Uimavesitiedotus: toimii (aiemmin ei tietoa)."
+    },
+    {
+      "aika": "2026-10-10T19:46:31.918Z",
+      "palvelu": "kulttuurivierailut",
+      "teksti": "Savikurki Kulttuurivierailut: toimii (aiemmin ei tietoa)."
+    },
+    {
+      "aika": "2026-10-10T19:46:31.918Z",
+      "palvelu": "elinvoimapaketti",
+      "teksti": "Savikurki Elinvoimapaketti: toimii (aiemmin ei tietoa)."
+    },
+    {
+      "aika": "2026-10-10T18:23:54.901Z",
+      "palvelu": "reittari",
+      "teksti": "Reittari: häiriö (aiemmin toimii). Esittelysivu demo.reittari.fi vastasi. Viimeisin tuotanto-smoke 10.10.2026 klo 19.52 löysi vian, ja sen selvitys on kesken."
+    },
+    {
+      "aika": "2026-10-10T17:24:11.429Z",
+      "palvelu": "reittari",
+      "teksti": "Reittari: toimii (aiemmin häiriö)."
+    },
+    {
+      "aika": "2026-10-08T23:19:28.081Z",
+      "palvelu": "reittari",
+      "teksti": "Reittari: häiriö (aiemmin toimii). Esittelysivu demo.reittari.fi vastasi. Viimeisin tuotanto-smoke 9.10.2026 klo 01.42 löysi vian, ja sen selvitys on kesken."
+    }
+  ]
+}
