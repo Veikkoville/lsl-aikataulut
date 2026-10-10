@@ -98,3 +98,32 @@ Teemat tulevat luvusta Tuotekehityksen suunta. Lähteet tässä järjestyksessä
 Yksi asia, yksi tai kaksi tiedostoa, alle 300 riviä, ja todennus sanottuna: mikä testi
 vihertyy tai mitä pitää näkyä ja missä kaupungissa. Jos et osaa sanoa todennusta, ehdotus
 ei ole valmis.
+
+### Pisteet ja mittari (2026-10-10)
+
+Jokaisen avoimen rivin loppuun tulee kaksi kenttää omille riveilleen:
+
+      Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 = 5
+      Mittari: <mitä mitataan ja mistä> · tarkistus <vvvv-kk-pp>
+
+- **arvo** (hyöty tiskille, matkustajalle tai joukkoliikennepäällikölle): 3 = korjaa virheen tai esteen, jonka
+  käyttäjä kohtaa (väärä tai puuttuva tieto ruudulla tai tulosteessa, hämmentävä näkymä, saavutettavuuseste);
+  2 = nopeuttaa tiskiä, parantaa tulostetta tai kunnan näkymää tai suojaa tärkeää toimintoa uudella tarkistuksella;
+  1 = dokumentaatio tai sisäinen siistiminen.
+- **kiire**: 3 = määräpäivä tai kausi alle 30 päivän päässä (loma-aika, kausivaihdos, painopäivä); 2 = 30-90 päivää;
+  1 = ei aikarajaa.
+- **työ**: S = alle 50 muutettua riviä; M = 50-300 riviä; L = yli 300 riviä, avoin selvitys ennen koodia tai
+  riippuu toisesta avoimesta rivistä.
+- **myynti**: 3 = putken kunta tai ostaja on kysynyt (Signaalit-rivi tai ylläpitäjän merkintä); 2 = HILMA-signaali
+  tai markkinavuoropuhelu; 1 = ei tiedossa.
+- **Piste** = 2 × arvo + kiire + myynti - työ (S 0, M 1, L 2). Suurin piste tehdään ensin, tasapelissä ylempi rivi.
+  Summa (esimerkissä = 5) on apu: jos se ei täsmää osiin, osat ratkaisevat.
+- **Lukitus**: ylläpitäjä voi aloittaa Pisteet-kentän merkinnällä `(lukittu)`. Lukitut rivit tehdään ennen muita,
+  keskenään listan järjestyksessä. Agentti ei lukitse rivejä eikä muuta olemassa olevia pisteitä tai mittareita:
+  eriävä arvio kirjoitetaan PR:n runkoon.
+- **Konservatiivisesti**: epävarmassa pienempi arvo, kiire ja myynti ja suurempi työ. Pisteet ovat kirjaushetken
+  arvio, ja ylläpitäjä nostaa kiirettä, kun määräpäivä lähestyy.
+- **Mittari** kertoo, mistä näkee, auttoiko muutos, ja milloin se katsotaan (noin kuukausi mergestä tai kauden
+  jälkeen). Lähteen on oltava jo olemassa: käyttötilasto (Analytics Engine: `view`, `line`, `stop` ja `search_fail`,
+  admin-näkymän tilastot), smoke, prod-smoke, CI, kausivalidointi, muutosvahti tai uusintapainatusvahti. Jos
+  muutoksen vaikutusta ei voi lukea käytöstä, mittari on testi tai tarkistus, ja se sanotaan suoraan.

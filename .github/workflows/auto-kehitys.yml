@@ -5,8 +5,9 @@
 #   koeajo  = ei agenttia. Avaa triviaalin PR:n GITHUB_TOKENilla ja todentaa PR-putken
 #             (vaatii repoasetuksen Settings > Actions > General >
 #             "Allow GitHub Actions to create and approve pull requests").
-#   kehitys = Claude Code -agentti lukee docs/AUTO-BACKLOG.md:n, valitsee ylimmän avoimen
-#             tehtävän, toteuttaa sen, ajaa worker-yksikkötestit ja avaa PR:n.
+#   kehitys = Claude Code -agentti lukee docs/AUTO-BACKLOG.md:n, valitsee lukitun tai suurimman
+#             pisteen avoimen tehtävän (docs/TUOTEPERIAATTEET.md, Pisteet ja mittari), toteuttaa sen,
+#             ajaa worker-yksikkötestit ja avaa PR:n, jonka kuvaus alkaa riskiluokalla ja mittarilla.
 #             Vaatii secretin CLAUDE_CODE_OAUTH_TOKEN (claude setup-token) tai ANTHROPIC_API_KEY.
 #
 # Ajastus kytketty 28.8.2026 (1. kehitysajo PR #3 hyväksytty). Tyhjä backlog = ajo lopettaa heti.
@@ -137,20 +138,28 @@ jobs:
             0. Avoimia auto-PR:iä on nyt ${{ steps.avoin.outputs.maara }}. Rivit, joita ne jo toteuttavat
                (VARATUT: älä valitse, älä muokkaa):
                ${{ steps.avoin.outputs.varatut || '(ei varattuja rivejä)' }}
-               Jos avoimia auto-PR:iä on 1: valitse ylin "- [ ]"-rivi, joka ei ole VARATUT-listalla. Jos sellaista
-               ei ole, ÄLÄ ideoi äläkä luo haaraa tai PR:ää: lopeta ja kerro syy lokiin.
+               Jos avoimia auto-PR:iä on 1: valitse kohdan 1 b järjestyksellä rivi, joka ei ole VARATUT-listalla.
+               Jos sellaista ei ole, ÄLÄ ideoi äläkä luo haaraa tai PR:ää: lopeta ja kerro syy lokiin.
             1. Lue docs/TUOTEPERIAATTEET.md ja docs/AUTO-BACKLOG.md.
                a) JATKUVA IDEOINTI (ylläpitäjän linjaus 2026-10-08: tuotekehitys on itsekin automaatiota): jos avoimia
                   auto-PR:iä on 0 ja Avoimet-listalla on alle KOLME avointa "- [ ]"-riviä, IDEOI ENSIN. Lue
                   TUOTEPERIAATTEET.md:n luku "Tuotekehityksen suunta" ja lähdejärjestys (Signaalit-lohko ensin),
                   README.md, docs/, testit ja git log -30. Kirjoita KOLME backlog-riviä Avoimet-listan LOPPUUN
-                  (avointen rivien jälkeen, ennen otsikkoa "## Tehdyt"), järjestyksessä arvo per työmäärä, jokainen
-                  TUOTEPERIAATTEET.md:n "Hyvän backlog-rivin muoto" mukaan ja sallittujen tiedostojen sisällä.
+                  (avointen rivien jälkeen, ennen otsikkoa "## Tehdyt"), jokainen TUOTEPERIAATTEET.md:n "Hyvän
+                  backlog-rivin muoto" mukaan ja sallittujen tiedostojen sisällä. Jokaisen rivin loppuun Pisteet- ja
+                  Mittari-kenttä saman luvun "Pisteet ja mittari" mukaan: pisteet konservatiivisesti, myynti 3 vain
+                  Signaalit-lohkon kunnan tai ostajan kysymyksestä ja 2 vain HILMA- tai markkinavuoropuhelusignaalista,
+                  mittarin lähde jo olemassa ja tarkistuspäivä noin 30 päivän päähän. Älä merkitse riviä (lukittu).
                   Vähintään yksi kolmesta osuu "Tuotekehityksen suunta" -luvun teemaan. Merkitse jokaiseen
                   "(agentin ehdotus <pvm>, lähde: <teema/signaali/testi/koodi>)". Signaalit-lohkon havainto, jonka
                   muutit riviksi, merkitään "→ backlog <pvm>". PR-runkoon oma osio "Ehdotetut backlog-rivit"
                   perusteluineen, jotta ihminen voi hylätä ehdotuksen sulkemalla PR:n.
-               b) Valitse sitten Avoimet-listan YLIN "- [ ]"-rivi, joka ei ole VARATUT. Jos se on epäselvä tai vaatii
+               b) Valitse sitten tehtävä Avoimet-listan "- [ ]"-riveistä, jotka eivät ole VARATUT, tässä järjestyksessä:
+                  (1) rivit, joiden Pisteet-kentässä on "(lukittu)", listan järjestyksessä; (2) muuten suurin piste
+                  2 × arvo + kiire + myynti - työ (S 0, M 1, L 2), laskettuna Pisteet-kentän osista; (3) tasapelissä
+                  ylempi rivi. Rivi, joka edellyttää toista avointa riviä, odottaa sitä. Jos riviltä puuttuu
+                  Pisteet-kenttä, pisteytä se vain valintaa varten (älä kirjoita riviin) ja kerro arvio PR:n rungossa.
+                  Älä muuta muiden rivien pisteitä etkä mittareita. Jos valittu rivi on epäselvä tai vaatii
                   päätöstä jota et voi tehdä, älä koodaa: avaa PR joka muuttaa vain
                   docs/AUTO-BACKLOG.md:tä lisäämällä tehtävän alle rivin "  - ⚠️ EHDOTUS/KYSYMYS: ..."
                   ja lopeta.
@@ -169,8 +178,17 @@ jobs:
                Jos muutit index.html:n skriptiä, poimi skriptilohko ja aja sille node --check.
             5. Merkitse tehtävä backlogissa "- [x]" ja lisää perään " (PR, <pvm>)".
             6. Committaa (git config user.name "reittari-auto[bot]", user.email "actions@users.noreply.github.com"),
-               pushaa haara ja avaa PR: gh pr create --base master --title "auto: <aihe>" --body jossa on
-               Mitä / Miksi (backlog-rivi) / Miten todennettu / Mitä EI tehty / Riskit.
+               pushaa haara ja avaa PR: gh pr create --base master --title "auto: <aihe>" --body, jonka
+               ENSIMMÄINEN rivi on täsmälleen "Riskiluokka: docs", "Riskiluokka: testi", "Riskiluokka: koodi" tai
+               "Riskiluokka: julkaiseva" ja TOINEN rivi tehdyn backlog-rivin Mittari-kenttä sellaisenaan yhdelle
+               riville ("Mittari: ... · tarkistus <pvm>", tai "Mittari: puuttuu rivistä"). Sen jälkeen tyhjä rivi ja
+               Mitä / Miksi (backlog-rivi ja sen piste) / Miten todennettu / Mitä EI tehty / Riskit.
+               Riskiluokka määräytyy PR:n kaikista muutetuista tiedostoista (git diff --name-only origin/master...HEAD):
+               docs = vain docs/** ja README.md; testi = vain tests/** (ja docs); koodi = mikä tahansa muu tiedosto;
+               julkaiseva = PR muuttaa tiedostoa, jonka GitHub Pages julkaisee sovelluksena heti mergen jälkeen, eli
+               mitä tahansa muuta kuin tests/**, worker/**, tools/**, README.md tai docs/** (docs/muutosvahti/** on
+               sovelluksen dataa ja siis julkaiseva). index.html on aina julkaiseva. worker/** on koodi, koska worker
+               julkaistaan käsin. Julkaiseva PR on aina myös koodia; epävarmassa tapauksessa valitse korkeampi luokka.
             7. ÄLÄ mergaa, älä pushaa masteriin, älä koske muihin backlog-riveihin.
 
       # GITHUB_TOKENilla avattu PR ei laukaise pull_request-tapahtumaa, joten CI kaynnistetaan
