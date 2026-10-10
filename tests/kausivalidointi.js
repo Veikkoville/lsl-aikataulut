@@ -165,10 +165,15 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
   baseline["__ehdotus_" + key] = sids; // ehdotus talteen raporttiin
   await sleep(QUERY_GAP_MS);
 
-  // 2) käytäväpresetit
+  // 2) käytäväpresetit. Presetin tunnus voi erota syötteestä vain erotinmerkillä ("192V" ja syötteessä "192_V",
+  // Raasepori 6.-8.10.2026): sovellus tunnistaa molemmat, joten haku tehdään syötteen omalla muodolla.
+  const invShorts = [...new Set((inv.routes || []).map(r => r.shortName).filter(Boolean))];
+  const nrm = x => String(x).replace(/[\s_.\-]/g, "").toLowerCase();
+  const rawOf = l => (invShorts.includes(l) ? l : (invShorts.find(x => nrm(x) === nrm(l)) || l));
   for (const corr of (cfg.corridors || [])) {
     const perLine = new Map(); // line -> {near, far, stops:Set}
-    for (const line of corr.lines) {
+    for (const cfgLine of corr.lines) {
+      const line = rawOf(cfgLine);
       const d = await q(
         `query ($feeds: [String], $name: String) {
            routes(feeds: $feeds, name: $name) { shortName patterns {

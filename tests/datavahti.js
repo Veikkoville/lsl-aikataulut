@@ -11,9 +11,9 @@
 // Tarkistukset per kaupunki. FAIL = viittaus rikki (ajo punainen), WARN = toimii, mutta katso.
 //  1) feedMatch osuu feediin, extraFeeds löytyvät.
 //  2) Linjaviittaukset: käytäväpresetit (corridors[].lines) sekä kaupungin vihkon osiot, yhdistelmät,
-//     aikataulupisteiden linjat ja yhdistetyt linjat (vihko.*). shortName löytyy syötteestä TÄSMÄLLEEN
-//     (FAIL; viesti kertoo samannäköisen tunnuksen, esim. "192V" -> "192_V"), ja linjalla on vuoroja
-//     tulostusjaksolla (42 pv). Preset ilman vuoroja = FAIL, vihkon linja ilman vuoroja = WARN (kausilinjat),
+//     aikataulupisteiden linjat ja yhdistetyt linjat (vihko.*). shortName löytyy syötteestä (FAIL jos ei) täsmälleen
+//     tai erotinmerkkiä vaille sama (molemmat hyväksytään, esim. "192V" ja syötteen "192_V"), ja linjalla on vuoroja
+//     linjojen horisontissa (84 pv). Preset ilman vuoroja = FAIL (kesätauon aikana WARN), vihkon linja ilman vuoroja = WARN (kausilinjat),
 //     tauko lähimmän viikon aikana = WARN (sovellus näyttää "liikennöi X alkaen", ks. loadPrintRoutes).
 //     Tapahtumalinjat (eventLines, vihko.eventPages) ja lineNotes-avaimet: puuttuva = WARN (vain teksti).
 //  3) Tiskin oletuspysäkki (deskHomeStop.id/ids): pysäkki löytyy (FAIL) ja sillä on lähtöjä 7 päivän
@@ -38,8 +38,20 @@ const PROXY = process.env.PROXY || "https://lsl-aikataulut-proxy.veikkoville.wor
 const RAIL_STATIONS = "https://rata.digitraffic.fi/api/v1/metadata/stations";
 const CITY_GAP_MS = +(process.env.CITY_GAP_MS || 3000);
 const REPORT_PATH = process.env.REPORT_PATH || path.join(__dirname, "..", "datavahti-tulos.json");
-const HORIZON_DAYS = 42;   // = index.html PRINT_HORIZON_DAYS (tulosteen jakso)
-const NEAR_DAYS = 8;       // = activeProbeDates-ikkuna (lähin viikko)
+const HORIZON_DAYS = 84;   // = index.html LINE_HORIZON_DAYS (Digitransitin data-ikkuna, linja listoissa)
+const NEAR_DAYS = 8;       // lähin viikko: tätä myöhemmin alkava linja näytetään "liikennöi X alkaen"
+// Tunnetut tauot, joita horisontti ei aina kata (10.10.2026). Koulujen kesäloma kestää noin 10-11 viikkoa, ja
+// kesäkuun alussa seuraavan kauden aikataulu ei yleensä ole vielä syötteessä: koulupäivälinjalla ei silloin ole
+// vuoroja koko ikkunassa, vaikka se palaa elokuussa. Tauon aikana (ja viikko ennen) vuorottomuus on WARN eikä
+// FAIL; muulloin vuoroton presetin linja on FAIL. Syys-, joulu-, talvi- ja pääsiäisloma mahtuvat ikkunaan.
+const KNOWN_BREAKS = [{ nimi: "koulujen kesäloma", alku: [6, 1], loppu: [8, 20], ennen: 7 }];
+function knownBreak(day) {   // day = YYYYMMDD
+  const d = new Date(+day.slice(0, 4), +day.slice(4, 6) - 1, +day.slice(6, 8));
+  return KNOWN_BREAKS.find(b => {
+    const from = new Date(d.getFullYear(), b.alku[0] - 1, b.alku[1] - b.ennen), to = new Date(d.getFullYear(), b.loppu[0] - 1, b.loppu[1]);
+    return d >= from && d <= to;
+  }) || null;
+}
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const norm = s => String(s == null ? "" : s).replace(/[\s_.\-]/g, "").toLowerCase();   // = index.html lineKeyNorm
@@ -116,8 +128,8 @@ async function collect(key, cfg, ctx) {
   if (refs.length || styleKeys.length) {
     snap.routes = ((await q(`query ($feeds: [String]) { routes(feeds: $feeds) { gtfsId shortName mode } }`, { feeds: [feed] })).routes || [])
       .filter(Boolean).map(r => ({ gtfsId: r.gtfsId, shortName: r.shortName, mode: r.mode }));
-    const want = new Set(refs.map(r => r.line));
-    const ids = snap.routes.filter(r => want.has(r.shortName)).map(r => r.gtfsId);
+    const want = new Set(refs.map(r => norm(r.line)));   // molemmat muodot ("192V" ja "192_V")
+    const ids = snap.routes.filter(r => want.has(norm(r.shortName))).map(r => r.gtfsId);
     const aliases = ctx.days.map((d, i) => `d${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
     for (let i = 0; i < ids.length; i += 10) {
       await sleep(ctx.gap);
@@ -191,25 +203,34 @@ function evaluate(key, cfg, snap, ctx) {
     const k = ref.line + "|" + ref.src;
     if (seen.has(k)) continue;
     seen.add(k);
-    const exact = byShort.get(ref.line) || [];
+    let exact = byShort.get(ref.line) || [];
     const check = `linja ${ref.line} (${ref.src})`;
+    // Tunnuksen muotoero ("192V" ja syötteessä "192_V") hyväksytään: sovellus tunnistaa molemmat (lineKeyNorm)
+    // ja näyttää muodon 192V (10.10.2026). Puuttuva linja on FAIL.
+    let form = "";
     if (!exact.length) {
-      const alike = [...new Set(snap.routes.filter(r => norm(r.shortName) === norm(ref.line)).map(r => r.shortName))];
-      const level = ref.kind === "text" ? "WARN" : "FAIL";
-      log(level, check, alike.length
-        ? `shortName "${ref.line}" puuttuu syötteestä ${snap.feed}; samannäköinen tunnus ${alike.map(s => `"${s}"`).join(", ")}: päivitä CONFIG`
-        : `shortName "${ref.line}" puuttuu syötteestä ${snap.feed}: linja lakkautettu tai tunnus vaihtunut`);
+      exact = snap.routes.filter(r => norm(r.shortName) === norm(ref.line));
+      if (exact.length) form = `; syötteessä muodossa ${[...new Set(exact.map(r => `"${r.shortName}"`))].join(", ")}, sovellus tunnistaa molemmat`;
+    }
+    if (!exact.length) {
+      log(ref.kind === "text" ? "WARN" : "FAIL", check,
+        `shortName "${ref.line}" puuttuu syötteestä ${snap.feed}: linja lakkautettu tai tunnus vaihtunut`);
       continue;
     }
     const counts = snap.days.map((_, i) => exact.reduce((n, r) => n + ((snap.service[r.gtfsId] || [])[i] || 0), 0));
     const first = counts.findIndex(n => n > 0);
-    if (first < 0) {
+    const brk = knownBreak(snap.days[0]);
+    if (first < 0 && brk && ref.kind !== "text") {
+      log("WARN", check, `ei vuoroja ${HORIZON_DAYS} päivään (${fmtDay(snap.days[0])}-${fmtDay(snap.days[snap.days.length - 1])}): ` +
+        `${brk.nimi} on tunnettu tauko, jota horisontti ei kata ennen kuin syötteessä on seuraavan kauden aikataulu; ` +
+        `${ref.kind === "preset" ? "preset ei koostu tauon aikana, harkitse kesäpresettiä" : "linja ei näy listoissa tauon aikana"}`);
+    } else if (first < 0) {
       log(ref.kind === "preset" ? "FAIL" : "WARN", check,
         `ei vuoroja ${HORIZON_DAYS} päivään (${fmtDay(snap.days[0])}-${fmtDay(snap.days[snap.days.length - 1])})${ref.kind === "preset" ? ": preset ei koostu" : ""}`);
     } else if (first >= NEAR_DAYS && ref.kind !== "text") {
-      log("WARN", check, `tauko lähimmän viikon aikana, liikennöi ${fmtDay(snap.days[first])} alkaen (Tulosteet-sivu näyttää linjan ja alkamispäivän)`);
+      log("WARN", check, `tauko lähimmän viikon aikana, liikennöi ${fmtDay(snap.days[first])} alkaen (linjalista ja tulosteet näyttävät alkamispäivän)${form}`);
     } else {
-      log("PASS", check, `${counts.slice(0, NEAR_DAYS).reduce((a, b) => a + b, 0)} vuoroa lähimmän viikon aikana`);
+      log("PASS", check, `${counts.slice(0, NEAR_DAYS).reduce((a, b) => a + b, 0)} vuoroa lähimmän viikon aikana${form}`);
     }
   }
   const styleMiss = [...Object.keys(cfg.lineStyles || {}), ...Object.keys(cfg.netLineStyles || {})].filter(s => !byShort.has(s));
@@ -292,4 +313,4 @@ if (require.main === module) (async () => {
   process.exit(n("FAIL") ? 1 : 0);
 })().catch(e => { console.error("datavahti kaatui: " + e.message); process.exit(2); });
 
-module.exports = { evaluate, lineRefs, hubTag, smokePins, dayList, norm };
+module.exports = { evaluate, lineRefs, hubTag, smokePins, dayList, norm, knownBreak, HORIZON_DAYS };

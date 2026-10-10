@@ -578,6 +578,8 @@
   .rt-badge.special {
     background: var(--rc); border-color: var(--rc); color: var(--rt);
   }
+  .rt-col { display: flex; flex-direction: column; min-width: 0; gap: 0.1rem; }
+  .rt-col .line-resume { font-size: 0.78rem; white-space: normal; }
   .rt-name { font-size: 0.82rem; line-height: 1.25; color: var(--muted);
     overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     overflow-wrap: anywhere; }
@@ -4655,7 +4657,12 @@ const CONFIGS = {
     // prod-smoken oletusodotus pätee).
     corridors: [
       { key: "pihlava", name: "Pihlavan suunta", lines: ["35", "43"] },
-      { key: "yyteri", name: "Yyterin suunta", lines: ["34", "34W"] },
+      // 10.10.2026: yksisuuntainen ja nimetty sen mukaan. 34W ajaa vain Yyteriin päin (4 vuoroa ma 19.10., ei paluuta),
+      // joten 34+34W kokoaa vain suunnan Pori matkakeskus -> Yyteri (corridorBuild ma 12.10. ja 19.10.: 1 suunta,
+      // 60 yhteistä pysäkkiä, 18 riviä). Kaksisuuntaisia pareja mitattiin: 34+35 ja 34+43 antavat 2 suuntaa, mutta
+      // yhteinen jakso päättyy Meri-Poriin (34+35: Meri-Porin yhtenäiskoulu, 27/22 pysäkkiä) eikä ulotu Yyteriin, ja
+      // se on jo Pihlavan presetin jakso; 34+40M samoin (Kaanaan vesitorni, 40M 3 vuoroa). 34M ja 34R 0 vuoroa.
+      { key: "yyteri", name: "Pori → Yyteri", lines: ["34", "34W"] },
     ],
     // Reittioppaan teemaväri (pori.digitransit.fi meta theme-color, luettu 7.8.2026).
     brandColor: "#1F1F66",
@@ -5982,10 +5989,10 @@ const STRINGS = {
     corridorBuilding: "Kootaan yhdistettyä aikataulua…",
     corridorNoShared: "Valituilla linjoilla ei ole riittävää yhteistä pysäkkijaksoa (vähintään 3 yhteistä pysäkkiä samassa järjestyksessä).",
     corridorExcluded: "Ei mukana (ei yhteistä jaksoa valittujen kanssa): {lines}",
-    corridorMissing: "Ryhmän linjaa {lines} ei löydy nykyisestä aikataulusta, tai sillä ei ole vuoroja seuraavien 6 viikon aikana. Taulukko kootaan ryhmän muista linjoista.",
-    corridorMissingTooFew: "Ryhmän linjaa {lines} ei löydy nykyisestä aikataulusta, tai sillä ei ole vuoroja seuraavien 6 viikon aikana. Ryhmään jää alle kaksi linjaa, joten yhdistettyä aikataulua ei voi koota.",
+    corridorMissing: "Ryhmän linjaa {lines} ei löydy nykyisestä aikataulusta, tai sillä ei ole vuoroja seuraavien 12 viikon aikana. Taulukko kootaan ryhmän muista linjoista.",
+    corridorMissingTooFew: "Ryhmän linjaa {lines} ei löydy nykyisestä aikataulusta, tai sillä ei ole vuoroja seuraavien 12 viikon aikana. Ryhmään jää alle kaksi linjaa, joten yhdistettyä aikataulua ei voi koota.",
     lineRunsFrom: "liikennöi {date} alkaen",
-    deskLinesUnlisted: "Pysäkin linjat, joita ei voi tulostaa (ei vuoroja seuraavien 6 viikon aikana): {lines}",
+    deskLinesUnlisted: "Pysäkin linjat, joita ei voi tulostaa (ei vuoroja seuraavien 12 viikon aikana): {lines}",
     corridorLineCol: "Linja", corridorDestCol: "Määränpää",
     corridorSharedNote: "Ajat yhteisillä pysäkeillä: {n} yhteistä pysäkkiä välillä {from}–{to}.",
     trainsLink: "Junat",
@@ -6865,10 +6872,10 @@ const STRINGS = {
     corridorBuilding: "Building the combined timetable…",
     corridorNoShared: "The selected routes do not share a sufficient common stop sequence (at least 3 shared stops in the same order).",
     corridorExcluded: "Not included (no shared corridor with the selection): {lines}",
-    corridorMissing: "Route {lines} of this group is not in the current timetable, or it has no trips in the next 6 weeks. The table is built from the other routes of the group.",
-    corridorMissingTooFew: "Route {lines} of this group is not in the current timetable, or it has no trips in the next 6 weeks. Fewer than two routes remain, so the combined timetable cannot be built.",
+    corridorMissing: "Route {lines} of this group is not in the current timetable, or it has no trips in the next 12 weeks. The table is built from the other routes of the group.",
+    corridorMissingTooFew: "Route {lines} of this group is not in the current timetable, or it has no trips in the next 12 weeks. Fewer than two routes remain, so the combined timetable cannot be built.",
     lineRunsFrom: "runs from {date}",
-    deskLinesUnlisted: "Routes at this stop that cannot be printed (no trips in the next 6 weeks): {lines}",
+    deskLinesUnlisted: "Routes at this stop that cannot be printed (no trips in the next 12 weeks): {lines}",
     corridorLineCol: "Line", corridorDestCol: "Destination",
     corridorSharedNote: "Times at shared stops: {n} shared stops between {from}–{to}.",
     trainsLink: "Trains",
@@ -7747,10 +7754,10 @@ const STRINGS = {
     corridorBuilding: "Sammanställer den kombinerade tidtabellen…",
     corridorNoShared: "De valda linjerna har ingen tillräcklig gemensam hållplatssekvens (minst 3 gemensamma hållplatser i samma ordning).",
     corridorExcluded: "Ingår inte (inget gemensamt stråk med urvalet): {lines}",
-    corridorMissing: "Gruppens linje {lines} finns inte i den nuvarande tidtabellen, eller den har inga turer under de närmaste 6 veckorna. Tabellen sammanställs av gruppens övriga linjer.",
-    corridorMissingTooFew: "Gruppens linje {lines} finns inte i den nuvarande tidtabellen, eller den har inga turer under de närmaste 6 veckorna. Färre än två linjer återstår, så den kombinerade tidtabellen kan inte sammanställas.",
+    corridorMissing: "Gruppens linje {lines} finns inte i den nuvarande tidtabellen, eller den har inga turer under de närmaste 12 veckorna. Tabellen sammanställs av gruppens övriga linjer.",
+    corridorMissingTooFew: "Gruppens linje {lines} finns inte i den nuvarande tidtabellen, eller den har inga turer under de närmaste 12 veckorna. Färre än två linjer återstår, så den kombinerade tidtabellen kan inte sammanställas.",
     lineRunsFrom: "trafikeras fr.o.m. {date}",
-    deskLinesUnlisted: "Linjer vid hållplatsen som inte kan skrivas ut (inga turer under de närmaste 6 veckorna): {lines}",
+    deskLinesUnlisted: "Linjer vid hållplatsen som inte kan skrivas ut (inga turer under de närmaste 12 veckorna): {lines}",
     corridorLineCol: "Linje", corridorDestCol: "Destination",
     corridorSharedNote: "Tider vid gemensamma hållplatser: {n} gemensamma hållplatser mellan {from}–{to}.",
     trainsLink: "Tåg",
@@ -8128,11 +8135,28 @@ async function gql(query, variables, opts) {
     throw new Error(t("errApiKey"));
   }
   if (!res.ok) throw new Error(t("errApi") + "HTTP " + res.status);
-  const json = await res.json();
+  const txt = await res.text();
+  const json = JSON.parse(txt);
   if (json.errors && !(opts && opts.allowPartial && json.data))
     throw new Error(t("errApi") + json.errors.map(e => e.message).join("; "));
+  if (json.data && SHORT_SEP_TXT_RE.test(txt)) fixShortNames(json.data);
   if (json.data) await fixPlatformNames(json.data);
   return json.data;
+}
+
+/* Linjatunnuksen näyttömuoto (10.10.2026). Raaseporin syöte muutti 6.-8.10.2026 varianttien shortNamet muotoon
+   "192_V", "134_n" ja "140_k", vaikka linjat ovat matkustajille 192V, 134n ja 140k. Muoto korjataan heti
+   rajapinnan vastauksessa, jolloin linjalista, julisteet, tiski, käytävä ja vihko näyttävät saman tunnuksen.
+   Vain muoto "numero_kirjain" (1-2 kirjainta): muiden syötteiden välilyönnilliset nimet ("IC 946", "Pali 6")
+   jäävät ennalleen. Presetit ja datavahti tunnistavat molemmat muodot (lineKeyNorm). */
+const SHORT_SEP_RE = /^(\d+)_([A-Za-zÅÄÖåäö]{1,2})$/;
+const SHORT_SEP_TXT_RE = /"shortName":\s*"\d+_[A-Za-zÅÄÖåäö]{1,2}"/;
+const lineLabel = s => String(s == null ? "" : s).replace(SHORT_SEP_RE, "$1$2");
+function fixShortNames(o) {
+  if (!o || typeof o !== "object") return;
+  if (Array.isArray(o)) { o.forEach(fixShortNames); return; }
+  if (typeof o.shortName === "string" && SHORT_SEP_RE.test(o.shortName)) o.shortName = lineLabel(o.shortName);
+  for (const k in o) if (o[k] && typeof o[k] === "object") fixShortNames(o[k]);
 }
 
 /* Laituripysäkin nimi aineistossa on pelkkä laituri ("29", "30-35", "T": MATKA-feedin Kamppi, Karjaa ja
@@ -8256,9 +8280,22 @@ async function findFeed() {
   return feedId;
 }
 
-// Edustavat tulevat päivät (Ti/To/La/Su seuraavan viikon sisällä). Riittää
-// erottamaan liikennöivät linjat kausi-/koululinjoista joilla ei ole vuoroja nyt.
+// Edustavat tulevat päivät: jokainen viikonpäivä kerran, tänään ja kuusi seuraavaa päivää (10.10.2026). Ennen
+// otos oli ti, to, la ja su, jolloin vain ma-ke-pe ajava linja (Kajaanin palveluliikenne Pali) ei koskaan ollut
+// aktiivinen ja sen pääpattern valittiin sattumalta. Linjakohtaiset kyselyt (linjasivu, vihko, käytävä,
+// juliste, tiskin linjakortti) käyttävät tätä: kutsujen määrä ei muutu, vain aliasten määrä 4 -> 7.
 function activeProbeDates() {
+  const out = [], base = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+    out.push(`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`);
+  }
+  return out;
+}
+// Koko syötteen kyselyt (loadRoutes, loadNetwork) käyttävät kevyttä neljän päivän otosta (ti, to, la, su):
+// seitsemällä päivällä Turun linjalistakysely kasvaisi noin 550 kt -> 950 kt. Otokseen osumattomat viikonpäivät
+// ja tauot tarkistaa loadRoutesin toinen vaihe vain niille linjoille, joilla otoksessa ei ole vuoroja.
+function listProbeDates() {
   const want = new Set([2, 4, 6, 0]); // getDay: Ti=2, To=4, La=6, Su=0
   const out = [], base = new Date();
   for (let i = 0; i < 8 && want.size; i++) {
@@ -8274,7 +8311,66 @@ function activeProbeDates() {
 // Linjalista on kielitietoinen (longName lokalisoitu) → välimuistiavain per kieli,
 // ettei SV-lista palauta FI-longNameja. FI = oletus → avain ennallaan.
 // Versio 5 (23.9.2026): duplikaattisääntö muuttui (ks. loadRoutes), vanha ryhmittely ei saa jäädä 24 h välimuistiin.
-function routesCacheKey() { return "routesCache5" + (lang === "fi" ? "" : ":" + lang); }
+// Versio 6 (10.10.2026): tauolla olevat linjat (resume) ja otokseen osumattomat viikonpäivät mukaan.
+function routesCacheKey() { return "routesCache6" + (lang === "fi" ? "" : ":" + lang); }
+
+// Linjan näkyvyyshorisontti (10.10.2026): 84 päivää, Digitransitin data-ikkuna (tripsForDate palauttaa vuoroja
+// noin 84 päivää eteenpäin, mitattu 10.10.2026: Lahti, Kajaani, Raasepori, Turku ja Joensuu tyhjiä 15.1.2027).
+// Linja, jolla on vuoroja ikkunassa, on linjalistassa ja tulosteissa; jos se ei aja lähimmän viikon aikana,
+// merkinnällä "liikennöi X alkaen". Syys-, joulu-, talvi- ja pääsiäisloma mahtuvat ikkunaan kokonaan. Koulujen
+// kesäloma (noin 10-11 viikkoa) mahtuu vain, jos syötteessä on jo seuraavan kauden aikataulu: ennen sitä linjaa
+// ei ole datassa, eikä sitä voi näyttää (datavahti varoittaa kesätauosta, ks. tests/datavahti.js).
+const LINE_HORIZON_DAYS = 84;
+// Ensimmäiset 21 päivää tarkistetaan päivä kerrallaan (tarkka alkamispäivä tavallisille tauoille). Sen jälkeen
+// otos ke ja la viikoittain ja osuman edeltävät päivät tarkennetaan: muuten kesällä koko talvikauden vuorolistat
+// tulisivat vastauksessa (Lahti, kaikki linjat 63 päivältä: 6,3 Mt purettuna; otoksella noin seitsemäsosa).
+// Rajoitus: linja, joka ajaa vain ma, ti, to, pe tai su ja on tauolla yli 21 päivää, näkyy vasta 21 päivää ennen.
+const LINE_EXACT_DAYS = 21;
+// Päivät tänään + n-1 muodossa YYYYMMDD.
+function horizonDays(n) {
+  const base = new Date();
+  return [...Array(n)].map((_, i) => isoOf(new Date(base.getFullYear(), base.getMonth(), base.getDate() + i)).replace(/-/g, ""));
+}
+// Linjojen ensimmäinen ajopäivä päivistä days[idxs] (palauttaa indeksin days-taulukkoon), vain niille joilla on vuoroja.
+// 15 linjaa per kysely, välimuistiavaimessa päivämäärät.
+async function serviceFirstIdx(ids, days, idxs, keyPrefix) {
+  const aliases = idxs.map(i => `d${i}: tripsForDate(serviceDate: "${days[i]}") { gtfsId }`).join(" ");
+  const chunks = [];
+  for (let i = 0; i < ids.length; i += 15) chunks.push(ids.slice(i, i + 15));
+  const first = new Map();
+  await mapLimit(chunks, 2, async chunk => {
+    const { data } = await cachedGql(keyPrefix + days[idxs[0]] + ":" + idxs.length + ":" + chunk.join(","),
+      `query ($ids: [String]) { routes(ids: $ids) { gtfsId patterns { ${aliases} } } }`, { ids: chunk });
+    for (const r of (data.routes || []).filter(Boolean)) {
+      const idx = idxs.find(i => (r.patterns || []).some(p => (p["d" + i] || []).length));
+      if (idx != null) first.set(r.gtfsId, idx);
+    }
+  });
+  return first;
+}
+// Hiljaisten linjojen ensimmäinen ajopäivä horisontissa: tarkka vaihe + otos + tarkennus (ks. LINE_EXACT_DAYS).
+async function quietFirstService(ids, days) {
+  const exact = days.map((_, i) => i).filter(i => i < LINE_EXACT_DAYS);
+  const first = ids.length ? await serviceFirstIdx(ids, days, exact, "quietA:") : new Map();
+  const rest = ids.filter(id => !first.has(id));
+  if (!rest.length || days.length <= LINE_EXACT_DAYS) return first;
+  const dow = d => new Date(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6, 8)).getDay();
+  const sample = days.map((_, i) => i).filter(i => i >= LINE_EXACT_DAYS && (dow(days[i]) === 3 || dow(days[i]) === 6));
+  const hit = await serviceFirstIdx(rest, days, sample, "quietB:");
+  // Tarkennus: osumaa edeltävät otoksen ulkopuoliset päivät (enintään 3), ryhmittäin saman osuman mukaan.
+  const groups = new Map();
+  for (const [id, h] of hit) {
+    if (!groups.has(h)) groups.set(h, []);
+    groups.get(h).push(id);
+  }
+  await mapLimit([...groups.entries()], 2, async ([h, gids]) => {
+    const prev = Math.max(LINE_EXACT_DAYS - 1, ...sample.filter(i => i < h));
+    const gap = days.map((_, i) => i).filter(i => i > prev && i < h);
+    const refined = gap.length ? await serviceFirstIdx(gids, days, gap, "quietC:") : new Map();
+    for (const id of gids) first.set(id, refined.has(id) ? refined.get(id) : h);
+  });
+  return first;
+}
 
 // CONFIG.areaScoped: kunnan alueella pysähtyvien linjojen id:t (yksi kysely, ~80 ms).
 // Suodatus feed-etuliitteellä pitää tuloksen yhdessä feedissä: sama linja on usein sekä
@@ -8319,7 +8415,7 @@ async function loadRoutes() {
   if (routesCache) return routesCache;
   try {
     const cached = JSON.parse(localStorage.getItem(ns(routesCacheKey())) || "null");
-    if (cached && Date.now() - cached.ts < 24 * 3600 * 1000 && cached.routes?.length) {
+    if (cached && Date.now() - cached.ts < 24 * 3600 * 1000 && cached.day === todayISO() && cached.routes?.length) {
       routesCache = cached.routes;
       return routesCache;
     }
@@ -8328,7 +8424,7 @@ async function loadRoutes() {
   // Haetaan linjat + tarkistetaan vuorojen olemassaolo edustavina päivinä samalla
   // kyselyllä, jotta linjalista vastaa LSL:ää: ei näytetä linjoja joilla ei ole
   // tulevia lähtöjä (esim. talvi-/koululinjat kesällä).
-  const dates = activeProbeDates();
+  const dates = listProbeDates();
   const aliases = dates.map((d, i) => `d${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
   // Valtakunnallinen feed (MATKA = koko Suomi, 1 800 linjaa) ei rajaa kuntaa, joten
   // CONFIG.areaScoped-kaupungeissa linjajoukko rajataan alueeseen: yksi bbox-kysely antaa
@@ -8380,17 +8476,46 @@ async function loadRoutes() {
     if (!byShort.has(k)) byShort.set(k, []);
     byShort.get(k).push(r);
   }
-  routesCache = [...byShort.values()]
+  const list = [...byShort.values()]
     .map(group => {
       group.sort((a, b) => tripCount(b) - tripCount(a)); // primary = nyt eniten liikennöivä
       const primary = group[0];
       return { gtfsId: primary.gtfsId, gtfsIds: group.map(r => r.gtfsId),
         shortName: primary.shortName, longName: primary.longName, mode: primary.mode,
         color: primary.color, textColor: primary.textColor };
-    })
-    .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
+    });
+  // Toinen vaihe (10.10.2026): otoksessa hiljaisten linjojen ensimmäinen ajopäivä LINE_HORIZON_DAYS päivän
+  // ikkunasta (quietFirstService). (a) Vuoroja seuraavan 7 päivän aikana: linja ajaa vain otokseen osumattomina
+  // viikonpäivinä (Kajaanin Pali ma, ke, pe), ja se on tavallinen linja. (b) Vuoroja myöhemmin: linja on tauolla,
+  // esim. koulupäivälinja syyslomalla (Kajaanin 2 ja Inkoon 10, 191 ja 193 12.-16.10.2026). Se näytetään
+  // merkinnällä "liikennöi X alkaen" (resume). Ennen syysloma pudotti Kajaanin listasta 20/25 linjaa ja Inkoon
+  // 13/17. (c) Ei vuoroja ikkunassa: ei listaan. Saman shortNamen objekti liitetään olemassa olevaan linjaan.
+  if (anyActive) {
+    try {
+      const quiet = (data.routes || []).filter(r => MODES.includes(r.mode) && !isActive(r));
+      const days = horizonDays(LINE_HORIZON_DAYS);
+      const first = await quietFirstService(quiet.map(r => r.gtfsId), days);
+      const byShortName = new Map(list.filter(r => r.shortName).map(r => [r.shortName, r]));
+      const extra = new Map();
+      for (const r of quiet) {
+        if (!first.has(r.gtfsId)) continue;
+        const own = r.shortName && byShortName.get(r.shortName);
+        if (own) { own.gtfsIds.push(r.gtfsId); continue; }
+        const k = r.shortName || ("#" + r.gtfsId);
+        if (!extra.has(k)) extra.set(k, []);
+        extra.get(k).push(r);
+      }
+      for (const group of extra.values()) {
+        group.sort((a, b) => first.get(a.gtfsId) - first.get(b.gtfsId));
+        const p = group[0], f = first.get(p.gtfsId);
+        list.push({ gtfsId: p.gtfsId, gtfsIds: group.map(r => r.gtfsId), shortName: p.shortName, longName: p.longName,
+          mode: p.mode, color: p.color, textColor: p.textColor, ...(f >= 7 ? { resume: days[f] } : {}) });
+      }
+    } catch (e) { /* toinen vaihe ei kaada linjalistaa: näytetään otoksen linjat */ }
+  }
+  routesCache = list.sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
   try {
-    localStorage.setItem(ns(routesCacheKey()), JSON.stringify({ ts: Date.now(), routes: routesCache }));
+    localStorage.setItem(ns(routesCacheKey()), JSON.stringify({ ts: Date.now(), day: todayISO(), routes: routesCache }));
   } catch (e) { /* täysi localStorage ei ole este */ }
   return routesCache;
 }
@@ -8401,75 +8526,15 @@ async function loadRoutes() {
 // routes(ids: lineIds) ja yhdistetään patternit → byDir/suunnanvaihto toimii unionin yli.
 async function lineIds(routeId) {
   const list = await loadRoutes().catch(() => []);
-  const g = list.find(r => (r.gtfsIds || []).includes(routeId))
-    || (printRoutesCache ? printRoutesCache.list.find(r => (r.gtfsIds || []).includes(routeId)) : null);
+  const g = list.find(r => (r.gtfsIds || []).includes(routeId));
   return (g && g.gtfsIds && g.gtfsIds.length) ? g.gtfsIds : [routeId];
 }
 
-/* Tulosteiden linjajoukko (10.10.2026). loadRoutes näyttää vain linjat, joilla on vuoroja koepäivinä eli lähimmän
-   viikon aikana, ja se on oikein matkustajan linjalistalle. Tuloste kattaa kuitenkin PRINT_HORIZON_DAYS päivää:
-   syysloma 12.-16.10.2026 pudotti listasta koulupäivinä ajavat linjat, jolloin Kajaanin käytäväpreset 1+2 valitsi
-   enää linjan 1 ja Kokoa-nappi ei tuottanut taulukkoa, ja tiskin tulostevalikosta puuttuivat pysäkin linjat
-   (Kajaani 2, 4, 6, 7, 12; Raaseporissa 8 ja Inkoossa 10 linjaa). Tähän lisätään linjat, joilla ei ole vuoroja
-   koepäivinä mutta on tulostusjaksolla. resume = ensimmäinen ajopäivä (YYYYMMDD), joka näytetään listassa.
-   Käyttö: Tulosteet-keskus ja tiskin Tulosteet-välilehti. Haku koskee vain koepäivinä hiljaisia linjoja. */
-let printRoutesCache = null;
-async function loadPrintRoutes() {
-  const base = await loadRoutes();
-  if (printRoutesCache && printRoutesCache.base === base && printRoutesCache.day === todayISO()) return printRoutesCache.list;
-  let extra = [];
-  try { extra = await printOnlyRoutes(base); } catch (e) { extra = []; }
-  const list = extra.length
-    ? [...base, ...extra].sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }))
-    : base;
-  printRoutesCache = { base, day: todayISO(), list };
-  return list;
-}
-async function printOnlyRoutes(base) {
-  const feed = await findFeed();
-  const MODES = CONFIG.modes || ["BUS"];
-  const known = new Set(base.flatMap(r => (r.gtfsIds && r.gtfsIds.length) ? r.gtfsIds : [r.gtfsId]));
-  const knownShort = new Set(base.map(r => r.shortName).filter(Boolean));
-  const FIELDS = "gtfsId shortName longName@L mode color textColor";
-  const { data } = CONFIG.areaScoped
-    ? await cachedGql("printall:" + feed, `query ($ids: [String]) { routes(ids: $ids) { ${FIELDS} } }`,
-        { ids: await areaRouteIds(feed) })
-    : await cachedGql("printall:" + feed, `query ($feeds: [String]) { routes(feeds: $feeds) { ${FIELDS} } }`,
-        { feeds: [feed] });
-  const cand = (data.routes || []).filter(r => r && MODES.includes(r.mode) && !known.has(r.gtfsId)
-    && !(r.shortName && knownShort.has(r.shortName)));
-  if (!cand.length) return [];
-  const now = new Date();
-  const days = [...Array(PRINT_HORIZON_DAYS)].map((_, i) =>
-    isoOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)).replace(/-/g, ""));
-  const aliases = days.map((d, i) => `d${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
-  const chunks = [];
-  for (let i = 0; i < cand.length; i += 15) chunks.push(cand.slice(i, i + 15));
-  const firstDay = new Map();   // gtfsId -> ensimmäisen ajopäivän indeksi
-  await mapLimit(chunks, 2, async chunk => {
-    const ids = chunk.map(r => r.gtfsId);
-    const { data: d } = await cachedGql("printpaused:" + days[0] + ":" + ids.join(","),
-      `query ($ids: [String]) { routes(ids: $ids) { gtfsId patterns { ${aliases} } } }`, { ids });
-    for (const r of (d.routes || []).filter(Boolean)) {
-      const idx = days.findIndex((_, i) => (r.patterns || []).some(p => (p["d" + i] || []).length));
-      if (idx >= 0) firstDay.set(r.gtfsId, idx);
-    }
-  });
-  // Ryhmittely kuten loadRoutesissa: sama shortName = yksi linja, numeroton pysyy omanaan.
-  const byShort = new Map();
-  for (const r of cand) {
-    if (!firstDay.has(r.gtfsId)) continue;
-    const k = r.shortName || ("#" + r.gtfsId);
-    if (!byShort.has(k)) byShort.set(k, []);
-    byShort.get(k).push(r);
-  }
-  return [...byShort.values()].map(group => {
-    group.sort((a, b) => firstDay.get(a.gtfsId) - firstDay.get(b.gtfsId));
-    const p = group[0];
-    return { gtfsId: p.gtfsId, gtfsIds: group.map(r => r.gtfsId), shortName: p.shortName, longName: p.longName,
-      mode: p.mode, color: p.color, textColor: p.textColor, resume: days[firstDay.get(p.gtfsId)] };
-  });
-}
+/* Tulosteiden linjajoukko (10.10.2026). Sama kuin linjalista (loadRoutes), jossa tauolla olevat linjat ovat mukana
+   alkamispäivineen. Erillinen nimi kertoo kutsukohdassa, että tulosteen linjaksi kelpaa myös tauolla oleva linja
+   (Tulosteet-keskus, tiskin Tulosteet-välilehti, uusintapainatus). Ennen tätä syysloma pudotti Kajaanin
+   käytäväpresetin linjan 2, ja tiskin tulostevalikosta puuttuivat pysäkin linjat (Kajaani 2, 4, 6, 7, 12). */
+async function loadPrintRoutes() { return loadRoutes(); }
 // Listan rivin lisäteksti linjalle, joka ei aja lähipäivinä: "liikennöi 19.10. alkaen".
 const lineResumeHtml = r => r && r.resume
   ? ` <span class="muted line-resume">${esc(t("lineRunsFrom", { date: fmtDayMonthNum(r.resume) }))}</span>` : "";
@@ -12743,7 +12808,8 @@ function viewRoutes() {
           return `<li><a class="route-tile" href="#/linja/${encodeURIComponent(r.gtfsId)}"${style}
               title="${esc(r.longName || "")}" aria-label="${esc((r.shortName || "") + " " + (r.longName || ""))}">
               ${r.shortName ? `<span class="rt-badge${special ? " special" : ""}">${esc(r.shortName)}</span>` : ""}
-              <span class="rt-name">${esc(r.longName || "")}</span></a></li>`;
+              ${r.resume ? `<span class="rt-col"><span class="rt-name">${esc(r.longName || "")}</span>${lineResumeHtml(r)}</span>`
+                : `<span class="rt-name">${esc(r.longName || "")}</span>`}</a></li>`;
         })
         .join("") || `<li style="grid-column:1/-1"><p class="muted">${t("noMatches")}</p></li>`;
     };
@@ -14626,7 +14692,8 @@ async function loadNetwork() {
   const feed = await findFeed();
   // Vuoromäärät samoilta koepäiviltä kuin linjalistassa: piirrettävä variantti valitaan
   // vuoromäärällä (ks. viewNetworkMap), ei geometrian pistemäärällä.
-  const probe = activeProbeDates().map((d, i) => `n${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
+  // Koko syötteen kysely: kevyt otos (listProbeDates), kuten linjalistassa.
+  const probe = listProbeDates().map((d, i) => `n${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
   const ROUTE_FIELDS = `gtfsId shortName longName@L mode color patterns { directionId ${probe} patternGeometry { length points } }`;
   // areaScoped: valtakunnallinen feed on 1 825 linjaa ja 4,8 MB, joista Inkoossa piirtyy 20.
   // Haetaan siksi sama joukko kuin linjalista (areaRouteIds) eika koko feedia: kysely kevenee
@@ -15574,7 +15641,7 @@ function bindCorridorTab(routes, today) {
       note.hidden = !missing.length;
       note.dataset.missing = missing.join(",");
       note.textContent = missing.length
-        ? t(found.length >= 2 ? "corridorMissing" : "corridorMissingTooFew", { lines: missing.join(", ") }) : "";
+        ? t(found.length >= 2 ? "corridorMissing" : "corridorMissingTooFew", { lines: missing.map(lineLabel).join(", ") }) : "";
     }
   }));
   const filter = document.getElementById("corrFilter");
@@ -23903,14 +23970,23 @@ async function corridorBuild(routeIds, dateISO) {
   const excluded = [];
   for (const L of lines) {
     let placed = false;
-    for (const p of L.primaries) {
-      // sijoitus paremman myötäsuunta-osuman mukaan; sama linja vain kerran per suunta
+    for (const [k, list] of L.byDir) {
+      // Suunnan pääpattern ensin (eniten tulevia vuoroja), ja vasta jos se ei sovi käytävään, suunnan muut
+      // patternit vuoromäärän mukaan (10.10.2026). Lappeenrannan 12 ajaa pe ja la: kun koepäiviin tuli
+      // perjantai, suunnan pääpatterniksi nousi Kivisalmen variantti, eikä linja enää osunut suuntaan
+      // LUT -> keskusta, vaikka sen LUT-variantit ajavat sitä. Toimiva pääpattern sijoitetaan kuten ennen.
+      // Sijoitus paremman myötäsuunta-osuman mukaan; sama linja vain kerran per suunta
       // (silmukkalinjan molemmat suunnat voisivat muuten päätyä samaan ämpäriin)
-      const scores = refIdxes.map(idx => corridorOrientScore(idx, p.stops));
-      const best = scores.indexOf(Math.max(...scores));
-      if (scores[best] < 2) continue;
-      const b = buckets[best];
-      if (!b.members.some(m => m.line === L)) { b.members.push({ line: L, pattern: p }); placed = true; }
+      const prim = L.primaries.find(p => dirKey(p) === k);
+      for (const p of [prim, ...list.filter(x => x !== prim)].filter(Boolean)) {
+        const scores = refIdxes.map(idx => corridorOrientScore(idx, p.stops));
+        const best = scores.indexOf(Math.max(...scores));
+        if (scores[best] < 2) continue;
+        const b = buckets[best];
+        if (b.members.some(m => m.line === L)) continue;
+        b.members.push({ line: L, pattern: p }); placed = true;
+        break;
+      }
     }
     if (!placed) excluded.push(L.route.shortName || "");
   }
@@ -25143,7 +25219,7 @@ async function viewPrintCenter(tab, query) {
         <div class="field">
           <span class="muted">${t("corridorPresets")}</span>
           <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin-top:0.3rem">
-            ${CONFIG.corridors.map(c => `<button type="button" class="linkish" data-corridor="${esc(c.key)}">${esc(corridorName(c))} (${c.lines.map(esc).join(", ")})</button>`).join("")}
+            ${CONFIG.corridors.map(c => `<button type="button" class="linkish" data-corridor="${esc(c.key)}">${esc(corridorName(c))} (${c.lines.map(l => esc(lineLabel(l))).join(", ")})</button>`).join("")}
           </div>
           <p id="corrPresetNote" class="corr-missing" role="status" hidden></p>
         </div>` : ""}

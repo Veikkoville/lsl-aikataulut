@@ -1,6 +1,6 @@
 // Datavahdin päätöslogiikan yksikkötesti (ei verkkoa). Jokainen rikottu viittaus fixturessa on kaadettava
 // FAILiksi, ja ehjä fixture ei saa FAILata. Ajo: node tests/datavahti.test.js
-const { evaluate, lineRefs, smokePins, dayList } = require("./datavahti.js");
+const { evaluate, lineRefs, smokePins, dayList, HORIZON_DAYS } = require("./datavahti.js");
 
 let ok = 0, fail = 0;
 function tarkista(nimi, ehto, lisa) {
@@ -8,7 +8,7 @@ function tarkista(nimi, ehto, lisa) {
   console.log(`${ehto ? "OK  " : "FAIL"} ${nimi}${ehto ? "" : " | " + JSON.stringify(lisa)}`);
 }
 
-const days = dayList(42, new Date(2026, 9, 12));
+const days = dayList(HORIZON_DAYS, new Date(2026, 9, 12));
 const ajaa = (alku = 0) => days.map((_, i) => (i >= alku ? 10 : 0));
 const cfg = () => ({
   feedMatch: /^Testi$/,
@@ -38,12 +38,16 @@ const has = (res, level, re) => res.some(r => r.level === level && re.test(r.che
   const r = evaluate("testi", cfg(), snap(), ctx());
   tarkista("ehjä fixture: 0 FAIL, 0 WARN", !fails(r).length && !r.some(x => x.level === "WARN"), r.filter(x => x.level !== "PASS"));
 }
-// 1) Raaseporin tapaus: syöte muutti "192V" -> "192_V"
+// 1) Raaseporin tapaus: syöte muutti "192V" -> "192_V". Sovellus tunnistaa ja näyttää molemmat muodot (10.10.2026),
+//    joten muotoero hyväksytään ja kerrotaan, mutta erotinmerkkiä vaille erilainen tunnus on yhä FAIL.
 {
   const s = snap(); s.routes[1] = { gtfsId: "Testi:192V", shortName: "192_V", mode: "BUS" };
   const r = evaluate("testi", cfg(), s, ctx());
-  tarkista("tunnuksen muotomuutos 192V -> 192_V = FAIL ja vihje", has(r, "FAIL", /linja 192V \(käytäväpreset keskusta\).*"192_V"/), fails(r));
-  tarkista("sama linja vihkon yhdistelmässä = FAIL", has(r, "FAIL", /linja 192V \(vihkon yhdistelmä c\)/), fails(r));
+  tarkista("tunnuksen muotoero 192V / 192_V hyväksytään ja kerrotaan", !fails(r).length && has(r, "PASS", /linja 192V \(käytäväpreset keskusta\).*"192_V"/), r.filter(x => x.level !== "PASS"));
+  const s2 = snap(); s2.routes[1] = { gtfsId: "Testi:192X", shortName: "192X", mode: "BUS" };
+  const r2 = evaluate("testi", cfg(), s2, ctx());
+  tarkista("eri tunnus 192X ei kelpaa presetin 192V:ksi = FAIL", has(r2, "FAIL", /linja 192V \(käytäväpreset keskusta\).*puuttuu/), fails(r2));
+  tarkista("sama linja vihkon yhdistelmässä = FAIL", has(r2, "FAIL", /linja 192V \(vihkon yhdistelmä c\)/), fails(r2));
 }
 // 2) Linja poistunut kokonaan
 {
@@ -53,7 +57,18 @@ const has = (res, level, re) => res.some(r => r.level === level && re.test(r.che
 // 3) Linjalla ei vuoroja tulostusjaksolla
 {
   const s = snap(); s.service["Testi:192V"] = days.map(() => 0);
-  tarkista("presetin linja ilman vuoroja 42 pv = FAIL", has(evaluate("testi", cfg(), s, ctx()), "FAIL", /linja 192V \(käytäväpreset.*ei vuoroja 42/));
+  tarkista(`presetin linja ilman vuoroja ${HORIZON_DAYS} pv = FAIL`, has(evaluate("testi", cfg(), s, ctx()), "FAIL", /linja 192V \(käytäväpreset.*ei vuoroja 84/));
+}
+// 3b) Kesätauko (10.10.2026): koulupäivälinja ilman vuoroja koko ikkunassa kesäkuussa = WARN, ei FAIL.
+//     Sama vuorottomuus lokakuussa on FAIL (yllä), ja toukokuun alussa (ennen taukoa) myös FAIL.
+{
+  const kesa = dayList(HORIZON_DAYS, new Date(2027, 5, 7));
+  const s = { ...snap(), days: kesa, service: { "Testi:1": kesa.map(() => 10), "Testi:192V": kesa.map(() => 0) } };
+  const r = evaluate("testi", cfg(), s, ctx());
+  tarkista("kesätauko: vuoroton presetin linja = WARN eikä FAIL", has(r, "WARN", /linja 192V \(käytäväpreset.*kesäloma/) && !fails(r).length, r.filter(x => x.level !== "PASS"));
+  const touko = dayList(HORIZON_DAYS, new Date(2027, 4, 3));
+  const s2 = { ...snap(), days: touko, service: { "Testi:1": touko.map(() => 10), "Testi:192V": touko.map(() => 0) } };
+  tarkista("ennen kesätaukoa vuoroton presetin linja = FAIL", has(evaluate("testi", cfg(), s2, ctx()), "FAIL", /linja 192V \(käytäväpreset.*ei vuoroja 84/));
 }
 // 4) Tauko lähimmän viikon aikana (Kajaanin syysloma): WARN, ei FAIL
 {

@@ -442,6 +442,28 @@ function writeReport() {
       listOk && tiles >= 1
         ? pass(city.key, "linjalista", tiles + " linjakorttia")
         : fail(city.key, "linjalista", "ei linjakortteja 30 s kuluessa");
+      // Tauolla olevat linjat ja tunnusten näyttömuoto (10.10.2026). Syysloma pudotti Kajaanin listasta 20/25 ja
+      // Inkoon 13/17 linjaa, koska lista näytti vain lähipäivinä ajavat. Nyt linja, jolla on vuoroja
+      // LINE_HORIZON_DAYS päivän aikana, on listassa, ja tauolla olevalla on merkintä "liikennöi X alkaen"
+      // (tulevaisuudessa, horisontin sisällä). Raaseporin syötteen "192_V" näytetään muodossa "192V".
+      if (listOk) {
+        const lp = await page.evaluate(async () => {
+          if (typeof LINE_HORIZON_DAYS !== "number") return { err: "versio ilman tauolla olevia linjoja" };
+          const list = await loadRoutes();
+          const d = n => { const x = new Date(); x.setDate(x.getDate() + n); return +`${x.getFullYear()}${String(x.getMonth() + 1).padStart(2, "0")}${String(x.getDate()).padStart(2, "0")}`; };
+          const tiles = [...document.querySelectorAll("#routeList a.route-tile")];
+          return {
+            tauolla: list.filter(r => r.resume).length,
+            merkitty: tiles.filter(a => a.querySelector(".line-resume")).length,
+            vaaraPaiva: list.filter(r => r.resume && (+r.resume < d(7) || +r.resume >= d(LINE_HORIZON_DAYS))).map(r => r.shortName + ":" + r.resume),
+            alaviiva: tiles.map(a => (a.querySelector(".rt-badge")?.textContent || "").trim()).filter(x => /^\d+_[A-Za-zÅÄÖåäö]{1,2}$/.test(x)),
+          };
+        });
+        if (lp.err) fail(city.key, "linjalista: tauolla olevat linjat", lp.err);
+        else (lp.merkitty === lp.tauolla && !lp.vaaraPaiva.length && !lp.alaviiva.length)
+          ? pass(city.key, "linjalista: tauolla olevat linjat", `${lp.tauolla} tauolla (merkitty), tunnukset näyttömuodossa`)
+          : fail(city.key, "linjalista: tauolla olevat linjat", "merkintä puuttuu, alkamispäivä väärin tai tunnus syötteen muodossa: " + JSON.stringify(lp));
+      }
       const title = await page.evaluate(() => document.getElementById("appTitle")?.textContent || "");
       title === "Reittari " + city.name
         ? pass(city.key, "title", '"' + title + '"')
@@ -894,6 +916,7 @@ function writeReport() {
             return {
               rows: document.querySelectorAll("#corridorOut table.corridor tbody tr").length,
               distinctLines: [...new Set(badges)].length,
+              alaviiva: badges.filter(x => /^\d+_[A-Za-zÅÄÖåäö]{1,2}$/.test(x)),
               daytypes: document.querySelectorAll("#corridorOut h4.daytype").length,
               dirs: document.querySelectorAll("#corridorOut .corridor-dir").length,
               sorted, secMissing,
@@ -910,12 +933,12 @@ function writeReport() {
           });
           const wantDirs = city.corridorDirs || 2;
           (corr.distinctLines >= 2 && corr.daytypes >= 1 && corr.dirs >= wantDirs
-            && corr.sorted && corr.secMissing === 0)
+            && corr.sorted && corr.secMissing === 0 && !(corr.alaviiva || []).length)
             ? pass(city.key, "yhdistetyt suunnat",
                 `${corr.rows} lähtöä, ${corr.distinctLines} linjaa, ${corr.dirs} suuntaa, aikajärjestys OK`)
             : fail(city.key, "yhdistetyt suunnat", "taulukko pielessä: " + JSON.stringify(
                 { rows: corr.rows, linjat: corr.distinctLines, suunnat: corr.dirs, daytypes: corr.daytypes,
-                  sorted: corr.sorted, secMissing: corr.secMissing }));
+                  sorted: corr.sorted, secMissing: corr.secMissing, alaviiva: corr.alaviiva }));
           corr.nonText === 0
             ? pass(city.key, "käytävä-tuloste", "puhdasta tekstiä reittikaavion ulkopuolella (0 svg/canvas/img)")
             : fail(city.key, "käytävä-tuloste", corr.nonText + " ei-tekstielementtiä tulosteessa");
@@ -1111,6 +1134,7 @@ function writeReport() {
               linjoja: lista.size,
               pysakilla: pysakin.length,
               puuttuu: pysakin.filter(s => !lista.has(s) && !merkitty.includes(s)),
+              alaviiva: [...lista, ...pysakin].filter(x => /^\d+_[A-Z]{1,2}$/.test(x)),
               eiTulostettavia: merkitty,
               ryhmat: document.querySelectorAll("#deskLineList .dp-head").length,
               yksi: [...document.querySelectorAll(".deskLineBtn")].map(b => b.dataset.lp).join(","),
@@ -1119,7 +1143,7 @@ function writeReport() {
               muutokset: !!document.getElementById("deskChangesBtn"),
             };
           });
-          listaOk && dpv.linjoja >= 1 && !dpv.puuttuu.length && dpv.yksi === "rack,key,all,batch"
+          listaOk && dpv.linjoja >= 1 && !dpv.puuttuu.length && !dpv.alaviiva.length && dpv.yksi === "rack,key,all,batch"
             && dpv.usea === "vihko,kaytava" && dpv.juliste && dpv.muutokset
             ? pass(city.key, "tiskin tulostevälilehti",
                 `${dpv.linjoja} linjaa valittavissa (pysäkillä ${dpv.pysakilla}), ${dpv.ryhmat} ryhmää` +
