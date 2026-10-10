@@ -442,6 +442,28 @@ function writeReport() {
       listOk && tiles >= 1
         ? pass(city.key, "linjalista", tiles + " linjakorttia")
         : fail(city.key, "linjalista", "ei linjakortteja 30 s kuluessa");
+      // Tauolla olevat linjat ja tunnusten näyttömuoto (10.10.2026). Syysloma pudotti Kajaanin listasta 20/25 ja
+      // Inkoon 13/17 linjaa, koska lista näytti vain lähipäivinä ajavat. Nyt linja, jolla on vuoroja
+      // LINE_HORIZON_DAYS päivän aikana, on listassa, ja tauolla olevalla on merkintä "liikennöi X alkaen"
+      // (tulevaisuudessa, horisontin sisällä). Raaseporin syötteen "192_V" näytetään muodossa "192V".
+      if (listOk) {
+        const lp = await page.evaluate(async () => {
+          if (typeof LINE_HORIZON_DAYS !== "number") return { err: "versio ilman tauolla olevia linjoja" };
+          const list = await loadRoutes();
+          const d = n => { const x = new Date(); x.setDate(x.getDate() + n); return +`${x.getFullYear()}${String(x.getMonth() + 1).padStart(2, "0")}${String(x.getDate()).padStart(2, "0")}`; };
+          const tiles = [...document.querySelectorAll("#routeList a.route-tile")];
+          return {
+            tauolla: list.filter(r => r.resume).length,
+            merkitty: tiles.filter(a => a.querySelector(".line-resume")).length,
+            vaaraPaiva: list.filter(r => r.resume && (+r.resume < d(7) || +r.resume >= d(LINE_HORIZON_DAYS))).map(r => r.shortName + ":" + r.resume),
+            alaviiva: tiles.map(a => (a.querySelector(".rt-badge")?.textContent || "").trim()).filter(x => /^\d+_[A-Za-zÅÄÖåäö]{1,2}$/.test(x)),
+          };
+        });
+        if (lp.err) fail(city.key, "linjalista: tauolla olevat linjat", lp.err);
+        else (lp.merkitty === lp.tauolla && !lp.vaaraPaiva.length && !lp.alaviiva.length)
+          ? pass(city.key, "linjalista: tauolla olevat linjat", `${lp.tauolla} tauolla (merkitty), tunnukset näyttömuodossa`)
+          : fail(city.key, "linjalista: tauolla olevat linjat", "merkintä puuttuu, alkamispäivä väärin tai tunnus syötteen muodossa: " + JSON.stringify(lp));
+      }
       const title = await page.evaluate(() => document.getElementById("appTitle")?.textContent || "");
       title === "Reittari " + city.name
         ? pass(city.key, "title", '"' + title + '"')
@@ -827,6 +849,35 @@ function writeReport() {
         await page.$eval("[data-corridor]", el => el.click());
         // #corrGo ilmestyy vasta kun linjalista on ladattu.
         await page.waitForSelector("#corrGo", { timeout: 60000 });
+        // Presetin jokainen linja valittu (10.10.2026). Raaseporin "192V" muuttui syötteessä muotoon "192_V" ja
+        // Kajaanin linja 2 putosi syyslomalla listalta: preset valitsi hiljaa yhden linjan, ja vika näkyi vain
+        // epäsuorasti "taulukko ei koostunut" -rivinä. Puuttuva linja on aina FAIL (CONFIG tai data vaatii
+        // korjauksen); huomautus erottaa, näkikö käyttäjä sen vai jäikö näkymä hiljaa vajaaksi.
+        // Kaikki presetit käydään läpi (pelkkä DOM, ei kyselyjä), ja lopuksi palataan ensimmäiseen,
+        // jolle taulukko kootaan alla.
+        const presets = await page.evaluate(() => {
+          const nrm = s => String(s).replace(/[\s_.\-]/g, "").toLowerCase();
+          const btns = [...document.querySelectorAll("[data-corridor]")];
+          const out = btns.map(b => {
+            b.click();
+            const c = (CONFIG.corridors || []).find(x => x.key === b.dataset.corridor) || { lines: [] };
+            const sel = new Set([...document.querySelectorAll(".corrCb:checked")].map(x => nrm(x.dataset.short)));
+            const n = document.getElementById("corrPresetNote");
+            return { key: b.dataset.corridor, puuttuu: c.lines.map(String).filter(l => !sel.has(nrm(l))),
+              huomautus: !!n && !n.hidden && n.textContent.trim().length > 0, merkitty: n ? (n.dataset.missing || "") : "" };
+          });
+          btns[0]?.click();
+          return out;
+        });
+        for (const pres of presets) {
+          if (!pres.puuttuu.length) {
+            pass(city.key, "käytäväpresetin linjat", `${pres.key}: kaikki linjat valittu`);
+          } else if (pres.huomautus && pres.puuttuu.every(l => pres.merkitty.split(",").includes(l))) {
+            fail(city.key, "käytäväpresetin linjat", `${pres.key}: linja ${pres.puuttuu.join(", ")} puuttuu datasta (huomautus näkyy käyttäjälle): korjaa CONFIG.corridors`);
+          } else {
+            fail(city.key, "käytäväpresetin linjat", `${pres.key}: linja ${pres.puuttuu.join(", ")} puuttuu eikä huomautusta näy: ${JSON.stringify(pres)}`);
+          }
+        }
         await page.$eval("#corrGo", el => el.click());
         const corrOk = await page.waitForFunction(
           () => document.querySelectorAll("#corridorOut table.corridor tbody tr").length >= 1,
@@ -865,6 +916,7 @@ function writeReport() {
             return {
               rows: document.querySelectorAll("#corridorOut table.corridor tbody tr").length,
               distinctLines: [...new Set(badges)].length,
+              alaviiva: badges.filter(x => /^\d+_[A-Za-zÅÄÖåäö]{1,2}$/.test(x)),
               daytypes: document.querySelectorAll("#corridorOut h4.daytype").length,
               dirs: document.querySelectorAll("#corridorOut .corridor-dir").length,
               sorted, secMissing,
@@ -881,12 +933,12 @@ function writeReport() {
           });
           const wantDirs = city.corridorDirs || 2;
           (corr.distinctLines >= 2 && corr.daytypes >= 1 && corr.dirs >= wantDirs
-            && corr.sorted && corr.secMissing === 0)
+            && corr.sorted && corr.secMissing === 0 && !(corr.alaviiva || []).length)
             ? pass(city.key, "yhdistetyt suunnat",
                 `${corr.rows} lähtöä, ${corr.distinctLines} linjaa, ${corr.dirs} suuntaa, aikajärjestys OK`)
             : fail(city.key, "yhdistetyt suunnat", "taulukko pielessä: " + JSON.stringify(
                 { rows: corr.rows, linjat: corr.distinctLines, suunnat: corr.dirs, daytypes: corr.daytypes,
-                  sorted: corr.sorted, secMissing: corr.secMissing }));
+                  sorted: corr.sorted, secMissing: corr.secMissing, alaviiva: corr.alaviiva }));
           corr.nonText === 0
             ? pass(city.key, "käytävä-tuloste", "puhdasta tekstiä reittikaavion ulkopuolella (0 svg/canvas/img)")
             : fail(city.key, "käytävä-tuloste", corr.nonText + " ei-tekstielementtiä tulosteessa");
@@ -1069,21 +1121,35 @@ function writeReport() {
           const listaOk = await page.waitForFunction(
             () => document.querySelectorAll("#deskLineList .deskLineCb").length > 0 ? true : null,
             { timeout: 30000 }).then(() => true).catch(() => false);
-          const dpv = await page.evaluate(() => ({
-            linjoja: document.querySelectorAll("#deskLineList .deskLineCb").length,
-            pysakilla: document.querySelectorAll("#deskLines .badge").length,
-            ryhmat: document.querySelectorAll("#deskLineList .dp-head").length,
-            yksi: [...document.querySelectorAll(".deskLineBtn")].map(b => b.dataset.lp).join(","),
-            usea: [...document.querySelectorAll(".deskLinesBtn")].map(b => b.dataset.lp).join(","),
-            juliste: !!document.getElementById("deskStopPosterBtn"),
-            muutokset: !!document.getElementById("deskChangesBtn"),
-          }));
-          listaOk && dpv.linjoja >= Math.max(1, dpv.pysakilla) && dpv.yksi === "rack,key,all,batch"
+          // Jokainen pysäkin linja on valikossa tai näkyvässä huomautuksessa (10.10.2026). Pelkkä lukumäärä
+          // (valikossa >= pysäkillä) ei riittänyt: isossa kaupungissa koko linjasto peitti puuttuvat, ja
+          // pienessä syysloma pudotti koulupäivälinjat valikosta (Kajaani 5/8, Inkoo 4/12, Raasepori 15/18).
+          const dpv = await page.evaluate(() => {
+            const up = s => String(s || "").trim().toUpperCase();
+            const lista = new Set([...document.querySelectorAll("#deskLineList .deskLineCb")].map(c => up(c.dataset.short)));
+            const un = document.getElementById("deskLinesUnlisted");
+            const merkitty = un && !un.hidden ? (un.dataset.lines || "").split(",").map(up).filter(Boolean) : [];
+            const pysakin = [...document.querySelectorAll("#deskLines .badge")].map(b => up(b.textContent)).filter(Boolean);
+            return {
+              linjoja: lista.size,
+              pysakilla: pysakin.length,
+              puuttuu: pysakin.filter(s => !lista.has(s) && !merkitty.includes(s)),
+              alaviiva: [...lista, ...pysakin].filter(x => /^\d+_[A-Z]{1,2}$/.test(x)),
+              eiTulostettavia: merkitty,
+              ryhmat: document.querySelectorAll("#deskLineList .dp-head").length,
+              yksi: [...document.querySelectorAll(".deskLineBtn")].map(b => b.dataset.lp).join(","),
+              usea: [...document.querySelectorAll(".deskLinesBtn")].map(b => b.dataset.lp).join(","),
+              juliste: !!document.getElementById("deskStopPosterBtn"),
+              muutokset: !!document.getElementById("deskChangesBtn"),
+            };
+          });
+          listaOk && dpv.linjoja >= 1 && !dpv.puuttuu.length && !dpv.alaviiva.length && dpv.yksi === "rack,key,all,batch"
             && dpv.usea === "vihko,kaytava" && dpv.juliste && dpv.muutokset
             ? pass(city.key, "tiskin tulostevälilehti",
-                `${dpv.linjoja} linjaa valittavissa (pysäkillä ${dpv.pysakilla}), ${dpv.ryhmat} ryhmää`)
+                `${dpv.linjoja} linjaa valittavissa (pysäkillä ${dpv.pysakilla}), ${dpv.ryhmat} ryhmää` +
+                (dpv.eiTulostettavia.length ? `, ei tulostettavissa ${dpv.eiTulostettavia.join("/")} (huomautus näkyy)` : ""))
             : fail(city.key, "tiskin tulostevälilehti",
-                `valikko pysäkkisidonnainen tai tulosteita puuttuu: ${JSON.stringify(dpv)}`);
+                `pysäkin linja puuttuu valikosta ilman huomautusta tai tulosteita puuttuu: ${JSON.stringify(dpv)}`);
           await page.click('.dtab[data-dtab="neuvonta"]').catch(() => {});
         }
       }

@@ -32,7 +32,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Palauttaa vanhentuneiden tunnukset ja epäonnistuneet erikseen, koska ne ovat eri asia.
 async function vertaaSivulla(page, units) {
   return page.evaluate(async (units) => {
-    const routes = await loadRoutes();
+    // Sama linjajoukko kuin Tulosteet-sivulla (10.10.2026): käytävän linja voi olla tauolla lähipäivinä
+    // (koulupäivälinja syyslomalla), ja aktiivilistalla käytävä jäisi laskematta.
+    const routes = typeof loadPrintRoutes === "function" ? await loadPrintRoutes() : await loadRoutes();
     const corrs = new Map((CONFIG.corridors || []).map(c => ["corr:" + c.key, c]));
     const date = todayISO();
     const stale = [], failed = [];

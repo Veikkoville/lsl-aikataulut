@@ -3771,6 +3771,101 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (corrPre.presets >= 1 && corrPre.checks > 0)
     ? ok(`yhdistetyt suunnat: välilehti + ${corrPre.presets} presettiä (Lahti) + linjalista`)
     : fail("yhdistetyt suunnat: presetit/linjalista puuttuvat: " + JSON.stringify(corrPre));
+  // Puuttuva presetin linja (10.10.2026): Raaseporin "192V" muuttui syötteessä muotoon "192_V" ja Kajaanin linja 2
+  // putosi syyslomalla listalta, jolloin preset valitsi hiljaa yhden linjan eikä Kokoa-nappi tuottanut mitään.
+  // Ahtialan presetin linjat vaihdetaan hetkeksi: (1) tunnuksen muotoero ("34_k") ei saa pudottaa linjaa,
+  // (2) tuntematon linja näkyy huomautuksena ja muut valitaan, (3) yhden linjan jäädessä Kokoa ei saa jättää
+  // tulosta hiljaa tyhjäksi. Kielestä riippumaton: luetaan data-missing ja valitut ruudut, ei tekstiä.
+  // Koepäivät ja tunnusten näyttömuoto (10.10.2026): jokainen viikonpäivä on koepäivissä (ennen ti, to, la ja su,
+  // jolloin ma-ke-pe-linja ei ollut koskaan aktiivinen), ja syötteen "192_V" näytetään muodossa "192V" niin,
+  // että muut nimet ("IC 946", "Pali 6", "1_23") jäävät ennalleen.
+  const jatko = await page.evaluate(() => {
+    const pv = activeProbeDates();
+    const o = { routes: [{ shortName: "192_V", patterns: [{ route: { shortName: "201_s" } }] }, { shortName: "IC 946" }] };
+    fixShortNames(o);
+    return { pv: pv.length, viikonpaivia: new Set(pv.map(d => new Date(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6, 8)).getDay())).size,
+      nimet: ["192_V", "134_n", "140_k", "12", "IC 946", "Pali 6", "1_23"].map(lineLabel).join("|"),
+      data: [o.routes[0].shortName, o.routes[0].patterns[0].route.shortName, o.routes[1].shortName].join("|") };
+  });
+  (jatko.pv === 7 && jatko.viikonpaivia === 7 && jatko.nimet === "192V|134n|140k|12|IC 946|Pali 6|1_23" && jatko.data === "192V|201s|IC 946")
+    ? ok("linjalista: koepäivissä jokainen viikonpäivä, syötteen tunnus 192_V näytetään 192V")
+    : fail("linjalista: koepäivät tai tunnusten näyttömuoto väärin: " + JSON.stringify(jatko));
+  // Linjalistan luokittelu synteettisellä datalla (10.10.2026): loadRoutes saa hetken testivastaukset (gql ja
+  // cachedGql), ja alkuperäiset palautetaan aina. Odotus: joka päivä ajava = tavallinen; vain ma, ke, pe ajava
+  // (koepäivät ti, to, la, su eivät osu) = tavallinen ilman merkintää; syyslomalla tauolla = merkintä tarkalla
+  // alkamispäivällä; pitkällä tauolla (päivä 50, otos + tarkennus) = merkintä tarkalla päivällä; vuoroton = ei
+  // listassa; saman tunnuksen toinen objekti liittyy linjaan. Ei verkkoa eikä riipu päivän aikataulusta.
+  const luokat = await page.evaluate(async () => {
+    const origGql = gql, origCached = cachedGql;
+    const days = horizonDays(LINE_HORIZON_DAYS);
+    const dow = i => new Date(+days[i].slice(0, 4), +days[i].slice(4, 6) - 1, +days[i].slice(6, 8)).getDay();
+    const arki = i => dow(i) >= 1 && dow(i) <= 5;
+    const runs = {
+      "SMK:a": () => true, "SMK:a2": i => i >= 30, "SMK:mwf": i => [1, 3, 5].includes(dow(i)),
+      "SMK:loma": i => i >= 9 && arki(i), "SMK:kesa": i => i >= 50 && arki(i), "SMK:kuollut": () => false,
+    };
+    const shorts = { "SMK:a": "SA", "SMK:a2": "SA", "SMK:mwf": "SM", "SMK:loma": "SL", "SMK:kesa": "SK", "SMK:kuollut": "SX" };
+    const pats = (id, q) => {
+      const p = {};
+      for (const m of q.matchAll(/(d\d+): tripsForDate\(serviceDate: "(\d{8})"\)/g)) {
+        const i = days.indexOf(m[2]);
+        p[m[1]] = i >= 0 && runs[id](i) ? [{ gtfsId: id + ":t" }] : [];
+      }
+      return [p];
+    };
+    const key = ns(routesCacheKey());
+    try {
+      gql = async (q, v) => /routes\(feeds:/.test(q) && /tripsForDate/.test(q)
+        ? { routes: Object.keys(runs).map(id => ({ gtfsId: id, shortName: shorts[id], longName: id, mode: "BUS", color: null, textColor: null, patterns: pats(id, q) })) }
+        : origGql(q, v);
+      cachedGql = async (k, q, v) => /^quiet/.test(k)
+        ? { data: { routes: (v.ids || []).map(id => ({ gtfsId: id, patterns: pats(id, q) })) }, cachedAt: null }
+        : origCached(k, q, v);
+      routesCache = null;
+      localStorage.removeItem(key);
+      const list = await loadRoutes();
+      const by = Object.fromEntries(list.map(r => [r.shortName, r]));
+      const firstArki = from => { for (let i = from; i < days.length; i++) if (arki(i)) return days[i]; };
+      return {
+        a: by.SA ? (by.SA.gtfsIds || []).sort().join(",") + (by.SA.resume ? "|" + by.SA.resume : "") : "puuttuu",
+        mwf: by.SM ? (by.SM.resume || "ei merkintää") : "puuttuu",
+        loma: by.SL ? (by.SL.resume === firstArki(9) ? "oikea päivä" : by.SL.resume || "ei merkintää") : "puuttuu",
+        kesa: by.SK ? (by.SK.resume === firstArki(50) ? "oikea päivä" : by.SK.resume || "ei merkintää") : "puuttuu",
+        kuollut: by.SX ? "listassa" : "ei listassa",
+      };
+    } finally {
+      gql = origGql; cachedGql = origCached; routesCache = null; localStorage.removeItem(key);
+    }
+  });
+  (luokat.a === "SMK:a,SMK:a2" && luokat.mwf === "ei merkintää" && luokat.loma === "oikea päivä"
+    && luokat.kesa === "oikea päivä" && luokat.kuollut === "ei listassa")
+    ? ok("linjalista: tauolla olevat linjat merkinnällä ja tarkalla päivällä, ma-ke-pe-linja tavallinen, vuoroton pois")
+    : fail("linjalista: tauolla olevien linjojen luokittelu väärin: " + JSON.stringify(luokat));
+  const corrMiss = await page.evaluate(async () => {
+    const c = CONFIG.corridors.find(k => k.key === "ahtiala");
+    const orig = c.lines;
+    const run = lines => {
+      c.lines = lines;
+      document.querySelector('[data-corridor="ahtiala"]').click();
+      const n = document.getElementById("corrPresetNote");
+      return { valitut: [...document.querySelectorAll(".corrCb:checked")].map(x => x.dataset.short).sort().join(","),
+        huomautus: !!n && !n.hidden && n.textContent.trim().length > 0, puuttuu: n ? n.dataset.missing || "" : "(ei elementtiä)" };
+    };
+    try {
+      const muoto = run(["4", "14", "24", "34_k"]);
+      const yksi = run(["4", "14", "24", "34K", "SMOKE404"]);
+      const vajaa = run(["4", "SMOKE404"]);
+      document.getElementById("corrGo").click();
+      await new Promise(r => setTimeout(r, 300));
+      vajaa.tulos = (document.getElementById("corridorOut")?.innerHTML || "").trim().length;
+      return { muoto, yksi, vajaa };
+    } finally { c.lines = orig; }
+  });
+  (corrMiss.muoto.valitut === "14,24,34K,4" && !corrMiss.muoto.huomautus
+    && corrMiss.yksi.valitut === "14,24,34K,4" && corrMiss.yksi.huomautus && corrMiss.yksi.puuttuu === "SMOKE404"
+    && corrMiss.vajaa.valitut === "4" && corrMiss.vajaa.huomautus && corrMiss.vajaa.puuttuu === "SMOKE404" && corrMiss.vajaa.tulos === 0)
+    ? ok("yhdistetyt suunnat: presetin puuttuva linja näkyy huomautuksena, muut valitaan, tunnuksen muotoero ei pudota linjaa")
+    : fail("yhdistetyt suunnat: puuttuva presetin linja hiljaa tai väärin: " + JSON.stringify(corrMiss));
   await page.click('[data-corridor="ahtiala"]');
   // Valintayhteenveto napin viereen (Villen palaute 23.9.2026): pikavalinnan jälkeen näkymän on
   // kerrottava mitä valittiin ilman vieritystä listaan. Ahtialan käytävä = 4, 14, 24, 34K.

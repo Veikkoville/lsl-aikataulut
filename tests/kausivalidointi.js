@@ -165,10 +165,15 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
   baseline["__ehdotus_" + key] = sids; // ehdotus talteen raporttiin
   await sleep(QUERY_GAP_MS);
 
-  // 2) käytäväpresetit
+  // 2) käytäväpresetit. Presetin tunnus voi erota syötteestä vain erotinmerkillä ("192V" ja syötteessä "192_V",
+  // Raasepori 6.-8.10.2026): sovellus tunnistaa molemmat, joten haku tehdään syötteen omalla muodolla.
+  const invShorts = [...new Set((inv.routes || []).map(r => r.shortName).filter(Boolean))];
+  const nrm = x => String(x).replace(/[\s_.\-]/g, "").toLowerCase();
+  const rawOf = l => (invShorts.includes(l) ? l : (invShorts.find(x => nrm(x) === nrm(l)) || l));
   for (const corr of (cfg.corridors || [])) {
     const perLine = new Map(); // line -> {near, far, stops:Set}
-    for (const line of corr.lines) {
+    for (const cfgLine of corr.lines) {
+      const line = rawOf(cfgLine);
       const d = await q(
         `query ($feeds: [String], $name: String) {
            routes(feeds: $feeds, name: $name) { shortName patterns {
@@ -203,7 +208,10 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
         if (which === "near") nearWeek = near > 0; else farWeek = far > 0;
       }
       perLine.set(line, { near, far, stops, nearWeek });
-      if (near === 0) log("FAIL", key, `presetti ${corr.key}`, `linjalla ${line} 0 vuoroa viikolla ${dNear}+6 pv — presetti kuollut (vrt. Kajaani 12.8.)`);
+      // Puuttuva tunnus erikseen (10.10.2026): Raaseporin "192V" muuttui syötteessä muotoon "192_V", ja
+      // "0 vuoroa" olisi ohjannut etsimään aikataulua eikä tunnusta. Päivittäinen vahti: tests/datavahti.js.
+      if (!routes.length) log("FAIL", key, `presetti ${corr.key}`, `linjaa ${line} ei löydy syötteestä (shortName vaihtunut tai linja lakkautettu)`);
+      else if (near === 0) log("FAIL", key, `presetti ${corr.key}`, `linjalla ${line} 0 vuoroa viikolla ${dNear}+6 pv: presetti kuollut (vrt. Kajaani 12.8.)`);
       else if (far === 0) log("WARN", key, `presetti ${corr.key}`, `linjalla ${line} 0 vuoroa viikolla ${dFar}+6 pv — kausivaihto tulossa, tarkista presetti`);
       else if (nearWeek || farWeek) console.log(`  [${key}] presetti ${corr.key}: linja ${line} ajaa vain osan viikkoa (0 vuoroa ${nearWeek ? dNear : dFar}, viikolla ${nearWeek ? near : far})`);
       await sleep(QUERY_GAP_MS);
@@ -289,4 +297,4 @@ if (require.main === module) (async () => {
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error("kausivalidointi kaatui: " + e.message); process.exit(2); });
 
-module.exports = { classify };
+module.exports = { classify, extractConfigs };   // extractConfigs: myös tests/datavahti.js

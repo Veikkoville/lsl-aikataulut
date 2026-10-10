@@ -1,0 +1,48 @@
+# Datavahti: kerran vuorokaudessa, tarkistaa että jokainen CONFIGS-viittaus Digitransit-dataan löytyy yhä
+# (tests/datavahti.js): käytäväpresettien ja vihkon linjat, tiskin oletuspysäkit, solmupysäkkien nimet,
+# laiturit, juna-asemat ja Tuotanto-smoken pinnatut pysäkit.
+#
+# Miksi päivittäin: Raaseporin syöte muutti linjatunnukset 6.-8.10.2026 ("192V" -> "192_V"), ja viikoittainen
+# Tuotanto-smoke huomasi rikkoutuneen käytäväpresetin vasta 8.10. yöllä. Punainen ajo = viittaus rikki.
+#
+# KIINTIÖKURI: pelkkiä kevyitä GraphQL-kutsuja (ei selainta), noin 4 min. Eri minuutilla kuin muut ajastukset
+# (uusintapainatusvahti 03:20, kausivalidointi ti 05:00, Tuotanto-smoke ma 04:00 ja to 18:00 UTC).
+name: Datavahti
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "47 2 * * *" # joka päivä 02:47 UTC = 05:47 Suomen kesäaikaa; ei täystuntia
+
+permissions:
+  contents: read
+
+jobs:
+  datavahti:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Aja datavahti (read-only, ei riippuvuuksia)
+        run: |
+          set -o pipefail
+          node tests/datavahti.js 2>&1 | tee datavahti-loki.txt
+      - name: Yhteenveto
+        if: always()
+        run: |
+          echo '## Datavahti' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^(FAIL|WARN|YHTEENVETO|Rikkinäinen)" datavahti-loki.txt >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Arkistoi raportti
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: datavahti-raportti
+          path: |
+            datavahti-tulos.json
+            datavahti-loki.txt
+          retention-days: 30
