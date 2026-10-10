@@ -433,14 +433,16 @@ const cityBlocks = [];
   const n1 = ae.p.length;
   await tr({ type: "view", value: "home", city: "atlantis" }, "203.0.113.73");
   await tr({ type: "line", value: "<img src=x>", city: "lahti" }, "203.0.113.73");
-  await tr({ type: "search_fail", value: "matti.meikalainen@example.fi", city: "lahti" }, "203.0.113.73");
-  await tr({ type: "search_fail", value: "040 123 4567", city: "lahti" }, "203.0.113.73");
+  await tr({ type: "search_fail", value: "   ", city: "lahti" }, "203.0.113.73");
   await tr({ type: "view", value: "home", city: "lahti", pad: "x".repeat(3000) }, "203.0.113.73");
-  check(ae.p.length === n1, "R-07: tuntematon kaupunki, vieras linjatunnus, sähköposti, puhelinnumero ja ylisuuri runko → ei kirjata");
+  check(ae.p.length === n1, "R-07: tuntematon kaupunki, vieras linjatunnus, tyhjä haku ja ylisuuri runko → ei kirjata");
   await tr({ type: "view", value: "<script>", city: "lahti" }, "203.0.113.74");
   await tr({ type: "search_fail", value: "Kauppatori", city: "Lahti" }, "203.0.113.74");
-  check(ae.p.length === n1 + 2 && ae.p[n1].blobs[1] === "muu" && ae.p[n1 + 1].blobs[1] === "Kauppatori" && ae.p[n1 + 1].blobs[2] === "lahti",
-    "R-07: tuntematon näkymä → \"muu\", tavallinen hakusana säilyy");
+  await tr({ type: "search_fail", value: "matti.meikalainen@example.fi", city: "lahti" }, "203.0.113.75");
+  await tr({ type: "search_fail", value: "Kotikatu 12", city: "lahti" }, "203.0.113.76");
+  check(ae.p.length === n1 + 4 && ae.p[n1].blobs[1] === "muu" && ae.p[n1 + 1].blobs[1] === "kauppatori" && ae.p[n1 + 1].blobs[2] === "lahti"
+    && ae.p[n1 + 2].blobs[1] === "[sposti]" && ae.p[n1 + 3].blobs[1] === "[numero]",
+    "R-07: tuntematon näkymä → \"muu\", hakusana säilyy pienaakkosin, sähköposti ja osoite luokkina");
   check(!JSON.stringify(ae.p).includes("203.0.113"), "R-07: IP-osoitetta ei kirjata tapahtumaan");
 }
 

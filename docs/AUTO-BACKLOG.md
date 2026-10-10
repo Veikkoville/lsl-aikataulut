@@ -59,7 +59,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       sama testi argumentilla, joka osoittaa NUL-tavun sisältävään väliaikaiseen tiedostoon = 1 (mutaatiotodiste
       PR:n runkoon, tiedosto poistetaan); `git diff --stat` näyttää index.html:ssä 2 muutettua riviä;
       `node --check` pääskriptille. (auditointi 2026-10-08, lähde: koodi) (PR, 2026-10-09)
-- [ ] index.html + worker/worker.js: analytiikan `search_fail` ei saa välittää vapaata tekstiä, josta voi
+- [x] index.html + worker/worker.js: analytiikan `search_fail` ei saa välittää vapaata tekstiä, josta voi
       tunnistaa henkilön. Nyt `bindUnifiedSearch` (rivi noin 11324) lähettää tuloksettoman haun tekstin
       `track("search_fail", q)` 80 merkkiin asti, joten esimerkiksi kotiosoite tallentuu analytiikkaan.
       Lisää index.html:ään puhdas funktio `searchSignal(q)`: trimmaa ja muuttaa pienaakkosiksi, ja palauttaa
@@ -72,7 +72,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       "[numero]", "Kauppatori" -> "kauppatori", "22K" -> "22k", 41 merkkiä -> "[pitka]", "a@b.fi" -> "[sposti]";
       `cd worker && npm test` = 0; smokessa `page.evaluate(() => searchSignal("Kotikatu 12"))` = "[numero]" ja
       `searchSignal("Kauppatori")` = "kauppatori"; `node --check` pääskriptille. (auditointi 2026-10-08,
-      lähde: koodi; periaate tarkennettu TUOTEPERIAATTEET.md:ssä 2026-10-08)
+      lähde: koodi; periaate tarkennettu TUOTEPERIAATTEET.md:ssä 2026-10-08) (PR, 2026-10-10)
 - [ ] index.html: näkymän vaihto vie sivun alkuun ja siirtää fokuksen näkymän otsikkoon. Nyt `route()`
       (rivi noin 25726) piirtää uuden näkymän, mutta vieritys jää ennalleen (mittaus tuotannosta: scrollY 1367
       ennen ja jälkeen, otsikko -1228 px) ja fokus jää BODYyn; koodissa ei ole yhtään `scrollTo(0`. Kun hash-polun

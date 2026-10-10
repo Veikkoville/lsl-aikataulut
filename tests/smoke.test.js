@@ -197,6 +197,12 @@ async function minuuttiLinjaus(page, rootSel, media) {
     && paper.teema && paper.valikko === "")
     ? ok(`etusivu (Lahti): pääkuvassa esimerkkijuliste ja vihko (${paper.teksti}), ${paper.linjat} linjaa, kaupungin väri, valikko`)
     : fail("etusivu (Lahti): pääkuvan paperit/luvut/teema pielessä: " + JSON.stringify(paper));
+  // Analytiikan hakusignaali: vapaata tekstiä ei välitetä (tietosuoja), pelkkä hakusana ja linjatunnus säilyvät
+  const sig = await page.evaluate(() => [searchSignal("Kotikatu 12"), searchSignal("Kauppatori"), searchSignal("22K"),
+    searchSignal("a@b.fi"), searchSignal("a".repeat(41))]);
+  (sig.join("|") === "[numero]|kauppatori|22k|[sposti]|[pitka]")
+    ? ok("analytiikka: searchSignal korvaa henkilön tunnistavat hakutekstit luokalla")
+    : fail("analytiikka: searchSignal palautti " + JSON.stringify(sig));
   // Journey-hero greenfield-kaupungilla (Salo): ei layer-osiota, A->B ensisijaisena
   await page.goto(BASE + "/?city=salo#/", { waitUntil: "networkidle2" });
   const journey = await page.evaluate(() => ({
