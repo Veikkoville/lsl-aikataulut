@@ -8,10 +8,19 @@
 // Reittarilla lisäksi viimeisin Tuotanto-smoke ja Luvat ja kuulutukset -palvelulla aineiston haun
 // syke. Mittaamaton on ei_tietoa, ei koskaan oletuksena toimii.
 //
-// Aja:  GH_TOKEN=... GITHUB_REPOSITORY=Veikkoville/lsl-aikataulut node tools/tila.js --ulos tila.json [--edellinen vanha.json]
+// Datavahdin palvelut (10.10.2026): viidellä palvelulla demo esitellään pyynnöstä, joten julkista sivua ei
+// ole. Niiden tila tulee tuoterepon päivittäisen datavahdin (.github/workflows/datavahti.yml) viimeisimmästä
+// ajosta: datavahti tarkistaa demon ja sen ulkoiset lähteet. Repot ovat yksityisiä, eikä tämän repon
+// GITHUB_TOKEN näe niitä (token rajautuu omaan repoonsa). Lukemiseen tarvitaan secret TILA_LUKU_TOKEN
+// (fine-grained, vain Actions: read ja Metadata: read näihin viiteen repoon), jonka tila.yml välittää
+// ympäristömuuttujana DATAVAHTI_TOKEN. Ilman sitä tila on ei_tietoa. Kun demo julkaistaan, palvelulle
+// lisätään url ja otsikko, ja julkisen sivun vastaus on silloin perusehto kuten muilla.
+//
+// Aja:  GH_TOKEN=... [DATAVAHTI_TOKEN=...] GITHUB_REPOSITORY=Veikkoville/lsl-aikataulut node tools/tila.js --ulos tila.json [--edellinen vanha.json]
 const fs = require("fs");
 
 const SYKE_RAJA_H = 36;        // sama raja kuin kuulutusvahdin workerin valvonnassa (wrangler.toml)
+const DATAVAHTI_RAJA_H = 50;   // datavahti ajaa kerran vuorokaudessa; GitHubin ajastus voi myöhästyä tunteja
 const VANHENEE_TUNTIA = 12;    // sivu näyttää tätä vanhemman tiedoston vanhentuneena (GitHubin ajastus voi viivästyä)
 const TAPAHTUMIA_ENINTAAN = 10;
 const TAPAHTUMA_IKA_PV = 90;
@@ -39,6 +48,12 @@ const PALVELUT = [
     otsikko: "Jätehuollon asiointi",
     esittely: "jatehuolto-osoitteessa.pages.dev",
   },
+  // Demo esitellään pyynnöstä (url null): tila datavahdista. id = savikurki.fi:n palvelusivun polku.
+  { id: "de-minimis-rekisteri", nimi: "Savikurki De minimis -rekisteri", url: null, datavahti: "Veikkoville/deminimis-vahti" },
+  { id: "tapahtumaluvat", nimi: "Savikurki Tapahtumaluvat", url: null, datavahti: "Veikkoville/tapahtumaluvat" },
+  { id: "uimavesitiedotus", nimi: "Savikurki Uimavesitiedotus", url: null, datavahti: "Veikkoville/uimavesi" },
+  { id: "kulttuurivierailut", nimi: "Savikurki Kulttuurivierailut", url: null, datavahti: "Veikkoville/kulttuurivierailut" },
+  { id: "elinvoimapaketti", nimi: "Savikurki Elinvoimapaketti", url: null, datavahti: "Veikkoville/elinvoimapaketti" },
 ];
 
 const TILATEKSTI = { toimii: "toimii", hairio: "häiriö", ei_tietoa: "ei tietoa" };
@@ -91,6 +106,30 @@ function luvatTila(p, sivu, syke, nyt) {
     return { tila: "hairio", kuvaus: perus.kuvaus + " Aineistoa ei ole saatu haettua yli " + SYKE_RAJA_H + " tuntiin (viimeksi " + aika(syke) + "). Sivu näyttää viimeksi haetut tiedot." };
   }
   return { tila: "toimii", kuvaus: perus.kuvaus + " Aineisto haettu viimeksi " + aika(syke) + "." };
+}
+
+// ajo = datavahdin viimeisin valmis ajo { conclusion, run_started_at }, { puuttuu: true } (ei vielä ajoja)
+// tai null (ei saatu luettua, esimerkiksi ilman lukutokenia). sivu = julkisen sivun mittaus, jos palvelulla on url.
+// Ilman julkista sivua datavahti on ainoa mittaus: lukematon, puuttuva tai vanha ajo on ei_tietoa.
+function datavahtiTila(p, sivu, ajo, nyt) {
+  let perus = null;
+  if (p.url) {
+    perus = sivunTila(p, sivu);
+    if (perus.tila !== "toimii") return perus;
+  }
+  const alku = perus ? perus.kuvaus + " " : "Demo esitellään pyynnöstä, joten julkista sivua ei ole. ";
+  const mittaamaton = kuvaus => ({ tila: perus ? "toimii" : "ei_tietoa", kuvaus: alku + kuvaus });
+  if (!ajo) return mittaamaton("Datavahdin tulosta ei saatu luettua.");
+  if (ajo.puuttuu) return mittaamaton("Datavahti ei ole vielä ajanut.");
+  const milloin = aika(ajo.run_started_at);
+  const ika = (nyt.getTime() - new Date(ajo.run_started_at).getTime()) / 3600000;
+  if (!(ika >= -1)) return mittaamaton("Datavahdin ajon aikaleima on virheellinen.");
+  if (ika > DATAVAHTI_RAJA_H) return mittaamaton("Datavahti ajoi viimeksi " + milloin + ", yli " + DATAVAHTI_RAJA_H + " tuntia sitten.");
+  if (ajo.conclusion === "success") return { tila: "toimii", kuvaus: alku + "Datavahti " + milloin + ": demo ja sen ulkoiset lähteet olivat kunnossa." };
+  if (ajo.conclusion === "failure" || ajo.conclusion === "timed_out") {
+    return { tila: "hairio", kuvaus: alku + "Datavahti " + milloin + " löysi vian: demo tai sen ulkoinen lähde on muuttunut, ja selvitys on kesken." };
+  }
+  return mittaamaton("Viimeisin datavahti " + milloin + " keskeytyi.");
 }
 
 // Kokoaa tiedoston. Tapahtuma syntyy vain, kun palvelun tila muuttuu edelliseen ajoon verrattuna.
@@ -160,17 +199,30 @@ async function haeSyke(url) {
   }
 }
 
-async function github(polku) {
-  const res = await fetch("https://api.github.com/repos/" + process.env.GITHUB_REPOSITORY + polku, {
+async function github(polku, repo = process.env.GITHUB_REPOSITORY, token = process.env.GH_TOKEN) {
+  const res = await fetch("https://api.github.com/repos/" + repo + polku, {
     headers: {
       accept: "application/vnd.github+json",
-      authorization: "Bearer " + (process.env.GH_TOKEN || "").trim(),
+      authorization: "Bearer " + (token || "").trim(),
       "user-agent": UA,
     },
     signal: AbortSignal.timeout(20000),
   });
-  if (!res.ok) throw new Error("GitHub " + polku + ": HTTP " + res.status);
+  if (!res.ok) throw new Error("GitHub " + repo + polku + ": HTTP " + res.status);
   return res.json();
+}
+
+// Datavahdin viimeisin valmis ajo masterissa. Yksityinen repo vastaa 404, jos token ei näe sitä: silloin null.
+async function haeDatavahti(repo) {
+  const token = (process.env.DATAVAHTI_TOKEN || "").trim() || process.env.GH_TOKEN;
+  try {
+    const d = await github("/actions/workflows/datavahti.yml/runs?status=completed&branch=master&per_page=1&exclude_pull_requests=true", repo, token);
+    const run = d.workflow_runs && d.workflow_runs[0];
+    return run ? { conclusion: run.conclusion, run_started_at: run.run_started_at } : { puuttuu: true };
+  } catch (e) {
+    console.error("datavahti: " + e.message + (/HTTP 404/.test(e.message) ? " (token ei näe repoa: TILA_LUKU_TOKEN puuttuu tai ei kata sitä)" : ""));
+    return null;
+  }
 }
 
 async function haeSmoke() {
@@ -197,15 +249,17 @@ async function main() {
     try { edellinen = JSON.parse(fs.readFileSync(edPolku, "utf8")); } catch (e) { console.error("edellinen tila.json on virheellinen, tapahtumat alkavat alusta"); }
   }
   const nyt = new Date();
-  const [sivut, smoke, syke] = await Promise.all([
-    Promise.all(PALVELUT.map(p => tarkistaSivu(p.url, p.otsikko))),
+  const [sivut, smoke, syke, ajot] = await Promise.all([
+    Promise.all(PALVELUT.map(p => (p.url ? tarkistaSivu(p.url, p.otsikko) : Promise.resolve(null)))),
     haeSmoke(),
     haeSyke(PALVELUT[1].syke),
+    Promise.all(PALVELUT.map(p => (p.datavahti ? haeDatavahti(p.datavahti) : Promise.resolve(null)))),
   ]);
   const tulokset = PALVELUT.map((p, i) => {
     let t, lahde;
     if (p.id === "reittari") { t = reittarinTila(p, sivut[i], smoke.smoke, smoke.issuet); lahde = "Saatavuustarkistus ja Tuotanto-smoke"; }
     else if (p.id === "luvat-ja-kuulutukset") { t = luvatTila(p, sivut[i], syke, nyt); lahde = "Saatavuustarkistus ja aineiston haun syke"; }
+    else if (p.datavahti) { t = datavahtiTila(p, sivut[i], ajot[i], nyt); lahde = p.url ? "Saatavuustarkistus ja datavahti" : "Datavahti"; }
     else { t = sivunTila(p, sivut[i]); lahde = "Saatavuustarkistus"; }
     return { id: p.id, nimi: p.nimi, tila: t.tila, kuvaus: t.kuvaus, lahde };
   });
@@ -215,7 +269,7 @@ async function main() {
   for (const t of tiedosto.tapahtumat.filter(t => t.aika === tiedosto.paivitetty)) console.log("TAPAHTUMA " + t.teksti);
 }
 
-module.exports = { PALVELUT, SYKE_RAJA_H, sivunTila, reittarinTila, luvatTila, kokoa, tarkistaSivu };
+module.exports = { PALVELUT, SYKE_RAJA_H, DATAVAHTI_RAJA_H, sivunTila, reittarinTila, luvatTila, datavahtiTila, haeDatavahti, kokoa, tarkistaSivu };
 
 if (require.main === module) {
   main().catch(e => { console.error(e); process.exit(1); });
