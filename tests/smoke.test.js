@@ -3771,6 +3771,36 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (corrPre.presets >= 1 && corrPre.checks > 0)
     ? ok(`yhdistetyt suunnat: välilehti + ${corrPre.presets} presettiä (Lahti) + linjalista`)
     : fail("yhdistetyt suunnat: presetit/linjalista puuttuvat: " + JSON.stringify(corrPre));
+  // Puuttuva presetin linja (10.10.2026): Raaseporin "192V" muuttui syötteessä muotoon "192_V" ja Kajaanin linja 2
+  // putosi syyslomalla listalta, jolloin preset valitsi hiljaa yhden linjan eikä Kokoa-nappi tuottanut mitään.
+  // Ahtialan presetin linjat vaihdetaan hetkeksi: (1) tunnuksen muotoero ("34_k") ei saa pudottaa linjaa,
+  // (2) tuntematon linja näkyy huomautuksena ja muut valitaan, (3) yhden linjan jäädessä Kokoa ei saa jättää
+  // tulosta hiljaa tyhjäksi. Kielestä riippumaton: luetaan data-missing ja valitut ruudut, ei tekstiä.
+  const corrMiss = await page.evaluate(async () => {
+    const c = CONFIG.corridors.find(k => k.key === "ahtiala");
+    const orig = c.lines;
+    const run = lines => {
+      c.lines = lines;
+      document.querySelector('[data-corridor="ahtiala"]').click();
+      const n = document.getElementById("corrPresetNote");
+      return { valitut: [...document.querySelectorAll(".corrCb:checked")].map(x => x.dataset.short).sort().join(","),
+        huomautus: !!n && !n.hidden && n.textContent.trim().length > 0, puuttuu: n ? n.dataset.missing || "" : "(ei elementtiä)" };
+    };
+    try {
+      const muoto = run(["4", "14", "24", "34_k"]);
+      const yksi = run(["4", "14", "24", "34K", "SMOKE404"]);
+      const vajaa = run(["4", "SMOKE404"]);
+      document.getElementById("corrGo").click();
+      await new Promise(r => setTimeout(r, 300));
+      vajaa.tulos = (document.getElementById("corridorOut")?.innerHTML || "").trim().length;
+      return { muoto, yksi, vajaa };
+    } finally { c.lines = orig; }
+  });
+  (corrMiss.muoto.valitut === "14,24,34K,4" && !corrMiss.muoto.huomautus
+    && corrMiss.yksi.valitut === "14,24,34K,4" && corrMiss.yksi.huomautus && corrMiss.yksi.puuttuu === "SMOKE404"
+    && corrMiss.vajaa.valitut === "4" && corrMiss.vajaa.huomautus && corrMiss.vajaa.puuttuu === "SMOKE404" && corrMiss.vajaa.tulos === 0)
+    ? ok("yhdistetyt suunnat: presetin puuttuva linja näkyy huomautuksena, muut valitaan, tunnuksen muotoero ei pudota linjaa")
+    : fail("yhdistetyt suunnat: puuttuva presetin linja hiljaa tai väärin: " + JSON.stringify(corrMiss));
   await page.click('[data-corridor="ahtiala"]');
   // Valintayhteenveto napin viereen (Villen palaute 23.9.2026): pikavalinnan jälkeen näkymän on
   // kerrottava mitä valittiin ilman vieritystä listaan. Ahtialan käytävä = 4, 14, 24, 34K.

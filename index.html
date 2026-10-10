@@ -1061,6 +1061,9 @@
   table.corridor th, table.corridor td { text-align: center; }
   table.corridor th:first-child, table.corridor td:first-child { font-weight: 600; }
   table.corridor td.corr-dest, table.corridor th:nth-child(3) { text-align: left; }
+  /* Presetin tai pysäkin linja, jota ei voi käyttää (10.10.2026): näkyvä huomautus eikä hiljainen tyhjä tulos */
+  .corr-missing, .desk-unlisted { border-left: 4px solid var(--error-border); padding: 0.3rem 0.6rem; margin: 0.4rem 0; }
+  .line-resume { font-size: 0.88em; white-space: nowrap; }
   /* QR-koodit (näyttö + juliste) */
   .embedbox { margin: 0.5rem 0; display: flex; flex-direction: column; gap: 0.5rem; }
   .embed-field { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
@@ -3124,6 +3127,9 @@ const CONFIGS = {
     // tunnusta, 1+3 vain 11, ja kaikki kolme linjaa ajavat arkisin → presetti vaihdettu
     // 1+2:een. HUOM: Pali ajaa vain ma+pe → activeProbeDates (Ti/To/La/Su) ei näe sitä.
     corridors: [
+      // 10.10.2026: linja 2 ajaa vain koulupäivinä (syysloma 12.-16.10.2026: 0 vuoroa, ma 19.10. 24 vuoroa), ja
+      // aktiivilista pudotti sen, jolloin preset valitsi vain linjan 1. Preset on oikea: Tulosteet-sivu käyttää nyt
+      // tulostusjakson linjoja (loadPrintRoutes). corridorBuild ma 12.10. ja ma 19.10. = 2 suuntaa, 51/31 riviä.
       { key: "keskusta", name: "Keskustan suunta", lines: ["1", "2"] },
     ],
     // Kertalippujen hinnat (erä E1 4.10.2026). Lähde: https://kajaaninjoukkoliikenne.fi/liput-ja-hinnat/ ("Joukkoliikenteen
@@ -3550,8 +3556,12 @@ const CONFIGS = {
       // 0 suuntaa). Tulokset: 201+192V = 2 suuntaa, 11/14 riviä, otsikot Tammisaari <-> Karjaa;
       // 201+192V+111H = 2 suuntaa, 12/16 riviä (hylätty: kolmen linjan preset on hauraampi, juuri
       // sellainen hajosi nyt). Kausivalidointi vahtii jatkossa.
-      { key: "tammisaari", name: { fi: "Tammisaaren suunta", sv: "Riktning Ekenäs", en: "Ekenäs direction" }, lines: ["201", "192V"] },
-      { key: "fiskars", name: { fi: "Fiskarsin suunta", sv: "Riktning Fiskars", en: "Fiskars direction" }, lines: ["134", "134n"] },
+      // 10.10.2026: syöte muutti 6.-8.10.2026 varianttien shortNamet muotoon "192_V" ja "134_n" (gtfsId:t ennallaan,
+      // Raasepori:192V ja Raasepori:134n), ja preset valitsi enää vain linjat 201 ja 134. Linjat ja yhteiset jaksot
+      // ovat ennallaan: corridorBuild ma 12.10. ja ma 19.10. 201+192_V = 2 suuntaa, 13/13 riviä; 134+134_n = 2 suuntaa,
+      // 14/11 riviä. Datavahti (tests/datavahti.js) tarkistaa presettien linjat päivittäin.
+      { key: "tammisaari", name: { fi: "Tammisaaren suunta", sv: "Riktning Ekenäs", en: "Ekenäs direction" }, lines: ["201", "192_V"] },
+      { key: "fiskars", name: { fi: "Fiskarsin suunta", sv: "Riktning Fiskars", en: "Fiskars direction" }, lines: ["134", "134_n"] },
     ],
     // BOSSE-vihreä = reittioppaan oma teemaväri (bosse.digitransit.fi meta theme-color,
     // luettu 9.7.2026). headerBgColor() pitää AA:n valkoiselle.
@@ -5972,6 +5982,10 @@ const STRINGS = {
     corridorBuilding: "Kootaan yhdistettyä aikataulua…",
     corridorNoShared: "Valituilla linjoilla ei ole riittävää yhteistä pysäkkijaksoa (vähintään 3 yhteistä pysäkkiä samassa järjestyksessä).",
     corridorExcluded: "Ei mukana (ei yhteistä jaksoa valittujen kanssa): {lines}",
+    corridorMissing: "Ryhmän linjaa {lines} ei löydy nykyisestä aikataulusta, tai sillä ei ole vuoroja seuraavien 6 viikon aikana. Taulukko kootaan ryhmän muista linjoista.",
+    corridorMissingTooFew: "Ryhmän linjaa {lines} ei löydy nykyisestä aikataulusta, tai sillä ei ole vuoroja seuraavien 6 viikon aikana. Ryhmään jää alle kaksi linjaa, joten yhdistettyä aikataulua ei voi koota.",
+    lineRunsFrom: "liikennöi {date} alkaen",
+    deskLinesUnlisted: "Pysäkin linjat, joita ei voi tulostaa (ei vuoroja seuraavien 6 viikon aikana): {lines}",
     corridorLineCol: "Linja", corridorDestCol: "Määränpää",
     corridorSharedNote: "Ajat yhteisillä pysäkeillä: {n} yhteistä pysäkkiä välillä {from}–{to}.",
     trainsLink: "Junat",
@@ -6851,6 +6865,10 @@ const STRINGS = {
     corridorBuilding: "Building the combined timetable…",
     corridorNoShared: "The selected routes do not share a sufficient common stop sequence (at least 3 shared stops in the same order).",
     corridorExcluded: "Not included (no shared corridor with the selection): {lines}",
+    corridorMissing: "Route {lines} of this group is not in the current timetable, or it has no trips in the next 6 weeks. The table is built from the other routes of the group.",
+    corridorMissingTooFew: "Route {lines} of this group is not in the current timetable, or it has no trips in the next 6 weeks. Fewer than two routes remain, so the combined timetable cannot be built.",
+    lineRunsFrom: "runs from {date}",
+    deskLinesUnlisted: "Routes at this stop that cannot be printed (no trips in the next 6 weeks): {lines}",
     corridorLineCol: "Line", corridorDestCol: "Destination",
     corridorSharedNote: "Times at shared stops: {n} shared stops between {from}–{to}.",
     trainsLink: "Trains",
@@ -7729,6 +7747,10 @@ const STRINGS = {
     corridorBuilding: "Sammanställer den kombinerade tidtabellen…",
     corridorNoShared: "De valda linjerna har ingen tillräcklig gemensam hållplatssekvens (minst 3 gemensamma hållplatser i samma ordning).",
     corridorExcluded: "Ingår inte (inget gemensamt stråk med urvalet): {lines}",
+    corridorMissing: "Gruppens linje {lines} finns inte i den nuvarande tidtabellen, eller den har inga turer under de närmaste 6 veckorna. Tabellen sammanställs av gruppens övriga linjer.",
+    corridorMissingTooFew: "Gruppens linje {lines} finns inte i den nuvarande tidtabellen, eller den har inga turer under de närmaste 6 veckorna. Färre än två linjer återstår, så den kombinerade tidtabellen kan inte sammanställas.",
+    lineRunsFrom: "trafikeras fr.o.m. {date}",
+    deskLinesUnlisted: "Linjer vid hållplatsen som inte kan skrivas ut (inga turer under de närmaste 6 veckorna): {lines}",
     corridorLineCol: "Linje", corridorDestCol: "Destination",
     corridorSharedNote: "Tider vid gemensamma hållplatser: {n} gemensamma hållplatser mellan {from}–{to}.",
     trainsLink: "Tåg",
@@ -8379,8 +8401,91 @@ async function loadRoutes() {
 // routes(ids: lineIds) ja yhdistetään patternit → byDir/suunnanvaihto toimii unionin yli.
 async function lineIds(routeId) {
   const list = await loadRoutes().catch(() => []);
-  const g = list.find(r => (r.gtfsIds || []).includes(routeId));
+  const g = list.find(r => (r.gtfsIds || []).includes(routeId))
+    || (printRoutesCache ? printRoutesCache.list.find(r => (r.gtfsIds || []).includes(routeId)) : null);
   return (g && g.gtfsIds && g.gtfsIds.length) ? g.gtfsIds : [routeId];
+}
+
+/* Tulosteiden linjajoukko (10.10.2026). loadRoutes näyttää vain linjat, joilla on vuoroja koepäivinä eli lähimmän
+   viikon aikana, ja se on oikein matkustajan linjalistalle. Tuloste kattaa kuitenkin PRINT_HORIZON_DAYS päivää:
+   syysloma 12.-16.10.2026 pudotti listasta koulupäivinä ajavat linjat, jolloin Kajaanin käytäväpreset 1+2 valitsi
+   enää linjan 1 ja Kokoa-nappi ei tuottanut taulukkoa, ja tiskin tulostevalikosta puuttuivat pysäkin linjat
+   (Kajaani 2, 4, 6, 7, 12; Raaseporissa 8 ja Inkoossa 10 linjaa). Tähän lisätään linjat, joilla ei ole vuoroja
+   koepäivinä mutta on tulostusjaksolla. resume = ensimmäinen ajopäivä (YYYYMMDD), joka näytetään listassa.
+   Käyttö: Tulosteet-keskus ja tiskin Tulosteet-välilehti. Haku koskee vain koepäivinä hiljaisia linjoja. */
+let printRoutesCache = null;
+async function loadPrintRoutes() {
+  const base = await loadRoutes();
+  if (printRoutesCache && printRoutesCache.base === base && printRoutesCache.day === todayISO()) return printRoutesCache.list;
+  let extra = [];
+  try { extra = await printOnlyRoutes(base); } catch (e) { extra = []; }
+  const list = extra.length
+    ? [...base, ...extra].sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }))
+    : base;
+  printRoutesCache = { base, day: todayISO(), list };
+  return list;
+}
+async function printOnlyRoutes(base) {
+  const feed = await findFeed();
+  const MODES = CONFIG.modes || ["BUS"];
+  const known = new Set(base.flatMap(r => (r.gtfsIds && r.gtfsIds.length) ? r.gtfsIds : [r.gtfsId]));
+  const knownShort = new Set(base.map(r => r.shortName).filter(Boolean));
+  const FIELDS = "gtfsId shortName longName@L mode color textColor";
+  const { data } = CONFIG.areaScoped
+    ? await cachedGql("printall:" + feed, `query ($ids: [String]) { routes(ids: $ids) { ${FIELDS} } }`,
+        { ids: await areaRouteIds(feed) })
+    : await cachedGql("printall:" + feed, `query ($feeds: [String]) { routes(feeds: $feeds) { ${FIELDS} } }`,
+        { feeds: [feed] });
+  const cand = (data.routes || []).filter(r => r && MODES.includes(r.mode) && !known.has(r.gtfsId)
+    && !(r.shortName && knownShort.has(r.shortName)));
+  if (!cand.length) return [];
+  const now = new Date();
+  const days = [...Array(PRINT_HORIZON_DAYS)].map((_, i) =>
+    isoOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)).replace(/-/g, ""));
+  const aliases = days.map((d, i) => `d${i}: tripsForDate(serviceDate: "${d}") { gtfsId }`).join(" ");
+  const chunks = [];
+  for (let i = 0; i < cand.length; i += 15) chunks.push(cand.slice(i, i + 15));
+  const firstDay = new Map();   // gtfsId -> ensimmäisen ajopäivän indeksi
+  await mapLimit(chunks, 2, async chunk => {
+    const ids = chunk.map(r => r.gtfsId);
+    const { data: d } = await cachedGql("printpaused:" + days[0] + ":" + ids.join(","),
+      `query ($ids: [String]) { routes(ids: $ids) { gtfsId patterns { ${aliases} } } }`, { ids });
+    for (const r of (d.routes || []).filter(Boolean)) {
+      const idx = days.findIndex((_, i) => (r.patterns || []).some(p => (p["d" + i] || []).length));
+      if (idx >= 0) firstDay.set(r.gtfsId, idx);
+    }
+  });
+  // Ryhmittely kuten loadRoutesissa: sama shortName = yksi linja, numeroton pysyy omanaan.
+  const byShort = new Map();
+  for (const r of cand) {
+    if (!firstDay.has(r.gtfsId)) continue;
+    const k = r.shortName || ("#" + r.gtfsId);
+    if (!byShort.has(k)) byShort.set(k, []);
+    byShort.get(k).push(r);
+  }
+  return [...byShort.values()].map(group => {
+    group.sort((a, b) => firstDay.get(a.gtfsId) - firstDay.get(b.gtfsId));
+    const p = group[0];
+    return { gtfsId: p.gtfsId, gtfsIds: group.map(r => r.gtfsId), shortName: p.shortName, longName: p.longName,
+      mode: p.mode, color: p.color, textColor: p.textColor, resume: days[firstDay.get(p.gtfsId)] };
+  });
+}
+// Listan rivin lisäteksti linjalle, joka ei aja lähipäivinä: "liikennöi 19.10. alkaen".
+const lineResumeHtml = r => r && r.resume
+  ? ` <span class="muted line-resume">${esc(t("lineRunsFrom", { date: fmtDayMonthNum(r.resume) }))}</span>` : "";
+
+/* Käytäväpresetin linjat (10.10.2026). Täsmällinen shortName ensin, sitten sama tunnus ilman erotinmerkkejä ja
+   kirjainkokoa: Raaseporin syöte muutti 6.-8.10.2026 varianttien tunnukset muotoon "192_V", ja preset "192V"
+   valitsi enää vain linjan 201. Palauttaa löydetyt kohteet ja puuttuvat linjat, jotka näytetään käyttäjälle. */
+const lineKeyNorm = s => String(s == null ? "" : s).replace(/[\s_.\-]/g, "").toLowerCase();
+function corridorResolve(lines, items, shortOf) {
+  const found = [], missing = [];
+  for (const l of (lines || []).map(String)) {
+    const hit = items.find(x => shortOf(x) === l) || items.find(x => lineKeyNorm(shortOf(x)) === lineKeyNorm(l));
+    if (hit && !found.includes(hit)) found.push(hit);
+    else if (!hit) missing.push(l);
+  }
+  return { found, missing };
 }
 
 /* ---------- Helpers ---------- */
@@ -12454,7 +12559,7 @@ async function fillReprintHighlight() {
 // Yksikkökohtainen vertailu nykydataan. Pieni rinnakkaisuus: nosto on taustatyötä eikä saa
 // kilpailla näkymän omien kyselyjen kanssa. Villen tapauksessa 7 yksikköä.
 async function reprintHlCompute(base, todo, date) {
-  const routes = await loadRoutes();
+  const routes = await loadPrintRoutes();   // käytävän linja voi olla tauolla lähipäivinä (ks. loadPrintRoutes)
   const corrs = new Map((CONFIG.corridors || []).map(c => ["corr:" + c.key, c]));
   const units = {};
   await mapLimit(todo, 2, async (id) => {
@@ -15455,12 +15560,22 @@ function bindCorridorTab(routes, today) {
   if (!panel) return;
   const cbs = () => [...panel.querySelectorAll(".corrCb")];
   const summary = bindSelectionSummary(panel, ".corrCb", document.getElementById("corrStatus"), linesSummary);
+  // Presetin linja, jota ei ole listassa, kerrotaan käyttäjälle (10.10.2026): ennen preset valitsi hiljaa vain
+  // löytyneet linjat, ja kun niitä jäi yksi, Kokoa-nappi ei tuottanut taulukkoa eikä selitystä.
+  const note = document.getElementById("corrPresetNote");
   panel.querySelectorAll("[data-corridor]").forEach(btn => btn.addEventListener("click", () => {
     const preset = (CONFIG.corridors || []).find(c => c.key === btn.dataset.corridor);
     if (!preset) return;
-    const want = new Set(preset.lines.map(String));
-    cbs().forEach(c => { c.checked = want.has(c.dataset.short); });
+    const { found, missing } = corridorResolve(preset.lines, cbs(), c => c.dataset.short);
+    const pick = new Set(found);
+    cbs().forEach(c => { c.checked = pick.has(c); });
     summary();
+    if (note) {
+      note.hidden = !missing.length;
+      note.dataset.missing = missing.join(",");
+      note.textContent = missing.length
+        ? t(found.length >= 2 ? "corridorMissing" : "corridorMissingTooFew", { lines: missing.join(", ") }) : "";
+    }
   }));
   const filter = document.getElementById("corrFilter");
   filter?.addEventListener("input", () => {
@@ -15499,9 +15614,9 @@ function bindCorridorTab(routes, today) {
       return;
     }
     // jos valinta vastaa presettiä, otsikoidaan sen nimellä
-    const selShorts = new Set(cbs().filter(c => c.checked).map(c => c.dataset.short));
+    const selShorts = new Set(cbs().filter(c => c.checked).map(c => lineKeyNorm(c.dataset.short)));
     const preset = (CONFIG.corridors || []).find(c =>
-      c.lines.length === selShorts.size && c.lines.every(l => selShorts.has(String(l))));
+      c.lines.length === selShorts.size && c.lines.every(l => selShorts.has(lineKeyNorm(l))));
     const allLines = [...new Map(dirs.flatMap(d => d.lines).map(r => [r.gtfsId, r])).values()];
     const exNote = res.excluded.length
       ? `<p class="muted">${t("corridorExcluded", { lines: esc(res.excluded.join(", ")) })}</p>` : "";
@@ -18227,6 +18342,7 @@ async function viewServiceDesk() {
               <input type="search" id="deskLineFilter" autocomplete="off"
                      placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
               <ul class="plain" id="deskLineList" aria-labelledby="deskLinesH"></ul>
+              <p id="deskLinesUnlisted" class="muted desk-unlisted" role="status" hidden></p>
               <p class="dp-pick-foot">
                 <button type="button" id="deskLinesStop" class="linkish">${t("deskLineGroupStop")}</button>
                 <button type="button" id="deskLinesNone" class="linkish">${t("clearLines")}</button>
@@ -19138,7 +19254,9 @@ async function viewServiceDesk() {
      listan uudelleenpiirron yli, koska pysäkin vaihto järjestää ryhmät uudelleen. */
   const deskLineSort = list => list.slice()
     .sort((a, b) => (a.shortName || "").localeCompare(b.shortName || "", "fi", { numeric: true }));
-  let deskAllRoutes = [], deskStopRouteIds = new Set(), deskPickedIds = new Set(), deskStopObj = null;
+  let deskAllRoutes = [], deskStopRouteIds = new Set(), deskStopShorts = [], deskPickedIds = new Set(), deskStopObj = null;
+  // Linja kuuluu pysäkille, jos jokin sen route-objekteista pysähtyy siellä (ryhmän primary ei aina pysähdy).
+  const deskAtStop = r => ((r.gtfsIds && r.gtfsIds.length) ? r.gtfsIds : [r.gtfsId]).some(id => deskStopRouteIds.has(id));
   const deskPickedNow = () => new Set(
     [...document.querySelectorAll(".deskLineCb")].filter(c => c.checked).map(c => c.value));
   const deskFilterLines = () => {
@@ -19164,23 +19282,35 @@ async function viewServiceDesk() {
   };
   const deskLineRow = r => `<li><label><input type="checkbox" class="deskLineCb" value="${esc(r.gtfsId)}"
       data-short="${esc(r.shortName || "")}"${deskPickedIds.has(r.gtfsId) ? " checked" : ""}>
-      ${badgeHtml(r)} <span class="dp-line-name">${esc(r.longName || "")}</span></label></li>`;
+      ${badgeHtml(r)} <span class="dp-line-name">${esc(r.longName || "")}${lineResumeHtml(r)}</span></label></li>`;
   const renderDeskLines = () => {
     const ul = document.getElementById("deskLineList");
     if (!ul) return;
-    const mine = deskLineSort(deskAllRoutes.filter(r => deskStopRouteIds.has(r.gtfsId)));
-    const rest = deskLineSort(deskAllRoutes.filter(r => !deskStopRouteIds.has(r.gtfsId)));
+    const mine = deskLineSort(deskAllRoutes.filter(deskAtStop));
+    const rest = deskLineSort(deskAllRoutes.filter(r => !deskAtStop(r)));
     ul.innerHTML = mine.length
       ? `<li class="dp-head">${esc(t("deskLineGroupStop"))}</li>${mine.map(deskLineRow).join("")}` +
         `<li class="dp-head">${esc(t("deskLineGroupAll"))}</li>${rest.map(deskLineRow).join("")}`
       : rest.map(deskLineRow).join("");
+    // Pysäkin linja, jota valikossa ei ole, kerrotaan näkyvästi (10.10.2026): ennen valikko vain lyheni hiljaa.
+    // Tulostettavat linjat ovat valikossa (loadPrintRoutes), joten tähän jäävät ne, joilla ei ole vuoroja
+    // tulostusjaksolla. Lista odottaa linjojen latausta, ettei sitä näytetä ennen kuin valikko on koottu.
+    const un = document.getElementById("deskLinesUnlisted");
+    if (un) {
+      const have = new Set(deskAllRoutes.map(r => String(r.shortName || "").toUpperCase()));
+      const miss = deskAllRoutes.length ? deskStopShorts.filter(s => !have.has(s.toUpperCase())) : [];
+      un.hidden = !miss.length;
+      un.dataset.lines = miss.join(",");
+      un.textContent = miss.length ? t("deskLinesUnlisted", { lines: miss.join(", ") }) : "";
+    }
     deskFilterLines();
     updateDeskPrints();
   };
   document.getElementById("deskLineFilter")?.addEventListener("input", deskFilterLines);
   document.getElementById("deskLineList")?.addEventListener("change", updateDeskPrints);
   document.getElementById("deskLinesStop")?.addEventListener("click", () => {
-    document.querySelectorAll(".deskLineCb").forEach(c => { c.checked = deskStopRouteIds.has(c.value); });
+    const atStop = new Set(deskAllRoutes.filter(deskAtStop).map(r => r.gtfsId));
+    document.querySelectorAll(".deskLineCb").forEach(c => { c.checked = atStop.has(c.value); });
     updateDeskPrints();
   });
   document.getElementById("deskLinesNone")?.addEventListener("click", () => {
@@ -19215,7 +19345,8 @@ async function viewServiceDesk() {
     deskOpen("#/tulosteet/kaytava?corridor=" + encodeURIComponent(btn.dataset.corr) + "&go=1")));
   document.getElementById("deskChangesBtn")?.addEventListener("click", () =>
     deskOpen("#/tulosteet/muutokset"));
-  loadRoutes().then(rs => { deskAllRoutes = rs || []; renderDeskLines(); }).catch(() => {});
+  // Tulostettavat linjat (loadPrintRoutes): myös lähipäivinä tauolla olevat, esim. koulupäivälinjat syyslomalla.
+  loadPrintRoutes().then(rs => { deskAllRoutes = rs || []; renderDeskLines(); }).catch(() => {});
 
   /* Asiakkaalle mukaan annettava pysäkkiaikataulu: sama pysäkkijulisteen moottori
      (stopPosterBlocks + stopPosterHtml) kuin pysäkkisivulla. Tiivis juliste tulostuu
@@ -19325,6 +19456,7 @@ async function viewServiceDesk() {
     if (ln && (stop.routes || []).length) ln.innerHTML = stopLinesHtml(stop.routes);
     // Pysäkin linjat Tulosteet-välilehden listan kärkeen omaan ryhmäänsä; koko linjasto pysyy valittavissa.
     deskStopRouteIds = new Set((stop.routes || []).filter(r => r && r.gtfsId).map(r => r.gtfsId));
+    deskStopShorts = dedupeRoutesByShort((stop.routes || []).filter(Boolean)).map(r => String(r.shortName));
     renderDeskLines();
     renderStopAlerts(stop);
   };
@@ -23681,8 +23813,15 @@ async function corridorFetchLines(routeIds) {
         if (!byDir.has(k)) byDir.set(k, []);
         byDir.get(k).push(p);
       }
+      // Tauolla olevalla linjalla (loadPrintRoutes, esim. koulupäivälinja syyslomalla) jokaisen patternin
+      // tulevat vuorot ovat 0, ja järjestys olisi sattumaa: silloin valitaan pisin variantti, koska käytävän
+      // yhteinen jakso etsitään sen pysäkeistä.
       const primaries = [...byDir.values()]
-        .map(list => list.sort((a, b) => upcoming(b) - upcoming(a))[0]);
+        .map(list => {
+          list.sort((a, b) => upcoming(b) - upcoming(a));
+          return upcoming(list[0]) > 0 ? list[0]
+            : list.reduce((x, y) => ((y.stops || []).length > (x.stops || []).length ? y : x));
+        });
       return { route, byDir, primaries,
                upcoming: primaries.reduce((n, p) => n + upcoming(p), 0) };
     } catch (e) { return null; }
@@ -23992,8 +24131,8 @@ async function reprintLineSnap(routeId, dateISO) {
 // Käytävätulosteen sormenjälki (CONFIG.corridors-pikavalinnat = ne arkit joita oikeasti
 // painetaan). Käyttää samaa corridorBuildia kuin tuloste itse.
 async function reprintCorridorSnap(c, dateISO, routes) {
-  const want = new Set((c.lines || []).map(String));
-  const ids = routes.filter(r => want.has(String(r.shortName || ""))).map(r => r.gtfsId);
+  // Sama linjojen tunnistus kuin käytäväpresetissä (corridorResolve): tunnuksen muotomuutos ei kaada vertailua.
+  const ids = corridorResolve(c.lines, routes, r => String(r.shortName || "")).found.map(r => r.gtfsId);
   if (ids.length < 2) return null;
   const built = await corridorBuild(ids, dateISO);
   const dirs = (built.dirs || []).map(d => ({
@@ -24921,7 +25060,9 @@ async function viewPrintCenter(tab, query) {
   // näkyivät sarakkeilla "To" ja "La" kuin viikoittaiset vuorot, vaikka ne ajetaan vain
   // ottelupäivinä (täysauditointi 27.9.2026). Siksi niitä ei tarjota millekään tulosteelle.
   const eventLines = CONFIG.eventLines || [];
-  const routes = (await loadRoutes()).filter(r => !eventLines.includes(r.shortName));
+  // Tulostettavat linjat (loadPrintRoutes, 10.10.2026): myös lähipäivinä tauolla olevat, joilla on vuoroja
+  // tulostusjaksolla. Ilman niitä syysloma pudotti Kajaanin käytäväpresetin linjan 2 valittavista.
+  const routes = (await loadPrintRoutes()).filter(r => !eventLines.includes(r.shortName));
   // Kaupungin vihkon kauden linjat, jotka eivät aja lähipäivinä (Lappeenrannan loma-ajan linjat 114, 201
   // ja 301 ajavat vasta syyslomalla, joten aktiivilista pudottaa ne). Vain vihkon linjavalintaan.
   const bookletRoutes = CONFIG.vihko ? [...routes, ...(await vkSeasonRoutes(routes))] : routes;
@@ -24988,7 +25129,7 @@ async function viewPrintCenter(tab, query) {
           ${bookletRoutes.map(r => `<li><label class="item" style="cursor:pointer;align-items:center">
               <input type="checkbox" class="lineCb" value="${esc(r.gtfsId)}"
                      style="width:1.4rem;height:1.4rem;flex:none">
-              ${badgeHtml(r)} <span>${esc(r.longName)}</span></label></li>`).join("")}
+              ${badgeHtml(r)} <span>${esc(r.longName)}${lineResumeHtml(r)}</span></label></li>`).join("")}
         </ul>
       </div>
       <div id="bookletOut"></div>
@@ -25004,6 +25145,7 @@ async function viewPrintCenter(tab, query) {
           <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin-top:0.3rem">
             ${CONFIG.corridors.map(c => `<button type="button" class="linkish" data-corridor="${esc(c.key)}">${esc(corridorName(c))} (${c.lines.map(esc).join(", ")})</button>`).join("")}
           </div>
+          <p id="corrPresetNote" class="corr-missing" role="status" hidden></p>
         </div>` : ""}
         <div class="field">
           <label for="corrDate">${t("bookletDateLabel")}</label>
@@ -25026,7 +25168,7 @@ async function viewPrintCenter(tab, query) {
           ${routes.map(r => `<li><label class="item" style="cursor:pointer;align-items:center">
               <input type="checkbox" class="corrCb" value="${esc(r.gtfsId)}" data-short="${esc(r.shortName || "")}"
                      style="width:1.4rem;height:1.4rem;flex:none">
-              ${badgeHtml(r)} <span>${esc(r.longName)}</span></label></li>`).join("")}
+              ${badgeHtml(r)} <span>${esc(r.longName)}${lineResumeHtml(r)}</span></label></li>`).join("")}
         </ul>
       </div>
       <div id="corridorOut"></div>
