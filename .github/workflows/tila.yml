@@ -1,5 +1,6 @@
 # Tilasivu (savikurki.fi/tila): tunnin välein ja jokaisen Tuotanto-smoken jälkeen tarkistetaan
-# palvelujen julkiset sivut ja valvonnan viimeisimmät tulokset (tools/tila.js).
+# palvelujen julkiset sivut ja valvonnan viimeisimmät tulokset (tools/tila.js). Palveluilla, joiden demo
+# esitellään pyynnöstä, tila tulee tuoterepon päivittäisestä datavahdista (10.10.2026).
 #
 # Tulos viedään orpohaaraan `tila` yhtenä committina (force push, ei historiaa: tilamuutokset ovat
 # tiedoston tapahtumissa). Master-suojaus koskee vain masteria, joten GITHUB_TOKEN riittää eikä
@@ -50,6 +51,9 @@ jobs:
       - name: Tarkista palvelut
         env:
           GH_TOKEN: ${{ github.token }}
+          # Datavahdin palvelujen repot ovat yksityisiä, eikä GITHUB_TOKEN näe niitä. TILA_LUKU_TOKEN: fine-grained,
+          # vain Actions: read ja Metadata: read viiteen tuoterepoon (tools/tila.js). Ilman sitä tila on "ei tietoa".
+          DATAVAHTI_TOKEN: ${{ secrets.TILA_LUKU_TOKEN }}
         run: node tools/tila.js --edellinen "$RUNNER_TEMP/edellinen.json" --ulos "$RUNNER_TEMP/tila.json"
 
       - name: Vie haaraan tila
