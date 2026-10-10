@@ -1307,6 +1307,14 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (dTrains && dTrainInfo.tables === 2 && dTrainInfo.heads === 8 && dTrainInfo.kinds === 2)
     ? ok(`palvelutiski: junien lähdöt ja saapumiset lohkossa (${dTrainInfo.rows} junaa, rata.digitraffic)`)
     : fail("palvelutiski: junalohko ei renderöitynyt lähtevät + saapuvat: " + JSON.stringify(dTrainInfo));
+  // Mennyt juna ilman toteutunutta tai arvioitua aikaa ei ole tuleva lähtö (Lahti 10.10.2026: 11.04 näkyi klo 11.58).
+  const railPast = await page.evaluate(() => {
+    const now = Date.now(), mk = (s, e) => ({ sched: new Date(now + s * 60000), est: e == null ? null : new Date(now + e * 60000) });
+    return [mk(-54), mk(-1), mk(-10, 5), mk(10), mk(5, -30)].map(r => railRowUpcoming(r, now)).join(",");
+  });
+  (railPast === "false,true,true,true,false")
+    ? ok("palvelutiski: junalohko jättää menneet junat pois (arvioitu aika ensin, 2 min armoaika)")
+    : fail("palvelutiski: railRowUpcoming palautti " + railPast);
 
   // --- Palvelutiski V1 (4.10.2026): livekartta, yhteishaku + linjakortti, linkit tiskin sisällä,
   //     390 px ja hinnat jaetusta lähteestä. Rakenneassertioita; tila palautetaan jokaisen jälkeen. ---
