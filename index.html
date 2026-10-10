@@ -10860,7 +10860,19 @@ function syncA11yFootLabel() {
 /* ---------- Anonyymi käyttöanalytiikka (kaupungin dashboardia varten) ----------
    Ei käyttäjätunnuksia, ei evästeitä, ei IP-tallennusta; kunnioittaa Do Not
    Track -asetusta. Lähetetään sendBeaconilla (fire-and-forget) workerin /track-
-   päätepisteeseen, joka kirjaa anonyymin tapahtuman Analytics Engineen. */
+   päätepisteeseen, joka kirjaa anonyymin tapahtuman Analytics Engineen.
+   Vapaata tekstiä ei välitetä: tuloksettoman haun teksti kulkee searchSignal()in läpi. */
+// Puhdas: palauttaa haun tekstin vain jos siitä ei voi tunnistaa henkilöä (enintään 40 merkkiä, ei @-merkkiä,
+// ei numeroa; poikkeus pelkkä linjatunnus), muuten luokan. Sama sääntö on workerin searchSignalissa.
+function searchSignal(q) {
+  const s = String(q == null ? "" : q).trim().toLowerCase().replace(/\s+/g, " ");
+  if (!s) return "";
+  if (/^[0-9]{1,3}[a-zåäö]?$/.test(s)) return s;
+  if (s.includes("@")) return "[sposti]";
+  if (/[0-9]/.test(s)) return "[numero]";
+  if (s.length > 40) return "[pitka]";
+  return s;
+}
 function track(type, value) {
   try {
     if (!PROXY_URL) return;
@@ -11321,7 +11333,7 @@ function bindUnifiedSearch(input, results) {
             placeHits.map((p, i) => `<li><button class="item" type="button" data-place="${i}">
               <span>${icon(PLACE_ICONS[p.layer] || "pin")} ${esc(p.name)}${placeHint(p)}</span></button></li>`).join("");
         }
-        if (!html) track("search_fail", q);   // haku ilman osumia = suunnittelijoille arvokas signaali
+        if (!html) track("search_fail", searchSignal(q));   // haku ilman osumia = suunnittelijoille arvokas signaali
         // areaScoped: tyhja tulos johtuu usein siita etta haku on rajattu kuntaan. Sanotaan se,
         // muuten kayttaja luulee ettei paikkaa ole olemassa.
         const emptyMsg = CONFIG.areaScoped

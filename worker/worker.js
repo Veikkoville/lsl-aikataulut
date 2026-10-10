@@ -1073,7 +1073,7 @@ const TRACK_ID_RE = /^[A-Za-z0-9_.:+~()-]{1,80}$/;   // linjan tai pysäkin GTFS
 
 // Validoi+siistii yhden tapahtuman (puhdas, testattava). Arvo katkaistaan, eikä
 // mitään henkilötietoa talleteta. Tuntematon tyyppi tai kaupunki → null (ei kirjoiteta).
-// Hakutekstistä pudotetaan sähköpostiosoitteelta tai puhelinnumerolta näyttävät.
+// Hakuteksti (search_fail) muutetaan searchSignalilla: henkilön tunnistavat tekstit korvataan luokalla.
 export function buildTrackEvent(body) {
   const type = body && String(body.type || "");
   if (!TRACK_TYPES.has(type)) return null;
@@ -1084,10 +1084,23 @@ export function buildTrackEvent(body) {
   if (type === "view") value = TRACK_VIEWS.has(value) ? value : "muu";
   else if (type === "line" || type === "stop") { if (!TRACK_ID_RE.test(value)) return null; }
   else {
-    value = value.replace(/\s+/g, " ");
-    if (!value || value.includes("@") || /\d{5,}/.test(value.replace(/[\s()+-]/g, ""))) return null;
+    value = searchSignal(String((body && body.value) || ""));
+    if (!value) return null;
   }
   return { type, value, city };
+}
+
+// Tuloksettoman haun teksti analytiikkaan (sama sääntö kuin index.html:n searchSignal): vapaata tekstiä
+// ei tallenneta, jos siitä voi tunnistaa henkilön. Teksti säilyy vain jos se on enintään 40 merkkiä eikä
+// sisällä @-merkkiä eikä numeroa (poikkeus: pelkkä linjatunnus); muuten luokka.
+export function searchSignal(q) {
+  const s = String(q == null ? "" : q).trim().toLowerCase().replace(/\s+/g, " ");
+  if (!s) return "";
+  if (/^[0-9]{1,3}[a-zåäö]?$/.test(s)) return s;
+  if (s.includes("@")) return "[sposti]";
+  if (/[0-9]/.test(s)) return "[numero]";
+  if (s.length > 40) return "[pitka]";
+  return s;
 }
 
 // Kaksoislaskennan ja tulvan esto ilman henkilötietoja ja ilman KV:tä (R-07): sama tapahtuma samalta

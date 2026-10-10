@@ -3,7 +3,7 @@
 // Aja: node push-logic.test.js
 import worker, { runPushCheck, runReminderCheck, alertAffects, lineTokensFromText, htmlToText, buildFeedbackRecord,
   constantTimeEqual, signSession, verifySession, verifyAccessJwt, buildAdminAlert, currentAdminAlerts, buildAdminFares,
-  buildAdminA11y, buildTrackEvent, buildStatsSql, isAnalyticsClient, quotaGate, RATE_MAX,
+  buildAdminA11y, buildTrackEvent, searchSignal, buildStatsSql, isAnalyticsClient, quotaGate, RATE_MAX,
   adminScopeAllows, resolveAdminLogin, accessScope } from "./worker.js";
 import { readFileSync } from "node:fs";
 
@@ -481,7 +481,12 @@ check(a11yNoAuth.status === 403, "admin: selosteen tallennus ilman istuntoa → 
 check(buildTrackEvent({ type: "outo", value: "x" }) === null, "track: tuntematon tyyppi → null");
 const tev = buildTrackEvent({ type: "line", value: "3", city: "Lahti!" });
 check(tev.type === "line" && tev.value === "3" && tev.city === "lahti", "track: tyyppi/arvo/kaupunki siistitään");
-check(buildTrackEvent({ type: "search_fail", value: "a".repeat(200) }).value.length === 80, "track: arvo katkaistaan 80 merkkiin");
+check(buildTrackEvent({ type: "search_fail", value: "a".repeat(200) }).value === "[pitka]", "track: pitkä hakuteksti -> [pitka]");
+for (const [q, odotus] of [["Kotikatu 12", "[numero]"], ["Kauppatori", "kauppatori"], ["22K", "22k"], ["a".repeat(41), "[pitka]"],
+  ["a@b.fi", "[sposti]"], ["  Kauppa   Tori ", "kauppa tori"], ["040 123 4567", "[numero]"]]) {
+  check(searchSignal(q) === odotus && buildTrackEvent({ type: "search_fail", value: q }).value === odotus, `searchSignal: "${q.slice(0, 20)}" -> "${odotus}"`);
+}
+check(buildTrackEvent({ type: "search_fail", value: "   " }) === null, "track: tyhjä hakuteksti -> null");
 check(buildStatsSql("lahti", "lsl_events", 30).includes("FROM lsl_events") && buildStatsSql("la'hti", "ds", 30).includes("blob3 = 'lahti'"), "statsSql: dataset + kaupunki siivottu (ei injektiota)");
 
 // --- Käyttöanalytiikka: /track kirjaa VAIN tuotantoliikennettä (ei botteja/dev) ---
