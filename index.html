@@ -15105,7 +15105,15 @@ async function loadTrains(code, names, kind = "DEPARTURE", n = 15) {
     });
   }
   rows.sort((a, b) => a.sched - b.sched);
-  return rows;
+  return rows.filter(r => railRowUpcoming(r));
+}
+
+// Digitraffic voi palauttaa lähtevänä tai saapuvana junan, jonka aika on jo mennyt, jos toteutunutta tai
+// arvioitua aikaa ei ole (Lahti la 10.10.2026 klo 11.58: G 11.04, IC 3 11.08, Z 11.09 ja S 64 11.50 "lähtevinä").
+// Rivi näytetään, kun arvioitu aika tai sen puuttuessa aikataulun aika on enintään 2 min menneisyydessä.
+const RAIL_PAST_GRACE_MS = 2 * 60000;
+function railRowUpcoming(r, now = Date.now()) {
+  return (r.est || r.sched).getTime() >= now - RAIL_PAST_GRACE_MS;
 }
 
 // Lähtörivien renderöinti jaettuna kahdelle kutsujalle: #/junat-näkymä (koko lista) ja
