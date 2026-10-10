@@ -4,17 +4,22 @@
 
 name: Tuotanto-smoke
 
+# AJASTUS (10.10.2026): savikurki-ajastin (Cloudflare Worker, strategiarepon ajastin/) käynnistää tämän
+# workflow_dispatchilla: erä 1 maanantaisin 04:23 UTC (07:23 Suomen kesäaikaa) ja erä 2 torstaisin 18:23 UTC
+# (21:23). GitHubin oma schedule poistettiin: se myöhästyi tunteja (5.10. erä 1 04:00 -> 11:01, 8.10. erä 2
+# 18:00 -> 22:42 eli yöhön, jolloin reittihaku ei löytänyt yhteyksiä ja tilasivu näytti Reittarille "Häiriö").
+# Schedulea ei jätetty varalle tuplavahdin kanssa: ohitettu ajo päättyisi vihreänä ja tools/tila.js, joka lukee
+# viimeisimmän valmiin ajon, näyttäisi sen läpimenneenä smokena. Erä 2 on yhä illalla ja eri päivänä kuin erä 1:
+# 10.8. klo 17:43 UTC ajo oli täysin vihreä samalla kuormalla joka kaatui aamulla, ja erät kuluttavat samaa
+# Digitransit-kiintiötä.
 on:
   workflow_dispatch:
-  schedule:
-    # Erä 1 (tiivis seuranta) maanantaisin 04:00 UTC (07:00 Suomen kesäaikaa)
-    - cron: "0 4 * * 1"
-    # Erä 2 (laaja kattavuus) torstaisin 18:00 UTC (21:00 Suomen kesäaikaa).
-    # ILTA ON TARKOITUKSELLINEN: 10.8. klo 17:43 UTC ajo oli täysin vihreä samalla
-    # kuormalla joka kaatui aamulla, ja 04:00 UTC on sama minuutti kuin eran 1
-    # ajo → aamuun sijoitettuna erät kuluttaisivat kiintiötä yhtä aikaa kahdessa
-    # rinnakkaisessa RUNissa, mitä max-parallel EI estä (se koskee vain saman runin matriisia).
-    - cron: "0 18 * * 4"
+    inputs:
+      era:
+        description: "Ajettavat erät: 1 (tiivis seuranta), 2 (laaja kattavuus) tai kaikki (molemmat sarjassa)"
+        type: choice
+        options: ["kaikki", "1", "2"]
+        default: "kaikki"
 
 permissions:
   contents: read
@@ -30,7 +35,7 @@ jobs:
       - name: Valitse erät laukaisimen mukaan
         id: valinta
         env:
-          LAUKAISIN: ${{ github.event.schedule }}
+          ERA: ${{ github.event.inputs.era }}
         run: |
           # Era 1 = tiiviin seurannan kaupungit, era 2 = loput. Jasenyys ei noudata
           # CONFIG-jarjestysta vaan seurantatarvetta, ja se paivitetaan kasin tarpeen
@@ -38,17 +43,17 @@ jobs:
           era1='{"era":1,"cities":"lahti,kuopio,vaasa,raasepori,kouvola,mikkeli","delay":"0"}'
           era2='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi,turku,inkoo","delay":"0"}'
           era2_viiveella='{"era":2,"cities":"salo,kajaani,kotka,hameenlinna,joensuu,jyvaskyla,lappeenranta,oulu,pori,rovaniemi,turku,inkoo","delay":"600000"}'
-          case "$LAUKAISIN" in
-            # Torstai-ilta: era 2 yksin.
-            "0 18 * * 4") mukaan="[$era2]" ;;
-            # Tyhja = workflow_dispatch: molemmat erat sarjassa, 10 min valissa
+          case "$ERA" in
+            # Maanantaiaamu (ajastin): era 1.
+            "1") mukaan="[$era1]" ;;
+            # Torstai-ilta (ajastin): era 2 yksin.
+            "2") mukaan="[$era2]" ;;
+            # kaikki tai tyhja (kasiajo): molemmat erat sarjassa, 10 min valissa
             # (kasiajo halutaan taydelliseksi kattavuudeksi, ja se ajetaan valvotusti).
-            "")           mukaan="[$era1,$era2_viiveella]" ;;
-            # Maanantai: era 1.
-            *)            mukaan="[$era1]" ;;
+            *)   mukaan="[$era1,$era2_viiveella]" ;;
           esac
           echo "matrix={\"include\":$mukaan}" >> "$GITHUB_OUTPUT"
-          echo "Laukaisin '${LAUKAISIN:-workflow_dispatch}' → erät: $mukaan"
+          echo "Erävalinta '${ERA:-kaikki}' → erät: $mukaan"
 
   # Ydinvahti: per-kaupunki-invariantit (16 kaupunkia), oma kevyt skripti.
   #
