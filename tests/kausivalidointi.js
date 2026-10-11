@@ -13,6 +13,7 @@
 //     parittainen yhteisten pysäkkien määrä ≥ 3 (WARN — corridorNoShared-raja).
 //  3) Solmupysäkin pulssi: centerStopNames[0]-lähtömäärä D+7 vs D+35; WARN jos 0
 //     tai muutos > 40 % (kausivaihto tulossa → presetit ja näytteet tarkistettava).
+//     Jos D+7:nä 0 lähtöä, verrataan viikkoja (FAIL vain koko viikon ollessa tyhjä).
 //  4) Keskusterminaalien nimihaku (CONFIG.hubs): jokaisen hub.name-alkuosahaun on
 //     osuttava ≥ 2 pysäkkiin joilla on linjoja (FAIL jos 0, WARN jos 1). Lisätty
 //     14.8.2026 kun #/laiturit laajeni Lahdesta 11 kaupunkiin.
@@ -263,22 +264,33 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
         `${[...perLine.entries()].filter(([, v]) => v.nearWeek).map(([l]) => ` (linja ${l} viikolta)`).join("")}, jaettu jakso OK`);
   }
 
-  // 3) solmupysäkin pulssi
+  // 3) solmupysäkin pulssi. Viikkoikkuna kuten preseteillä: käsin sunnuntaina käynnistetty ajo osuu D+7:llä
+  // sunnuntaihin, ja Kajaanin Kirkolla ei ole sunnuntailiikennettä (väärä FAIL 11.10.2026). Jos tarkistuspäivänä
+  // on 0 lähtöä, verrataan koko viikkoja (D+7.. ja D+35..), ja FAIL vain jos koko viikko on tyhjä.
   const stopName = (cfg.centerStopNames || [])[0];
   if (stopName) {
-    const d = await q(
-      `query ($name: String) { stops(name: $name) { gtfsId
-         near: stoptimesForServiceDate(date: "${dNear}", omitNonPickups: true) { stoptimes { scheduledDeparture } }
-         far: stoptimesForServiceDate(date: "${dFar}", omitNonPickups: true) { stoptimes { scheduledDeparture } } } }`,
-      { name: stopName });
-    // stops(name:) EI ole feed-scoped (PLAYBOOK) → suodata feed-prefiksillä
-    const own = (d.stops || []).filter(s => s.gtfsId.startsWith(feed + ":"));
-    const count = sel => own.reduce((n, s) => n + (s[sel] || []).reduce((m, g) => m + (g.stoptimes || []).length, 0), 0);
-    const near = count("near"), far = count("far");
-    if (near === 0) log("FAIL", key, "solmupysäkki", `"${stopName}" 0 lähtöä ${dNear}`);
+    const stopCounts = async days => {
+      const d = await q(
+        `query ($name: String) { stops(name: $name) { gtfsId
+           ${days.map(x => `d${x}: stoptimesForServiceDate(date: "${x}", omitNonPickups: true) { stoptimes { scheduledDeparture } }`).join("\n           ")} } }`,
+        { name: stopName });
+      // stops(name:) EI ole feed-scoped (PLAYBOOK) → suodata feed-prefiksillä
+      const own = (d.stops || []).filter(s => s.gtfsId.startsWith(feed + ":"));
+      return days.map(x => own.reduce((n, s) => n + (s["d" + x] || []).reduce((m, g) => m + (g.stoptimes || []).length, 0), 0));
+    };
+    let [near, far] = await stopCounts([dNear, dFar]);
+    const week = near === 0;
+    if (week) {
+      await sleep(QUERY_GAP_MS);
+      const rest = await stopCounts([...weekRest(dNear), ...weekRest(dFar)]);
+      near += rest.slice(0, 6).reduce((a, b) => a + b, 0);
+      far += rest.slice(6).reduce((a, b) => a + b, 0);
+    }
+    const when = d => week ? `viikolla ${d}-` : d;
+    if (near === 0) log("FAIL", key, "solmupysäkki", `"${stopName}" 0 lähtöä ${when(dNear)}`);
     else if (far === 0 || Math.abs(far - near) / near > 0.4)
-      log("WARN", key, "solmupysäkki", `"${stopName}" ${near} lähtöä ${dNear} → ${far} lähtöä ${dFar} — kausivaihto tulossa`);
-    else log("PASS", key, "solmupysäkki", `"${stopName}" ${near} → ${far} lähtöä, vakaa`);
+      log("WARN", key, "solmupysäkki", `"${stopName}" ${near} lähtöä ${when(dNear)} → ${far} lähtöä ${when(dFar)} — kausivaihto tulossa`);
+    else log("PASS", key, "solmupysäkki", `"${stopName}" ${near} → ${far} lähtöä${week ? ` viikolla (${dNear} ei lähtöjä)` : ""}, vakaa`);
   }
 
   // 4) keskusterminaalien (#/laiturit) nimihaku elää. CONFIG.hubs[].name on ALKUOSAHAKU
