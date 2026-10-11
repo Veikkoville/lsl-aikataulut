@@ -23,6 +23,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { inMunicipality } = require("./muutosvahti.js"); // sama kunnan raja kuin muutosvahdissa ja sovelluksessa
 
 const PROXY = process.env.PROXY || "https://lsl-aikataulut-proxy.veikkoville.workers.dev/";
 const CITY_GAP_MS = +(process.env.CITY_GAP_MS || 8000);
@@ -107,6 +108,23 @@ const classify = sid => {
   return "";
 };
 
+// areaScoped-kaupunki (Inkoo): valtakunnallisessa MATKA-feedissä on noin 5 400 serviceId:tä, joista 30-140
+// vaihtuu viikossa muualla Suomessa (ajot 22.9.-11.10.2026), joten koko feedin inventaario hälyttäisi joka viikko.
+// Rajaus samoihin linjoihin kuin sovelluksen linjalista (index.html areaRouteIds): kunnan alueella vähintään
+// area.minStops pysäkkiä. Tyhjällä tuloksella sovellus palaa suorakaiteeseen, joten vahti tekee samoin ja kertoo sen.
+function areaRouteIds(bboxStops, cfg, feed) {
+  const counts = new Map();
+  for (const s of bboxStops || []) {
+    if (!inMunicipality(s.lat, s.lon, cfg.area)) continue;
+    for (const x of s.routes || []) counts.set(x.gtfsId, (counts.get(x.gtfsId) || 0) + 1);
+  }
+  const own = id => String(id).startsWith(feed + ":");
+  const min = cfg.area?.minStops || 1;
+  const ids = [...counts].filter(([id, n]) => n >= min && own(id)).map(([id]) => id).sort();
+  if (ids.length) return { ids, fallback: false };
+  return { ids: [...new Set((bboxStops || []).flatMap(s => (s.routes || []).map(x => x.gtfsId)))].filter(own).sort(), fallback: true };
+}
+
 const compact = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 const plusDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
 // Viikkoikkuna (30.9.2026): osa presettien linjoista ajaa vain osan viikkoa (Lappeenrannan 12 on pe- ja
@@ -137,10 +155,26 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
   const feed = feeds.find(f => cfg.feedMatch.test(f));
   if (!feed) { log("FAIL", key, "feed", `feedMatch ei osu yhteenkään feediin (router ${router}, ${feeds.length} feediä)`); return; }
 
-  // 1) serviceId-inventaario
-  const inv = await q(
-    `query ($feeds: [String]) { routes(feeds: $feeds) { shortName trips { serviceId } } }`,
-    { feeds: [feed] });
+  // 1) serviceId-inventaario (areaScoped: vain kunnan alueen linjat, ks. areaRouteIds)
+  let inv;
+  if (cfg.areaScoped) {
+    const r = cfg.area?.rect;
+    if (!r) { log("FAIL", key, "aluerajaus", "areaScoped ilman area.rect-rajausta"); return; }
+    const box = await q(
+      `query ($minLat: Float!, $minLon: Float!, $maxLat: Float!, $maxLon: Float!) {
+         stopsByBbox(minLat: $minLat, minLon: $minLon, maxLat: $maxLat, maxLon: $maxLon) { lat lon routes { gtfsId } } }`,
+      { minLat: r.minLat, minLon: r.minLon, maxLat: r.maxLat, maxLon: r.maxLon });
+    const area = areaRouteIds(box.stopsByBbox, cfg, feed);
+    if (area.fallback) log("WARN", key, "aluerajaus",
+      `kunnan alueelta 0 linjaa (polygoni tai minStops ${cfg.area.minStops}) — sovellus palaa suorakaiteeseen, ${area.ids.length} linjaa`);
+    if (!area.ids.length) { log("FAIL", key, "aluerajaus", "suorakaiteessakaan ei yhtään feedin linjaa"); return; }
+    await sleep(QUERY_GAP_MS);
+    inv = await q(`query ($ids: [String]) { routes(ids: $ids) { shortName trips { serviceId } } }`, { ids: area.ids });
+  } else {
+    inv = await q(
+      `query ($feeds: [String]) { routes(feeds: $feeds) { shortName trips { serviceId } } }`,
+      { feeds: [feed] });
+  }
   const sids = [...new Set((inv.routes || []).flatMap(r => (r.trips || []).map(t => t.serviceId || "")))]
     .filter(Boolean).sort();
   const known = new Set(baseline[key] || []);
@@ -297,4 +331,4 @@ if (require.main === module) (async () => {
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error("kausivalidointi kaatui: " + e.message); process.exit(2); });
 
-module.exports = { classify, extractConfigs };   // extractConfigs: myös tests/datavahti.js
+module.exports = { classify, extractConfigs, areaRouteIds };   // extractConfigs: myös tests/datavahti.js
