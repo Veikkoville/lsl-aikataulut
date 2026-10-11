@@ -42,5 +42,17 @@ tarkista("Jyväskylä M-P ei koulp on loma", classify("LINKKI:M-P ei koulp"), "l
 tarkista("Lappeenranta koulujen loma-ajat on loma", classify("Ma-Pe koulujen loma-ajat"), "loma");
 tarkista("LP on loma", classify("Lahti LP talvi"), "loma");
 
+// Aluerajaus (areaScoped, Inkoo): linja mukaan vain, jos sillä on kunnan alueella vähintään minStops pysäkkiä.
+const { areaRouteIds } = require("./kausivalidointi.js");
+const alue = { area: { rect: { minLat: 0, maxLat: 10, minLon: 0, maxLon: 10 },
+  polygon: [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], minStops: 2 } };
+const pys = (lat, lon, ...ids) => ({ lat, lon, routes: ids.map(gtfsId => ({ gtfsId })) });
+const laatikko = [pys(1, 1, "MATKA:a", "MATKA:b"), pys(2, 2, "MATKA:a", "HSL:x"), pys(3, 3, "HSL:x"), pys(20, 20, "MATKA:b", "MATKA:c")];
+tarkista("Aluerajaus: vain kunnan alueella minStops-ehdon täyttävät oman feedin linjat",
+  JSON.stringify(areaRouteIds(laatikko, alue, "MATKA")), JSON.stringify({ ids: ["MATKA:a"], fallback: false }));
+tarkista("Aluerajaus: tyhjä tulos palaa suorakaiteeseen kuten sovellus",
+  JSON.stringify(areaRouteIds(laatikko, { area: { ...alue.area, minStops: 9 } }, "MATKA")),
+  JSON.stringify({ ids: ["MATKA:a", "MATKA:b", "MATKA:c"], fallback: true }));
+
 console.log(`\n${ok} OK, ${fail} FAIL`);
 process.exit(fail ? 1 : 0);
