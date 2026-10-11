@@ -2821,15 +2821,19 @@ const CONFIGS = {
       rect: { minLat: 60.80, maxLat: 61.30, minLon: 25.20, maxLon: 26.20 },
     },
     mqttUrl: "wss://mqtt.digitransit.fi:443/",
-    // Lippu- ja hintatiedot (lsl.fi, tarkistettu 14.6.2026). 1.6.2026 vyöhykkeet
+    // Lippu- ja hintatiedot (lsl.fi, tarkistettu 11.10.2026). 1.6.2026 vyöhykkeet
     // poistuivat → koko alue tasataksaa. Numerot kootaan virallisesta hinnastosta;
     // sivu näyttää aina tarkistuspäivän + linkin viralliseen hinnastoon.
     fares: {
-      checked: "14.6.2026",
+      checked: "11.10.2026",
       url: "https://www.lsl.fi/liput-ja-hinnat/hinnasto/",
       // reduced = nuoriso (17–24 v) / opiskelija / seniori (65+ v)
       single: {
         cardApp: { adult: "2,95", child: "1,50", reduced: "2,10" },
+        // Waltti Mobiili: nuori 17-24 v maksaa aikuisen hinnan 2,95 €, opiskelija ja seniori 2,10 € (hinnaston
+        // taulukko "Kertalippu Waltti Mobiili -sovelluksella" 11.10.2026). Kortilla nuori maksaa 2,10 €, joten
+        // sovellus on oma rivinsä ja poikkeus rivin nimessä (reduced-sarake yhdistää kolme ryhmää).
+        app: { adult: "2,95", child: "1,50", reduced: "2,10" },
         contactless: "3,10",
         salespoint: { adult: "3,80", child: "1,90", reduced: "3,80" },
       },
@@ -2863,7 +2867,9 @@ const CONFIGS = {
         colChild: { fi: "Lapsi (7–16 v)", sv: "Barn (7–16 år)", en: "Child (7–16)" },
         colReduced: { fi: "Nuoriso (17–24) / opisk. / seniori (65+)",
           sv: "Ungdom (17–24) / studerande / senior (65+)", en: "Youth (17–24) / student / senior (65+)" },
-        methodCardApp: { fi: "Waltti-kortti tai -sovellus", sv: "Waltti-kort eller app", en: "Waltti card or app" },
+        methodCardApp: { fi: "Waltti-kortti", sv: "Waltti-kort", en: "Waltti card" },
+        methodApp: { fi: "Waltti Mobiili (17–24 v: aikuisen hinta)", sv: "Waltti Mobiili (17–24 år: vuxenpris)",
+          en: "Waltti Mobiili app (ages 17–24: adult fare)" },
         methodContactless: { fi: "Lähimaksu (sama kaikille ryhmille)",
           sv: "Närbetalning (samma för alla grupper)", en: "Contactless (same for all groups)" },
         methodSalespoint: { fi: "Palvelupiste (käteinen)", sv: "Serviceställe (kontant)", en: "Service point (cash)" },
