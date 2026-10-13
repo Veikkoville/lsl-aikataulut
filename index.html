@@ -1172,10 +1172,10 @@
   .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix td.tz { padding-right: 1mm; }
   /* Voimassaolorivi (stopValidityHtml): tuleva muutos keltaisella pohjalla mustana, jotta se erottuu
      otsikkopalkista myös mustavalkotulosteessa; "voimassa toistaiseksi" tavallisena rivinä. */
-  .poster-valid { font-weight: 700; margin: 0.3rem 0 0; }
+  .poster-valid, .poster-loma { font-weight: 700; margin: 0.3rem 0 0; }
   .poster-valid-change { display: inline-block; background: #ffe066; color: #000; padding: 0.1em 0.45em;
     border-radius: 0.2em; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .poster-compact .poster-head p.poster-valid { color: #fff; font-size: 9pt; margin: 1.2mm 0 0; }
+  .poster-compact .poster-head p.poster-valid, .poster-compact .poster-head p.poster-loma { color: #fff; font-size: 9pt; margin: 1.2mm 0 0; }
   .poster-compact .poster-head p.poster-valid-change { color: #000; font-size: 10pt; padding: 0.6mm 2mm; border-radius: 1mm; }
   /* Iso teksti (tiskin pysäkkiaikataulu asiakkaalle, printLargeOn): kaikki teksti vähintään 14 pt ja
      kellonajat 16 pt (RNIB-linjan ohje: vähintään 12, mieluiten 14 pt). fitPosterSheet ei tiukenna
@@ -1186,6 +1186,7 @@
   .poster-compact .poster-stop[data-large="1"] .poster-head h2 .muted { color: #fff; font-size: 16pt; }
   .poster-compact .poster-stop[data-large="1"] .poster-head p.muted,
   .poster-compact .poster-stop[data-large="1"] .poster-head p.poster-printed,
+  .poster-compact .poster-stop[data-large="1"] .poster-head p.poster-loma,
   .poster-compact .poster-stop[data-large="1"] .poster-head p.poster-valid { color: #fff; font-size: 14pt; margin-top: 1mm; }
   .poster-compact .poster-stop[data-large="1"] .poster-head p.poster-valid-change { color: #000; }
   .poster-compact .poster-stop[data-large="1"] .poster-qrcap,
@@ -5782,6 +5783,7 @@ const STRINGS = {
     validChangeBy: "Aikataulu muuttuu viimeistään {date}.",
     validChangeShown: "Aikataulu muuttuu {date}. Muuttuvat lähdöt on merkitty kirjaimella, katso selite.",
     validNoChange: "Voimassa toistaiseksi. Aikataulumuutoksia ei ole tiedossa (tarkistettu {date}).",
+    posterHoliday: "Koulujen loma-aikoina (seuraava {period}) osa vuoroista ei aja.",
     loadingDeps: "Haetaan lähtöjä…",
     fullTimetableTitle: "Koko aikataulu pysäkeittäin",
     fullTimetableShow: "Näytä koko aikataulu",
@@ -6673,6 +6675,7 @@ const STRINGS = {
     validChangeBy: "The timetable changes on {date} at the latest.",
     validChangeShown: "The timetable changes on {date}. Departures that change are marked with a letter, see the key.",
     validNoChange: "Valid until further notice. No timetable changes are known (checked {date}).",
+    posterHoliday: "During school holidays (next {period}) some departures do not run.",
     loadingDeps: "Loading departures…",
     fullTimetableTitle: "Full timetable by stop",
     fullTimetableShow: "Show full timetable",
@@ -7555,6 +7558,7 @@ const STRINGS = {
     validChangeBy: "Tidtabellen ändras senast {date}.",
     validChangeShown: "Tidtabellen ändras {date}. Avgångar som ändras är märkta med en bokstav, se förklaringen.",
     validNoChange: "Gäller tills vidare. Inga kända tidtabellsändringar (kontrollerat {date}).",
+    posterHoliday: "Under skollov (nästa {period}) går en del av turerna inte.",
     loadingDeps: "Hämtar avgångar…",
     fullTimetableTitle: "Hela tidtabellen per hållplats",
     fullTimetableShow: "Visa hela tidtabellen",
@@ -8795,6 +8799,57 @@ function schoolOf(sid) {
   if (/koul/i.test(sid) || /\bKP\b/.test(sid)) return "koul";
   if (/loma/i.test(sid) || /\bLP\b/.test(sid)) return "loma";
   return "";
+}
+
+// Koulujen loma-jaksot julisteen alaviitettä varten. paivat = arkipäivät (yyyyMMdd, merkkijono tai luku), joina
+// pysäkin koulupäivävuorot eivät aja. Palauttaa yhtenäiset jaksot [{alku, loppu}] (yyyyMMdd-lukuina); viikonloppu
+// ei katkaise jaksoa (pe + ma on yksi jakso), mutta puuttuva arkipäivä katkaisee.
+function lomajaksot(paivat) {
+  const parts = n => { const s = String(n); return new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8), 12); };
+  const num = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  const nextWeekday = n => {
+    const d = parts(n);
+    do d.setDate(d.getDate() + 1); while (d.getDay() === 0 || d.getDay() === 6);
+    return num(d);
+  };
+  const out = [];
+  for (const n of [...new Set((paivat || []).map(Number))].sort((a, b) => a - b)) {
+    const last = out[out.length - 1];
+    if (last && nextWeekday(last.loppu) === n) last.loppu = n; else out.push({ alku: n, loppu: n });
+  }
+  return out;
+}
+// Arkipäivät fromISO:sta eteenpäin (enintään days vrk, ei yli datan viimeisen ajopäivän), joina pysäkillä ei aja yhtään
+// koulupäivävuoroa (schoolOf "koul") vaikka niitä ajetaan muina saman viikonpäivän päivinä. Ilman koulupäivävuoroja
+// pysäkillä palauttaa tyhjän. trips: [{serviceId, activeDates}]
+function kouluLomaPaivat(trips, fromISO, days) {
+  const koul = new Set(), koulDows = new Set();
+  let last = 0;
+  for (const tr of trips || []) {
+    const isKoul = schoolOf(tr.serviceId) === "koul";
+    for (const x of tr.activeDates || []) {
+      last = Math.max(last, +x);
+      if (isKoul) { koul.add(+x); koulDows.add(dowOfCompact(String(x))); }
+    }
+  }
+  const res = [];
+  if (!koul.size) return res;
+  const d = new Date(fromISO + "T12:00:00");
+  for (let i = 0; i < days; i++, d.setDate(d.getDate() + 1)) {
+    const n = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    if (n > last) break;
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
+    if (koulDows.has((d.getDay() + 6) % 7) && !koul.has(n)) res.push(n);
+  }
+  return res;
+}
+// Alaviiterivi: seuraava (tai käynnissä oleva) loma-jakso, tyhjä jos jaksoa ei ole.
+function posterHolidayHtml(blocks, todayIso) {
+  const today = +String(todayIso).replace(/-/g, "");
+  const next = ((blocks && blocks.lomaJaksot) || []).find(j => j.loppu >= today);
+  if (!next) return "";
+  const period = next.alku === next.loppu ? fmtDayMonthNum(next.alku) : `${fmtDayMonthNum(next.alku)}–${fmtDayMonthNum(next.loppu)}`;
+  return `<p class="poster-loma" data-loma>${esc(t("posterHoliday", { period }))}</p>`;
 }
 
 // Ryhmittele patternin vuorot TODELLISEN ajopäivä-patternin mukaan (activeDates).
@@ -13192,6 +13247,8 @@ async function stopPosterBlocks(stopId, refISO, ptdMemo, conc, presetPats) {
   // Jaksojen alkupäivät (YYYYMMDD) tulosteen ikkunasta: julisteen selite merkitsee niistä alkavat
   // lähdöt kirjaimella, ja voimassaolorivi (stopValidityInfo) kertoo ensimmäisen muutospäivän.
   out.changeDays = [...new Set(arr.map(b => b.period?.from).filter(Boolean))].sort((a, b) => a - b);
+  // Koulujen loma-jaksot alaviitteeseen: activeDates kattaa noin 84 vrk, joten 90 vrk:n ikkuna rajautuu datan loppuun.
+  out.lomaJaksot = lomajaksot(kouluLomaPaivat([...byLine.values()].flatMap(L => L.trips), refISO || todayISO(), 90));
   return out;
 }
 
@@ -14462,7 +14519,7 @@ async function viewStop(stopId, autoPrint) {
       qrImg = `<div class="poster-qrwrap"><img class="poster-qr" src="${u}" alt="">
         <span class="poster-qrcap">${t("qrPosterHint")}</span></div>`;
     } catch (e) { /* QR ei pakollinen tulosteelle */ }
-    const valid = stopValidityHtml(await stopValidityInfo(stopId, blocks, today));
+    const valid = stopValidityHtml(await stopValidityInfo(stopId, blocks, today)) + posterHolidayHtml(blocks, today);
     const head = (sub) => `<div class="poster-head">
            <div>
              <h2>${esc(placeName(stop.name))} <span class="muted">${esc(stop.code || "")}</span></h2>

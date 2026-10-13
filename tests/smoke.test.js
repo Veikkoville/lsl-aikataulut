@@ -3152,6 +3152,24 @@ async function minuuttiLinjaus(page, rootSel, media) {
         : fail(`pysäkkijuliste: tuntikaaviota ei muodostunut (päiväblokkeja ${days})`);
       await printHygiene(page, "Lahti");
 
+      // Loma-jaksot (julisteen alaviite): puhdas funktio kiinteällä päivälistalla. Viikonloppu ei katkaise jaksoa
+      // (ma-pe 19.-23.10. on yksi jakso), puuttuva arkipäivä katkaisee (ke 28.10. on toinen).
+      const lj = await page.evaluate(() => ({
+        kaksi: lomajaksot([20261019, 20261020, 20261021, 20261022, 20261023, 20261028]),
+        yksi: lomajaksot(["20261023", "20261026"]),
+        tyhja: lomajaksot([]),
+      }));
+      (lj.kaksi.length === 2 && lj.kaksi[0].alku === 20261019 && lj.kaksi[0].loppu === 20261023
+        && lj.kaksi[1].alku === 20261028 && lj.yksi.length === 1 && lj.tyhja.length === 0)
+        ? ok("lomajaksot: viikonloppu ei katkaise jaksoa, puuttuva arkipäivä katkaisee")
+        : fail(`lomajaksot: ${JSON.stringify(lj)}`);
+      const loma = await page.evaluate(() => ({
+        elementteja: document.querySelectorAll("#stopPrintOut [data-loma]").length,
+      }));
+      loma.elementteja
+        ? ok("pysäkkijuliste: loma-aikojen alaviite näkyy pysäkillä, jolla on koulupäivävuoroja")
+        : info("pysäkkijuliste: ei loma-aikojen alaviitettä (testipysäkillä ei koulupäivävuoroja tai ei lomaa 90 vrk:ssa)");
+
       // Yhden arkin tiivis juliste (Vaasa 26.8.2026): kaikki päivätyypit samalla A4:llä.
       // Vartija mittaa PDF:n sivumäärän print-medialla: tiivis versio on aidosti lyhyempi
       // kuin päivätyyppi-per-arkki, tuntikaavion rivit pysyvät samanmittaisina ja

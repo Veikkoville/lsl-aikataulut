@@ -138,7 +138,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 = 5
       Mittari: a11yPerus-rikkojien määrä viidessä näkymässä CI:n smoke-lokissa (tavoite 0, muuten INFO-rivit PR:ssä)
       · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
-- [ ] index.html: julisteen ja vihkon alaviite kertoo seuraavan koulujen loma-ajan, jolloin koulupäivien vuorot eivät aja.
+- [x] index.html: julisteen ja vihkon alaviite kertoo seuraavan koulujen loma-ajan, jolloin koulupäivien vuorot eivät aja.
       Nyt juliste sanoo "Ma-Pe · koulupäivinä" (rivi noin 8608), mutta ei sitä, milloin seuraava loma on (esim. syysloma
       19.-23.10.). Lisää puhdas funktio `lomajaksot(paivat)`, joka saa listan arkipäivistä (seuraavat 90 päivää), joina
       pysäkin koulupäivävuorot eivät aja, ja palauttaa yhtenäiset jaksot (`[{alku, loppu}]`, viikonloppu ei katkaise
@@ -150,7 +150,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 3/3 · työ M · myynti 1/3 = 9
       Mittari: smoke-tarkistus (lomajaksot kiinteällä päivälistalla, alaviite Lahden testipysäkin julisteessa) vihreä
       CI:ssä; tuotannon julisteessa näkyy seuraava loma ennen joululomaa (käsin tulostenäkymästä)
-      · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
+      · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-13)
 - [ ] index.html: sama poikkeuskooste kuntalaisen etusivulle ja monitoriin. Käytä edellisen rivin `lomajaksot`-funktiota:
       kun seuraava jakso alkaa 14 päivän sisällä, näytä etusivulla ja `#/monitori`-näkymässä yksi rivi fi/sv/en ("Syysloma
       19.-23.10.: osa vuoroista ei aja"), joka linkittää pysäkin tai linjan aikatauluun. Ei näytetä, jos jaksoa ei ole.
