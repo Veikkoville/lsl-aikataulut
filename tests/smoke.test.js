@@ -3827,8 +3827,10 @@ async function minuuttiLinjaus(page, rootSel, media) {
   // Linjalistan luokittelu synteettisellä datalla (10.10.2026): loadRoutes saa hetken testivastaukset (gql ja
   // cachedGql), ja alkuperäiset palautetaan aina. Odotus: joka päivä ajava = tavallinen; vain ma, ke, pe ajava
   // (koepäivät ti, to, la, su eivät osu) = tavallinen ilman merkintää; syyslomalla tauolla = merkintä tarkalla
-  // alkamispäivällä; pitkällä tauolla (päivä 50, otos + tarkennus) = merkintä tarkalla päivällä; vuoroton = ei
-  // listassa; saman tunnuksen toinen objekti liittyy linjaan. Ei verkkoa eikä riipu päivän aikataulusta.
+  // alkamispäivällä; pitkällä tauolla (päivät 50-56, otos + tarkennus) = merkintä tarkalla päivällä; vuoroton = ei
+  // listassa; saman tunnuksen toinen objekti liittyy linjaan. Ei verkkoa eikä riipu päivän aikataulusta. Pitkä tauko
+  // seitsemällä alkupäivällä (14.10.2026): yksi alkupäivä testasi vain yhtä viikonpäivää, ja to tai pe alkavan
+  // arkilinjan väärä alkamispäivä (seuraava ma) näkyi vain ke ja to ajetussa smokessa.
   const luokat = await page.evaluate(async () => {
     const origGql = gql, origCached = cachedGql;
     const days = horizonDays(LINE_HORIZON_DAYS);
@@ -3836,9 +3838,13 @@ async function minuuttiLinjaus(page, rootSel, media) {
     const arki = i => dow(i) >= 1 && dow(i) <= 5;
     const runs = {
       "SMK:a": () => true, "SMK:a2": i => i >= 30, "SMK:mwf": i => [1, 3, 5].includes(dow(i)),
-      "SMK:loma": i => i >= 9 && arki(i), "SMK:kesa": i => i >= 50 && arki(i), "SMK:kuollut": () => false,
+      "SMK:loma": i => i >= 9 && arki(i), "SMK:kuollut": () => false,
     };
-    const shorts = { "SMK:a": "SA", "SMK:a2": "SA", "SMK:mwf": "SM", "SMK:loma": "SL", "SMK:kesa": "SK", "SMK:kuollut": "SX" };
+    const shorts = { "SMK:a": "SA", "SMK:a2": "SA", "SMK:mwf": "SM", "SMK:loma": "SL", "SMK:kuollut": "SX" };
+    for (let k = 0; k < 7; k++) {
+      runs["SMK:kesa" + k] = i => i >= 50 + k && arki(i);
+      shorts["SMK:kesa" + k] = "SK" + k;
+    }
     const pats = (id, q) => {
       const p = {};
       for (const m of q.matchAll(/(d\d+): tripsForDate\(serviceDate: "(\d{8})"\)/g)) {
@@ -3864,7 +3870,9 @@ async function minuuttiLinjaus(page, rootSel, media) {
         a: by.SA ? (by.SA.gtfsIds || []).sort().join(",") + (by.SA.resume ? "|" + by.SA.resume : "") : "puuttuu",
         mwf: by.SM ? (by.SM.resume || "ei merkintää") : "puuttuu",
         loma: by.SL ? (by.SL.resume === firstArki(9) ? "oikea päivä" : by.SL.resume || "ei merkintää") : "puuttuu",
-        kesa: by.SK ? (by.SK.resume === firstArki(50) ? "oikea päivä" : by.SK.resume || "ei merkintää") : "puuttuu",
+        kesa: [0, 1, 2, 3, 4, 5, 6].map(k => [k, by["SK" + k]])
+          .filter(([k, r]) => !r || r.resume !== firstArki(50 + k))
+          .map(([k, r]) => "SK" + k + ":" + (r ? r.resume || "ei merkintää" : "puuttuu")).join(",") || "oikea päivä",
         kuollut: by.SX ? "listassa" : "ei listassa",
       };
     } finally {
