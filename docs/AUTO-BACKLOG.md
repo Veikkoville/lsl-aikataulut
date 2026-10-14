@@ -342,7 +342,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
           "OULU:T_T 26-27 Su alk 14_9", "OULU:T_T 26-27 Su alk 24_8"
       Nykyinen luokitin: 7 koul (Salo 1, Kajaani 2, Oulun 4 KP-tunnistetta), 15 ilman luokkaa
       (ajon WARN-rivien summa). Tarkennuksen (3) mukaan "La Historic Rally" jaa tuntemattomaksi. (PR, 2026-10-02)
-- [ ] index.html: lomaviikon linjakooste feedistä `#/poikkeukset`-sivulle. Nyt `viewExceptions` (rivi noin 15160)
+- [x] index.html: lomaviikon linjakooste feedistä `#/poikkeukset`-sivulle. Nyt `viewExceptions` (rivi noin 15160)
       näyttää vain `CONFIG.exceptions`-listan ja yleiset pyhäpäivät, joten kaupungissa, jolla listaa ei ole, koulujen
       lomaviikosta ei kerrota mitään, vaikka feed tietää sen. Lisää puhdas funktio `vertaaPaivat(a, b)`: saa kahden päivän
       vuorot linjoittain (linjatunnus -> joukko vuoron koko `scheduledDeparture`-sarjoja) ja palauttaa
@@ -358,7 +358,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Täydentää lomajaksot-rivejä, ei korvaa niitä)
       Pisteet: arvo 3/3 · kiire 3/3 · työ M · myynti 1/3 = 9
       Mittari: view-tapahtuma poikkeukset (admin-tilasto) 30 päivää ennen joululomaa vs. 30 päivää ennen syyslomaa; smoke
-      vihreä CI:ssä · tarkistus 2027-01-10 (pisteet ja mittari: CoS 11.10.)
+      vihreä CI:ssä · tarkistus 2027-01-10 (pisteet ja mittari: CoS 11.10.) (PR, 2026-10-14)
 - [ ] tests/kausivalidointi.js: solmupysäkin pulssi ei hälytä yksittäisestä lomaviikosta. Nyt tarkistus 3 vertaa kahta
       yksittäistä päivää (`dNear` = D+7 ja `dFar` = D+35, rivi noin 280), joten kun D+7 osuu koulujen lomaviikolle, ajo
       raportoi "kausivaihto tulossa", vaikka kausi ei vaihdu: 6.10.2026 ajon 12 WARNista 3 oli tätä (lomaviikon tiistai

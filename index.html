@@ -5364,6 +5364,17 @@ const STRINGS = {
     exTagEve: "Aatto",
     exNone: "Ei tulevia poikkeuspäiviä seuraavan vuoden aikana.",
     exCheckCta: "Selaa linjoja ja aikatauluja",
+    exCmpTitle: "Mitkä linjat muuttuvat?",
+    exCmpIntro: "Vertaa valittua päivää saman viikonpäivän päivään viikkoa aiemmin. Lista on laskettu aikataulutiedosta: koko vuoron kaikki pysäkkiajat vertaillaan.",
+    exCmpDay: "Päivä",
+    exCmpVs: "Vertailupäivä: {date}",
+    exCmpNone: "Ei linjoja tässä ryhmässä.",
+    exCmpGone: "Ei aja valittuna päivänä",
+    exCmpChanged: "Aikataulu muuttuu",
+    exCmpSame: "Ennallaan",
+    exCmpNew: "Ajaa vain valittuna päivänä",
+    exCmpLoading: "Lasketaan aikataulutiedosta...",
+    exCmpFail: "Vertailua ei voitu laskea juuri nyt. Yritä hetken päästä uudelleen.",
     fbLink: "Anna palautetta",
     fbTitle: "Palaute ja vikailmoitus",
     fbIntro: "Huomasitko väärän aikataulun, rikkinäisen pysäkin tai virheen sovelluksessa? Kerro siitä tällä lomakkeella.",
@@ -6271,6 +6282,17 @@ const STRINGS = {
     exTagEve: "Eve",
     exNone: "No upcoming special days within the next year.",
     exCheckCta: "Browse lines and timetables",
+    exCmpTitle: "Which lines change?",
+    exCmpIntro: "Compares the chosen day with the same weekday a week earlier. The list is calculated from the timetable data: every stop time of every trip is compared.",
+    exCmpDay: "Day",
+    exCmpVs: "Compared with: {date}",
+    exCmpNone: "No lines in this group.",
+    exCmpGone: "Not running on the chosen day",
+    exCmpChanged: "Timetable changes",
+    exCmpSame: "Unchanged",
+    exCmpNew: "Runs only on the chosen day",
+    exCmpLoading: "Calculating from timetable data...",
+    exCmpFail: "The comparison could not be calculated right now. Please try again in a moment.",
     fbLink: "Send feedback",
     fbTitle: "Feedback & problem report",
     fbIntro: "Spotted a wrong timetable, a broken stop or an app bug? Tell us using this form.",
@@ -7152,6 +7174,17 @@ const STRINGS = {
     exTagEve: "Afton",
     exNone: "Inga kommande avvikande dagar under det närmaste året.",
     exCheckCta: "Bläddra bland linjer och tidtabeller",
+    exCmpTitle: "Vilka linjer ändras?",
+    exCmpIntro: "Jämför vald dag med samma veckodag en vecka tidigare. Listan är beräknad ur tidtabellsdata: alla hållplatstider för varje tur jämförs.",
+    exCmpDay: "Dag",
+    exCmpVs: "Jämförelsedag: {date}",
+    exCmpNone: "Inga linjer i den här gruppen.",
+    exCmpGone: "Går inte vald dag",
+    exCmpChanged: "Tidtabellen ändras",
+    exCmpSame: "Oförändrad",
+    exCmpNew: "Går bara vald dag",
+    exCmpLoading: "Beräknar ur tidtabellsdata...",
+    exCmpFail: "Jämförelsen kunde inte beräknas just nu. Försök igen om en stund.",
     fbLink: "Ge respons",
     fbTitle: "Respons och felanmälan",
     fbIntro: "Märkte du en felaktig tidtabell, en trasig hållplats eller ett fel i appen? Berätta om det i formuläret.",
@@ -15219,7 +15252,92 @@ function viewCityExceptions(ex) {
       <p class="muted">${t("exNote")}</p>
       ${days.length ? `<ul class="ex-list">${rows}</ul>` : `<p>${t("exNone")}</p>`}
       <p style="margin-top:0.8rem"><a class="item" href="#/">${icon("bus")} <span>${t("exCheckCta")}</span></a></p>
-    </div>`);
+    </div>
+    ${exCmpSectionHtml()}`);
+  exCmpInit();
+}
+
+/* ---------- Poikkeukset: päivävertailu feedistä ---------- */
+// a, b: linjatunnus -> taulukko tai Set vuorosarjoja (yksi merkkijono per vuoro, vuoron KAIKKI scheduledDeparture-ajat).
+// a on valittu päivä, b vertailupäivä. Vertaa koko sarjaa, ei ensimmäistä lähtöä: välipysäkin kahden minuutin siirto on muutos.
+// eiAja: linja ajaa vertailupäivänä mutta ei valittuna; vainUusi: ajaa valittuna mutta ei vertailupäivänä.
+function vertaaPaivat(a, b) {
+  const set = x => new Set(x || []);
+  const out = { eiAja: [], muuttuu: [], ennallaan: [], vainUusi: [] };
+  const keys = [...new Set([...Object.keys(a || {}), ...Object.keys(b || {})])].sort((x, y) => x.localeCompare(y, "fi", { numeric: true }));
+  for (const k of keys) {
+    const sa = set(a && a[k]), sb = set(b && b[k]);
+    if (!sa.size && !sb.size) continue;
+    if (!sa.size) out.eiAja.push(k);
+    else if (!sb.size) out.vainUusi.push(k);
+    else if (sa.size === sb.size && [...sa].every(v => sb.has(v))) out.ennallaan.push(k);
+    else out.muuttuu.push(k);
+  }
+  return out;
+}
+const exCmpCache = new Map();
+// Yksi kysely kahdelle päivälle: linjatunnus -> vuorosarjat, ja tunnus -> gtfsId linkkiä varten.
+async function exCmpLoad(iso) {
+  if (exCmpCache.has(iso)) return exCmpCache.get(iso);
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() - 7);
+  const prev = isoOf(d);
+  const feed = await findFeed();
+  const trips = (n, day) => `${n}: tripsForDate(serviceDate: "${day.replace(/-/g, "")}") { stoptimes { scheduledDeparture } }`;
+  const pat = `patterns { ${trips("a", iso)} ${trips("b", prev)} }`;
+  const data = CONFIG.areaScoped
+    ? await gql(`query ($ids: [String]) { routes(ids: $ids) { gtfsId shortName mode ${pat} } }`, { ids: await areaRouteIds(feed) })
+    : await gql(`query ($feeds: [String]) { routes(feeds: $feeds) { gtfsId shortName mode ${pat} } }`, { feeds: [feed] });
+  const modes = CONFIG.modes || ["BUS"];
+  const a = {}, b = {}, ids = {};
+  for (const r of data.routes || []) {
+    if (!modes.includes(r.mode) || !r.shortName) continue;
+    ids[r.shortName] = ids[r.shortName] || r.gtfsId;
+    for (const p of r.patterns || []) {
+      for (const [dst, key] of [[a, "a"], [b, "b"]]) {
+        for (const tr of p[key] || []) {
+          (dst[r.shortName] = dst[r.shortName] || []).push((tr.stoptimes || []).map(x => x.scheduledDeparture).join(","));
+        }
+      }
+    }
+  }
+  const res = { prev, ids, cmp: vertaaPaivat(a, b) };
+  exCmpCache.set(iso, res);
+  return res;
+}
+function exCmpSectionHtml() {
+  const d = new Date(todayISO() + "T12:00:00");
+  d.setDate(d.getDate() + 1);
+  return `<div class="card" id="exCmp">
+      <h2>${icon("calendar")} ${t("exCmpTitle")}</h2>
+      <p class="muted">${t("exCmpIntro")}</p>
+      <p><label for="exCmpDay">${t("exCmpDay")}</label> <input type="date" id="exCmpDay" value="${isoOf(d)}" min="${todayISO()}"></p>
+      <div id="exCmpOut" aria-live="polite"></div>
+    </div>`;
+}
+function exCmpInit() {
+  const inp = document.getElementById("exCmpDay"), out = document.getElementById("exCmpOut");
+  if (!inp || !out) return;
+  const run = async () => {
+    const iso = inp.value;
+    if (!iso) return;
+    out.innerHTML = `<p class="muted">${t("exCmpLoading")}</p>`;
+    try {
+      const r = await exCmpLoad(iso);
+      if (inp.value !== iso) return;
+      const group = (key, label, list) => `<h3 data-ex-cmp="${key}">${label} (${list.length})</h3>` +
+        (list.length ? `<p>${list.map(k => `<a class="badge" href="#/linja/${encodeURIComponent(r.ids[k] || "")}">${esc(k)}</a>`).join(" ")}</p>`
+          : `<p class="muted">${t("exCmpNone")}</p>`);
+      out.innerHTML = `<p class="muted">${t("exCmpVs", { date: esc(fmtDateLong(r.prev)) })}</p>` +
+        group("eiAja", t("exCmpGone"), r.cmp.eiAja) + group("muuttuu", t("exCmpChanged"), r.cmp.muuttuu) +
+        group("vainUusi", t("exCmpNew"), r.cmp.vainUusi) + group("ennallaan", t("exCmpSame"), r.cmp.ennallaan);
+    } catch (e) {
+      console.warn("poikkeusvertailu epäonnistui", e);
+      out.innerHTML = `<p class="muted">${t("exCmpFail")}</p>`;
+    }
+  };
+  inp.addEventListener("change", run);
+  run();
 }
 
 function viewExceptions() {
@@ -15248,7 +15366,9 @@ function viewExceptions() {
       <p class="muted">${t("exNote")}</p>
       ${all.length ? `<ul class="ex-list">${rows}</ul>` : `<p>${t("exNone")}</p>`}
       <p style="margin-top:0.8rem"><a class="item" href="#/">${icon("bus")} <span>${t("exCheckCta")}</span></a></p>
-    </div>`);
+    </div>
+    ${exCmpSectionHtml()}`);
+  exCmpInit();
 }
 
 /* ---------- Junien lähdöt (#/junat) — rata.digitraffic.fi (Fintraffic, CC BY 4.0) ---------- */
