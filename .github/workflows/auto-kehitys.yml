@@ -87,6 +87,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
+          # Kärkivuoron laskuri luetaan ennen avointen haarojen --depth 1 -hakuja (ks. alempana).
+          tehdyt=$(git log --format=%s HEAD | grep -c '^auto:' || true)
           # Listaus + suodatus, EI --search: haku nojaa GitHubin indeksiin joka laahaa.
           haarat=$(gh pr list --state open --limit 100 --json headRefName \
             --jq '.[] | select(.headRefName | startswith("auto/")) | .headRefName')
@@ -99,6 +101,10 @@ jobs:
             if [ -n "$r" ]; then varatut="$varatut$r"$'\n'; fi
           done
           if [ "$maara" -lt 2 ]; then saa=true; else saa=false; fi
+          # Kärkivuoro (14.10.2026, TUOTEPERIAATTEET.md "Kärkivuoro ja signaalit"): joka kolmas agentin PR vie uutta kykyä
+          # eteenpäin. Masterin agentti-commitit (squash-mergen otsikko alkaa "auto:") lasketaan: kun niitä on 2, 5, 8 ...,
+          # tämä ajo on kärkivuoro.
+          if [ $(( ${tehdyt:-0} % 3 )) -eq 2 ]; then karki=true; else karki=false; fi
           # Tuplan esto (9.10.2026): savikurki-ajastin (Cloudflare Worker) käynnistää tämän työnkulun ti-la ajallaan
           # workflow_dispatchilla. GitHubin oma schedule jää varalle, mutta myöhästyessään (5-7 h) se tulisi samana
           # päivänä perään ja agentti tekisi toisen PR:n. Schedule-ajo ohitetaan, jos saman UTC-päivän dispatch-ajo on jo.
@@ -114,11 +120,12 @@ jobs:
           {
             echo "maara=$maara"
             echo "saa=$saa"
+            echo "karki=$karki"
             echo "varatut<<VARATUT_EOF"
             printf '%s' "$varatut"
             echo "VARATUT_EOF"
           } >> "$GITHUB_OUTPUT"
-          echo "Avoimia auto-PR:iä $maara, uusi tehtävä sallittu: $saa"
+          echo "Avoimia auto-PR:iä $maara, uusi tehtävä sallittu: $saa, kärkivuoro: $karki (agentti-commiteja $tehdyt)"
           printf 'Varatut rivit:\n%s' "$varatut"
 
       - name: Agentti tekee yhden tehtävän ja avaa PR:n
@@ -149,13 +156,27 @@ jobs:
                ${{ steps.avoin.outputs.varatut || '(ei varattuja rivejä)' }}
                Jos avoimia auto-PR:iä on 1: valitse kohdan 1 b järjestyksellä rivi, joka ei ole VARATUT-listalla.
                Jos sellaista ei ole, ÄLÄ ideoi äläkä luo haaraa tai PR:ää: lopeta ja kerro syy lokiin.
+            KÄRKIVUORO: ${{ steps.avoin.outputs.karki }}. SIGNAALIT JA KÄRKIVUORO (2026-10-14, TUOTEPERIAATTEET.md luku
+            "Kärkivuoro ja signaalit"):
+            - Jos avoimia auto-PR:iä on 0, lue ensin Signaalit-lohko. Alle 30 päivää vanhasta havainnosta, jolla ei ole merkintää
+              "→ backlog", kirjoita enintään yksi rivi Avoimet-listan loppuun (muoto, Pisteet uutuuksineen ja Mittari kuten
+              ideoinnissa) ja lisää havainnon perään "→ backlog <pvm>". Juridiikkaa, henkilötietoja tai hintoja koskeva havainto
+              jää kysymykseksi. Rinnakkaisena (yksi PR auki) tätä ei tehdä.
+            - Jos KÄRKIVUORO on true, kohdan 1 b järjestys on: (1) lukitut rivit kuten ennenkin; (2) muuten suurimman pisteen
+              rivi, jonka Pisteet-kentässä uutuus on 2/2 ja joka ei ole VARATUT. L-kokoisesta rivistä tee vaihe 1 (enintään noin
+              300 riviä) ja kirjoita loput vaiheet uusiksi riveiksi heti tehdyn rivin alle. Jos uutuus 2 -riviä ei ole, ideoi
+              yksi luvun "Tuotekehityksen suunta" teemoista ja Signaaleista ja toteuta sen vaihe 1 (rinnakkaisena ei ideoida:
+              tee silloin tavallinen valinta). Kerro PR:n rungossa "Kärkivuoro: kyllä" ja mitä uutta kunta saa.
+            - Pisteissä on uutuus-osa (TUOTEPERIAATTEET.md): piste = 2 × arvo + kiire + myynti + uutuus - työ. Jos riviltä
+              puuttuu uutuus, arvioi se valintaa varten konservatiivisesti (älä kirjoita riviin).
+
             1. Lue docs/TUOTEPERIAATTEET.md ja docs/AUTO-BACKLOG.md.
                a) JATKUVA IDEOINTI (ylläpitäjän linjaus 2026-10-08: tuotekehitys on itsekin automaatiota): jos avoimia
                   auto-PR:iä on 0 ja Avoimet-listalla on alle KOLME avointa "- [ ]"-riviä, IDEOI ENSIN. Lue
                   TUOTEPERIAATTEET.md:n luku "Tuotekehityksen suunta" ja lähdejärjestys (Signaalit-lohko ensin),
                   README.md, docs/, testit ja git log -30. Kirjoita KOLME backlog-riviä Avoimet-listan LOPPUUN
                   (avointen rivien jälkeen, ennen otsikkoa "## Tehdyt"), jokainen TUOTEPERIAATTEET.md:n "Hyvän
-                  backlog-rivin muoto" mukaan ja sallittujen tiedostojen sisällä. Jokaisen rivin loppuun Pisteet- ja
+                  backlog-rivin muoto" mukaan ja sallittujen tiedostojen sisällä. Jokaisen rivin loppuun Pisteet- (myös uutuus) ja
                   Mittari-kenttä saman luvun "Pisteet ja mittari" mukaan: pisteet konservatiivisesti, myynti 3 vain
                   Signaalit-lohkon kunnan tai ostajan kysymyksestä ja 2 vain HILMA- tai markkinavuoropuhelusignaalista,
                   mittarin lähde jo olemassa ja tarkistuspäivä noin 30 päivän päähän. Älä merkitse riviä (lukittu).
@@ -165,7 +186,7 @@ jobs:
                   perusteluineen, jotta ihminen voi hylätä ehdotuksen sulkemalla PR:n.
                b) Valitse sitten tehtävä Avoimet-listan "- [ ]"-riveistä, jotka eivät ole VARATUT, tässä järjestyksessä:
                   (1) rivit, joiden Pisteet-kentässä on "(lukittu)", listan järjestyksessä; (2) muuten suurin piste
-                  2 × arvo + kiire + myynti - työ (S 0, M 1, L 2), laskettuna Pisteet-kentän osista; (3) tasapelissä
+                  2 × arvo + kiire + myynti + uutuus - työ (S 0, M 1, L 2), laskettuna Pisteet-kentän osista; (3) tasapelissä
                   ylempi rivi. Rivi, joka edellyttää toista avointa riviä, odottaa sitä. Jos riviltä puuttuu
                   Pisteet-kenttä, pisteytä se vain valintaa varten (älä kirjoita riviin) ja kerro arvio PR:n rungossa.
                   Älä muuta muiden rivien pisteitä etkä mittareita. Jos valittu rivi on epäselvä tai vaatii

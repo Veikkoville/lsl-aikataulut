@@ -103,7 +103,7 @@ ei ole valmis.
 
 Jokaisen avoimen rivin loppuun tulee kaksi kenttää omille riveilleen:
 
-      Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 = 5
+      Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 · uutuus 1/2 = 6
       Mittari: <mitä mitataan ja mistä> · tarkistus <vvvv-kk-pp>
 
 - **arvo** (hyöty tiskille, matkustajalle tai joukkoliikennepäällikölle): 3 = korjaa virheen tai esteen, jonka
@@ -116,7 +116,10 @@ Jokaisen avoimen rivin loppuun tulee kaksi kenttää omille riveilleen:
   riippuu toisesta avoimesta rivistä.
 - **myynti**: 3 = putken kunta tai ostaja on kysynyt (Signaalit-rivi tai ylläpitäjän merkintä); 2 = HILMA-signaali
   tai markkinavuoropuhelu; 1 = ei tiedossa.
-- **Piste** = 2 × arvo + kiire + myynti - työ (S 0, M 1, L 2). Suurin piste tehdään ensin, tasapelissä ylempi rivi.
+- **uutuus** (2026-10-14): 2 = uusi kyky, jota kunnalla ei ole nykyisessä järjestelmässään (luvun Tuotekehityksen
+  suunta teema); 1 = parantaa olemassa olevaa kykyä; 0 = korjaus, testi tai siistiminen. Rivi, jolta uutuus puuttuu
+  (kirjattu ennen 14.10.2026), arvioidaan valintaa varten konservatiivisesti.
+- **Piste** = 2 × arvo + kiire + myynti + uutuus - työ (S 0, M 1, L 2). Suurin piste tehdään ensin, tasapelissä ylempi rivi.
   Summa (esimerkissä = 5) on apu: jos se ei täsmää osiin, osat ratkaisevat.
 - **Lukitus**: ylläpitäjä voi aloittaa Pisteet-kentän merkinnällä `(lukittu)`. Lukitut rivit tehdään ennen muita,
   keskenään listan järjestyksessä. Agentti ei lukitse rivejä eikä muuta olemassa olevia pisteitä tai mittareita:
@@ -127,3 +130,18 @@ Jokaisen avoimen rivin loppuun tulee kaksi kenttää omille riveilleen:
   jälkeen). Lähteen on oltava jo olemassa: käyttötilasto (Analytics Engine: `view`, `line`, `stop` ja `search_fail`,
   admin-näkymän tilastot), smoke, prod-smoke, CI, kausivalidointi, muutosvahti tai uusintapainatusvahti. Jos
   muutoksen vaikutusta ei voi lukea käytöstä, mittari on testi tai tarkistus, ja se sanotaan suoraan.
+
+### Kärkivuoro ja signaalit (2026-10-14)
+
+Ylläpitäjän linjaus 14.10.2026: tuotteen pitää viedä uutta kykyä eteenpäin eikä vain korjata. Auditoinnissa 30 päivän
+23 mergetystä agentin PR:stä vain 3 oli uusi kyky, koska korjausrivit voittivat pisteissä aina. Siksi:
+
+- **Joka kolmas ajo on kärkivuoro.** Työnkulku laskee masterin agentti-commitit ja kertoo agentille, onko vuoro.
+  Kärkivuorolla agentti valitsee suurimman pisteen rivin, jonka uutuus on 2, vaikka korjausrivillä olisi enemmän
+  pisteitä. Lukitut rivit tehdään silti ensin. L-kokoinen rivi pilkotaan: agentti tekee vaiheen 1 (enintään noin 300
+  riviä) ja kirjoittaa loput vaiheet uusiksi riveiksi. Jos uutuus 2 -riviä ei ole, agentti ideoi sellaisen luvun
+  Tuotekehityksen suunta teemoista ja Signaaleista ja toteuttaa sen vaiheen 1.
+- **Signaali muuttuu riviksi.** Ajon alussa agentti lukee Signaalit-lohkon. Alle 30 päivää vanhasta havainnosta, jolla ei
+  ole merkintää "→ backlog", agentti kirjoittaa enintään yhden rivin ajoa kohden ja merkitsee havainnon. Juridiikkaa,
+  henkilötietoja tai hintoja koskeva havainto jää kysymykseksi.
+- Kiellot, sallitut tiedostot, 300 rivin raja, enintään kaksi avointa auto-PR:ää ja ihmisen merge pysyvät ennallaan.
