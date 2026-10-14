@@ -8367,15 +8367,17 @@ async function quietFirstService(ids, days) {
   const dow = d => new Date(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6, 8)).getDay();
   const sample = days.map((_, i) => i).filter(i => i >= LINE_EXACT_DAYS && (dow(days[i]) === 3 || dow(days[i]) === 6));
   const hit = await serviceFirstIdx(rest, days, sample, "quietB:");
-  // Tarkennus: osumaa edeltävät otoksen ulkopuoliset päivät (enintään 3), ryhmittäin saman osuman mukaan.
+  // Tarkennus: osumaa edeltävän 6 päivän otoksen ulkopuoliset päivät (enintään 5), ryhmittäin saman osuman mukaan.
+  // Ei vain edelliseen otospäivään asti: arkilinja ei aja lauantaina, joten la-otoksen tyhjä tulos ei kerro, ajoiko se
+  // to ja pe. Ennen 14.10.2026 to tai pe alkava linja sai alkamispäiväksi seuraavan maanantain.
   const groups = new Map();
   for (const [id, h] of hit) {
     if (!groups.has(h)) groups.set(h, []);
     groups.get(h).push(id);
   }
   await mapLimit([...groups.entries()], 2, async ([h, gids]) => {
-    const prev = Math.max(LINE_EXACT_DAYS - 1, ...sample.filter(i => i < h));
-    const gap = days.map((_, i) => i).filter(i => i > prev && i < h);
+    const prev = Math.max(LINE_EXACT_DAYS - 1, h - 7);
+    const gap = days.map((_, i) => i).filter(i => i > prev && i < h && !sample.includes(i));
     const refined = gap.length ? await serviceFirstIdx(gids, days, gap, "quietC:") : new Map();
     for (const id of gids) first.set(id, refined.has(id) ? refined.get(id) : h);
   });
