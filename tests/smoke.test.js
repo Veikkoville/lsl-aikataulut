@@ -3358,6 +3358,22 @@ async function minuuttiLinjaus(page, rootSel, media) {
                       : fail("poikkeuspäivät: rivit tai merkinnät puuttuvat");
   }
 
+  // Päivävertailu: puhdas funktio kiinteällä aineistolla (A: ajaa vain vertailupäivänä, B identtinen, C yhden välipysäkin
+  // aika +2 min, D ajaa vain valittuna päivänä) ja vertailuosion elementit sivulla.
+  const vp = await page.evaluate(() => vertaaPaivat(
+    { B: ["100,200,300"], C: ["100,260,300"], D: ["100,200"] },
+    { A: ["100,200", "400,500"], B: ["100,200,300"], C: ["100,200,300"] }));
+  (vp.eiAja.join() === "A" && vp.ennallaan.join() === "B" && vp.muuttuu.join() === "C" && vp.vainUusi.join() === "D")
+    ? ok("vertaaPaivat: eiAja, ennallaan, muuttuu ja vainUusi luokittuvat oikein")
+    : fail(`vertaaPaivat: ${JSON.stringify(vp)}`);
+  const cmpEl = await page.evaluate(() => ({
+    osio: !!document.querySelector("#exCmp #exCmpDay"),
+    tulos: !!document.querySelector("#exCmpOut"),
+  }));
+  (cmpEl.osio && cmpEl.tulos)
+    ? ok("poikkeuspäivät: päivävertailun valitsin ja tulosalue ovat sivulla")
+    : fail(`poikkeuspäivät: vertailuosio puuttuu ${JSON.stringify(cmpEl)}`);
+
   // --- Palaute / vikailmoitus (lomake + tyhjän validointi, ei lähetetä verkkoon) ---
   await page.goto(BASE + "/#/palaute", { waitUntil: "networkidle2" });
   if (await expect("#fbForm #fbMsg", "palaute: lomake latautuu")) {
