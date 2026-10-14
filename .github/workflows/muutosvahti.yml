@@ -66,3 +66,15 @@ jobs:
           name: muutosvahti-loki
           path: muutosvahti-loki.txt
           retention-days: 90
+
+      # Healthchecks.io (14.10.2026): ping ajon lopussa, /fail jos jokin askel epäonnistui. Vain ajastettu ajo pingaa: käsiajo muuna päivänä voi päättyä punaiseen ilman löydöstä.
+      # Valvonnan aikataulu ja hälytys ovat Healthchecksissä (strategiarepo tools/healthchecks/). Puuttuva secret ei kaada ajoa.
+      - name: Healthchecks-ping
+        if: always() && github.event_name == 'schedule'
+        env:
+          HC_PING_KEY: ${{ secrets.HC_PING_KEY }}
+          TILA: ${{ job.status }}
+        run: |
+          if [ -z "$HC_PING_KEY" ]; then echo "::warning::HC_PING_KEY puuttuu, ping ohitetaan."; exit 0; fi
+          polku=""; [ "$TILA" = "success" ] || polku="/fail"
+          curl -fsS -m 10 --retry 3 -o /dev/null "https://hc-ping.com/$HC_PING_KEY/lsl-aikataulut-muutosvahti$polku" || echo "::warning::Healthchecks-ping epäonnistui."

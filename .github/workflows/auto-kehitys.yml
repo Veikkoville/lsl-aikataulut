@@ -122,6 +122,7 @@ jobs:
           printf 'Varatut rivit:\n%s' "$varatut"
 
       - name: Agentti tekee yhden tehtävän ja avaa PR:n
+        id: agentti
         if: steps.avoin.outputs.saa == 'true'
         uses: anthropics/claude-code-action@v1
         with:
@@ -130,10 +131,18 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: >-
             --max-turns 80
-            --allowedTools "Bash(git:*),Bash(gh pr create:*),Bash(node:*),Bash(npm test:*),Bash(npm run:*),Read,Edit,Write,Glob,Grep"
+            --add-dir /tmp
+            --allowedTools "Bash(git:*),Bash(gh pr create:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(node:*),Bash(npm test:*),Bash(npm run:*),Bash(cd:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(grep:*),Bash(wc:*),Bash(sort:*),Bash(cut:*),Bash(diff:*),Bash(sed -n:*),Bash(echo:*),Bash(mkdir:*),Bash(cp:*),Bash(test:*),Read,Edit,Write,Glob,Grep"
           prompt: |
             Olet Reittarin (lsl-aikataulut) auto-kehitysagentti. Teet YHDEN rajatun tehtävän ja avaat PR:n.
             Työskentelet repon juuressa, master on checkoutattuna.
+
+            KOMENNOT (14.10.2026: 13.-14.10. ajoissa estettiin 6-11 komentoa ajoa kohden): aja yksi komento kerrallaan,
+            älä ketjuta komentoja &&:lla tai ;:lla (putki head-, tail-, grep-, wc- tai sort-komentoon on sallittu).
+            Kirjoita väliaikaiset tiedostot /tmp-kansioon Write-työkalulla. Commit-viesti ja PR:n kuvaus kirjoitetaan ensin
+            tiedostoon Write-työkalulla: git commit -F <tiedosto> ja gh pr create --body-file <tiedosto>, koska monirivinen
+            viesti komentorivillä estetään. Muokkaa tiedostoja Edit- ja Write-työkaluilla, ei sed -i:llä eikä python3:lla
+            (niitä ei sallita).
 
             0. Avoimia auto-PR:iä on nyt ${{ steps.avoin.outputs.maara }}. Rivit, joita ne jo toteuttavat
                (VARATUT: älä valitse, älä muokkaa):
@@ -178,7 +187,7 @@ jobs:
                Jos muutit index.html:n skriptiä, poimi skriptilohko ja aja sille node --check.
             5. Merkitse tehtävä backlogissa "- [x]" ja lisää perään " (PR, <pvm>)".
             6. Committaa (git config user.name "reittari-auto[bot]", user.email "actions@users.noreply.github.com"),
-               pushaa haara ja avaa PR: gh pr create --base master --title "auto: <aihe>" --body, jonka
+               pushaa haara ja avaa PR: gh pr create --base master --title "auto: <aihe>" --body-file <tiedosto> (kuvaus ensin tiedostoon Write-työkalulla), jonka
                ENSIMMÄINEN rivi on täsmälleen "Riskiluokka: docs", "Riskiluokka: testi", "Riskiluokka: koodi" tai
                "Riskiluokka: julkaiseva" ja TOINEN rivi tehdyn backlog-rivin Mittari-kenttä sellaisenaan yhdelle
                riville ("Mittari: ... · tarkistus <pvm>", tai "Mittari: puuttuu rivistä"). Sen jälkeen tyhjä rivi ja
@@ -198,17 +207,36 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Haaran nimi luetaan TYÖPUUSTA, ei hausta. Vanha versio käytti
-          # "gh pr list --search head:auto/" ja poimi uusimman createdAt:n mukaan, mutta
-          # hakuindeksi laahaa sekunteja: 3.9.2026 se palautti edellisen päivän haaran,
-          # jolloin CI ajettiin väärälle haaralle ja uusin PR jäi kokonaan ilman
-          # tarkistuksia (ajo 33720438804 vs. PR #17 action_required, 0 s).
+          # Tyhjä ajo on virhe (14.10.2026, auditointi): kun portti salli työn eikä avoimia auto-PR:iä ollut, agentin pitää
+          # aina avata PR (tehtävä, kysymys-PR tai ideointi). Muuten ajo punastuu, ja Healthchecks saa /fail-pingin.
+          # Rinnakkaisena (yksi PR auki) tyhjä ajo on sallittu, kun kaikki rivit ovat varattuja (kehotteen kohta 0).
+          # Haaran nimi luetaan työpuusta, ei hausta: hakuindeksi laahaa (3.9.2026 CI ajettiin väärälle haaralle).
           haara=$(git rev-parse --abbrev-ref HEAD)
+          maara="${{ steps.avoin.outputs.maara }}"
           case "$haara" in
             auto/*) ;;
-            *) echo "HEAD ei ole auto/-haaralla ($haara): agentti ei luonut haaraa, CI:tä ei käynnistetä."; exit 0 ;;
+            *)
+              if [ "$maara" = "0" ]; then
+                echo "::error::Agentti ei luonut auto/-haaraa, vaikka avoimia auto-PR:iä ei ollut. Syy: agentin loki."; exit 1
+              fi
+              echo "::warning::HEAD ei ole auto/-haaralla ($haara), avoimia auto-PR:iä $maara: agentti ei tehnyt uutta PR:ää."; exit 0 ;;
           esac
           if ! git ls-remote --exit-code --heads origin "$haara" >/dev/null 2>&1; then
-            echo "Haaraa $haara ei ole originissa: agentti ei pushannut, CI:tä ei käynnistetä."; exit 0
+            echo "::error::Agentti loi haaran $haara mutta ei pushannut sitä. Syy: agentin loki."; exit 1
+          fi
+          if [ "$(gh pr list --head "$haara" --state open --json number --jq length)" = "0" ]; then
+            echo "::error::Haara $haara on originissa, mutta PR:ää ei avattu. Syy: agentin loki."; exit 1
           fi
           gh workflow run ci.yml --ref "$haara" && echo "CI käynnistetty haaralle $haara"
+
+      # Healthchecks.io (14.10.2026): ping ajon lopussa, /fail jos jokin askel epäonnistui. Kaikki ajot pingaavat (ajastin, varakopio-schedule jos on, käsiajo).
+      # Valvonnan aikataulu ja hälytys ovat Healthchecksissä (strategiarepo tools/healthchecks/). Puuttuva secret ei kaada ajoa.
+      - name: Healthchecks-ping
+        if: always()
+        env:
+          HC_PING_KEY: ${{ secrets.HC_PING_KEY }}
+          TILA: ${{ job.status }}
+        run: |
+          if [ -z "$HC_PING_KEY" ]; then echo "::warning::HC_PING_KEY puuttuu, ping ohitetaan."; exit 0; fi
+          polku=""; [ "$TILA" = "success" ] || polku="/fail"
+          curl -fsS -m 10 --retry 3 -o /dev/null "https://hc-ping.com/$HC_PING_KEY/lsl-aikataulut-auto-kehitys$polku" || echo "::warning::Healthchecks-ping epäonnistui."
