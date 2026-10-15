@@ -250,6 +250,17 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (await page.$("#appFooter .foot-cols .foot-col a"))
     ? ok("etusivu: jäsennelty footer linkkisarakkeineen")
     : fail("etusivu: jäsennelty footer puuttuu");
+  // Näkymän vaihto vie alkuun ja fokuksen otsikkoon (auditointi 8.10.2026: scrollY jäi 1367:ään, fokus BODYyn).
+  await page.evaluate(() => { document.body.style.minHeight = "4000px"; window.scrollTo(0, 1500); });
+  await page.evaluate(() => { location.hash = "#/saavutettavuus"; });
+  await page.waitForFunction(() => document.querySelector("#app h1, #app h2") && location.hash === "#/saavutettavuus", { timeout: 10000 }).catch(() => {});
+  await new Promise(r => setTimeout(r, 300));
+  const navFocus = await page.evaluate(() => ({ y: window.scrollY, ok: !!document.activeElement?.matches("#app h1, #app h2") }));
+  (navFocus.y < 50 && navFocus.ok)
+    ? ok("näkymän vaihto: sivu alkuun ja fokus #app-otsikkoon")
+    : fail("näkymän vaihto: vieritys tai fokus ei siirtynyt: " + JSON.stringify(navFocus));
+  await page.evaluate(() => { document.body.style.minHeight = ""; });
+  await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
 
   await page.waitForSelector("#nearbyBtn2", { timeout: 10000 }).catch(() => {});
   if (await page.$("#nearbyBtn2")) await page.click("#nearbyBtn2");

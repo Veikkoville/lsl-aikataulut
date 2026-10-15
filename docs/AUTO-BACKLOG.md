@@ -76,7 +76,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       `cd worker && npm test` = 0; smokessa `page.evaluate(() => searchSignal("Kotikatu 12"))` = "[numero]" ja
       `searchSignal("Kauppatori")` = "kauppatori"; `node --check` pääskriptille. (auditointi 2026-10-08,
       lähde: koodi; periaate tarkennettu TUOTEPERIAATTEET.md:ssä 2026-10-08) (PR, 2026-10-10)
-- [ ] index.html: näkymän vaihto vie sivun alkuun ja siirtää fokuksen näkymän otsikkoon. Nyt `route()`
+- [x] index.html: näkymän vaihto vie sivun alkuun ja siirtää fokuksen näkymän otsikkoon. Nyt `route()`
       (rivi noin 25726) piirtää uuden näkymän, mutta vieritys jää ennalleen (mittaus tuotannosta: scrollY 1367
       ennen ja jälkeen, otsikko -1228 px) ja fokus jää BODYyn; koodissa ei ole yhtään `scrollTo(0`. Kun hash-polun
       ensimmäinen tai toinen osa muuttuu (ei saman näkymän automaattipäivityksessä eikä pelkän query-parametrin
@@ -87,7 +87,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       (auditointi 2026-10-08, lähde: tuotantomittaus + koodi)
       Pisteet: arvo 3/3 · kiire 1/3 · työ S · myynti 1/3 = 8
       Mittari: smoke-tarkistus näkymän vaihdosta (scrollY alle 50 ja fokus #app-otsikossa) vihreä CI:ssä; käytöstä ei
-      ole mitattavaa · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
+      ole mitattavaa · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-15)
 - [ ] index.html: `aria-live` pois `<main id="app">`:sta (rivi noin 2717). Nyt ruudunlukija lukee koko sivun
       jokaisessa siirtymässä (linjasivulla 10 769 merkkiä) ja pysäkin lähtötaulukon 30 sekunnin välein. Lisää
       `<main>`in ulkopuolelle `<div id="srStatus" class="sr-only" role="status" aria-live="polite"></div>`
