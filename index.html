@@ -26166,7 +26166,7 @@ async function route() {
     if (parts[0] === "asetukset") viewSettings();
     else if (parts[0] === "sahkoposti") viewEmailSub();
     else if (parts[0] === "palvelutiski") await viewServiceDesk();
-    else if (parts[0] === "saavutettavuus") viewAccessibilityStatement();
+    else if (parts[0] === "saavutettavuus") await viewAccessibilityStatement();
     else if (parts[0] === "tietosuoja") viewPrivacy();
     else if (parts[0] === "kayttoehdot") viewTerms();
     // Vanhat reitit ohjautuvat yhdistettyyn keskukseen oikealle välilehdelle (QR-yhteensopivuus):
@@ -26185,7 +26185,7 @@ async function route() {
     else if (parts[0] === "laiturit") await viewHubs(parts);
     else if (parts[0] === "poikkeukset") viewExceptions();
     else if (parts[0] === "palaute") viewFeedback();
-    else if (parts[0] === "liput") viewFares();
+    else if (parts[0] === "liput") await viewFares();
     else if (parts[0] === "junat") await viewTrains();
     else if (parts[0] === "pysakki" && parts[1]) { track("stop", stripFeed(parts[1])); await viewStop(parts[1], query.get("print")); }
     else if (parts[0] === "kaupunki") await viewCity();
@@ -26194,7 +26194,21 @@ async function route() {
     // Vanhentuneen näkymän virhe ei saa korvata näkymää, johon käyttäjä on jo siirtynyt.
     if (!navStale(nav)) showError(err);
   }
+  // Näkymän vaihto (polun kaksi ensimmäistä osaa muuttuu) vie alkuun ja fokuksen otsikkoon;
+  // saman näkymän päivitys ja pelkkä query-muutos jättävät vieritykseen ja fokukseen rauhaan.
+  const viewKey = (parts[0] || "") + "/" + (parts[1] || "");
+  const viewChanged = lastViewKey !== null && lastViewKey !== viewKey;
+  lastViewKey = viewKey;
+  if (viewChanged && !navStale(nav)) {
+    window.scrollTo(0, 0);
+    const heading = document.querySelector("#app h1, #app h2");
+    if (heading) {
+      heading.setAttribute("tabindex", "-1");
+      heading.focus({ preventScroll: true });
+    }
+  }
 }
+let lastViewKey = null;
 
 window.addEventListener("hashchange", route);
 updateChrome();
