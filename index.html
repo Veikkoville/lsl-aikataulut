@@ -26166,7 +26166,7 @@ async function route() {
     if (parts[0] === "asetukset") viewSettings();
     else if (parts[0] === "sahkoposti") viewEmailSub();
     else if (parts[0] === "palvelutiski") await viewServiceDesk();
-    else if (parts[0] === "saavutettavuus") viewAccessibilityStatement();
+    else if (parts[0] === "saavutettavuus") await viewAccessibilityStatement();
     else if (parts[0] === "tietosuoja") viewPrivacy();
     else if (parts[0] === "kayttoehdot") viewTerms();
     // Vanhat reitit ohjautuvat yhdistettyyn keskukseen oikealle välilehdelle (QR-yhteensopivuus):
@@ -26185,7 +26185,7 @@ async function route() {
     else if (parts[0] === "laiturit") await viewHubs(parts);
     else if (parts[0] === "poikkeukset") viewExceptions();
     else if (parts[0] === "palaute") viewFeedback();
-    else if (parts[0] === "liput") viewFares();
+    else if (parts[0] === "liput") await viewFares();
     else if (parts[0] === "junat") await viewTrains();
     else if (parts[0] === "pysakki" && parts[1]) { track("stop", stripFeed(parts[1])); await viewStop(parts[1], query.get("print")); }
     else if (parts[0] === "kaupunki") await viewCity();
