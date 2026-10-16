@@ -5379,6 +5379,10 @@ const STRINGS = {
     exCmpRow_uusi: "Uusi vuoro {time}",
     exCmpRow_poistuu: "Vuoro {time} poistuu",
     exCmpRow_valiajat: "Vuoro {time}: välipysäkkien ajat muuttuvat",
+    exCmpRow_kaikkiMyoh: "Kaikki {n} vuoroa siirtyvät {min} min myöhemmäksi, ensimmäinen {time}",
+    exCmpRow_kaikkiAik: "Kaikki {n} vuoroa siirtyvät {min} min aiemmaksi, ensimmäinen {time}",
+    exCmpRow_osaMyoh: "{n} vuoroa siirtyy {min} min myöhemmäksi, ensimmäinen {time}",
+    exCmpRow_osaAik: "{n} vuoroa siirtyy {min} min aiemmaksi, ensimmäinen {time}",
     exCmpMore: "ja {n} muuta",
     fbLink: "Anna palautetta",
     fbTitle: "Palaute ja vikailmoitus",
@@ -6302,6 +6306,10 @@ const STRINGS = {
     exCmpRow_uusi: "New trip {time}",
     exCmpRow_poistuu: "Trip {time} is cancelled",
     exCmpRow_valiajat: "Trip {time}: intermediate stop times change",
+    exCmpRow_kaikkiMyoh: "All {n} trips move {min} min later, first {time}",
+    exCmpRow_kaikkiAik: "All {n} trips move {min} min earlier, first {time}",
+    exCmpRow_osaMyoh: "{n} trips move {min} min later, first {time}",
+    exCmpRow_osaAik: "{n} trips move {min} min earlier, first {time}",
     exCmpMore: "and {n} more",
     fbLink: "Send feedback",
     fbTitle: "Feedback & problem report",
@@ -7199,6 +7207,10 @@ const STRINGS = {
     exCmpRow_uusi: "Ny tur {time}",
     exCmpRow_poistuu: "Tur {time} utgår",
     exCmpRow_valiajat: "Tur {time}: tiderna vid mellanhållplatser ändras",
+    exCmpRow_kaikkiMyoh: "Alla {n} turer flyttas {min} min senare, första {time}",
+    exCmpRow_kaikkiAik: "Alla {n} turer flyttas {min} min tidigare, första {time}",
+    exCmpRow_osaMyoh: "{n} turer flyttas {min} min senare, första {time}",
+    exCmpRow_osaAik: "{n} turer flyttas {min} min tidigare, första {time}",
     exCmpMore: "och {n} till",
     fbLink: "Ge respons",
     fbTitle: "Respons och felanmälan",
@@ -15322,14 +15334,22 @@ function linjanEro(a, b) {
       usedP.add(p); usedU.add(u); siirtyy.push([p, u]);
     }
     siirtyy.sort((x, y) => x[1] - y[1]);
-    out[dir] = { poistuu: poistuu.filter(x => !usedP.has(x)), uusi: uusi.filter(x => !usedU.has(x)), siirtyy, valiajat };
+    out[dir] = { poistuu: poistuu.filter(x => !usedP.has(x)), uusi: uusi.filter(x => !usedU.has(x)), siirtyy, valiajat, yht: ma.size };
   }
   return out;
 }
-// Muutosselosteen rivit yhdelle suunnalle ajan mukaan, enintään max riviä; loput kerrotaan määränä.
+// Muutosselosteen rivit yhdelle suunnalle ajan mukaan, enintään max riviä; loput kerrotaan määränä. Jos vähintään kolme
+// vuoroa siirtyy täsmälleen saman verran (täysiä minuutteja), siirrot tiivistyvät yhdeksi riviksi: "kaikki", kun suunnan
+// jokainen vuoro siirtyy eikä mikään poistu, muuten "osa".
 function linjanEroRivit(e, max) {
+  const d = e.siirtyy.length ? e.siirtyy[0][1] - e.siirtyy[0][0] : 0;
+  const tasan = e.siirtyy.length >= 3 && d % 60 === 0 && e.siirtyy.every(([p, u]) => u - p === d);
+  const siirrot = tasan
+    ? [{ at: e.siirtyy[0][1], kind: (e.siirtyy.length === e.yht && !e.poistuu.length ? "kaikki" : "osa") + (d > 0 ? "Myoh" : "Aik"),
+        text: fmtSec(e.siirtyy[0][0]) + " → " + fmtSec(e.siirtyy[0][1]), n: e.siirtyy.length, min: Math.abs(d) / 60 }]
+    : e.siirtyy.map(([p, u]) => ({ at: u, kind: "siirtyy", text: fmtSec(p) + " → " + fmtSec(u) }));
   const rows = [
-    ...e.siirtyy.map(([p, u]) => ({ at: u, kind: "siirtyy", text: fmtSec(p) + " → " + fmtSec(u) })),
+    ...siirrot,
     ...e.uusi.map(x => ({ at: x, kind: "uusi", text: fmtSec(x) })),
     ...e.poistuu.map(x => ({ at: x, kind: "poistuu", text: fmtSec(x) })),
     ...e.valiajat.map(x => ({ at: x, kind: "valiajat", text: fmtSec(x) })),
@@ -15402,7 +15422,7 @@ function exCmpInit() {
           const { rows, more } = linjanEroRivit(e, 8);
           if (!rows.length) return "";
           return `<p class="muted">${esc(head)}</p><ul data-ex-dir>${rows.map(x =>
-            `<li data-ex-kind="${x.kind}">${t("exCmpRow_" + x.kind, { time: x.text })}</li>`).join("")}${more ? `<li class="muted">${t("exCmpMore", { n: more })}</li>` : ""}</ul>`;
+            `<li data-ex-kind="${x.kind}">${t("exCmpRow_" + x.kind, { time: x.text, n: x.n, min: x.min })}</li>`).join("")}${more ? `<li class="muted">${t("exCmpMore", { n: more })}</li>` : ""}</ul>`;
         }).join("");
         return `<details class="ex-det" data-ex-line="${esc(k)}"><summary>${esc(k)}</summary><p>${lineLink(k)}</p>${dirs}</details>`;
       };
