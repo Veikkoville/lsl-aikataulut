@@ -373,7 +373,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 2/3 · työ S · myynti 1/3 = 7
       Mittari: solmupysäkki-WARNit, joissa vain toinen lähipäivä on lomaviikolla: 0 ajossa, jonka D+7 osuu joululomalle
       (Actions-loki, kausivalidointi) · tarkistus 2026-12-22 (pisteet ja mittari: CoS 11.10.)
-- [ ] index.html: linjakohtainen muutosseloste päivävertailuun. Nyt `#/poikkeukset`-sivun päivävertailu
+- [x] index.html: linjakohtainen muutosseloste päivävertailuun. Nyt `#/poikkeukset`-sivun päivävertailu
       (`vertaaPaivat`, `exCmpLoad`) kertoo vain, ETTÄ linjan aikataulu muuttuu, ei mitä muuttuu. Lisää puhdas funktio
       `linjanEro(a, b)`, joka saa yhden linjan vuorot suunnittain (suunta = patternin `directionId`, kilpi `headsign`,
       vuoro = sen kaikkien `scheduledDeparture`-aikojen sarja) valittuna päivänä (a) ja vertailupäivänä (b) ja palauttaa
@@ -391,7 +391,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 3/3 · työ M · myynti 1/3 · uutuus 2/2 = 11
       Mittari: smoke-tarkistus (linjanEro: poistuu, uusi, siirtyy ja valiajat kiinteällä aineistolla) vihreä CI:ssä;
       tuotannossa Lahden päivävertailu avautuu muutosvahdin voimaantulopäivään ja näyttää muuttuvan linjan eroluettelon
-      (käsin) · tarkistus 2026-11-03 (pisteet ja mittari: CoS 15.10.)
+      (käsin) · tarkistus 2026-11-03 (pisteet ja mittari: CoS 15.10.) (PR, 2026-10-16)
 - [ ] index.html: reittimuutokset linjan muutosselosteeseen (edellyttää edellistä riviä). Laajenna `exCmpLoad`in
       patternit kentällä `stops { gtfsId code name }`. Suunnittain pysäkkijoukko a = niiden patternien pysäkit, joilla on
       vuoroja valittuna päivänä, b = vertailupäivänä. Lisää `linjanEro`n tulokseen kentät `pysakitPois` ja `pysakitUudet`

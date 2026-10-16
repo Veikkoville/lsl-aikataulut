@@ -5375,6 +5375,11 @@ const STRINGS = {
     exCmpNew: "Ajaa vain valittuna päivänä",
     exCmpLoading: "Lasketaan aikataulutiedosta...",
     exCmpFail: "Vertailua ei voitu laskea juuri nyt. Yritä hetken päästä uudelleen.",
+    exCmpRow_siirtyy: "Vuoro siirtyy: {time}",
+    exCmpRow_uusi: "Uusi vuoro {time}",
+    exCmpRow_poistuu: "Vuoro {time} poistuu",
+    exCmpRow_valiajat: "Vuoro {time}: välipysäkkien ajat muuttuvat",
+    exCmpMore: "ja {n} muuta",
     fbLink: "Anna palautetta",
     fbTitle: "Palaute ja vikailmoitus",
     fbIntro: "Huomasitko väärän aikataulun, rikkinäisen pysäkin tai virheen sovelluksessa? Kerro siitä tällä lomakkeella.",
@@ -6293,6 +6298,11 @@ const STRINGS = {
     exCmpNew: "Runs only on the chosen day",
     exCmpLoading: "Calculating from timetable data...",
     exCmpFail: "The comparison could not be calculated right now. Please try again in a moment.",
+    exCmpRow_siirtyy: "Trip moves: {time}",
+    exCmpRow_uusi: "New trip {time}",
+    exCmpRow_poistuu: "Trip {time} is cancelled",
+    exCmpRow_valiajat: "Trip {time}: intermediate stop times change",
+    exCmpMore: "and {n} more",
     fbLink: "Send feedback",
     fbTitle: "Feedback & problem report",
     fbIntro: "Spotted a wrong timetable, a broken stop or an app bug? Tell us using this form.",
@@ -7185,6 +7195,11 @@ const STRINGS = {
     exCmpNew: "Går bara vald dag",
     exCmpLoading: "Beräknar ur tidtabellsdata...",
     exCmpFail: "Jämförelsen kunde inte beräknas just nu. Försök igen om en stund.",
+    exCmpRow_siirtyy: "Tur flyttas: {time}",
+    exCmpRow_uusi: "Ny tur {time}",
+    exCmpRow_poistuu: "Tur {time} utgår",
+    exCmpRow_valiajat: "Tur {time}: tiderna vid mellanhållplatser ändras",
+    exCmpMore: "och {n} till",
     fbLink: "Ge respons",
     fbTitle: "Respons och felanmälan",
     fbIntro: "Märkte du en felaktig tidtabell, en trasig hållplats eller ett fel i appen? Berätta om det i formuläret.",
@@ -15275,6 +15290,52 @@ function vertaaPaivat(a, b) {
   }
   return out;
 }
+// Yhden linjan ero suunnittain. a ja b: suunta -> vuorot, vuoro = sen kaikkien scheduledDeparture-aikojen sarja (sekunteja).
+// a on valittu päivä, b vertailupäivä. Vuoron tunnus on sen ensimmäinen lähtöaika: vain b:ssä = poistuu, vain a:ssa = uusi;
+// poistuva ja uusi samassa suunnassa enintään 10 min erolla (lähin pari ensin) = siirtyy; sama ensimmäinen aika mutta eri
+// sarja = valiajat (välipysäkkien ajat muuttuvat). Palauttaa suunta -> { poistuu, uusi, siirtyy: [[b-aika, a-aika]], valiajat }.
+function linjanEro(a, b) {
+  const byFirst = trips => {
+    const m = new Map();
+    for (const tr of trips || []) {
+      if (!tr || !tr.length) continue;
+      if (!m.has(tr[0])) m.set(tr[0], new Set());
+      m.get(tr[0]).add(tr.join(","));
+    }
+    return m;
+  };
+  const out = {};
+  for (const dir of new Set([...Object.keys(a || {}), ...Object.keys(b || {})])) {
+    const ma = byFirst(a && a[dir]), mb = byFirst(b && b[dir]);
+    const poistuu = [...mb.keys()].filter(x => !ma.has(x)).sort((x, y) => x - y);
+    const uusi = [...ma.keys()].filter(x => !mb.has(x)).sort((x, y) => x - y);
+    const valiajat = [...ma.keys()].filter(x => {
+      const sa = ma.get(x), sb = mb.get(x);
+      return sb && !(sa.size === sb.size && [...sa].every(v => sb.has(v)));
+    }).sort((x, y) => x - y);
+    const pairs = [];
+    for (const p of poistuu) for (const u of uusi) if (Math.abs(p - u) <= 600) pairs.push([Math.abs(p - u), p, u]);
+    pairs.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+    const usedP = new Set(), usedU = new Set(), siirtyy = [];
+    for (const [, p, u] of pairs) {
+      if (usedP.has(p) || usedU.has(u)) continue;
+      usedP.add(p); usedU.add(u); siirtyy.push([p, u]);
+    }
+    siirtyy.sort((x, y) => x[1] - y[1]);
+    out[dir] = { poistuu: poistuu.filter(x => !usedP.has(x)), uusi: uusi.filter(x => !usedU.has(x)), siirtyy, valiajat };
+  }
+  return out;
+}
+// Muutosselosteen rivit yhdelle suunnalle ajan mukaan, enintään max riviä; loput kerrotaan määränä.
+function linjanEroRivit(e, max) {
+  const rows = [
+    ...e.siirtyy.map(([p, u]) => ({ at: u, kind: "siirtyy", text: fmtSec(p) + " → " + fmtSec(u) })),
+    ...e.uusi.map(x => ({ at: x, kind: "uusi", text: fmtSec(x) })),
+    ...e.poistuu.map(x => ({ at: x, kind: "poistuu", text: fmtSec(x) })),
+    ...e.valiajat.map(x => ({ at: x, kind: "valiajat", text: fmtSec(x) })),
+  ].sort((x, y) => x.at - y.at);
+  return { rows: rows.slice(0, max), more: Math.max(0, rows.length - max) };
+}
 const exCmpCache = new Map();
 // Yksi kysely kahdelle päivälle: linjatunnus -> vuorosarjat, ja tunnus -> gtfsId linkkiä varten.
 async function exCmpLoad(iso) {
@@ -15284,24 +15345,34 @@ async function exCmpLoad(iso) {
   const prev = isoOf(d);
   const feed = await findFeed();
   const trips = (n, day) => `${n}: tripsForDate(serviceDate: "${day.replace(/-/g, "")}") { stoptimes { scheduledDeparture } }`;
-  const pat = `patterns { ${trips("a", iso)} ${trips("b", prev)} }`;
+  const pat = `patterns { directionId headsign ${trips("a", iso)} ${trips("b", prev)} }`;
   const data = CONFIG.areaScoped
     ? await gql(`query ($ids: [String]) { routes(ids: $ids) { gtfsId shortName mode ${pat} } }`, { ids: await areaRouteIds(feed) })
     : await gql(`query ($feeds: [String]) { routes(feeds: $feeds) { gtfsId shortName mode ${pat} } }`, { feeds: [feed] });
   const modes = CONFIG.modes || ["BUS"];
-  const a = {}, b = {}, ids = {};
+  const a = {}, b = {}, ids = {}, det = { a: {}, b: {} }, heads = {};
   for (const r of data.routes || []) {
     if (!modes.includes(r.mode) || !r.shortName) continue;
     ids[r.shortName] = ids[r.shortName] || r.gtfsId;
     for (const p of r.patterns || []) {
+      const dir = (p.directionId ?? "") + "|" + (p.headsign || "");
+      heads[r.shortName + "#" + dir] = p.headsign || "";
       for (const [dst, key] of [[a, "a"], [b, "b"]]) {
         for (const tr of p[key] || []) {
-          (dst[r.shortName] = dst[r.shortName] || []).push((tr.stoptimes || []).map(x => x.scheduledDeparture).join(","));
+          const secs = (tr.stoptimes || []).map(x => x.scheduledDeparture);
+          (dst[r.shortName] = dst[r.shortName] || []).push(secs.join(","));
+          const d = det[key][r.shortName] = det[key][r.shortName] || {};
+          (d[dir] = d[dir] || []).push(secs);
         }
       }
     }
   }
-  const res = { prev, ids, cmp: vertaaPaivat(a, b) };
+  const cmp = vertaaPaivat(a, b);
+  const ero = {};
+  for (const k of cmp.muuttuu) {
+    ero[k] = Object.entries(linjanEro(det.a[k], det.b[k])).map(([dir, e]) => ({ head: heads[k + "#" + dir] || "", e }));
+  }
+  const res = { prev, ids, cmp, ero };
   exCmpCache.set(iso, res);
   return res;
 }
@@ -15325,11 +15396,23 @@ function exCmpInit() {
     try {
       const r = await exCmpLoad(iso);
       if (inp.value !== iso) return;
+      const lineLink = k => `<a class="badge" href="#/linja/${encodeURIComponent(r.ids[k] || "")}">${esc(k)}</a>`;
+      const detail = k => {
+        const dirs = (r.ero[k] || []).map(({ head, e }) => {
+          const { rows, more } = linjanEroRivit(e, 8);
+          if (!rows.length) return "";
+          return `<p class="muted">${esc(head)}</p><ul data-ex-dir>${rows.map(x =>
+            `<li data-ex-kind="${x.kind}">${t("exCmpRow_" + x.kind, { time: x.text })}</li>`).join("")}${more ? `<li class="muted">${t("exCmpMore", { n: more })}</li>` : ""}</ul>`;
+        }).join("");
+        return `<details class="ex-det" data-ex-line="${esc(k)}"><summary>${esc(k)}</summary><p>${lineLink(k)}</p>${dirs}</details>`;
+      };
       const group = (key, label, list) => `<h3 data-ex-cmp="${key}">${label} (${list.length})</h3>` +
-        (list.length ? `<p>${list.map(k => `<a class="badge" href="#/linja/${encodeURIComponent(r.ids[k] || "")}">${esc(k)}</a>`).join(" ")}</p>`
+        (list.length ? `<p>${list.map(lineLink).join(" ")}</p>`
           : `<p class="muted">${t("exCmpNone")}</p>`);
+      const changed = list => `<h3 data-ex-cmp="muuttuu">${t("exCmpChanged")} (${list.length})</h3>` +
+        (list.length ? list.map(detail).join("") : `<p class="muted">${t("exCmpNone")}</p>`);
       out.innerHTML = `<p class="muted">${t("exCmpVs", { date: esc(fmtDateLong(r.prev)) })}</p>` +
-        group("eiAja", t("exCmpGone"), r.cmp.eiAja) + group("muuttuu", t("exCmpChanged"), r.cmp.muuttuu) +
+        group("eiAja", t("exCmpGone"), r.cmp.eiAja) + changed(r.cmp.muuttuu) +
         group("vainUusi", t("exCmpNew"), r.cmp.vainUusi) + group("ennallaan", t("exCmpSame"), r.cmp.ennallaan);
     } catch (e) {
       console.warn("poikkeusvertailu epäonnistui", e);
@@ -15337,7 +15420,12 @@ function exCmpInit() {
     }
   };
   inp.addEventListener("change", run);
-  run();
+  // Oletuspäivä: kaupungin muutosvahdin voimaantulopäivä, jos se on tulevaisuudessa (muuten huominen kuten HTML:ssä).
+  fetch("docs/muutosvahti/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null).then(ix => {
+    const v = ix?.kaupungit?.[cityKey]?.voimaan;
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && v > todayISO()) inp.value = v;
+    if (document.body.contains(inp)) run();
+  });
 }
 
 function viewExceptions() {

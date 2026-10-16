@@ -3377,6 +3377,20 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (vp.eiAja.join() === "A" && vp.ennallaan.join() === "B" && vp.muuttuu.join() === "C" && vp.vainUusi.join() === "D")
     ? ok("vertaaPaivat: eiAja, ennallaan, muuttuu ja vainUusi luokittuvat oikein")
     : fail(`vertaaPaivat: ${JSON.stringify(vp)}`);
+  // Linjan muutosseloste: a = valittu päivä, b = vertailupäivä (sekunteja). Suunta "0": 7.36 -> 7.34 siirtyy, 6.02 ja
+  // 7.20 uusia (7.20 on yli 10 min päässä poistuvasta 7.36:sta, ei paria), 22.10 poistuu, 8.00:n välipysäkkiaika muuttuu.
+  const le = await page.evaluate(() => linjanEro(
+    { "0": [[27240, 27300], [21720, 21780], [28800, 28900], [32400, 32500], [43200, 43300], [26400, 26500]] },
+    { "0": [[27360, 27400], [28800, 28850], [32400, 32500], [79800, 79900], [43200, 43300]] }));
+  const l0 = le["0"] || {};
+  (l0.siirtyy?.length === 1 && l0.siirtyy[0][0] === 27360 && l0.siirtyy[0][1] === 27240 &&
+    l0.uusi?.join() === "21720,26400" && l0.poistuu?.join() === "79800" && l0.valiajat?.join() === "28800")
+    ? ok("linjanEro: poistuu, uusi, siirtyy ja valiajat luokittuvat oikein")
+    : fail(`linjanEro: ${JSON.stringify(le)}`);
+  const le2 = await page.evaluate(() => linjanEro({ "0": [[1000, 1100]] }, { "0": [[2000, 2100]] })["0"]);
+  (le2.siirtyy.length === 0 && le2.uusi.length === 1 && le2.poistuu.length === 1)
+    ? ok("linjanEro: yli 10 min erolla olevia ei pariteta")
+    : fail(`linjanEro: parituksen raja ${JSON.stringify(le2)}`);
   const cmpEl = await page.evaluate(() => ({
     osio: !!document.querySelector("#exCmp #exCmpDay"),
     tulos: !!document.querySelector("#exCmpOut"),
