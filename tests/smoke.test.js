@@ -3391,6 +3391,18 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (le2.siirtyy.length === 0 && le2.uusi.length === 1 && le2.poistuu.length === 1)
     ? ok("linjanEro: yli 10 min erolla olevia ei pariteta")
     : fail(`linjanEro: parituksen raja ${JSON.stringify(le2)}`);
+  // Tasainen siirto: 6.00, 7.00 ja 8.00 -> +2 min tiivistyy yhdeksi riviksi ("kaikki"; 9.00 ennallaan -> "osa"),
+  // eri suuruiset siirrot (+2, +3, +2) jäävät omiksi riveikseen.
+  const lr = await page.evaluate(() => {
+    const rivit = (a, b) => linjanEroRivit(linjanEro({ "0": a }, { "0": b })["0"], 8).rows;
+    const kaikki = rivit([[21720], [25320], [28920]], [[21600], [25200], [28800]]);
+    const osa = rivit([[21720], [25320], [28920], [32400]], [[21600], [25200], [28800], [32400]]);
+    const sekalainen = rivit([[21720], [25380], [28920]], [[21600], [25200], [28800]]);
+    return { kaikki: kaikki.map(r => `${r.kind}:${r.n}:${r.min}`), osa: osa.map(r => `${r.kind}:${r.n}`), sekalainen: sekalainen.length };
+  });
+  (lr.kaikki.join() === "kaikkiMyoh:3:2" && lr.osa.join() === "osaMyoh:3" && lr.sekalainen === 3)
+    ? ok("linjanEroRivit: tasainen siirto tiivistyy yhdeksi riviksi, eri suuruiset siirrot erikseen")
+    : fail(`linjanEroRivit: ${JSON.stringify(lr)}`);
   const cmpEl = await page.evaluate(() => ({
     osio: !!document.querySelector("#exCmp #exCmpDay"),
     tulos: !!document.querySelector("#exCmpOut"),
