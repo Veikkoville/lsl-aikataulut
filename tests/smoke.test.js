@@ -3403,6 +3403,21 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (lr.kaikki.join() === "kaikkiMyoh:3:2" && lr.osa.join() === "osaMyoh:3" && lr.sekalainen === 3)
     ? ok("linjanEroRivit: tasainen siirto tiivistyy yhdeksi riviksi, eri suuruiset siirrot erikseen")
     : fail(`linjanEroRivit: ${JSON.stringify(lr)}`);
+  // Reittimuutos: pysäkki X poistuu ja Z tulee (samat ajat), sama pysäkkijoukko -> tyhjät kentät.
+  const rm = await page.evaluate(() => {
+    const st = (...ids) => ids.map(i => ({ id: i, name: "Pysäkki " + i, code: "" }));
+    const t = [[100, 200]];
+    const muutos = linjanEro({ "0": t }, { "0": t }, { "0": st("A", "Z") }, { "0": st("A", "X") })["0"];
+    const sama = linjanEro({ "0": t }, { "0": t }, { "0": st("A", "X") }, { "0": st("A", "X") })["0"];
+    return {
+      pois: muutos.pysakitPois.map(s => s.id).join(), uudet: muutos.pysakitUudet.map(s => s.id).join(),
+      muutosRivi: !!reittiMuutosRivi(muutos, 6), samaPois: sama.pysakitPois.length, samaUudet: sama.pysakitUudet.length,
+      samaRivi: reittiMuutosRivi(sama, 6), ajatSamat: muutos.siirtyy.length + muutos.uusi.length + muutos.poistuu.length + muutos.valiajat.length,
+    };
+  });
+  (rm.pois === "X" && rm.uudet === "Z" && rm.muutosRivi && rm.samaPois === 0 && rm.samaUudet === 0 && rm.samaRivi === null && rm.ajatSamat === 0)
+    ? ok("linjanEro: reittimuutos (pysakitPois, pysakitUudet) samoilla ajoilla, sama pysäkkijoukko jättää kentät tyhjiksi")
+    : fail(`linjanEro: reittimuutos ${JSON.stringify(rm)}`);
   const cmpEl = await page.evaluate(() => ({
     osio: !!document.querySelector("#exCmp #exCmpDay"),
     tulos: !!document.querySelector("#exCmpOut"),

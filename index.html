@@ -5370,7 +5370,10 @@ const STRINGS = {
     exCmpVs: "Vertailupäivä: {date}",
     exCmpNone: "Ei linjoja tässä ryhmässä.",
     exCmpGone: "Ei aja valittuna päivänä",
-    exCmpChanged: "Aikataulu muuttuu",
+    exCmpChanged: "Aikataulu tai reitti muuttuu",
+    exCmpRoute: "Reitti muuttuu",
+    exCmpRouteOff: "ei enää pysäkeillä {stops}",
+    exCmpRouteNew: "uutena {stops}",
     exCmpSame: "Ennallaan",
     exCmpNew: "Ajaa vain valittuna päivänä",
     exCmpLoading: "Lasketaan aikataulutiedosta...",
@@ -6297,7 +6300,10 @@ const STRINGS = {
     exCmpVs: "Compared with: {date}",
     exCmpNone: "No lines in this group.",
     exCmpGone: "Not running on the chosen day",
-    exCmpChanged: "Timetable changes",
+    exCmpChanged: "Timetable or route changes",
+    exCmpRoute: "Route changes",
+    exCmpRouteOff: "no longer serves {stops}",
+    exCmpRouteNew: "new stops {stops}",
     exCmpSame: "Unchanged",
     exCmpNew: "Runs only on the chosen day",
     exCmpLoading: "Calculating from timetable data...",
@@ -7198,7 +7204,10 @@ const STRINGS = {
     exCmpVs: "Jämförelsedag: {date}",
     exCmpNone: "Inga linjer i den här gruppen.",
     exCmpGone: "Går inte vald dag",
-    exCmpChanged: "Tidtabellen ändras",
+    exCmpChanged: "Tidtabellen eller rutten ändras",
+    exCmpRoute: "Rutten ändras",
+    exCmpRouteOff: "trafikerar inte längre {stops}",
+    exCmpRouteNew: "nya hållplatser {stops}",
     exCmpSame: "Oförändrad",
     exCmpNew: "Går bara vald dag",
     exCmpLoading: "Beräknar ur tidtabellsdata...",
@@ -15306,7 +15315,9 @@ function vertaaPaivat(a, b) {
 // a on valittu päivä, b vertailupäivä. Vuoron tunnus on sen ensimmäinen lähtöaika: vain b:ssä = poistuu, vain a:ssa = uusi;
 // poistuva ja uusi samassa suunnassa enintään 10 min erolla (lähin pari ensin) = siirtyy; sama ensimmäinen aika mutta eri
 // sarja = valiajat (välipysäkkien ajat muuttuvat). Palauttaa suunta -> { poistuu, uusi, siirtyy: [[b-aika, a-aika]], valiajat }.
-function linjanEro(a, b) {
+// Valinnaiset sa ja sb: suunta -> pysäkit ({ id, name, code }) niistä pattereista, joilla on vuoroja valittuna päivänä (sa) ja
+// vertailupäivänä (sb). Tuloksen pysakitPois on pysäkit vain b:ssä ja pysakitUudet vain a:ssa (tunnuksen mukaan).
+function linjanEro(a, b, sa, sb) {
   const byFirst = trips => {
     const m = new Map();
     for (const tr of trips || []) {
@@ -15334,9 +15345,24 @@ function linjanEro(a, b) {
       usedP.add(p); usedU.add(u); siirtyy.push([p, u]);
     }
     siirtyy.sort((x, y) => x[1] - y[1]);
-    out[dir] = { poistuu: poistuu.filter(x => !usedP.has(x)), uusi: uusi.filter(x => !usedU.has(x)), siirtyy, valiajat, yht: ma.size };
+    const stA = new Map(((sa && sa[dir]) || []).map(s => [s.id, s])), stB = new Map(((sb && sb[dir]) || []).map(s => [s.id, s]));
+    const pysakitPois = stA.size && stB.size ? [...stB].filter(([id]) => !stA.has(id)).map(([, s]) => s) : [];
+    const pysakitUudet = stA.size && stB.size ? [...stA].filter(([id]) => !stB.has(id)).map(([, s]) => s) : [];
+    out[dir] = { poistuu: poistuu.filter(x => !usedP.has(x)), uusi: uusi.filter(x => !usedU.has(x)), siirtyy, valiajat, yht: ma.size, pysakitPois, pysakitUudet };
   }
   return out;
+}
+// Reittimuutoksen rivi suunnalle ("ei enää pysäkeillä X, Y; uutena Z"), enintään max pysäkkiä; null jos pysäkkijoukko ei muutu.
+function reittiMuutosRivi(e, max) {
+  const nm = s => esc(s.name + (s.code ? " " + s.code : ""));
+  const lst = list => {
+    const sh = list.slice(0, max).map(nm).join(", ");
+    return list.length > max ? sh + " " + t("exCmpMore", { n: list.length - max }) : sh;
+  };
+  const osat = [];
+  if (e.pysakitPois && e.pysakitPois.length) osat.push(t("exCmpRouteOff", { stops: lst(e.pysakitPois) }));
+  if (e.pysakitUudet && e.pysakitUudet.length) osat.push(t("exCmpRouteNew", { stops: lst(e.pysakitUudet) }));
+  return osat.length ? t("exCmpRoute") + ": " + osat.join("; ") : null;
 }
 // Muutosselosteen rivit yhdelle suunnalle ajan mukaan, enintään max riviä; loput kerrotaan määränä. Jos vähintään kolme
 // vuoroa siirtyy täsmälleen saman verran (täysiä minuutteja), siirrot tiivistyvät yhdeksi riviksi: "kaikki", kun suunnan
@@ -15365,12 +15391,12 @@ async function exCmpLoad(iso) {
   const prev = isoOf(d);
   const feed = await findFeed();
   const trips = (n, day) => `${n}: tripsForDate(serviceDate: "${day.replace(/-/g, "")}") { stoptimes { scheduledDeparture } }`;
-  const pat = `patterns { directionId headsign ${trips("a", iso)} ${trips("b", prev)} }`;
+  const pat = `patterns { directionId headsign stops { gtfsId code name } ${trips("a", iso)} ${trips("b", prev)} }`;
   const data = CONFIG.areaScoped
     ? await gql(`query ($ids: [String]) { routes(ids: $ids) { gtfsId shortName mode ${pat} } }`, { ids: await areaRouteIds(feed) })
     : await gql(`query ($feeds: [String]) { routes(feeds: $feeds) { gtfsId shortName mode ${pat} } }`, { feeds: [feed] });
   const modes = CONFIG.modes || ["BUS"];
-  const a = {}, b = {}, ids = {}, det = { a: {}, b: {} }, heads = {};
+  const a = {}, b = {}, ids = {}, det = { a: {}, b: {} }, heads = {}, stp = { a: {}, b: {} };
   for (const r of data.routes || []) {
     if (!modes.includes(r.mode) || !r.shortName) continue;
     ids[r.shortName] = ids[r.shortName] || r.gtfsId;
@@ -15378,6 +15404,11 @@ async function exCmpLoad(iso) {
       const dir = (p.directionId ?? "") + "|" + (p.headsign || "");
       heads[r.shortName + "#" + dir] = p.headsign || "";
       for (const [dst, key] of [[a, "a"], [b, "b"]]) {
+        if ((p[key] || []).length) {
+          const sl = (stp[key][r.shortName] = stp[key][r.shortName] || {});
+          const m = (sl[dir] = sl[dir] || new Map());
+          for (const s of p.stops || []) if (s && s.gtfsId && !m.has(s.gtfsId)) m.set(s.gtfsId, { id: s.gtfsId, name: s.name || "", code: s.code || "" });
+        }
         for (const tr of p[key] || []) {
           const secs = (tr.stoptimes || []).map(x => x.scheduledDeparture);
           (dst[r.shortName] = dst[r.shortName] || []).push(secs.join(","));
@@ -15389,9 +15420,19 @@ async function exCmpLoad(iso) {
   }
   const cmp = vertaaPaivat(a, b);
   const ero = {};
-  for (const k of cmp.muuttuu) {
-    ero[k] = Object.entries(linjanEro(det.a[k], det.b[k])).map(([dir, e]) => ({ head: heads[k + "#" + dir] || "", e }));
+  const stops = (key, k) => Object.fromEntries(Object.entries(stp[key][k] || {}).map(([dir, m]) => [dir, [...m.values()]]));
+  const laske = k => Object.entries(linjanEro(det.a[k], det.b[k], stops("a", k), stops("b", k))).map(([dir, e]) => ({ head: heads[k + "#" + dir] || "", e }));
+  for (const k of cmp.muuttuu) ero[k] = laske(k);
+  // Linja, jonka vuorosarjat ovat samat mutta pysäkkijoukko muuttuu, kuuluu muuttuviin.
+  for (const k of [...cmp.ennallaan]) {
+    const e = laske(k);
+    if (e.some(x => x.e.pysakitPois.length || x.e.pysakitUudet.length)) {
+      ero[k] = e;
+      cmp.ennallaan.splice(cmp.ennallaan.indexOf(k), 1);
+      cmp.muuttuu.push(k);
+    }
   }
+  cmp.muuttuu.sort((x, y) => x.localeCompare(y, "fi", { numeric: true }));
   const res = { prev, ids, cmp, ero };
   exCmpCache.set(iso, res);
   return res;
@@ -15420,8 +15461,9 @@ function exCmpInit() {
       const detail = k => {
         const dirs = (r.ero[k] || []).map(({ head, e }) => {
           const { rows, more } = linjanEroRivit(e, 8);
-          if (!rows.length) return "";
-          return `<p class="muted">${esc(head)}</p><ul data-ex-dir>${rows.map(x =>
+          const route = reittiMuutosRivi(e, 6);
+          if (!rows.length && !route) return "";
+          return `<p class="muted">${esc(head)}</p><ul data-ex-dir>${route ? `<li data-ex-kind="reitti">${route}</li>` : ""}${rows.map(x =>
             `<li data-ex-kind="${x.kind}">${t("exCmpRow_" + x.kind, { time: x.text, n: x.n, min: x.min })}</li>`).join("")}${more ? `<li class="muted">${t("exCmpMore", { n: more })}</li>` : ""}</ul>`;
         }).join("");
         return `<details class="ex-det" data-ex-line="${esc(k)}"><summary>${esc(k)}</summary><p>${lineLink(k)}</p>${dirs}</details>`;
