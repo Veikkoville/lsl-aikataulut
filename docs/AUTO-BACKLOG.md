@@ -392,7 +392,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Mittari: smoke-tarkistus (linjanEro: poistuu, uusi, siirtyy ja valiajat kiinteällä aineistolla) vihreä CI:ssä;
       tuotannossa Lahden päivävertailu avautuu muutosvahdin voimaantulopäivään ja näyttää muuttuvan linjan eroluettelon
       (käsin) · tarkistus 2026-11-03 (pisteet ja mittari: CoS 15.10.) (PR, 2026-10-16)
-- [ ] index.html: reittimuutokset linjan muutosselosteeseen (edellyttää edellistä riviä). Laajenna `exCmpLoad`in
+- [x] index.html: reittimuutokset linjan muutosselosteeseen (edellyttää edellistä riviä). Laajenna `exCmpLoad`in
       patternit kentällä `stops { gtfsId code name }`. Suunnittain pysäkkijoukko a = niiden patternien pysäkit, joilla on
       vuoroja valittuna päivänä, b = vertailupäivänä. Lisää `linjanEro`n tulokseen kentät `pysakitPois` ja `pysakitUudet`
       (nimi ja koodi) ja eroluetteloon rivi "Reitti muuttuu: ei enää pysäkeillä X, Y; uutena Z" (fi/sv/en, enintään 6
@@ -403,7 +403,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       (ylläpitäjän ehdotus 2026-10, lähde: kausivaihdot)
       Pisteet: arvo 2/3 · kiire 3/3 · työ M · myynti 1/3 · uutuus 2/2 = 9
       Mittari: smoke-tarkistus (pysakitPois ja pysakitUudet kiinteällä aineistolla, reittimuutos luokittuu muuttuvaksi)
-      vihreä CI:ssä · tarkistus 2026-12-10 (pisteet ja mittari: CoS 15.10.)
+      vihreä CI:ssä · tarkistus 2026-12-10 (pisteet ja mittari: CoS 15.10.) (PR, 2026-10-17)
 
 ## Tehdyt
 
