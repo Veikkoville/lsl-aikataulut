@@ -1,6 +1,6 @@
 // Cloudflare Worker: välittää GraphQL- ja geokoodauspyynnöt Digitransitiin ja
 // lisää API-avaimen palvelinpäässä, jotta sivun käyttäjät eivät tarvitse omaa avainta.
-// Lisäksi: taustapush-ilmoitukset suosikkilinjojen häiriöistä (KV + cron + VAPID).
+// Lisäksi: taustapush-ilmoitukset suosikkilinjojen häiriöistä (D1 + cron + VAPID).
 // Avain asetetaan salaisuutena: npx wrangler secret put DIGITRANSIT_KEY
 
 import { sendPush } from "./webpush.js";
@@ -378,7 +378,62 @@ async function handleCmsAlerts(url, origin) {
   return new Response(JSON.stringify({ items }), { status: 200, headers });
 }
 
-/* ---------- Palaute / vikailmoitus (KV) ---------- */
+/* ---------- Henkilötietojen tallennus EU:ssa (D1, 18.10.2026) ----------
+   Henkilötieto (push- ja sähköpostitilaukset, lähtömuistutukset, palaute sekä uusintapainatusvahdin
+   tietue ilmoitusosoitteineen) on D1-kannassa, joka on luotu EU-jurisdiktioon. KV on maailmanlaajuinen
+   eikä sitä voi rajata EU:hun, joten sinne jää vain ylläpidon sisältö, nähdyt häiriöt ja avaintiivisteet.
+   personalKv tarjoaa saman rajapinnan kuin KV (get, put + expirationTtl, delete, list prefixillä), joten
+   käsittelijöiden logiikka ei muuttunut. Vanhentunut rivi ei näy hauissa, ja 5 min cron poistaa sen. */
+
+export const PERSONAL_LIST_LIMIT = 1000;
+
+export function personalKv(db) {
+  const now = () => Math.floor(Date.now() / 1000);
+  return {
+    async get(key) {
+      const row = await db.prepare("SELECT value FROM kv WHERE key = ?1 AND (expires_at IS NULL OR expires_at > ?2)")
+        .bind(key, now()).first();
+      return row ? row.value : null;
+    },
+    async put(key, value, opts) {
+      const ttl = Number(opts && opts.expirationTtl);
+      const exp = ttl > 0 ? now() + Math.floor(ttl) : null;
+      await db.prepare("INSERT INTO kv (key, value, expires_at) VALUES (?1, ?2, ?3) " +
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at")
+        .bind(key, String(value), exp).run();
+    },
+    async delete(key) {
+      await db.prepare("DELETE FROM kv WHERE key = ?1").bind(key).run();
+    },
+    // Kursori on edellisen sivun viimeinen avain (KV:ssä läpinäkymätön merkkijono, käyttö on sama).
+    async list({ prefix = "", cursor } = {}) {
+      const { results } = await db.prepare(
+        "SELECT key FROM kv WHERE substr(key, 1, ?2) = ?1 AND key > ?3 " +
+        "AND (expires_at IS NULL OR expires_at > ?4) ORDER BY key LIMIT ?5")
+        .bind(prefix, prefix.length, cursor || "", now(), PERSONAL_LIST_LIMIT).all();
+      const keys = (results || []).map(r => ({ name: r.key }));
+      const done = keys.length < PERSONAL_LIST_LIMIT;
+      return { keys, list_complete: done, cursor: done ? undefined : keys[keys.length - 1].name };
+    },
+  };
+}
+
+// Poistaa vanhentuneet rivit, kuten KV tekee itse. Ajetaan 5 min cronista.
+export async function purgeExpiredPersonal(env) {
+  if (!env.PERSONAL_DB) return;
+  await env.PERSONAL_DB.prepare("DELETE FROM kv WHERE expires_at IS NOT NULL AND expires_at <= ?1")
+    .bind(Math.floor(Date.now() / 1000)).run();
+}
+
+// Lisää enviin PERSONAL_KV:n D1-sidonnasta. Testit antavat PERSONAL_KV:n suoraan. Ilman sidontaa
+// henkilötietoa käsittelevät reitit vastaavat 503: tietoa ei kirjoiteta varalla KV:hen, koska se ei
+// pysyisi EU:ssa.
+export function withPersonalStore(env) {
+  if (!env || env.PERSONAL_KV || !env.PERSONAL_DB) return env;
+  return { ...env, PERSONAL_KV: personalKv(env.PERSONAL_DB) };
+}
+
+/* ---------- Palaute / vikailmoitus (D1, EU) ---------- */
 
 // Kokoaa ja validoi palautemerkinnän. Erotettu omaksi funktioksi yksikkötestiä
 // varten. Palauttaa { rec } tai { error }.
@@ -403,14 +458,14 @@ export function buildFeedbackRecord(body, ua, nowMs) {
 async function handleFeedback(request, env, origin) {
   const gate = await writeGate(request, env, origin, "feedback");
   if (gate) return gate;
-  if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
+  if (!env.PERSONAL_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
   const { body, tooLarge: big } = await readJsonLimited(request, WRITE_LIMITS.feedback.body);
   if (big) return tooLarge(origin);
   const { rec, error } = buildFeedbackRecord(body, request.headers.get("User-Agent"), Date.now());
   if (error) return jsonResponse({ error }, 400, origin);
   const id = rec.ts + "-" + crypto.randomUUID().slice(0, 8);
-  // säilytetään 90 vrk, jonka jälkeen KV siivoaa automaattisesti
-  await env.PUSH_KV.put("fb:" + id, JSON.stringify(rec), { expirationTtl: 90 * 24 * 3600 });
+  // säilytetään 90 vrk, jonka jälkeen 5 min cron poistaa rivin (purgeExpiredPersonal)
+  await env.PERSONAL_KV.put("fb:" + id, JSON.stringify(rec), { expirationTtl: 90 * 24 * 3600 });
   return jsonResponse({ ok: true, id }, 200, origin);
 }
 
@@ -418,7 +473,7 @@ async function handleFeedback(request, env, origin) {
 async function handleFeedbackList(request, url, env, origin) {
   const bearer = /^Bearer\s+(.+)$/i.exec(request.headers.get("Authorization") || "");
   const key = bearer ? bearer[1].trim() : url.searchParams.get("key") || "";
-  if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
+  if (!env.PERSONAL_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
   // Vakioaikainen vertailu kuten admin-kirjautumisessa: tavallinen !== vuotaa avaimen
   // pituuden ja alkuosan ajoituksena. Suositeltu tapa on Authorization: Bearer -otsake.
   // HUOM: query-parametri `key` toimii yhä vanhoille kutsujille, mutta se päätyy
@@ -428,9 +483,9 @@ async function handleFeedbackList(request, url, env, origin) {
   const out = [];
   let cursor;
   do {
-    const list = await env.PUSH_KV.list({ prefix: "fb:", cursor });
+    const list = await env.PERSONAL_KV.list({ prefix: "fb:", cursor });
     for (const k of list.keys) {
-      const v = await env.PUSH_KV.get(k.name);
+      const v = await env.PERSONAL_KV.get(k.name);
       if (v) { try { out.push(JSON.parse(v)); } catch (e) { /* ohita */ } }
     }
     cursor = list.list_complete ? null : list.cursor;
@@ -1251,7 +1306,7 @@ async function handleAdminStats(request, env, url) {
   }, 200);
 }
 
-/* ---------- Push: tilausten hallinta (KV) ---------- */
+/* ---------- Push: tilausten hallinta (D1, EU) ---------- */
 
 // Push-kohteen (PushSubscription.toJSON) siivous: vain https-endpoint ja base64url-avaimet, pituusrajat.
 // Tallennetaan vain sendPushin tarvitsemat kentät. Palauttaa { endpoint, keys } tai null.
@@ -1295,7 +1350,7 @@ const pushSubSig = o => JSON.stringify([o.endpoint, o.keys && o.keys.p256dh, o.k
 async function handleSubscribe(request, env, origin) {
   const gate = await writeGate(request, env, origin, "push");
   if (gate) return gate;
-  if (!env.PUSH_KV) return jsonResponse({ error: "push_unconfigured" }, 503, origin);
+  if (!env.PERSONAL_KV) return jsonResponse({ error: "push_unconfigured" }, 503, origin);
   const { body, tooLarge: big } = await readJsonLimited(request, WRITE_LIMITS.push.body);
   if (big) return tooLarge(origin);
   const { rec, error } = buildPushSubscription(body, Date.now());
@@ -1303,9 +1358,9 @@ async function handleSubscribe(request, env, origin) {
   const key = "sub:" + await sha256hex(rec.endpoint);
   // Sovellus synkronoi tilauksen jokaisella avauksella: muuttumaton tilaus = 0 KV-kirjoitusta (R-01).
   let prev = null;
-  try { const raw = await env.PUSH_KV.get(key); prev = raw ? JSON.parse(raw) : null; } catch (e) { prev = null; }
+  try { const raw = await env.PERSONAL_KV.get(key); prev = raw ? JSON.parse(raw) : null; } catch (e) { prev = null; }
   if (prev && pushSubSig(prev) === pushSubSig(rec)) return jsonResponse({ ok: true, unchanged: true }, 200, origin);
-  await env.PUSH_KV.put(key, JSON.stringify(rec));
+  await env.PERSONAL_KV.put(key, JSON.stringify(rec));
   return jsonResponse({ ok: true }, 200, origin);
 }
 
@@ -1316,10 +1371,10 @@ async function handleUnsubscribe(request, env, origin) {
   if (big) return tooLarge(origin);
   const endpoint = body && typeof body.endpoint === "string" ? body.endpoint : "";
   if (!endpoint || endpoint.length > PUSH_ENDPOINT_MAX) return jsonResponse({ error: "bad_request" }, 400, origin);
-  if (env.PUSH_KV) {
+  if (env.PERSONAL_KV) {
     // Poisto vain jos tilaus on olemassa: tuntematon endpoint maksaa lukuoperaation, ei poisto-operaatiota.
     const key = "sub:" + await sha256hex(endpoint);
-    if ((await env.PUSH_KV.get(key)) !== null) await env.PUSH_KV.delete(key);
+    if ((await env.PERSONAL_KV.get(key)) !== null) await env.PERSONAL_KV.delete(key);
   }
   return jsonResponse({ ok: true }, 200, origin);
 }
@@ -1329,7 +1384,7 @@ async function handleUnsubscribe(request, env, origin) {
 // get-kutsulla EIKÄ kalliilla list-operaatiolla — KV:n ilmaiskiintiö on vain
 // 1000 list-operaatiota/vrk, ja minuutticron yksin söi sen (1440/vrk).
 async function readPending(env) {
-  const raw = await env.PUSH_KV.get("rem:pending");
+  const raw = await env.PERSONAL_KV.get("rem:pending");
   if (!raw) return {};
   try { const o = JSON.parse(raw); return o && typeof o === "object" ? o : {}; }
   catch (e) { return {}; }
@@ -1337,12 +1392,12 @@ async function readPending(env) {
 
 async function writePending(env, pending) {
   const ids = Object.keys(pending);
-  if (!ids.length) { await env.PUSH_KV.delete("rem:pending"); return; }
+  if (!ids.length) { await env.PERSONAL_KV.delete("rem:pending"); return; }
   // TTL-varmuus: säilytä kunnes myöhäisin muistutus + 2 h on ohi, vaikka cron jäisi väliin.
   let maxFire = 0;
   for (const id of ids) maxFire = Math.max(maxFire, Number(pending[id].fireAt) || 0);
   const ttl = Math.max(60, Math.floor(maxFire + 7200 - Date.now() / 1000));
-  await env.PUSH_KV.put("rem:pending", JSON.stringify(pending), { expirationTtl: ttl });
+  await env.PERSONAL_KV.put("rem:pending", JSON.stringify(pending), { expirationTtl: ttl });
 }
 
 // Lähtömuistutuksen rajat (R-01): sovellus ajastaa muistutuksen tämän päivän seuraavalle lähdölle
@@ -1375,7 +1430,7 @@ export function buildReminder(body, nowSec) {
 async function handleReminder(request, env, origin) {
   const gate = await writeGate(request, env, origin, "reminder");
   if (gate) return gate;
-  if (!env.PUSH_KV) return jsonResponse({ error: "push_unconfigured" }, 503, origin);
+  if (!env.PERSONAL_KV) return jsonResponse({ error: "push_unconfigured" }, 503, origin);
   const { body, tooLarge: big } = await readJsonLimited(request, WRITE_LIMITS.reminder.body);
   if (big) return tooLarge(origin);
   const { rec, error } = buildReminder(body, Date.now() / 1000);
@@ -1397,7 +1452,7 @@ async function handleReminder(request, env, origin) {
 // Ajetaan minuutin cronista: lähetä erääntyneet muistutukset, poista lähetetyt.
 // Lukee odottavat muistutukset yhdellä get-kutsulla (ei list-operaatiota).
 export async function runReminderCheck(env, nowMs) {
-  if (!env.PUSH_KV || !env.VAPID_PRIVATE_JWK) return;
+  if (!env.PERSONAL_KV || !env.VAPID_PRIVATE_JWK) return;
   const now = (nowMs ?? Date.now()) / 1000;
   const pending = await readPending(env);
   const ids = Object.keys(pending);
@@ -1556,9 +1611,9 @@ async function loadSubscriptions(env) {
   const subs = [];
   let cursor;
   do {
-    const list = await env.PUSH_KV.list({ prefix: "sub:", cursor });
+    const list = await env.PERSONAL_KV.list({ prefix: "sub:", cursor });
     for (const k of list.keys) {
-      const v = await env.PUSH_KV.get(k.name);
+      const v = await env.PERSONAL_KV.get(k.name);
       if (v) { try { subs.push({ kvKey: k.name, ...JSON.parse(v) }); } catch (e) { /* ohita */ } }
     }
     cursor = list.list_complete ? null : list.cursor;
@@ -1571,7 +1626,7 @@ async function loadSubscriptions(env) {
 export async function runPushCheck(env) {
   // Alert-haku vaatii DIGITRANSIT_KEYn; web-push vaatii lisäksi VAPIDin, mutta
   // sähköpostikanava toimii myös ilman VAPIDia (vain RESEND_API_KEY + EMAIL_FROM).
-  if (!env.PUSH_KV || !env.DIGITRANSIT_KEY) return;
+  if (!env.PUSH_KV || !env.PERSONAL_KV || !env.DIGITRANSIT_KEY) return;
   const pushReady = !!env.VAPID_PRIVATE_JWK;
   const subs = pushReady ? await loadSubscriptions(env) : [];
 
@@ -1579,7 +1634,7 @@ export async function runPushCheck(env) {
   // (KV:n ilmaisraja 1000 list/vrk säilyy). Kertoo mitkä feedit tarkistetaan, vaikka
   // ko. feedillä ei olisi yhtään web-push-tilaajaa.
   let reg = {};
-  try { reg = JSON.parse((await env.PUSH_KV.get(EMAIL_REG_KEY)) || "{}"); } catch (e) { /* tyhjä */ }
+  try { reg = JSON.parse((await env.PERSONAL_KV.get(EMAIL_REG_KEY)) || "{}"); } catch (e) { /* tyhjä */ }
   // R-08: tunnetun kaupungin feed johdetaan CITY_FEEDSistä eikä rekisterin arvosta, jonka tilaaja
   // saattoi ennen 3.10.2026 vaihtaa. Vanha kaupunkiavain (esim. ennen ääkkösten purkua tallennettu)
   // kelpaa vain jos sen feed on jonkin tunnetun kaupungin feed. Feed -> kaupungit (voi olla useita).
@@ -1629,7 +1684,7 @@ export async function runPushCheck(env) {
           if (!alertAffects(a, sub)) continue;
           try {
             const status = await sendPush(sub, payload, env);
-            if (status === 404 || status === 410) await env.PUSH_KV.delete(sub.kvKey);
+            if (status === 404 || status === 410) await env.PERSONAL_KV.delete(sub.kvKey);
           } catch (e) { /* jatka muihin tilaajiin */ }
         }
       }
@@ -1691,7 +1746,7 @@ async function freshAlerts(env, seenKeyName, alerts) {
   return firstRun ? [] : fresh;
 }
 
-/* ---------- Sähköpostipohjainen häiriötilaus (KV + Resend) ---------- */
+/* ---------- Sähköpostipohjainen häiriötilaus (D1, EU + Resend) ---------- */
 // Rinnakkainen kanava web-pushille: ydinkäyttäjä (ikäihminen) ei lataa appia
 // eikä saa web-pushia. GDPR: double opt-in (vahvistuslinkki ennen aktivointia) +
 // peruutuslinkki joka viestissä. Lähetys integroitu runPushCheck-croniin.
@@ -1730,7 +1785,7 @@ export function confirmMailDecision(logs, hash, nowMs) {
 }
 
 async function readSentLog(env, day) {
-  try { const o = JSON.parse((await env.PUSH_KV.get(EMAIL_SENT_KEY(day))) || "null"); return o && typeof o === "object" ? o : null; }
+  try { const o = JSON.parse((await env.PERSONAL_KV.get(EMAIL_SENT_KEY(day))) || "null"); return o && typeof o === "object" ? o : null; }
   catch (e) { return null; }
 }
 
@@ -1814,29 +1869,29 @@ export function buildAlertEmail(alert, entry, serviceUrl, unsubUrl) {
 async function emailIndexAdd(env, rec, hash) {
   const idxKey = EMAIL_IDX_KEY(rec.city);
   let idx = {};
-  try { idx = JSON.parse((await env.PUSH_KV.get(idxKey)) || "{}"); } catch (e) { /* tyhjä */ }
+  try { idx = JSON.parse((await env.PERSONAL_KV.get(idxKey)) || "{}"); } catch (e) { /* tyhjä */ }
   idx[hash] = { email: rec.email, lines: rec.lines || [], gtfsRoutes: rec.gtfsRoutes || [], token: rec.token };
-  await env.PUSH_KV.put(idxKey, JSON.stringify(idx));
+  await env.PERSONAL_KV.put(idxKey, JSON.stringify(idx));
   let reg = {};
-  try { reg = JSON.parse((await env.PUSH_KV.get(EMAIL_REG_KEY)) || "{}"); } catch (e) { /* tyhjä */ }
+  try { reg = JSON.parse((await env.PERSONAL_KV.get(EMAIL_REG_KEY)) || "{}"); } catch (e) { /* tyhjä */ }
   // R-08: tunnetun kaupungin feed aina CITY_FEEDSistä, myös ennen korjausta tallennetulle tietueelle.
   const feed = (resolveCity(rec.city) === rec.city && CITY_FEEDS[rec.city]) || rec.feed || "";
-  if (reg[rec.city] !== feed) { reg[rec.city] = feed; await env.PUSH_KV.put(EMAIL_REG_KEY, JSON.stringify(reg)); }
+  if (reg[rec.city] !== feed) { reg[rec.city] = feed; await env.PERSONAL_KV.put(EMAIL_REG_KEY, JSON.stringify(reg)); }
 }
 
 async function emailIndexRemove(env, city, hash) {
   const idxKey = EMAIL_IDX_KEY(city);
   let idx = {};
-  try { idx = JSON.parse((await env.PUSH_KV.get(idxKey)) || "{}"); } catch (e) { /* tyhjä */ }
+  try { idx = JSON.parse((await env.PERSONAL_KV.get(idxKey)) || "{}"); } catch (e) { /* tyhjä */ }
   delete idx[hash];
-  if (Object.keys(idx).length) { await env.PUSH_KV.put(idxKey, JSON.stringify(idx)); return; }
-  await env.PUSH_KV.delete(idxKey); // viimeinen tilaaja poistui → siivoa idx + rekisterimerkintä
+  if (Object.keys(idx).length) { await env.PERSONAL_KV.put(idxKey, JSON.stringify(idx)); return; }
+  await env.PERSONAL_KV.delete(idxKey); // viimeinen tilaaja poistui → siivoa idx + rekisterimerkintä
   let reg = {};
-  try { reg = JSON.parse((await env.PUSH_KV.get(EMAIL_REG_KEY)) || "{}"); } catch (e) { /* tyhjä */ }
+  try { reg = JSON.parse((await env.PERSONAL_KV.get(EMAIL_REG_KEY)) || "{}"); } catch (e) { /* tyhjä */ }
   if (city in reg) {
     delete reg[city];
-    if (Object.keys(reg).length) await env.PUSH_KV.put(EMAIL_REG_KEY, JSON.stringify(reg));
-    else await env.PUSH_KV.delete(EMAIL_REG_KEY);
+    if (Object.keys(reg).length) await env.PERSONAL_KV.put(EMAIL_REG_KEY, JSON.stringify(reg));
+    else await env.PERSONAL_KV.delete(EMAIL_REG_KEY);
   }
 }
 
@@ -1845,7 +1900,7 @@ async function emailIndexRemove(env, city, hash) {
 async function sendEmailAlertsForFeed(env, city, feed, fresh) {
   if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return;
   let idx = {};
-  try { idx = JSON.parse((await env.PUSH_KV.get(EMAIL_IDX_KEY(city))) || "{}"); } catch (e) { /* tyhjä */ }
+  try { idx = JSON.parse((await env.PERSONAL_KV.get(EMAIL_IDX_KEY(city))) || "{}"); } catch (e) { /* tyhjä */ }
   const entries = Object.entries(idx);
   if (!entries.length) return;
   const base = String(env.EMAIL_LINK_BASE || "").replace(/\/$/, "");
@@ -1864,7 +1919,7 @@ async function sendEmailAlertsForFeed(env, city, feed, fresh) {
 async function handleEmailSubscribe(request, env, origin) {
   const gate = await writeGate(request, env, origin, "email");
   if (gate) return gate;
-  if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
+  if (!env.PERSONAL_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
   const { body, tooLarge: big } = await readJsonLimited(request, WRITE_LIMITS.email.body);
   if (big) return tooLarge(origin);
   const now = Date.now();
@@ -1873,14 +1928,14 @@ async function handleEmailSubscribe(request, env, origin) {
   const hash = await sha256hex(rec.email);
   const recKey = EMAIL_REC_KEY(rec.city, hash);
   let existing = null;
-  try { const r = await env.PUSH_KV.get(recKey); existing = r ? JSON.parse(r) : null; } catch (e) { /* tyhjä */ }
+  try { const r = await env.PERSONAL_KV.get(recKey); existing = r ? JSON.parse(r) : null; } catch (e) { /* tyhjä */ }
   // Jo vahvistettu → päivitä vain linjat, ei uutta vahvistusta. Feed tulee kaupungista (R-08).
   // Muuttumaton tilaus = 0 KV-kirjoitusta.
   if (existing && existing.confirmed) {
     const upd = { ...existing, lines: rec.lines, gtfsRoutes: rec.gtfsRoutes, feed: rec.feed, lang: rec.lang };
     const sig = o => JSON.stringify([o.lines, o.gtfsRoutes, o.feed, o.lang]);
     if (sig(upd) !== sig(existing)) {
-      await env.PUSH_KV.put(recKey, JSON.stringify(upd));
+      await env.PERSONAL_KV.put(recKey, JSON.stringify(upd));
       await emailIndexAdd(env, upd, hash);
     }
     return jsonResponse({ ok: true, updated: true }, 200, origin);
@@ -1900,13 +1955,13 @@ async function handleEmailSubscribe(request, env, origin) {
   const token = (existing && existing.token) || crypto.randomUUID();
   const full = { ...rec, token };
   // Vahvistamaton tilaus ja sen linkki vanhenevat 7 vrk:ssa (vahvistus poistaa vanhenemisen).
-  await env.PUSH_KV.put(recKey, JSON.stringify(full), { expirationTtl: EMAIL_PENDING_TTL_S });
-  await env.PUSH_KV.put(EMAIL_TOK_KEY(token), rec.city + ":" + hash, { expirationTtl: EMAIL_PENDING_TTL_S });
+  await env.PERSONAL_KV.put(recKey, JSON.stringify(full), { expirationTtl: EMAIL_PENDING_TTL_S });
+  await env.PERSONAL_KV.put(EMAIL_TOK_KEY(token), rec.city + ":" + hash, { expirationTtl: EMAIL_PENDING_TTL_S });
   const today = logs[0] || { n: 0, h: {} };
   today.h = today.h && typeof today.h === "object" ? today.h : {};
   today.n = (Number(today.n) || 0) + 1;
   today.h[hash] = [...(Array.isArray(today.h[hash]) ? today.h[hash] : []), now].slice(-EMAIL_CONFIRM_PER_ADDR_DAY);
-  await env.PUSH_KV.put(EMAIL_SENT_KEY(day), JSON.stringify(today), { expirationTtl: 2 * 24 * 3600 });
+  await env.PERSONAL_KV.put(EMAIL_SENT_KEY(day), JSON.stringify(today), { expirationTtl: 2 * 24 * 3600 });
   recentConfirmMail.set(hash, now);
   if (recentConfirmMail.size > 5000) recentConfirmMail.clear();
   const linkBase = (env.EMAIL_LINK_BASE || new URL(request.url).origin).replace(/\/$/, "");
@@ -1919,12 +1974,12 @@ async function handleEmailSubscribe(request, env, origin) {
 
 async function handleEmailConfirm(url, env) {
   const token = url.searchParams.get("token") || "";
-  if (!token || !env.PUSH_KV) return emailHtmlPage("Virheellinen linkki", "Vahvistuslinkki ei kelpaa.");
-  const ptr = await env.PUSH_KV.get(EMAIL_TOK_KEY(token));
+  if (!token || !env.PERSONAL_KV) return emailHtmlPage("Virheellinen linkki", "Vahvistuslinkki ei kelpaa.");
+  const ptr = await env.PERSONAL_KV.get(EMAIL_TOK_KEY(token));
   if (!ptr) return emailHtmlPage("Linkki vanhentunut", "Tätä tilausta ei löytynyt. Voit tilata tiedotteet tarvittaessa uudelleen.");
   const sep = ptr.indexOf(":");
   const city = ptr.slice(0, sep), hash = ptr.slice(sep + 1);
-  const recRaw = await env.PUSH_KV.get(EMAIL_REC_KEY(city, hash));
+  const recRaw = await env.PERSONAL_KV.get(EMAIL_REC_KEY(city, hash));
   if (!recRaw) return emailHtmlPage("Tilausta ei löytynyt", "Voit tilata tiedotteet tarvittaessa uudelleen.");
   const rec = JSON.parse(recRaw);
   // Jo vahvistettu (linkkiä klikattu uudelleen tai sähköpostiskanneri avasi sen): ei kirjoituksia.
@@ -1933,8 +1988,8 @@ async function handleEmailConfirm(url, env) {
     rec.confirmed = true;
     rec.confirmedTs = Date.now();
     // Ilman expirationTtl:ää: vahvistettu tilaus ja peruutuslinkki eivät vanhene.
-    await env.PUSH_KV.put(EMAIL_REC_KEY(city, hash), JSON.stringify(rec));
-    await env.PUSH_KV.put(EMAIL_TOK_KEY(token), ptr);
+    await env.PERSONAL_KV.put(EMAIL_REC_KEY(city, hash), JSON.stringify(rec));
+    await env.PERSONAL_KV.put(EMAIL_TOK_KEY(token), ptr);
     await emailIndexAdd(env, rec, hash);
   }
   const lines = escHtml((rec.lines || []).join(", "));
@@ -1944,13 +1999,13 @@ async function handleEmailConfirm(url, env) {
 
 async function handleEmailUnsubscribe(url, env) {
   const token = url.searchParams.get("token") || "";
-  if (!token || !env.PUSH_KV) return emailHtmlPage("Virheellinen linkki", "Peruutuslinkki ei kelpaa.");
-  const ptr = await env.PUSH_KV.get(EMAIL_TOK_KEY(token));
+  if (!token || !env.PERSONAL_KV) return emailHtmlPage("Virheellinen linkki", "Peruutuslinkki ei kelpaa.");
+  const ptr = await env.PERSONAL_KV.get(EMAIL_TOK_KEY(token));
   if (!ptr) return emailHtmlPage("Tilaus jo peruttu", "Tilausta ei löytynyt. Et saa enää häiriötiedotteita.");
   const sep = ptr.indexOf(":");
   const city = ptr.slice(0, sep), hash = ptr.slice(sep + 1);
-  await env.PUSH_KV.delete(EMAIL_REC_KEY(city, hash));
-  await env.PUSH_KV.delete(EMAIL_TOK_KEY(token));
+  await env.PERSONAL_KV.delete(EMAIL_REC_KEY(city, hash));
+  await env.PERSONAL_KV.delete(EMAIL_TOK_KEY(token));
   await emailIndexRemove(env, city, hash);
   return emailHtmlPage("Tilaus peruttu", "Et saa enää häiriötiedotteita sähköpostiisi. Kiitos!");
 }
@@ -2092,14 +2147,14 @@ export function reprintStateAfterMark(state, ids) {
 }
 
 async function readReprintData(env, city) {
-  const raw = await env.PUSH_KV.get(REPRINT_DATA_KEY(city));
+  const raw = await env.PERSONAL_KV.get(REPRINT_DATA_KEY(city));
   if (!raw) return null;
   try { const o = JSON.parse(raw); return (o && typeof o === "object") ? o : null; }
   catch (e) { return null; }
 }
 
 async function readReprintCities(env) {
-  const raw = await env.PUSH_KV.get(REPRINT_CITIES_KEY);
+  const raw = await env.PERSONAL_KV.get(REPRINT_CITIES_KEY);
   if (!raw) return [];
   try { const a = JSON.parse(raw); return Array.isArray(a) ? a : []; } catch (e) { return []; }
 }
@@ -2108,7 +2163,7 @@ async function addReprintCity(env, city) {
   const list = await readReprintCities(env);
   if (list.includes(city)) return;
   list.push(city);
-  await env.PUSH_KV.put(REPRINT_CITIES_KEY, JSON.stringify(list.slice(0, 200)));
+  await env.PERSONAL_KV.put(REPRINT_CITIES_KEY, JSON.stringify(list.slice(0, 200)));
 }
 
 // Avaimen tarkistus. Vertailu tehdään tiivisteiden yli vakioajassa, jotta väärä avain ei
@@ -2129,7 +2184,7 @@ async function reprintKeyOk(env, city, key) {
 async function handleAdminReprintKeyGet(request, env, url) {
   const city = reprintCityName(url.searchParams.get("city") || "lahti");
   if (!(await isAdmin(request, env, city))) return adminJson({ error: "forbidden" }, 403);
-  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  if (!env.PUSH_KV || !env.PERSONAL_KV) return adminJson({ error: "unconfigured" }, 503);
   const raw = await env.PUSH_KV.get(REPRINT_KEY_KEY(city));
   let created = null;
   try { created = raw ? (JSON.parse(raw).created || null) : null; } catch (e) { created = null; }
@@ -2165,7 +2220,7 @@ async function handleAdminReprintKeyCreate(request, env) {
 async function handleReprintBaseline(request, env, origin) {
   const gate = await writeGate(request, env, origin, "reprint");
   if (gate) return gate;
-  if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
+  if (!env.PUSH_KV || !env.PERSONAL_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
   const { body, tooLarge: big } = await readJsonLimited(request, WRITE_LIMITS.reprint.body);
   if (big) return tooLarge(origin);
   const { city, units, error } = buildReprintBaseline(body);
@@ -2191,14 +2246,14 @@ async function handleReprintBaseline(request, env, origin) {
   };
   if (JSON.stringify(rec).length > REPRINT_MAX_BYTES)
     return jsonResponse({ error: "too_large" }, 413, origin);
-  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify(rec));
+  await env.PERSONAL_KV.put(REPRINT_DATA_KEY(city), JSON.stringify(rec));
   await addReprintCity(env, city);
   // ack: true kertoo sovellukselle, että tämä palvelin tallentaa vaihdon kuittaukset (installed).
   return jsonResponse({ ok: true, ack: true, units: rec.units, updated: rec.updated, state: rec.state, hist: rec.hist }, 200, origin);
 }
 
 async function handleReprintStatus(url, env, origin) {
-  if (!env.PUSH_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
+  if (!env.PUSH_KV || !env.PERSONAL_KV) return jsonResponse({ error: "unconfigured" }, 503, origin);
   const city = reprintCityName(url.searchParams.get("city"));
   if (!(await reprintKeyOk(env, city, url.searchParams.get("key"))))
     return jsonResponse({ error: "bad_key" }, 403, origin);
@@ -2254,7 +2309,7 @@ function reprintServiceOk(env, token) {
 async function handleReprintServiceList(url, env) {
   if (!reprintServiceOk(env, url.searchParams.get("token")))
     return adminJson({ error: "forbidden" }, 403);
-  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  if (!env.PERSONAL_KV) return adminJson({ error: "unconfigured" }, 503);
   const out = [];
   for (const city of await readReprintCities(env)) {
     const data = await readReprintData(env, city);
@@ -2269,7 +2324,7 @@ async function handleReprintServiceList(url, env) {
 async function handleReprintServiceResult(request, env) {
   const body = await request.json().catch(() => null);
   if (!reprintServiceOk(env, body && body.token)) return adminJson({ error: "forbidden" }, 403);
-  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  if (!env.PERSONAL_KV) return adminJson({ error: "unconfigured" }, 503);
   const city = reprintCityName(body && body.city);
   const data = await readReprintData(env, city);
   if (!data) return adminJson({ error: "unknown_city" }, 404);
@@ -2287,7 +2342,7 @@ async function handleReprintServiceResult(request, env) {
   }
   // Kuukausirivi päivittyy joka aamu vahdin ajosta, vaikka kukaan ei avaa sovellusta.
   const hist = reprintHistPut(data.hist, reprintDay(), reprintMetric(data.units, stale));
-  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, state, hist }));
+  await env.PERSONAL_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, state, hist }));
   return adminJson({ ok: true, city, stale: stale.length, changed: muuttui, notified: !!(sent && sent.ok) }, 200);
 }
 
@@ -2310,19 +2365,19 @@ async function handleAdminReprintNotify(request, env) {
   const { city, email, error } = buildReprintNotify(body);
   if (error) return adminJson({ error }, 400);
   if (!(await isAdmin(request, env, city))) return adminJson({ error: "forbidden" }, 403);
-  if (!env.PUSH_KV) return adminJson({ error: "unconfigured" }, 503);
+  if (!env.PERSONAL_KV) return adminJson({ error: "unconfigured" }, 503);
   const data = await readReprintData(env, city);
   if (!data) return adminJson({ error: "no_baseline" }, 404);
   if (!email) {
-    if (data.notify && data.notify.token) await env.PUSH_KV.delete(REPRINT_NOTIFY_TOK_KEY(data.notify.token));
-    await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: null }));
+    if (data.notify && data.notify.token) await env.PERSONAL_KV.delete(REPRINT_NOTIFY_TOK_KEY(data.notify.token));
+    await env.PERSONAL_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: null }));
     return adminJson({ ok: true, notify: null }, 200);
   }
   const token = crypto.randomUUID().replace(/-/g, "");
-  if (data.notify && data.notify.token) await env.PUSH_KV.delete(REPRINT_NOTIFY_TOK_KEY(data.notify.token));
+  if (data.notify && data.notify.token) await env.PERSONAL_KV.delete(REPRINT_NOTIFY_TOK_KEY(data.notify.token));
   const notify = { email, confirmed: false, token, ts: Date.now() };
-  await env.PUSH_KV.put(REPRINT_NOTIFY_TOK_KEY(token), city);
-  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify }));
+  await env.PERSONAL_KV.put(REPRINT_NOTIFY_TOK_KEY(token), city);
+  await env.PERSONAL_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify }));
   const base = env.EMAIL_LINK_BASE || "";
   const vahvista = `${base}/reprint/notify/confirm?city=${encodeURIComponent(city)}&token=${encodeURIComponent(token)}`;
   const res = await sendResendEmail(env, email, "Vahvista uusintapainatusvahdin ilmoitukset",
@@ -2340,7 +2395,7 @@ async function handleAdminReprintNotify(request, env) {
 // näytti "Virheellinen linkki", vaikka mikään ei ollut vialla. Linkissä kulkeva kaupunki
 // osuu suoraan siihen tietueeseen jota ollaan vahvistamassa.
 async function reprintNotifyByToken(env, token, cityHint) {
-  const city = reprintCityName(cityHint) || await env.PUSH_KV.get(REPRINT_NOTIFY_TOK_KEY(token));
+  const city = reprintCityName(cityHint) || await env.PERSONAL_KV.get(REPRINT_NOTIFY_TOK_KEY(token));
   if (!city) return null;
   const data = await readReprintData(env, city);
   if (!data || !data.notify || data.notify.token !== token) return null;
@@ -2349,25 +2404,25 @@ async function reprintNotifyByToken(env, token, cityHint) {
 
 async function handleReprintNotifyConfirm(url, env) {
   const token = url.searchParams.get("token") || "";
-  if (!env.PUSH_KV || !token) return emailHtmlPage("Virheellinen linkki", "Vahvistuslinkki ei kelpaa.");
+  if (!env.PERSONAL_KV || !token) return emailHtmlPage("Virheellinen linkki", "Vahvistuslinkki ei kelpaa.");
   const found = await reprintNotifyByToken(env, token, url.searchParams.get("city"));
   if (!found) return emailHtmlPage("Virheellinen linkki", "Vahvistuslinkki ei kelpaa tai se on vanhentunut.");
   const { city, data } = found;
   // Toistuva klikkaus ei kirjoita uudelleen (R-01: GET-linkin toisto ei saa kuluttaa KV-kiintiötä).
   if (!data.notify.confirmed)
-    await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: { ...data.notify, confirmed: true } }));
+    await env.PERSONAL_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: { ...data.notify, confirmed: true } }));
   return emailHtmlPage("Ilmoitukset vahvistettu",
     "Saat viestin kun painettu tuloste vanhenee. Viesti lähtee vain kun tilanne muuttuu, ei joka päivä samasta asiasta.");
 }
 
 async function handleReprintNotifyUnsub(url, env) {
   const token = url.searchParams.get("token") || "";
-  if (!env.PUSH_KV || !token) return emailHtmlPage("Virheellinen linkki", "Peruutuslinkki ei kelpaa.");
+  if (!env.PERSONAL_KV || !token) return emailHtmlPage("Virheellinen linkki", "Peruutuslinkki ei kelpaa.");
   const found = await reprintNotifyByToken(env, token, url.searchParams.get("city"));
   if (!found) return emailHtmlPage("Ilmoitukset jo peruttu", "Osoitetta ei löytynyt. Et saa enää ilmoituksia.");
   const { city, data } = found;
-  await env.PUSH_KV.delete(REPRINT_NOTIFY_TOK_KEY(token));
-  await env.PUSH_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: null }));
+  await env.PERSONAL_KV.delete(REPRINT_NOTIFY_TOK_KEY(token));
+  await env.PERSONAL_KV.put(REPRINT_DATA_KEY(city), JSON.stringify({ ...data, notify: null }));
   return emailHtmlPage("Ilmoitukset peruttu", "Et saa enää viestejä vanhentuneista tulosteista. Seuranta itsessään jatkuu.");
 }
 
@@ -2407,6 +2462,7 @@ async function sendReprintAlert(env, city, data, stale) {
 
 export default {
   async fetch(request, env, ctx) {
+    env = withPersonalStore(env);
     const origin = request.headers.get("Origin") || "";
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
@@ -2568,7 +2624,11 @@ export default {
   // Cron-liipaisimet (wrangler.toml [triggers] crons): minuutin cron lähettää
   // erääntyneet lähtömuistutukset, 5 min cron tarkistaa häiriöt.
   async scheduled(event, env, ctx) {
+    env = withPersonalStore(env);
     if (event.cron === "* * * * *") ctx.waitUntil(runReminderCheck(env));
-    else ctx.waitUntil(runPushCheck(env));
+    else {
+      ctx.waitUntil(runPushCheck(env));
+      ctx.waitUntil(purgeExpiredPersonal(env));
+    }
   },
 };

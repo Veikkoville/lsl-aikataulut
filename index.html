@@ -22081,7 +22081,7 @@ function viewOfficialA11ySv(a) {
    Rekisterinpitäjä on yhtiö 14.9.2026 alkaen (immateriaalioikeuksien luovutus),
    LEGAL_PROVIDER. Kaikki kolme kieltä ovat täydet tekstit, ei automaattikäännöksiä. */
 const LEGAL_PROVIDER = { name: "Savikurki Digital Oy", email: "ville@reittari.fi", businessId: "3652360-4" };
-const LEGAL_UPDATED = "14.9.2026";
+const LEGAL_UPDATED = "18.10.2026";
 
 function legalProviderHtml() {
   const e = esc(LEGAL_PROVIDER.email);
@@ -22110,7 +22110,7 @@ const LEGAL = {
           Säilytys: kunnes peruutat tilauksen. Peruutuslinkki on jokaisessa viestissä, myös
           vahvistusviestissä, ja peruutus poistaa tiedot heti. Vahvistamaton tilaus säilyy, kunnes se
           vahvistetaan tai peruutetaan.
-          Tallennus: Cloudflare Workers KV. Lähetys: Resend.</dd>
+          Tallennus: Cloudflaren D1-tietokanta, joka on rajattu EU:hun. Lähetys: Resend.</dd>
         <dt>Häiriöilmoitukset selaimeen (web push)</dt>
         <dd>Tiedot: selaimesi push-palvelun osoite (laitekohtainen tunniste), viestien salausavaimet,
           seuratut linjat, kaupunki, kieli ja tilausaika. Ei IP-osoitetta.
@@ -22126,7 +22126,7 @@ const LEGAL = {
           asettaa kaupungin ylläpito, ei palvelun käyttäjä. Oikeusperuste: suostumus (6 artiklan 1 kohdan
           a alakohta), ja osoite saa viestejä vasta kun vahvistuslinkkiä on klikattu. Ilmoitus lähetetään
           vain kun tilanne muuttuu. Säilytys: kunnes kaupunki poistaa osoitteen tai peruuttaa ilmoitukset
-          jokaisessa viestissä olevasta linkistä. Tallennus: Cloudflare Workers KV. Lähetys: Resend.</dd>
+          jokaisessa viestissä olevasta linkistä. Tallennus: Cloudflaren D1-tietokanta, joka on rajattu EU:hun. Lähetys: Resend.</dd>
         <dt>Lähtömuistutus</dt>
         <dd>Tiedot: push-osoite ja salausavaimet, muistutuksen ajankohta sekä sen otsikko ja teksti
           (linja ja pysäkki). Oikeusperuste: suostumus, sillä pyydät muistutuksen itse.
@@ -22164,9 +22164,10 @@ const LEGAL = {
         kirjautumiselle välttämättömän istuntoevästeen.</p>
       <h3>4. Käsittelijät ja tiedonsiirrot</h3>
       <ul>
-        <li>Cloudflare, Inc. (välityspalvelin, KV-tietovarasto, käyttötilastot). Yhdysvaltalainen
-          yhtiö; tietoja voidaan käsitellä EU:n ulkopuolella. Siirron suojatoimena ovat Cloudflaren
-          tietojenkäsittelysopimuksen vakiosopimuslausekkeet.</li>
+        <li>Cloudflare, Inc. (välityspalvelin, tietokanta, käyttötilastot). Yhdysvaltalainen yhtiö.
+          Tilaukset, muistutukset ja palaute tallennetaan tietokantaan, joka on rajattu EU:hun.
+          Välityspalvelimen liikennettä ja käyttötilastoja voidaan käsitellä EU:n ulkopuolella.
+          Siirron suojatoimena ovat Cloudflaren tietojenkäsittelysopimuksen vakiosopimuslausekkeet.</li>
         <li>Resend (sähköpostin lähetys). Yhdysvaltalainen yhtiö, joka saa sähköpostiosoitteesi ja
           viestin sisällön lähetystä varten. Suojatoimena vakiosopimuslausekkeet.</li>
         <li>Digitransit (reitti- ja aikataulurajapinta, Fintraffic). Saa hakukyselyjen sisällön,
@@ -22260,7 +22261,7 @@ const LEGAL = {
           Retention: until you unsubscribe. Every message, including the confirmation message, has an
           unsubscribe link, and unsubscribing deletes the data immediately. An unconfirmed subscription
           is kept until it is confirmed or cancelled.
-          Storage: Cloudflare Workers KV. Delivery: Resend.</dd>
+          Storage: Cloudflare D1 database restricted to the EU. Delivery: Resend.</dd>
         <dt>Disruption notifications in the browser (web push)</dt>
         <dd>Data: the address of your browser's push service (a device-specific identifier), message
           encryption keys, followed lines, city, language and subscription time. No IP address.
@@ -22277,7 +22278,7 @@ const LEGAL = {
           address is set by the city administration, not by a user of the service. Legal basis: consent
           (Article 6(1)(a)), and the address receives messages only after the confirmation link has been
           clicked. A message is sent only when the situation changes. Retention: until the city removes
-          the address or unsubscribes using the link in every message. Storage: Cloudflare Workers KV.
+          the address or unsubscribes using the link in every message. Storage: Cloudflare D1 database restricted to the EU.
           Delivery: Resend.</dd>
         <dt>Departure reminder</dt>
         <dd>Data: push address and encryption keys, the reminder time, and its title and text (line and
@@ -22316,9 +22317,10 @@ const LEGAL = {
         necessary for logging in.</p>
       <h3>4. Processors and transfers</h3>
       <ul>
-        <li>Cloudflare, Inc. (proxy, KV storage, usage statistics). A US company; data may be processed
-          outside the EU. The transfer is safeguarded by the standard contractual clauses in
-          Cloudflare's data processing agreement.</li>
+        <li>Cloudflare, Inc. (proxy, database, usage statistics). A US company. Subscriptions,
+          reminders and feedback are stored in a database restricted to the EU. Proxy traffic and
+          usage statistics may be processed outside the EU. The transfer is safeguarded by the
+          standard contractual clauses in Cloudflare's data processing agreement.</li>
         <li>Resend (email delivery). A US company that receives your email address and the message
           content for delivery. Safeguarded by standard contractual clauses.</li>
         <li>Digitransit (journey and timetable API, Fintraffic). Receives the content of search queries,
@@ -22411,7 +22413,7 @@ const LEGAL = {
           Lagringstid: tills du avslutar prenumerationen. Varje meddelande, även bekräftelsen, har en
           avslutningslänk, och avslutning raderar uppgifterna genast. En obekräftad prenumeration
           sparas tills den bekräftas eller avslutas.
-          Lagring: Cloudflare Workers KV. Utskick: Resend.</dd>
+          Lagring: Cloudflares D1-databas, begränsad till EU. Utskick: Resend.</dd>
         <dt>Störningsaviseringar i webbläsaren (web push)</dt>
         <dd>Uppgifter: adressen till webbläsarens push-tjänst (en enhetsspecifik identifierare),
           krypteringsnycklar för meddelanden, följda linjer, stad, språk och tidpunkt för
@@ -22430,7 +22432,7 @@ const LEGAL = {
           av tjänsten. Rättslig grund: samtycke (artikel 6.1 a), och adressen får meddelanden först när
           bekräftelselänken har klickats. Meddelande skickas endast när situationen ändras. Lagring:
           tills staden tar bort adressen eller avbeställer via länken i varje meddelande. Lagras i
-          Cloudflare Workers KV. Utskick: Resend.</dd>
+          Cloudflares D1-databas, begränsad till EU. Utskick: Resend.</dd>
         <dt>Avgångspåminnelse</dt>
         <dd>Uppgifter: push-adress och krypteringsnycklar, påminnelsens tidpunkt samt dess rubrik och
           text (linje och hållplats). Rättslig grund: samtycke, eftersom du själv begär påminnelsen.
@@ -22469,9 +22471,10 @@ const LEGAL = {
         sätter en sessionskaka som är nödvändig för inloggningen.</p>
       <h3>4. Personuppgiftsbiträden och överföringar</h3>
       <ul>
-        <li>Cloudflare, Inc. (proxy, KV-lagring, användningsstatistik). Amerikanskt bolag; uppgifter
-          kan behandlas utanför EU. Överföringen skyddas av standardavtalsklausulerna i Cloudflares
-          personuppgiftsbiträdesavtal.</li>
+        <li>Cloudflare, Inc. (proxy, databas, användningsstatistik). Amerikanskt bolag. Prenumerationer,
+          påminnelser och respons lagras i en databas som är begränsad till EU. Proxytrafik och
+          användningsstatistik kan behandlas utanför EU. Överföringen skyddas av
+          standardavtalsklausulerna i Cloudflares personuppgiftsbiträdesavtal.</li>
         <li>Resend (e-postutskick). Amerikanskt bolag som får din e-postadress och meddelandets
           innehåll för utskicket. Skyddas av standardavtalsklausuler.</li>
         <li>Digitransit (rese- och tidtabellsgränssnitt, Fintraffic). Får innehållet i sökförfrågningar,
