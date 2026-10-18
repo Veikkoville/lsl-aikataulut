@@ -11,6 +11,11 @@ name: Kausivalidointi
 
 on:
   workflow_dispatch:
+    inputs:
+      ajastin:
+        description: 'savikurki-ajastin asettaa true: ajo pingaa Healthchecksiin kuten ajastettu ajo (käsiajo jättää tyhjäksi)'
+        required: false
+        default: 'false'
   schedule:
     - cron: "0 5 * * 2" # ti 05:00 UTC = 08:00 Suomen kesäaikaa
 
@@ -18,7 +23,36 @@ permissions:
   contents: read
 
 jobs:
+  # Savikurki-ajastin käynnistää tämän ajallaan workflow_dispatchilla (ti 05:23 UTC); GitHubin schedule on varalla
+  # ja myöhästyy usein tunteja. Myöhästynyt schedule-ajo ohitetaan, jos saman UTC-päivän ajastinajo meni jo läpi
+  # (sama tuplavahti kuin datavahdeissa, 18.10.2026). Punaisen ajastinajon jälkeen schedule-ajo ajaa uudelleen.
+  tuplavahti:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      ohita: ${{ steps.tupla.outputs.ohita }}
+    steps:
+      - name: Tuplavahti
+        id: tupla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ohita=false
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            tanaan=$(date -u +%F)
+            jo=$(gh run list -R "$GITHUB_REPOSITORY" --workflow kausivalidointi.yml --event workflow_dispatch --status success \
+              --limit 10 --json createdAt --jq "[.[] | select(.createdAt | startswith(\"$tanaan\"))] | length")
+            if [ "${jo:-0}" -gt 0 ]; then
+              ohita=true
+              echo "Ajastimen ajo meni tänään jo läpi ($jo kpl), GitHubin schedule-ajo ohitetaan."
+            fi
+          fi
+          echo "ohita=$ohita" >> "$GITHUB_OUTPUT"
+
   kausivalidointi:
+    needs: tuplavahti
+    if: needs.tuplavahti.outputs.ohita != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -49,8 +83,9 @@ jobs:
 
       # Healthchecks.io (14.10.2026): ping ajon lopussa, /fail jos jokin askel epäonnistui. Vain ajastettu ajo pingaa: käsiajo muuna päivänä voi päättyä punaiseen ilman löydöstä.
       # Valvonnan aikataulu ja hälytys ovat Healthchecksissä (strategiarepo tools/healthchecks/). Puuttuva secret ei kaada ajoa.
+      # Pingaa ajastettu ajo: GitHubin schedule tai savikurki-ajastimen dispatch (input ajastin=true, 18.10.2026).
       - name: Healthchecks-ping
-        if: always() && github.event_name == 'schedule'
+        if: always() && (github.event_name == 'schedule' || inputs.ajastin == 'true')
         env:
           HC_PING_KEY: ${{ secrets.HC_PING_KEY }}
           TILA: ${{ job.status }}
