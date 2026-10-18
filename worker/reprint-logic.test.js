@@ -66,7 +66,7 @@ check(mergeReprintUnits(null, paikallinen).b.label === "b", "merge: tyhjä palve
 
 /* --- Päästä päähän worker.fetch + mock-KV --- */
 
-const env = { PUSH_KV: mockKV(), ADMIN_PASSWORD: "salasana123", ADMIN_SESSION_SECRET: "reprint-secret" };
+const env = { PUSH_KV: mockKV(), PERSONAL_KV: mockKV(), ADMIN_PASSWORD: "salasana123", ADMIN_SESSION_SECRET: "reprint-secret" };
 const ORIGIN = "https://demo.reittari.fi";
 const req = (path, opts = {}) => new Request("https://proxy.example" + path, opts);
 const jreq = (path, body, opts = {}) => req(path, {
@@ -128,7 +128,7 @@ check(Object.keys(yhdessa.units).sort().join(",") === "Lahti:010,corr:keskusta",
 check(yhdessa.units["Lahti:010"].printed === uudempi, "perustaso: uudempi painomerkintä voittaa palvelimella");
 
 // Kaupunkiluettelo pysyy yhtenä blobina (ajastettu vertailu ei tarvitse KV.list-kutsua)
-check(env.PUSH_KV._m.get("rp:cities") === JSON.stringify(["lahti"]), "perustaso: seuratut kaupungit yhdessä avaimessa");
+check(env.PERSONAL_KV._m.get("rp:cities") === JSON.stringify(["lahti"]) && !env.PUSH_KV._m.has("rp:cities") && !env.PUSH_KV._m.has("rp:lahti"), "perustaso: seuratut kaupungit yhdessä avaimessa");
 
 // Ilman KV-sidontaa päätepiste ei kaadu vaan kertoo tilan
 const eiKv = await worker.fetch(jreq("/reprint/baseline", { city: "lahti", key: KEY, units: { a: { printed: iso, sig } } }), { ...env, PUSH_KV: null });
@@ -147,6 +147,7 @@ globalThis.fetch = async (url, opts) => {
 
 const env2 = {
   PUSH_KV: mockKV(),
+  PERSONAL_KV: mockKV(),
   ADMIN_PASSWORD: "salasana123",
   ADMIN_SESSION_SECRET: "reprint-secret-2",
   RESEND_API_KEY: "test-resend",
@@ -212,7 +213,7 @@ check(toka.changed === true && toka.notified === false && resendSends.length ===
   "ilmoitus: vahvistamattomaan osoitteeseen EI lähetetä");
 
 // Vahvistus linkistä
-const tok = JSON.parse(env2.PUSH_KV._m.get("rp:lahti")).notify.token;
+const tok = JSON.parse(env2.PERSONAL_KV._m.get("rp:lahti")).notify.token;
 const vahv = await worker.fetch(req2("/reprint/notify/confirm?token=" + tok), env2);
 check(vahv.status === 200 && /vahvistettu/i.test(await vahv.text()), "ilmoitus: vahvistuslinkki vahvistaa osoitteen");
 check((await worker.fetch(req2("/reprint/notify/confirm?token=vaara"), env2)).status === 200,
@@ -242,7 +243,7 @@ check(viides.changed === true && resendSends.length === 0, "ilmoitus: peruutukse
 // Perustason päivitys ei saa pyyhkiä vertailun tulosta
 await worker.fetch(jreq2("/reprint/baseline", { city: "lahti", key: KEY2, units: {
   "Lahti:010": { label: "1 Keskusta", printed: "2026-09-05T00:00:00.000Z", sig } } }), env2);
-const yha = JSON.parse(env2.PUSH_KV._m.get("rp:lahti"));
+const yha = JSON.parse(env2.PERSONAL_KV._m.get("rp:lahti"));
 check(yha.state && yha.state.checkedAt, "perustaso: päivitys ei tyhjennä vahdin tulosta");
 
 
@@ -306,7 +307,7 @@ check(reprintStateAfterMark({ stale: ["a", "b"], checkedAt: "x" }, ["a"]).stale.
   "kuittaus: merkitty yksikkö putoaa vahdin vanhentuneista, muut säilyvät");
 
 // --- Päästä päähän: kuittaus kaupungin avaimella, tila ja historia palvelimella ---
-const env3 = { ...env2, PUSH_KV: mockKV(), ADMIN_SESSION_SECRET: "reprint-secret-3" };
+const env3 = { ...env2, PUSH_KV: mockKV(), PERSONAL_KV: mockKV(), ADMIN_SESSION_SECRET: "reprint-secret-3" };
 const login3 = await worker.fetch(req2("/admin/login", { method: "POST", body: JSON.stringify({ password: "salasana123" }) }), env3);
 const cookie3 = (login3.headers.get("Set-Cookie") || "").split(";")[0];
 const KEY3 = (await (await worker.fetch(jreq2("/admin/api/reprint/key", { city: "lahti" }, { headers: { Cookie: cookie3 } }), env3)).json()).key;
@@ -318,12 +319,12 @@ await worker.fetch(jreq2("/reprint/baseline", { city: "lahti", key: KEY3, units:
 // Ilmoitusosoite vahvistettuna: perustason päivitys EI saa pudottaa sitä (korjattu 4.10.2026).
 resendSends.length = 0;
 await worker.fetch(jreq2("/admin/api/reprint/notify", { city: "lahti", email: "kaupunki@example.fi" }, { headers: { Cookie: cookie3 } }), env3);
-const tok3 = JSON.parse(env3.PUSH_KV._m.get("rp:lahti")).notify.token;
+const tok3 = JSON.parse(env3.PERSONAL_KV._m.get("rp:lahti")).notify.token;
 await worker.fetch(req2("/reprint/notify/confirm?city=lahti&token=" + tok3), env3);
 
 // Vahti toteaa toisen julisteen vanhentuneeksi.
 const vahti3 = await (await worker.fetch(jreq2("/reprint/service", { token: env3.REPRINT_SERVICE_TOKEN, city: "lahti", stale: [SID] }), env3)).json();
-const tila3 = JSON.parse(env3.PUSH_KV._m.get("rp:lahti"));
+const tila3 = JSON.parse(env3.PERSONAL_KV._m.get("rp:lahti"));
 const kk = reprintDay().slice(0, 7);
 check(vahti3.stale === 1 && tila3.hist && tila3.hist[kk] && tila3.hist[kk].n === 2 && tila3.hist[kk].ok === 1,
   "mittari: vahdin ajo kirjaa kuluvan kuukauden rivin (1/2 ajan tasalla)");
@@ -336,7 +337,7 @@ check(vaaraKuittaus.status === 403, "kuittaus: väärällä avaimella → 403");
 // Vaihdettu: uusi sormenjälki, painettu ja asennettu nyt.
 const kuittausVastaus = await (await worker.fetch(jreq2("/reprint/baseline", { city: "lahti", key: KEY3, units: {
   [SID]: { label: "Mukkulan kirkko P", printed: I1, installed: I1, sig: ssig } } }), env3)).json();
-const tila4 = JSON.parse(env3.PUSH_KV._m.get("rp:lahti"));
+const tila4 = JSON.parse(env3.PERSONAL_KV._m.get("rp:lahti"));
 check(kuittausVastaus.ok && kuittausVastaus.ack === true && !tila4.state.stale.includes(SID) && tila4.state.checkedAt,
   "kuittaus: vaihdettu juliste putoaa palvelimen vanhentuneista heti, vahdin ajoaika säilyy");
 check(tila4.hist[kk].ok === 2 && tila4.hist[kk].n === 2, "kuittaus: kuukausirivi päivittyy kuittauksesta (2/2)");

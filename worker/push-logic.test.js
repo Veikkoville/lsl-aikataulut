@@ -88,12 +88,13 @@ const vapidPubPoint = (() => { const x = dec(vapidPubJwk.x), y = dec(vapidPubJwk
 
 const env = {
   PUSH_KV: mockKV(),
+  PERSONAL_KV: mockKV(), // henkilötieto (tilaukset, muistutukset) on erillisessä EU-kannassa
   DIGITRANSIT_KEY: "test",
   VAPID_PUBLIC: b64url(vapidPubPoint),
   VAPID_PRIVATE_JWK: JSON.stringify(vapidPrivJwk),
   VAPID_SUBJECT: "mailto:test@example.com",
 };
-await env.PUSH_KV.put("sub:test", JSON.stringify(subscription));
+await env.PERSONAL_KV.put("sub:test", JSON.stringify(subscription));
 
 // --- Stub fetch: Digitransit-häiriöt + lsl.fi CMS + push-endpoint + Access-JWKS ---
 let currentAlerts = [];
@@ -175,23 +176,24 @@ check(pushSends.length === before8, "CMS: ei-seurattu linja 4 ei laukaise pushia
 // --- Lähtömuistutukset (runReminderCheck) ---
 // Odottavat muistutukset säilytetään yhdessä avaimessa (rem:pending) → cron ei tee list-operaatiota.
 const before = pushSends.length;
-await env.PUSH_KV.put("rem:pending", JSON.stringify({
+await env.PERSONAL_KV.put("rem:pending", JSON.stringify({
   past: { ...subscription, fireAt: 1000, title: "Lähtömuistutus", body: "Linja 3 lähtee pian", tag: "r1", url: "./" },
   future: { ...subscription, fireAt: 99999999999, title: "Myöhempi", body: "x", tag: "r2" },
 }));
 await runReminderCheck(env, 2000 * 1000); // nyt = 2000 s → past (1000) erääntynyt, future ei
 check(pushSends.length === before + 1, "muistutus: erääntynyt lähetetään (tasan 1)");
-const remPending = JSON.parse(env.PUSH_KV._m.get("rem:pending") || "{}");
+const remPending = JSON.parse(env.PERSONAL_KV._m.get("rem:pending") || "{}");
 check(!remPending.past, "muistutus: lähetetty poistetaan rem:pending-avaimesta");
 check(!!remPending.future, "muistutus: tuleva jää odottamaan");
 
 // runReminderCheck ei saa kutsua list-operaatiota (KV:n ilmaiskiintiö on niukin listoissa)
 let listCalls = 0;
-const realList = env.PUSH_KV.list.bind(env.PUSH_KV);
-env.PUSH_KV.list = async (...a) => { listCalls++; return realList(...a); };
+const realList = env.PERSONAL_KV.list.bind(env.PERSONAL_KV);
+env.PERSONAL_KV.list = async (...a) => { listCalls++; return realList(...a); };
 await runReminderCheck(env, 2000 * 1000);
 check(listCalls === 0, "muistutus: cron EI tee KV-list-operaatiota (vältetään ilmaiskiintiön ylitys)");
-env.PUSH_KV.list = realList;
+env.PERSONAL_KV.list = realList;
+check(![...env.PUSH_KV._m.keys()].some(k => /^(sub|rem|email|fb|rp|rpnt):/.test(k)), "henkilötieto: ei yhtään tilaus-, muistutus-, palaute- tai painatusavainta KV:ssä (ne ovat EU-kannassa)");
 
 // --- Ylläpito: kirjautuminen (constantTimeEqual + HMAC-istunto) ---
 check(constantTimeEqual("abc", "abc") && !constantTimeEqual("abc", "abd") && !constantTimeEqual("abc", "ab"), "constantTimeEqual: sama/eri/erimittainen");

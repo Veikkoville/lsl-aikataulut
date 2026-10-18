@@ -50,6 +50,7 @@ globalThis.fetch = async (url, opts) => {
 // env: TARKOITUKSELLA ilman VAPIDia → todistaa että sähköposti toimii ilman web-pushia
 const env = {
   PUSH_KV: mockKV(),
+  PERSONAL_KV: mockKV(), // tilaukset ovat erillisessä EU-kannassa
   DIGITRANSIT_KEY: "test",
   RESEND_API_KEY: "test-resend",
   EMAIL_FROM: "hairiotiedote@aikataulut.reittari.fi",
@@ -62,7 +63,7 @@ const post = (path, obj) => req(path, { method: "POST", headers: { "Content-Type
 const tokenOf = email => {
   // löydä tokenin osoitin (email:tok:<token> → "<city>:<hash>") tälle sähköpostille ei suoraan;
   // testissä yksi tilaaja kerrallaan → otetaan tuorein tok-avain. Tarkempi: skannaa idx/rec.
-  const ks = [...env.PUSH_KV._m.keys()].filter(k => k.startsWith("email:tok:"));
+  const ks = [...env.PERSONAL_KV._m.keys()].filter(k => k.startsWith("email:tok:"));
   return ks.length ? ks[ks.length - 1].slice("email:tok:".length) : null;
 };
 
@@ -71,7 +72,7 @@ let r = await worker.fetch(post("/email/subscribe", { email: "anna@example.fi", 
 let body = await r.json();
 check(r.status === 200 && body.ok, "subscribe: 200 ok");
 check(resendSends.length === 1 && /Vahvista/.test(resendSends[0].subject) && resendSends[0].to[0] === "anna@example.fi", "subscribe: vahvistusviesti lähetetään tilaajalle");
-const recAnnaRaw = [...env.PUSH_KV._m.entries()].find(([k]) => /^email:lahti:/.test(k))[1];
+const recAnnaRaw = [...env.PERSONAL_KV._m.entries()].find(([k]) => /^email:lahti:/.test(k))[1];
 check(JSON.parse(recAnnaRaw).confirmed === false, "subscribe: tietue tallennetaan vahvistamattomana");
 const tokenAnna = tokenOf("anna@example.fi");
 
@@ -85,8 +86,8 @@ check(resendSends.length === before2, "cron: vahvistamaton tilaaja ei saa häiri
 r = await worker.fetch(req("/email/confirm?token=" + tokenAnna, { method: "GET" }), env);
 const confHtml = await r.text();
 check(r.status === 200 && /vahvistettu/i.test(confHtml), "confirm: palauttaa 'Tilaus vahvistettu' -sivun");
-check(!!env.PUSH_KV._m.get("email:idx:lahti") && !!env.PUSH_KV._m.get("email:reg"), "confirm: indeksi + rekisteri luotu");
-check(JSON.parse(env.PUSH_KV._m.get("email:reg")).lahti === "Lahti", "confirm: rekisteri lahti→Lahti (cron tietää feedin)");
+check(!!env.PERSONAL_KV._m.get("email:idx:lahti") && !!env.PERSONAL_KV._m.get("email:reg"), "confirm: indeksi + rekisteri luotu");
+check(JSON.parse(env.PERSONAL_KV._m.get("email:reg")).lahti === "Lahti", "confirm: rekisteri lahti→Lahti (cron tietää feedin)");
 
 // 4) Lisätään Carl (linja 9) vahvistettuna + Bea (linja 3) vahvistamattomana
 await worker.fetch(post("/email/subscribe", { email: "carl@example.fi", lines: ["9"], gtfsRoutes: ["Lahti:9"], feed: "Lahti", city: "lahti" }), env);
@@ -118,7 +119,8 @@ check(resendSends.length === before7, "cron: jo nähdystä häiriöstä ei uusin
 // 8) Unsubscribe (Anna) → poistuu indeksistä; uusi linjan 3 häiriö ei enää mene Annalle
 r = await worker.fetch(req("/email/unsubscribe?token=" + tokenAnna, { method: "GET" }), env);
 check(r.status === 200 && /peruttu/i.test(await r.text()), "unsubscribe: palauttaa 'Tilaus peruttu' -sivun");
-const idxAfter = JSON.parse(env.PUSH_KV._m.get("email:idx:lahti") || "{}");
+const idxAfter = JSON.parse(env.PERSONAL_KV._m.get("email:idx:lahti") || "{}");
+check(![...env.PUSH_KV._m.keys()].some(k => /^(sub|rem|email|fb|rp|rpnt):/.test(k)), "henkilötieto: ei yhtään tilaus-, muistutus-, palaute- tai painatusavainta KV:ssä (ne ovat EU-kannassa)");
 check(!Object.values(idxAfter).some(e => e.email === "anna@example.fi") && Object.values(idxAfter).some(e => e.email === "carl@example.fi"), "unsubscribe: Anna poistui indeksistä, Carl jäi");
 currentAlerts = [...currentAlerts, { alertHeaderText: "Linja 3 taas poikki", alertDescriptionText: "x", effectiveStartDate: 0, effectiveEndDate: 0 }];
 const before8 = resendSends.length;

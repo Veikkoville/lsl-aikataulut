@@ -83,11 +83,14 @@ const post = (p, body, o = {}) => {
 };
 const ctx = { waitUntil() {} };
 
+// Kirjoitusrajat koskevat kumpaakin varastoa (KV ja henkilötietojen EU-kanta), joten sama laskuri
+// kattaa molemmat (PERSONAL_KV: kv). Varastojen erottelu testataan push-, email- ja reprint-testeissä
+// sekä personal-store.test.js:ssä.
 /* ===== R-01a: cronin KV-kirjoitukset vain tilan muuttuessa ===== */
 {
   reset();
   const kv = countingKV();
-  const env = { PUSH_KV: kv, DIGITRANSIT_KEY: "test", ...VAPID };
+  const env = { PUSH_KV: kv, PERSONAL_KV: kv, DIGITRANSIT_KEY: "test", ...VAPID };
   await kv.put("sub:a", JSON.stringify({ endpoint: "https://push.example/a", keys: { p256dh: P256, auth: AUTH },
     routes: ["8"], gtfsRoutes: ["Lahti:8"], feed: "Lahti", city: "lahti", lang: "fi" }));
   const a8 = { alertHeaderText: "Linja 8 poikkeaa", alertDescriptionText: "Työmaa", effectiveStartDate: 0, effectiveEndDate: 0 };
@@ -142,7 +145,7 @@ const ctx = { waitUntil() {} };
 {
   reset();
   const kv = countingKV();
-  const env = { PUSH_KV: kv, DIGITRANSIT_KEY: "test", RESEND_API_KEY: "t", EMAIL_FROM: "a@b.fi", EMAIL_LINK_BASE: "https://worker.test" };
+  const env = { PUSH_KV: kv, PERSONAL_KV: kv, DIGITRANSIT_KEY: "test", RESEND_API_KEY: "t", EMAIL_FROM: "a@b.fi", EMAIL_LINK_BASE: "https://worker.test" };
   const nowS = Math.floor(realNow() / 1000);
   const bodies = {
     "/push/subscribe": { subscription: pushSub(1), routes: ["3"], gtfsRoutes: ["Lahti:3"], feed: "Lahti", city: "Lahti", lang: "fi" },
@@ -260,7 +263,7 @@ const cityBlocks = [];
 {
   reset();
   const kv = countingKV();
-  const env = { PUSH_KV: kv, RESEND_API_KEY: "t", EMAIL_FROM: "a@b.fi", EMAIL_LINK_BASE: "https://worker.test" };
+  const env = { PUSH_KV: kv, PERSONAL_KV: kv, RESEND_API_KEY: "t", EMAIL_FROM: "a@b.fi", EMAIL_LINK_BASE: "https://worker.test" };
   check(cityBlocks.length >= 18, `ristiintarkistus: index.html CONFIGS luettu (${cityBlocks.length} kaupunkia)`);
   const CF = W.CITY_FEEDS || {};
   const keysApp = cityBlocks.map(c => c.key).sort().join(","), keysWorker = Object.keys(CF).sort().join(",");
@@ -306,7 +309,7 @@ const cityBlocks = [];
 {
   reset();
   const kv = countingKV();
-  const env = { PUSH_KV: kv, DIGITRANSIT_KEY: "test", RESEND_API_KEY: "t", EMAIL_FROM: "a@b.fi", EMAIL_LINK_BASE: "https://worker.test" };
+  const env = { PUSH_KV: kv, PERSONAL_KV: kv, DIGITRANSIT_KEY: "test", RESEND_API_KEY: "t", EMAIL_FROM: "a@b.fi", EMAIL_LINK_BASE: "https://worker.test" };
   const sub = (email, city, ip, extra = {}) => worker.fetch(post("/email/subscribe",
     { email, lines: ["3"], gtfsRoutes: ["X:3"], city, lang: "fi", ...extra }, { ip: ip || "192.0.2.1" }), env, ctx);
   const mails = to => resendSends.filter(m => m.to[0] === to).length;
@@ -451,7 +454,7 @@ const cityBlocks = [];
   reset();
   const kv = countingKV();
   await kv.put("fb:1-a", JSON.stringify({ message: "Pysäkki rikki", ts: 1 }));
-  const env = { PUSH_KV: kv, FEEDBACK_ADMIN_KEY: "salainen-avain-123" };
+  const env = { PUSH_KV: kv, PERSONAL_KV: kv, FEEDBACK_ADMIN_KEY: "salainen-avain-123" };
   const list = (qs, headers) => worker.fetch(new Request("https://worker.test/feedback/list" + qs, { headers }), env, ctx);
   const okH = await list("", { Authorization: "Bearer salainen-avain-123" });
   check(okH.status === 200 && (await okH.json()).items.length === 1, "palautelista: oikea avain Authorization-otsakkeessa → 200");

@@ -36,10 +36,20 @@ APP_BASE = "https://demo.reittari.fi"
 # Sama arvo GitHubin repo-salaisuuteen REPRINT_SERVICE_TOKEN.
 #   npx wrangler secret put REPRINT_SERVICE_TOKEN
 
-# Tilausten ja nähtyjen häiriöiden tallennus (luotu: wrangler kv namespace create PUSH_KV)
+# Nähdyt häiriöt, ylläpidon sisältö ja kaupunkien avaintiivisteet (luotu: wrangler kv namespace create PUSH_KV).
+# Henkilötietoja tänne EI kirjoiteta: ne ovat PERSONAL_DB:ssä (alla).
 [[kv_namespaces]]
 binding = "PUSH_KV"
 id = "d05f6c569d4a49339114fedf5764f4cc"
+
+# Henkilötiedot EU-jurisdiktiossa (18.10.2026): push- ja sähköpostitilaukset, lähtömuistutukset, palaute ja
+# uusintapainatusvahdin tiedot ilmoitusosoitteineen. Luotu: wrangler d1 create reittari-henkilotiedot --jurisdiction=eu
+# Skeema: wrangler d1 migrations apply PERSONAL_DB --remote. KV:hen jää vain ylläpidon ja välimuistin data.
+[[d1_databases]]
+binding = "PERSONAL_DB"
+database_name = "reittari-henkilotiedot"
+database_id = "2f80a9c7-df18-4958-b9a6-581f8953a857"
+migrations_dir = "migrations"
 
 # Anonyymi käyttöanalytiikka (#2): kevyt tapahtumaseuranta ilman henkilötietoja.
 # Kirjoitus ei kuormita KV:tä; dashboard-luku vaatii secretit CF_ACCOUNT_ID + CF_API_TOKEN.
