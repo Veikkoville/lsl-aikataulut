@@ -2001,9 +2001,9 @@
   .sc-field { flex: 1 1 200px; min-width: 170px; }
   .sc-label { display: block; font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase;
     letter-spacing: .6px; color: var(--ink-muted); margin: 0 0 6px 4px; }
-  .sc-box { position: relative; display: flex; align-items: center; gap: 10px;
+  .sc-box { position: relative; display: flex; align-items: center; gap: 8px;
     background: var(--field-bg); border: 1px solid var(--line); border-radius: var(--radius-control);
-    padding: 0 14px; min-height: 52px; }
+    padding: 0 12px; min-height: 52px; }
   .sc-box:focus-within { border-color: var(--accent); }
   .sc-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
   .sc-dot.from { background: var(--accent); }
@@ -2012,6 +2012,9 @@
   .sc-dot.to { background: var(--dest); box-shadow: 0 0 0 1px var(--dest-edge); }
   .sc-box input { border: none; background: transparent; outline: none; font-size: 16px;
     font-weight: 600; width: 100%; min-height: 44px; color: var(--ink); padding: 0; }
+  /* Mistä-kentän mikrofoni on hakukortissa flex-elementti: vanha .suggest.with-mic-reunus (3rem) katkaisi
+     placeholderin ("pysäkk") puhelimella. */
+  .sc-box.with-mic input { padding-right: 0; }
   /* mikrofoni kentän oikeaan reunaan (säilyttää #homeNlMic/.field-mic) */
   .sc-box .field-mic { position: static; height: auto; width: 2.6rem; min-height: 44px;
     background: transparent; border: none; color: var(--ink-muted); flex: none; }
@@ -2033,6 +2036,10 @@
     border-radius: var(--radius-control); padding: 0 26px; font-size: 16px; font-weight: 700;
     display: inline-flex; align-items: center; gap: 8px; }
   .sc-cta:hover { background: var(--accent-dark); }
+  @media (min-width: 700px) {
+    .sc-row > .sc-field:has(.sc-box) { min-width: 290px; }
+    .sc-row > .sc-cta { margin-left: auto; }
+  }
   .sc-extra { display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; margin-top: 12px; }
   .sc-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600;
     color: var(--ink); cursor: pointer; min-height: 44px; }
@@ -6078,7 +6085,7 @@ const STRINGS = {
     stopMapAria: "Pysäkki kartalla",
     // reittihaku
     from: "Mistä", to: "Minne",
-    placePlaceholder: "Osoite, paikka tai pysäkki…",
+    placePlaceholder: "Osoite, paikka tai pysäkki",
     useMyLocation: "Käytä omaa sijaintia", myLocation: "Oma sijainti",
     timeModeAria: "Ajan tulkinta", timeAria: "Aika",
     departAt: "Lähtöaika", arriveBy: "Saapumisaika",
@@ -6983,7 +6990,7 @@ const STRINGS = {
     thLine: "Route", thDest: "Destination", thDeparts: "Departs", thArrives: "Arrives", thFrom: "From",
     stopMapAria: "Stop on map",
     from: "From", to: "To",
-    placePlaceholder: "Address, place or stop…",
+    placePlaceholder: "Address, place or stop",
     useMyLocation: "Use my location", myLocation: "My location",
     timeModeAria: "Time interpretation", timeAria: "Time",
     departAt: "Depart at", arriveBy: "Arrive by",
@@ -7889,7 +7896,7 @@ const STRINGS = {
     thLine: "Linje", thDest: "Destination", thDeparts: "Avgår", thArrives: "Ankommer", thFrom: "Från",
     stopMapAria: "Hållplats på kartan",
     from: "Från", to: "Till",
-    placePlaceholder: "Adress, plats eller hållplats…",
+    placePlaceholder: "Adress, plats eller hållplats",
     useMyLocation: "Använd min position", myLocation: "Min position",
     timeModeAria: "Tidens tolkning", timeAria: "Tid",
     departAt: "Avgångstid", arriveBy: "Ankomsttid",
