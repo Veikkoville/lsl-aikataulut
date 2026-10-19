@@ -1,7 +1,8 @@
 // Muutosvahdin luokittelun yksikkötestit (ei verkkoa): lähiviikkojen tulkinta, pysäkin muutospäivä ja
 // aluerajatun kaupungin (areaScoped) pysäkkijoukko.
 // Ajo: node tests/muutosvahti-luokittelu.test.js   (osa npm testiä)
-const { classifyNear, firstChangeDay, addDays, areaSelection, inMunicipality, extractConfigs } = require("./muutosvahti.js");
+const { classifyNear, firstChangeDay, addDays, areaSelection, inMunicipality, extractConfigs,
+  onPyha, pyhapaivat, representativeDays, prevPyhaviikko } = require("./muutosvahti.js");
 
 let ok = 0, fail = 0;
 function tarkista(nimi, saatu, odotettu) {
@@ -62,6 +63,55 @@ tarkista("Kaukoviikko ei vakaa (2.11. eri kuin 9.11.) -> null",
   firstChangeDay(paivat((d, w) => (d >= "2026-11-09" ? "x-" : d >= "2026-11-02" ? "uusi-" : "vanha-") + laji(w)), VANHA, UUSI, UUSI2), null);
 tarkista("Ei muutosta -> null",
   firstChangeDay(paivat((d, w) => "vanha-" + laji(w)), VANHA, UUSI, UUSI2), null);
+
+// --- Pyhäpäivät (löydös 19.10.2026) ---
+// Ajo su 18.10.2026: nykytilan viikko ma 26.10. (la 31.10. = pyhäinpäivä, sunnuntailiikenne), kaukoviikko ma 23.11.,
+// vahvistusviikko ma 30.11. Ennen korjausta vahti antoi Kouvolassa, Mikkelissä, Kotkassa, Porissa ja Oulussa
+// muutospäiväksi la 7.11., vaikka aikataulu ei muutu.
+const pyhat2026 = pyhapaivat(2026), pyhat2027 = pyhapaivat(2027);
+tarkista("Pyhät 2026: pyhäinpäivä la 31.10., pitkäperjantai 3.4., 2. pääsiäispäivä 6.4., helatorstai 14.5., juhannusaatto 19.6. ja -päivä 20.6.",
+  ["2026-10-31", "2026-04-03", "2026-04-06", "2026-05-14", "2026-06-19", "2026-06-20"].map(d => pyhat2026.has(d)), [true, true, true, true, true, true]);
+tarkista("Pyhät 2027: pääsiäispäivä 28.3., pyhäinpäivä la 6.11., juhannuspäivä la 26.6.; tavalliset päivät eivät ole pyhiä",
+  [pyhat2027.has("2027-03-28"), onPyha("2027-11-06"), onPyha("2027-06-26"), onPyha("2026-11-07"), onPyha("2026-10-24")], [true, true, true, false, false]);
+const iso2 = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const rep = (off, alku) => { const r = representativeDays(off, new Date(alku + "T12:00:00")); return [iso2(r.tue), iso2(r.sig.tue), iso2(r.sig.sat), iso2(r.sig.sun)]; };
+tarkista("Edustavat päivät 18.10. W1: la 31.10. pyhä -> lähihorisontissa viikkoa aiemmin la 24.10., ankkuri ti 27.10. ennallaan",
+  rep(7, "2026-10-18"), ["2026-10-27", "2026-10-27", "2026-10-24", "2026-11-01"]);
+tarkista("Äitienpäivä su 10.5.2026 ja isänpäivä su 8.11.2026 ovat poikkeusliikennepäiviä, su 15.11. ei",
+  [onPyha("2026-05-10"), onPyha("2026-11-08"), onPyha("2026-11-15")], [true, true, false]);
+tarkista("Edustavat päivät 18.10. W2: su 8.11. isänpäivä -> W2 viikkoa myöhemmin su 15.11. (W2:lla alkava muutos jatkuu W3:lla)",
+  rep(14, "2026-10-18"), ["2026-11-03", "2026-11-03", "2026-11-07", "2026-11-15"]);
+tarkista("Kotka 18.10.: isänpäivän su 8.11. lisälähtö ei ole muutos 15.11. -> null",
+  firstChangeDay(paivat((d, w) => (d === "2026-11-08" ? "su-lisalahto" : d === "2026-10-31" ? "su-liikenne" : "vanha-" + laji(w)), "2026-10-19", "2026-12-06"),
+    "2026-11-02", "2026-11-23", "2026-11-30"), null);
+tarkista("Edustavat päivät 25.10. W5: su 6.12. itsenäisyyspäivä -> kaukohorisontissa viikkoa myöhemmin su 13.12.",
+  rep(35, "2026-10-25"), ["2026-12-01", "2026-12-01", "2026-12-05", "2026-12-13"]);
+
+const VANHA18 = "2026-10-26", UUSI18 = "2026-11-23", UUSI2_18 = "2026-11-30";
+const paivat18 = f => paivat(f, "2026-10-19", "2026-12-06");
+const kouvola18 = paivat18((d, w) => (d === "2026-10-31" ? "su-liikenne" : "vanha-" + laji(w)));
+tarkista("Kouvola 18.10.: nykytilan la 31.10. pyhäinpäivä, ei muutosta -> null (ei 7.11.)",
+  firstChangeDay(kouvola18, VANHA18, UUSI18, UUSI2_18), null);
+tarkista("Kouvola 18.10. ilman pyhäsääntöä (vanha toiminta) -> 2026-11-07 (vartijan oma kontrolli)",
+  firstChangeDay(kouvola18, VANHA18, UUSI18, UUSI2_18, () => false), "2026-11-07");
+tarkista("Lahti 18.10.: linja 28 alkaa ma 2.11., la 31.10. pyhä -> 2026-11-02 (aito muutos säilyy)",
+  firstChangeDay(paivat18((d, w) => (d === "2026-10-31" ? "su-liikenne" : (d >= "2026-11-02" ? "uusi-" : "vanha-") + laji(w))), VANHA18, UUSI18, UUSI2_18), "2026-11-02");
+tarkista("Kotka 18.10.: arkiajat siirtyvät ti 3.11. alkaen, la 31.10. pyhä -> 2026-11-03 (pieni aito muutos säilyy)",
+  firstChangeDay(paivat18((d, w) => (d === "2026-10-31" ? "su-liikenne" : w >= 1 && w <= 5 && d >= "2026-11-03" ? "uusi-arki" : "vanha-" + laji(w))), VANHA18, UUSI18, UUSI2_18), "2026-11-03");
+tarkista("Lauantaimuutos 7.11. alkaen, kun nykytilan la 31.10. on pyhä -> 2026-11-07 (vanha arvo viikkoa aiemmin la 24.10.)",
+  firstChangeDay(paivat18((d, w) => (d === "2026-10-31" ? "su-liikenne" : w === 6 && d >= "2026-11-07" ? "uusi-la" : "vanha-" + laji(w))), VANHA18, UUSI18, UUSI2_18), "2026-11-07");
+tarkista("Kaukoviikon su 6.12. pyhä ei estä muutosta: sunnuntaimuutos 15.11. alkaen -> 2026-11-15",
+  firstChangeDay(paivat((d, w) => (d === "2026-12-06" ? "pyha" : w === 0 && d >= "2026-11-15" ? "uusi-su" : "vanha-" + laji(w)), "2026-10-26", "2026-12-13"),
+    "2026-11-02", "2026-11-30", "2026-12-07"), "2026-11-15");
+
+tarkista("Edellinen ajo 18.10. (W1 la 31.10., ilman pyhäsääntöä) -> tunnistetta ei käytetä",
+  prevPyhaviikko({ paivat: { near: { tue: "2026-10-27", sat: "2026-10-31", sun: "2026-11-01" }, near2: "2026-11-03" } }), true);
+tarkista("Edellinen ajo 11.10. (W2 la 31.10.) -> tunnistetta ei käytetä",
+  prevPyhaviikko({ paivat: { near: { tue: "2026-10-20", sat: "2026-10-24", sun: "2026-10-25" }, near2: "2026-10-27" } }), true);
+tarkista("Edellinen ajo 4.10. (ei pyhiä) ja pyhäsäännöllä tehty ajo -> tunniste käytössä",
+  [prevPyhaviikko({ paivat: { near: { tue: "2026-10-13", sat: "2026-10-17", sun: "2026-10-18" }, near2: "2026-10-20" } }),
+   prevPyhaviikko({ pyhasaanto: 1, paivat: { near: { tue: "2026-10-27", sat: "2026-10-24", sun: "2026-11-01" }, near2: "2026-11-03" } }),
+   prevPyhaviikko(null)], [false, false, false]);
 
 // --- Aluerajaus (areaScoped): kaikki kunnan alueen oman feedin ja lisäfeedin pysäkit (sovelluksen
 // inMunicipality), joilla on CONFIG.modes-linja. Linjalistan minStops ei rajaa pysäkkejä (päätös 29.9.2026).
