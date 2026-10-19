@@ -92,15 +92,60 @@ async function gql(query, variables, router) {
 
 const compact = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// --- Juhlapyhät ja aattopäivät, joina ajetaan poikkeusliikennettä ---
+// Pyhäpäivä ei kelpaa edustavaksi päiväksi eikä muutospäiväksi. Löydös 19.10.2026: 18.10. ajon nykytilan viikon
+// lauantai oli pyhäinpäivä la 31.10. (sunnuntailiikenne), ja vahti tulkitsi paluun tavalliseen lauantaihin
+// muutokseksi "7.11. alkaen" noin 1 370 pysäkillä (Kouvola, Mikkeli, Kotka, Pori, Oulu).
+function easter(y) { // gregoriaaninen pääsiäispäivä (anonyymi algoritmi)
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+  return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+const pyhaVuodet = new Map();
+function pyhapaivat(y) {
+  if (pyhaVuodet.has(y)) return pyhaVuodet.get(y);
+  const p = new Set([`${y}-01-01`, `${y}-01-06`, `${y}-05-01`, `${y}-12-06`, `${y}-12-24`, `${y}-12-25`, `${y}-12-26`, `${y}-12-31`]);
+  const e = easter(y);
+  for (const n of [-2, 0, 1, 39]) p.add(addDays(e, n)); // pitkäperjantai, pääsiäispäivä, 2. pääsiäispäivä, helatorstai
+  const viikonpaiva = (alku, loppu, w) => { for (let d = alku; d <= loppu; d = addDays(d, 1)) if (new Date(d + "T12:00:00").getDay() === w) return d; };
+  p.add(viikonpaiva(`${y}-06-19`, `${y}-06-25`, 5)); // juhannusaatto
+  p.add(viikonpaiva(`${y}-06-20`, `${y}-06-26`, 6)); // juhannuspäivä
+  p.add(viikonpaiva(`${y}-10-31`, `${y}-11-06`, 6)); // pyhäinpäivä
+  // Äitienpäivä ja isänpäivä (toinen sunnuntai toukokuussa ja marraskuussa) eivät ole pyhiä, mutta feedit ajavat niinä
+  // lisävuoroja: Kotkassa su 8.11.2026 linjan 19 lisälähtö, joka teki 61 pysäkin "muutoksen 15.11." 18.10. ajossa.
+  p.add(viikonpaiva(`${y}-05-08`, `${y}-05-14`, 0));
+  p.add(viikonpaiva(`${y}-11-08`, `${y}-11-14`, 0));
+  pyhaVuodet.set(y, p);
+  return p;
+}
+const onPyha = isoPvm => pyhapaivat(+String(isoPvm).slice(0, 4)).has(String(isoPvm).slice(0, 10));
+
 // Edustavat päivät: ensimmäinen tiistai joka on vähintään D+7 päässä, ja saman viikon la/su.
 // Tiistai, koska maanantai ja perjantai kantavat useimmin poikkeuksia (feedit koodaavat
 // perjantain yövuorot ja maanantain päättyvät palvelut erikseen, ks. 23.8.2026 löydös).
-function representativeDays(offsetDays) {
-  const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + offsetDays);
+// Pyhäpäivälle osuva edustava päivä korvataan saman viikonpäivän pyhättömällä päivällä: nykytilan viikolla (W1)
+// viikkoa aiemmin, muilla viikoilla viikkoa myöhemmin. W2 eteenpäin, koska W2:lla alkava muutos jatkuu W3:lla:
+// taaksepäin korvattu W2 sekoittaisi vanhan ja uuden (Lahti linja 28 alkaa ma 2.11., isänpäivä su 8.11. -> su 1.11.
+// olisi tehnyt 54 pysäkistä poikkeusviikon). Viikon ankkuri (tue) ei muutu, joten voimaantulopäivän laskenta
+// (changeDates) käyttää edelleen oikeaa viikkoa; korvatut päivät ovat kentässä korvattu.
+function representativeDays(offsetDays, alusta = new Date()) {
+  const d = new Date(alusta); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + offsetDays);
   while (d.getDay() !== 2) d.setDate(d.getDate() + 1);
   const tue = new Date(d), sat = new Date(d), sun = new Date(d);
   sat.setDate(sat.getDate() + 4); sun.setDate(sun.getDate() + 5);
-  return { tue, sat, sun };
+  const suunta = offsetDays < 14 ? -7 : 7;
+  const korvattu = {};
+  const days = { tue, sat, sun };
+  for (const k of ["tue", "sat", "sun"]) {
+    const alku = iso(days[k]);
+    let x = new Date(days[k]);
+    for (let n = 0; n < 3 && onPyha(iso(x)); n++) x.setDate(x.getDate() + suunta);
+    if (iso(x) !== alku) { korvattu[k] = { pyha: alku, tilalla: iso(x) }; days[k] = x; }
+  }
+  return { tue, sig: days, korvattu };
 }
 
 const hm = s => `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}`;
@@ -160,13 +205,22 @@ const addDays = (isoPvm, n) => { const d = new Date(isoPvm + "T12:00:00"); d.set
 // Kuopio ma 12.10. (lähdöt minuutin aiemmin); Joensuu syysloma 12.-18.10. ja muutos 19.10.; Oulu syysloma 19.-23.10.
 // näytti uudelta tilalta, mutta 26.10. palasi vanhaan (muutos 2.11.); pyhäinpäivä la 31.10. ei ole muutos.
 // Palauttaa aikaisimman muutospäivän (iso) tai null, jos yhtäkään viikonpäivää ei voitu todentaa.
-function firstChangeDay(lahdot, vanhaMa, uusiMa, uusi2Ma) {
+// Pyhäpäivä (onPyha) ei ole vanha eikä uusi arvo eikä muutospäivä: jos nykytilan viikon päivä on pyhä, vanha arvo
+// luetaan viikkoa aiemmin (changeDates hakee sen), muuten viikkoa myöhemmin; pyhänä kaukopäivänä uusi arvo luetaan
+// pelkästä pyhättömästä kaukopäivästä. Todennettu 19.10.2026: nykytilan la 31.10. pyhäinpäivä ei saa tuottaa muutosta 7.11.
+function firstChangeDay(lahdot, vanhaMa, uusiMa, uusi2Ma, pyha = onPyha) {
   let paras = null;
+  const arvo = d => (d && !pyha(d) ? lahdot.get(d) : undefined);
   for (let i = 0; i < 7; i++) {
-    const vanha = lahdot.get(addDays(vanhaMa, i)), uusi = lahdot.get(addDays(uusiMa, i)), uusi2 = lahdot.get(addDays(uusi2Ma, i));
+    const v0 = addDays(vanhaMa, i);
+    const vanhaPvm = !pyha(v0) ? v0 : [addDays(v0, -7), addDays(v0, 7)].find(d => !pyha(d) && lahdot.get(d) !== undefined);
+    const u1 = addDays(uusiMa, i), u2 = addDays(uusi2Ma, i);
+    const vanha = arvo(vanhaPvm);
+    let uusi = arvo(u1), uusi2 = arvo(u2);
+    if (pyha(u1)) uusi = uusi2; else if (pyha(u2)) uusi2 = uusi;
     if (vanha === undefined || uusi === undefined || uusi !== uusi2 || uusi === vanha) continue;
     const paivat = [];
-    for (let d = addDays(vanhaMa, i + 7); d <= addDays(uusiMa, i); d = addDays(d, 7)) paivat.push(d);
+    for (let d = addDays(v0, 7); d <= u1; d = addDays(d, 7)) if (!pyha(d)) paivat.push(d);
     for (let k = 0; k < paivat.length; k++) {
       if (lahdot.get(paivat[k]) !== uusi) continue;
       if (paivat.slice(k + 1).some(d => lahdot.get(d) === vanha)) continue;
@@ -209,7 +263,9 @@ async function changeDates(changed, near, near2, far, router) {
   const ma = tue => addDays(iso(tue), -1);
   const nearMa = ma(near.tue), near2Ma = ma(near2.tue), farMa = ma(far.tue), far2Ma = addDays(farMa, 7);
   const dates = [];
-  for (let d = nearMa; d <= addDays(far2Ma, 6); d = addDays(d, 1)) dates.push(d);
+  // Viikko ennen nykytilan viikkoa mukaan vain pyhäpäivien takia: pyhän vanha arvo luetaan viikkoa aiemmin.
+  for (let d = addDays(nearMa, -7); d <= addDays(far2Ma, 6); d = addDays(d, 1))
+    if (d >= nearMa || onPyha(addDays(d, 7))) dates.push(d);
   const lahdot = await dailyDepartures(changed.map(r => r.id), dates, router);
   for (const r of changed) {
     const d = firstChangeDay(lahdot.get(r.id), r.poikkeus === "near" ? near2Ma : nearMa, farMa, far2Ma);
@@ -236,6 +292,16 @@ function classifyNear(n1, n2, f1, f2, prev) {
   if (same(n2, f1) || same(n2, f2)) return { base: n2, poikkeus: "near" };
   if (same(n1, f1) || same(n1, f2)) return { base: n1, poikkeus: "near2" };
   return { base: n2, poikkeus: "near" };
+}
+
+// Onko edellinen ajo tehty ilman pyhäsääntöä niin, että sen lähiviikkojen (W1, W2) edustavissa päivissä oli pyhä?
+// Silloin sen nykytila voi olla pyhäviikon tunniste, ja runCity kääntää sen pyhättömäksi tai jättää pois.
+function prevPyhaviikko(prev) {
+  if (!prev || prev.pyhasaanto || !prev.paivat) return false;
+  const p = prev.paivat;
+  const n2 = p.near2;
+  const paivat = [p.near?.tue, p.near?.sat, p.near?.sun, n2, n2 && addDays(n2, 4), n2 && addDays(n2, 5)].filter(Boolean);
+  return paivat.some(onPyha);
 }
 
 // --- Aluerajaus (CONFIG.areaScoped) ---
@@ -319,14 +385,35 @@ async function runCity(key, cfg, feedsByRouter) {
 
   const near = representativeDays(7), near2 = representativeDays(14);
   const far = representativeDays(35), far2 = representativeDays(42);
-  const sigNear = await signaturesFor(ids, near, router);
-  const sigNear2 = await signaturesFor(ids, near2, router);
-  const sigFar = await signaturesFor(ids, far, router);
-  const sigFar2 = await signaturesFor(ids, far2, router);
+  for (const [nimi, h] of Object.entries({ near, near2, far, far2 }))
+    for (const [k, v] of Object.entries(h.korvattu)) console.log(`INFO [${key}] ${nimi} ${k} ${v.pyha} on pyhäpäivä -> ${v.tilalla}`);
+  const sigNear = await signaturesFor(ids, near.sig, router);
+  const sigNear2 = await signaturesFor(ids, near2.sig, router);
+  const sigFar = await signaturesFor(ids, far.sig, router);
+  const sigFar2 = await signaturesFor(ids, far2.sig, router);
 
   const outFile = path.join(OUT_DIR, key + ".json");
   const prev = fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, "utf8")) : null;
   const prevHash = new Map(Object.entries(prev?.hashes || {}));
+  // Siirtymä: ennen pyhäsääntöä tallennettu nykytila voi olla pyhäviikon tunniste (11.10.2026 ajo tallensi la 31.10.
+  // viikon nykytilaksi, ja 18.10. ajo luotti siihen). Se ei osu tämän ajon pyhättömiin tunnisteisiin, joten se käännetään:
+  // jos edellinen tunniste = saman viikon tunniste pyhäpäivän kanssa (raakatunniste), sitä vastaa saman viikon pyhätön
+  // tunniste. Ilman käännöstä aito W2:lla alkava muutos (Kotka P004 ti 3.11.) luokittuisi poikkeusviikoksi. Tunniste,
+  // jota ei voi kääntää, jätetään pois (ei poikkeusviikon ratkaisuun eikä "muuttunut viime ajosta" -tietoon).
+  const prevEpaluotettava = prevPyhaviikko(prev);
+  if (prevEpaluotettava) {
+    const kaannos = new Map();
+    for (const [h, sig] of [[near, sigNear], [near2, sigNear2]]) {
+      if (!Object.keys(h.korvattu).length) { for (const id of ids) if (!kaannos.has(id) && prevHash.get(id) === sig.get(id)?.hash) kaannos.set(id, sig.get(id).hash); continue; }
+      const raaka = Object.fromEntries(["tue", "sat", "sun"].map(k => [k, h.korvattu[k] ? new Date(h.korvattu[k].pyha + "T12:00:00") : h.sig[k]]));
+      const sigRaaka = await signaturesFor(ids, raaka, router);
+      for (const id of ids) if (!kaannos.has(id) && prevHash.get(id) === sigRaaka.get(id)?.hash) kaannos.set(id, sig.get(id).hash);
+    }
+    console.log(`INFO [${key}] edellisen ajon (${String(prev.ajettu).slice(0, 10)}) lähiviikoilla oli pyhä ilman pyhäsääntöä: ` +
+      `${kaannos.size}/${prevHash.size} tunnistetta käännetty pyhättömiksi, loput jätetään pois`);
+    prevHash.clear();
+    for (const [id, h] of kaannos) prevHash.set(id, h);
+  }
 
   const baseSig = new Map(); // vakaa nykytila per pysäkki
   const same = (a, b) => !!(a && b && a.hash === b.hash);
@@ -366,9 +453,10 @@ async function runCity(key, cfg, feedsByRouter) {
   const hashes = {};
   for (const id of ids) if (baseSig.get(id)) hashes[id] = baseSig.get(id).hash;
   const report = {
-    city: key, ajettu: new Date().toISOString(), edellinen: prev?.ajettu || null,
-    paivat: { near: { tue: iso(near.tue), sat: iso(near.sat), sun: iso(near.sun) }, near2: iso(near2.tue),
-      far: { tue: iso(far.tue), sat: iso(far.sat), sun: iso(far.sun) }, far2: iso(far2.tue) },
+    city: key, ajettu: new Date().toISOString(), edellinen: prev?.ajettu || null, pyhasaanto: 1,
+    paivat: { near: { tue: iso(near.sig.tue), sat: iso(near.sig.sat), sun: iso(near.sig.sun) }, near2: iso(near2.tue),
+      far: { tue: iso(far.sig.tue), sat: iso(far.sig.sat), sun: iso(far.sig.sun) }, far2: iso(far2.tue),
+      korvattu: Object.fromEntries(Object.entries({ near, near2, far, far2 }).filter(([, h]) => Object.keys(h.korvattu).length).map(([n, h]) => [n, h.korvattu])) },
     yhteenveto: { pysakkeja: rows.length, tulossa: changedIds.length, muuttunut: rows.filter(r => r.muuttunut).length,
       poikkeus: rows.filter(r => r.poikkeus).length,
       poikkeusviikot: { near: { pvm: iso(near.tue), n: rows.filter(r => r.poikkeus === "near").length },
@@ -384,7 +472,8 @@ async function runCity(key, cfg, feedsByRouter) {
   return { key, ...report.yhteenveto };
 }
 
-module.exports = { classifyNear, firstChangeDay, addDays, pointInRing, inMunicipality, areaSelection, extractConfigs };
+module.exports = { classifyNear, firstChangeDay, addDays, pointInRing, inMunicipality, areaSelection, extractConfigs,
+  onPyha, pyhapaivat, representativeDays, prevPyhaviikko };
 
 if (require.main === module) (async () => {
   const configs = extractConfigs();
