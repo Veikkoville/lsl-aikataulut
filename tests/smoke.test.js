@@ -283,8 +283,8 @@ async function minuuttiLinjaus(page, rootSel, media) {
     : fail("esteettömyys: suodatin ja tiedon puute yhtä aikaa tai ei kumpaakaan: " + JSON.stringify(accUi));
 
   // --- Häiriöt vs. tiedotteet -erottelu: kiireelliset häiriöt korostettu/auki, informatiiviset
-  //     tiedotteet vaimennettu/kiinni (sääntö B). Lahdella on aina ≥1 kumpaakin (esim. Kytölä-
-  //     detour = häiriö; "Linja 81 palvelubussi" / "Linjasto uudistui" = tiedote). ---
+  //     tiedotteet vaimennettu/kiinni (sääntö B). Elävässä datassa kumpaakaan ei aina ole (19.10.2026
+  //     Lahdella 2 häiriötä ja 0 tiedotetta), joten sääntö B todennetaan lisäksi vakioaineistolla. ---
   await page.waitForSelector("#alertsBox details", { timeout: 15000 }).catch(() => {});
   const banner = await page.evaluate(() => {
     const dis = document.querySelector("#alertsBox details.alertsum");
@@ -304,9 +304,40 @@ async function minuuttiLinjaus(page, rootSel, media) {
     : (banner.disCount === 0 && banner.disOpen === null)
     ? ok("etusivu: ei kiireellisiä häiriöitä juuri nyt, häiriölohkoa ei näytetä (datariippuva)")
     : fail("etusivu: häiriölohko (.alertsum) puuttuu tai ei oletuksena auki: " + JSON.stringify(banner));
-  (banner.infCount > 0 && banner.infOpen === false)
+  // Tiedotteita ei aina ole: silloin tiedotelohkoa ei saa olla. Latausvirhe (.error) ei ole "ei tiedotteita"
+  // vaan aina virhe, ettei virhetilan tyhjä lohko mene läpi onnistumisena.
+  const alertsError = await page.$eval("#alertsBox .error", e => e.textContent.trim()).catch(() => null);
+  alertsError !== null
+    ? fail("etusivu: tiedotteiden lataus epäonnistui: " + alertsError)
+    : (banner.infCount > 0 && banner.infOpen === false)
     ? ok(`etusivu: informatiiviset tiedotteet vaimennettu ja kiinni (${banner.infCount})`)
-    : fail("etusivu: tiedotelohko (.infosum) puuttuu tai ei oletuksena kiinni: " + JSON.stringify(banner));
+    : (banner.infCount === 0 && banner.infOpen === null)
+    ? ok("etusivu: ei informatiivisia tiedotteita juuri nyt, tiedotelohkoa ei näytetä (datariippuva)")
+    : fail("etusivu: tiedotelohko (.infosum) ei oletuksena kiinni: " + JSON.stringify(banner));
+  // Sääntö B vakioaineistolla (19.10.2026): sama piirto yhdellä häiriöllä ja yhdellä tiedotteella, jotta
+  // häiriölohko auki ja tiedotelohko kiinni todennetaan joka ajossa elävästä datasta riippumatta.
+  {
+    const fix = await page.evaluate(async () => {
+      const alkuperainen = loadAllAlerts;
+      loadAllAlerts = async () => [
+        { alertEffect: "DETOUR", alertSeverityLevel: "WARNING", alertHeaderText: "Vakiohäiriö: poikkeusreitti Testikadulla",
+          alertDescriptionText: "Linja 0 kulkee poikkeusreittiä.", effectiveStartDate: 0 },
+        { alertEffect: "OTHER_EFFECT", alertSeverityLevel: "INFO", alertHeaderText: "Vakiotiedote: aikataulukirja ilmestyy",
+          alertDescriptionText: "Tiedote ilman liikennevaikutusta.", effectiveStartDate: 0 },
+      ];
+      try {
+        const box = document.createElement("div");
+        await loadAlertsInto(box);
+        const dis = box.querySelector("details.alertsum"), inf = box.querySelector("details.infosum");
+        return { dis: dis ? [dis.querySelectorAll(".alert").length, dis.open] : null,
+                 inf: inf ? [inf.querySelectorAll(".alert").length, inf.open] : null,
+                 virhe: !!box.querySelector(".error") };
+      } finally { loadAllAlerts = alkuperainen; }
+    });
+    JSON.stringify(fix) === JSON.stringify({ dis: [1, true], inf: [1, false], virhe: false })
+      ? ok("etusivu: häiriölohko auki ja tiedotelohko kiinni (vakioaineisto)")
+      : fail("etusivu: häiriö- ja tiedotelohko vakioaineistolla: " + JSON.stringify(fix));
+  }
   banner.hasSrc
     ? ok("etusivu: lsl.fi-CMS-tiedote mukana bannerissa")
     : info("etusivu: ei CMS-tiedotetta (worker /cms-alerts deployaamatta tai ei tuoreita) — ei virhe");
