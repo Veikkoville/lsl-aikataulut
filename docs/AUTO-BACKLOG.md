@@ -404,6 +404,43 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 3/3 · työ M · myynti 1/3 · uutuus 2/2 = 9
       Mittari: smoke-tarkistus (pysakitPois ja pysakitUudet kiinteällä aineistolla, reittimuutos luokittuu muuttuvaksi)
       vihreä CI:ssä · tarkistus 2026-12-10 (pisteet ja mittari: CoS 15.10.) (PR, 2026-10-17)
+- [ ] index.html: pyhäpäivän liikennetyyppi feedistä `#/poikkeukset`-listaan. Nyt kaupunki, jolla ei ole omaa
+      `CONFIG.exceptions`-listaa, saa yleistekstin `exIntro` (rivi noin 5360): "tavallisesti sunnuntai- tai erillisen
+      juhlapyhäaikataulun mukaan". Kahden kaupungin listat (kommentit rivit noin 4016 ja 4506) syntyivät juuri siksi, että
+      yleinen lista väitti joulupäivänä ajettavan sunnuntaiaikataululla, vaikka liikennettä ei ole, ja sama jouluaatto on
+      niillä eri viikonpäivän liikennettä. Lisää puhdas funktio `pyhaLuokka(pyha, viikko)`: saa pyhän vuorojoukon (vuoro =
+      koko `scheduledDeparture`-sarja kuten `vertaaPaivat`issa) ja lähimmän edeltävän pyhättömän viikon arkipäivän,
+      lauantain ja sunnuntain joukot; tyhjä pyhä -> `{ tyyppi: "ei" }`, Jaccard vähintään 0,9 jonkin päivän kanssa ->
+      `{ tyyppi: "ma-pe" | "la" | "su", osuus }`, muuten `{ tyyppi: "poikkeava", lahin, n, m }`. Pyhät `namedHolidays`ista
+      (rivi noin 15246) väliltä tänään..+84 pv (activeDates-ikkuna), vuorot yhdellä kyselyllä `exCmpLoad`in mallilla (rivi
+      noin 15387). `viewExceptions` (rivi noin 15493) näyttää luokan pyhän rivillä vain kaupungeille, joilla ei ole
+      `CONFIG.exceptions`ia, merkintä `data-ex-type`-attribuuttiin, tekstit fi/sv/en ja lause, että tieto on laskettu
+      aikataulutiedosta. `CONFIG.exceptions`-kaupungit ennallaan, ei tulosteisiin. Todennus: smoke `page.evaluate`
+      kiinteällä aineistolla: lauantain kanssa identtinen -> "la", tyhjä -> "ei", puolet lauantain vuoroista ->
+      "poikkeava"; Lahden `#/poikkeukset`-sivulla vähintään yksi `[data-ex-type]`, kun `namedHolidays` antaa ikkunaan
+      pyhän (muuten tarkistus kirjaa ohituksen syyn). Assertoi rakennetta, ei feedin määriä. `node --check` pääskriptille.
+      (tutkimuskierros 2026-10-19, lähde: kahden kaupungin omat poikkeuslistat ja Waltti-alueiden pyhäpäiväsivut kertovat
+      eri liikennetyypit samalle päivälle; joulun pyhät ovat jo 84 päivän data-ikkunassa)
+      Pisteet: arvo 3/3 · kiire 3/3 · työ M · myynti 2/3 · uutuus 2/2 = 12
+      Mittari: smoke-tarkistus (pyhaLuokka kiinteällä aineistolla) vihreä CI:ssä; käsin: kaupunki ilman omaa listaa näyttää
+      joulupäivälle feedin mukaisen luokan · tarkistus 2026-12-01 (pisteet ja mittari: CoS 19.10.)
+- [ ] index.html: päivävertailun vertailupäivä ohittaa lomaviikon, ja valitun päivän voi linkittää. Nyt `exCmpLoad`
+      (rivi noin 15387) vertaa aina 7 päivää aiempaan, joten kun valittu päivä on heti koulujen lomaviikon jälkeen
+      (syyslomaviikon jälkeinen maanantai on yleinen muutospäivä), lomalla ajamatta jääneet koulupäivävuorot näkyvät
+      uusina ja oikeat muutokset hukkuvat niiden alle. Muutosvahti hoitaa saman jo omalla viikkologiikallaan
+      (tests/muutosvahti.js `firstChangeDay`, rivi noin 158), päivävertailu ei. (1) Lisää samaan kyselyyn kolmas alias
+      päivälle -14. (2) Puhdas funktio `valitseVertailu(a, b7, b14)`: palauttaa "b7" tai "b14" sen mukaan, kummassa
+      `vertaaPaivat(a, b)`:n eiAja + muuttuu + vainUusi -linjoja on vähemmän; tasapelissä tai tyhjällä b14:llä "b7".
+      `exCmpVs` näyttää valitun vertailupäivän kuten nyt. (3) `#/poikkeukset?pvm=VVVV-KK-PP` avaa vertailun sille päivälle
+      ja voittaa muutosvahdin oletuspäivän (rivi noin 15486); kyselyosa luetaan `route()`ssa (rivi noin 26302), ja päivän
+      vaihto päivittää osoitteen `history.replaceState`illa. Todennus: smoke kiinteällä aineistolla: b7, josta yksi linja
+      puuttuu, ja b14 identtinen a:n kanssa -> "b14"; tyhjä b14 -> "b7"; `#/poikkeukset?pvm=X` -> päivävalitsimen arvo on
+      X. Assertoi rakennetta. `node --check` pääskriptille. (tutkimuskierros 2026-10-19, lähde: kolmen Waltti-alueen
+      tiedotteet, joissa muutokset tulevat voimaan heti syyslomaviikon jälkeen; kuntien lomauutiset ohjaavat yleiseen
+      reittioppaaseen ilman suoraa linkkiä muutoslistaan)
+      Pisteet: arvo 2/3 · kiire 3/3 · työ M · myynti 1/3 · uutuus 1/2 = 8
+      Mittari: smoke-tarkistus (valitseVertailu ja ?pvm) vihreä CI:ssä; käsin: joululoman jälkeisen maanantain
+      vertailupäivä on kahden viikon takainen · tarkistus 2027-01-11 (pisteet ja mittari: CoS 19.10.)
 
 ## Tehdyt
 
