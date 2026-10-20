@@ -4737,8 +4737,9 @@ const CONFIGS = {
     feedMatch: /rovaniemi/i,
     rail: "ROI",
     heroEmphasis: "layer",
-    // Keskustan solmupysäkit (7.8.2026: Poliisilaitos 10 linjaa, Hallituskatu 7).
-    centerStopNames: ["Poliisilaitos", "Hallituskatu"],
+    // Keskustan solmupysäkit (7.8.2026: Poliisilaitos 10 linjaa, Hallituskatu 7). 19.10.2026 aikataulumuutoksessa
+    // Poliisilaitos nimettiin Uitonpuistoksi (sama Rovaniemi:206233, 9 linjaa; datavahti 20.10.2026).
+    centerStopNames: ["Uitonpuisto", "Hallituskatu"],
     // Palvelutiskin oletus: Ruokasenpuisto I (10 linjaa, 361 m Osviitasta, Koskikatu 19). Villen päätös 4.10.2026.
     // Lähde: asiakaspalvelupisteiden selvitys 4.10.2026 (cc-raportit, luku 3) ja Villen päätökset 4.10.2026.
     deskHomeStop: { id: "Rovaniemi:206221", name: "Ruokasenpuisto I" },
@@ -4816,7 +4817,7 @@ const CONFIGS = {
     },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
-      // focus = Poliisilaitos; rect kattaa linjapysäkit (7.8.2026: lat 66.368–66.547,
+      // focus = Uitonpuisto (ent. Poliisilaitos); rect kattaa linjapysäkit (7.8.2026: lat 66.368–66.547,
       // lon 25.372–25.953) marginaalilla.
       focus: { lat: 66.4965, lon: 25.7300 },
       rect: { minLat: 66.28, maxLat: 66.65, minLon: 25.25, maxLon: 26.10 },
