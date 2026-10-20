@@ -15517,7 +15517,7 @@ function exCmpInit() {
 
 /* ---------- Poikkeukset: pyhän liikennetyyppi feedistä ---------- */
 // Pyhän liikennetyyppi vertaamalla sen vuoroja edeltävän pyhättömän viikon arkeen, lauantaihin ja sunnuntaihin.
-// pyha: taulukko vuoroja (vuoro = linja + vuoron kaikki scheduledDeparture-ajat yhtenä merkkijonona); viikko: tyyppi
+// pyha: taulukko vuoroja (vuoro = linja + vuoron lähtö- ja saapumisaika yhtenä merkkijonona); viikko: tyyppi
 // ("ma-pe" | "la" | "su") -> samanmuotoinen taulukko. Tyhjä pyhä -> { tyyppi: "ei" }; Jaccard-osuus vähintään 0,9
 // jonkin päivän kanssa -> { tyyppi, osuus }; muuten { tyyppi: "poikkeava", lahin, n, m } (n pyhän ja m lähimmän päivän vuorot).
 function pyhaLuokka(pyha, viikko) {
@@ -15549,7 +15549,9 @@ async function pyhaLoad(iso, holidaySet) {
   }
   const days = [["pyha", iso], ...Object.entries(refs)];
   const feed = await findFeed();
-  const trips = days.map(([, day], i) => `x${i}: tripsForDate(serviceDate: "${day.replace(/-/g, "")}") { stoptimes { scheduledDeparture } }`).join(" ");
+  // Vain vuoron ensimmäinen lähtö ja viimeinen saapuminen: koko stoptimes-lista olisi Lahdella noin 5,7 Mt per pyhä,
+  // tämä noin 0,5 Mt, ja luokka on sama (mitattu 20.10.2026 pyhäinpäivällä).
+  const trips = days.map(([, day], i) => `x${i}: tripsForDate(serviceDate: "${day.replace(/-/g, "")}") { departureStoptime { scheduledDeparture } arrivalStoptime { scheduledArrival } }`).join(" ");
   const pat = `patterns { ${trips} }`;
   const data = CONFIG.areaScoped
     ? await gql(`query ($ids: [String]) { routes(ids: $ids) { shortName mode ${pat} } }`, { ids: await areaRouteIds(feed) })
@@ -15560,7 +15562,7 @@ async function pyhaLoad(iso, holidaySet) {
     if (!modes.includes(r.mode) || !r.shortName) continue;
     for (const p of r.patterns || []) {
       days.forEach((_, i) => {
-        for (const tr of p["x" + i] || []) sets[i].push(r.shortName + "|" + (tr.stoptimes || []).map(x => x.scheduledDeparture).join(","));
+        for (const tr of p["x" + i] || []) sets[i].push(`${r.shortName}|${tr.departureStoptime?.scheduledDeparture ?? ""},${tr.arrivalStoptime?.scheduledArrival ?? ""}`);
       });
     }
   }
