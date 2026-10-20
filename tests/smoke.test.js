@@ -3456,6 +3456,28 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (cmpEl.osio && cmpEl.tulos)
     ? ok("poikkeuspäivät: päivävertailun valitsin ja tulosalue ovat sivulla")
     : fail(`poikkeuspäivät: vertailuosio puuttuu ${JSON.stringify(cmpEl)}`);
+  // Pyhän liikennetyyppi: lauantain kanssa identtinen -> "la", tyhjä -> "ei", puolet lauantain vuoroista -> "poikkeava".
+  const pl = await page.evaluate(() => {
+    const la = ["1|100,200", "1|300,400", "2|100,200", "2|500,600"];
+    const viikko = { "ma-pe": ["1|100,200", "1|700,800", "1|900,1000", "3|1,2", "3|3,4", "3|5,6", "3|7,8", "3|9,10"], la, su: ["1|100,200"] };
+    return {
+      la: pyhaLuokka(la, viikko).tyyppi, ei: pyhaLuokka([], viikko).tyyppi,
+      poikkeava: pyhaLuokka(la.slice(0, 2), viikko), tyhjaViikko: pyhaLuokka(la, {}).tyyppi,
+    };
+  });
+  (pl.la === "la" && pl.ei === "ei" && pl.poikkeava.tyyppi === "poikkeava" && pl.poikkeava.n === 2 && pl.poikkeava.m === 4 && pl.tyhjaViikko === "poikkeava")
+    ? ok("pyhaLuokka: sama kuin lauantai -> la, tyhjä -> ei, puolet vuoroista -> poikkeava")
+    : fail(`pyhaLuokka: ${JSON.stringify(pl)}`);
+  // Lahden sivulla pyhärivin luokka täyttyy, kun ikkunassa (84 pv) on pyhä; muuten kirjataan ohituksen syy.
+  const pyhaSlots = await page.evaluate(() => document.querySelectorAll("[data-ex-slot]").length);
+  if (!pyhaSlots) {
+    ok("poikkeuspäivät: pyhän liikennetyyppi ohitettu, koska 84 päivän ikkunassa ei ole pyhää tai kaupungilla on oma lista");
+  } else {
+    const typed = await page.waitForFunction(() => document.querySelectorAll("[data-ex-type]").length > 0, { timeout: 30000 })
+      .then(() => true).catch(() => false);
+    typed ? ok("poikkeuspäivät: pyhärivillä on feedistä laskettu liikennetyyppi (data-ex-type)")
+          : fail("poikkeuspäivät: pyhärivin liikennetyyppiä ei tullut 30 sekunnissa");
+  }
 
   // --- Palaute / vikailmoitus (lomake + tyhjän validointi, ei lähetetä verkkoon) ---
   await page.goto(BASE + "/#/palaute", { waitUntil: "networkidle2" });
