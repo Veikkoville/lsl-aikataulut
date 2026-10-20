@@ -404,7 +404,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 3/3 · työ M · myynti 1/3 · uutuus 2/2 = 9
       Mittari: smoke-tarkistus (pysakitPois ja pysakitUudet kiinteällä aineistolla, reittimuutos luokittuu muuttuvaksi)
       vihreä CI:ssä · tarkistus 2026-12-10 (pisteet ja mittari: CoS 15.10.) (PR, 2026-10-17)
-- [ ] index.html: pyhäpäivän liikennetyyppi feedistä `#/poikkeukset`-listaan. Nyt kaupunki, jolla ei ole omaa
+- [x] index.html: pyhäpäivän liikennetyyppi feedistä `#/poikkeukset`-listaan. Nyt kaupunki, jolla ei ole omaa
       `CONFIG.exceptions`-listaa, saa yleistekstin `exIntro` (rivi noin 5360): "tavallisesti sunnuntai- tai erillisen
       juhlapyhäaikataulun mukaan". Kahden kaupungin listat (kommentit rivit noin 4016 ja 4506) syntyivät juuri siksi, että
       yleinen lista väitti joulupäivänä ajettavan sunnuntaiaikataululla, vaikka liikennettä ei ole, ja sama jouluaatto on
@@ -423,7 +423,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       eri liikennetyypit samalle päivälle; joulun pyhät ovat jo 84 päivän data-ikkunassa)
       Pisteet: arvo 3/3 · kiire 3/3 · työ M · myynti 2/3 · uutuus 2/2 = 12
       Mittari: smoke-tarkistus (pyhaLuokka kiinteällä aineistolla) vihreä CI:ssä; käsin: kaupunki ilman omaa listaa näyttää
-      joulupäivälle feedin mukaisen luokan · tarkistus 2026-12-01 (pisteet ja mittari: CoS 19.10.)
+      joulupäivälle feedin mukaisen luokan · tarkistus 2026-12-01 (pisteet ja mittari: CoS 19.10.) (PR, 2026-10-20)
 - [ ] index.html: päivävertailun vertailupäivä ohittaa lomaviikon, ja valitun päivän voi linkittää. Nyt `exCmpLoad`
       (rivi noin 15387) vertaa aina 7 päivää aiempaan, joten kun valittu päivä on heti koulujen lomaviikon jälkeen
       (syyslomaviikon jälkeinen maanantai on yleinen muutospäivä), lomalla ajamatta jääneet koulupäivävuorot näkyvät

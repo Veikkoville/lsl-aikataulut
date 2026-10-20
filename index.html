@@ -5385,6 +5385,12 @@ const STRINGS = {
     exCmpNew: "Ajaa vain valittuna päivänä",
     exCmpLoading: "Lasketaan aikataulutiedosta...",
     exCmpFail: "Vertailua ei voitu laskea juuri nyt. Yritä hetken päästä uudelleen.",
+    exType_ei: "Ei liikennettä",
+    exType_mape: "Arkipäivän aikataulu",
+    exType_la: "Lauantain aikataulu",
+    exType_su: "Sunnuntain aikataulu",
+    exType_poikkeava: "Oma poikkeava aikataulu",
+    exTypeNote: "Liikennetyyppi on laskettu aikataulutiedosta: pyhän vuoroja verrataan edeltävän pyhättömän viikon arkeen, lauantaihin ja sunnuntaihin.",
     exCmpRow_siirtyy: "Vuoro siirtyy: {time}",
     exCmpRow_uusi: "Uusi vuoro {time}",
     exCmpRow_poistuu: "Vuoro {time} poistuu",
@@ -6315,6 +6321,12 @@ const STRINGS = {
     exCmpNew: "Runs only on the chosen day",
     exCmpLoading: "Calculating from timetable data...",
     exCmpFail: "The comparison could not be calculated right now. Please try again in a moment.",
+    exType_ei: "No service",
+    exType_mape: "Weekday timetable",
+    exType_la: "Saturday timetable",
+    exType_su: "Sunday timetable",
+    exType_poikkeava: "Own special timetable",
+    exTypeNote: "The service type is calculated from timetable data: the holiday's trips are compared with a weekday, Saturday and Sunday of the preceding week without holidays.",
     exCmpRow_siirtyy: "Trip moves: {time}",
     exCmpRow_uusi: "New trip {time}",
     exCmpRow_poistuu: "Trip {time} is cancelled",
@@ -7219,6 +7231,12 @@ const STRINGS = {
     exCmpNew: "Går bara vald dag",
     exCmpLoading: "Beräknar ur tidtabellsdata...",
     exCmpFail: "Jämförelsen kunde inte beräknas just nu. Försök igen om en stund.",
+    exType_ei: "Ingen trafik",
+    exType_mape: "Vardagstidtabell",
+    exType_la: "Lördagstidtabell",
+    exType_su: "Söndagstidtabell",
+    exType_poikkeava: "Egen avvikande tidtabell",
+    exTypeNote: "Trafiktypen är beräknad ur tidtabellsdata: helgdagens turer jämförs med en vardag, lördag och söndag veckan före utan helgdagar.",
     exCmpRow_siirtyy: "Tur flyttas: {time}",
     exCmpRow_uusi: "Ny tur {time}",
     exCmpRow_poistuu: "Tur {time} utgår",
@@ -15497,21 +15515,100 @@ function exCmpInit() {
   });
 }
 
+/* ---------- Poikkeukset: pyhän liikennetyyppi feedistä ---------- */
+// Pyhän liikennetyyppi vertaamalla sen vuoroja edeltävän pyhättömän viikon arkeen, lauantaihin ja sunnuntaihin.
+// pyha: taulukko vuoroja (vuoro = linja + vuoron kaikki scheduledDeparture-ajat yhtenä merkkijonona); viikko: tyyppi
+// ("ma-pe" | "la" | "su") -> samanmuotoinen taulukko. Tyhjä pyhä -> { tyyppi: "ei" }; Jaccard-osuus vähintään 0,9
+// jonkin päivän kanssa -> { tyyppi, osuus }; muuten { tyyppi: "poikkeava", lahin, n, m } (n pyhän ja m lähimmän päivän vuorot).
+function pyhaLuokka(pyha, viikko) {
+  const sp = new Set(pyha || []);
+  if (!sp.size) return { tyyppi: "ei" };
+  let best = null;
+  for (const [tyyppi, lista] of Object.entries(viikko || {})) {
+    const sv = new Set(lista || []);
+    if (!sv.size) continue;
+    let yht = 0;
+    for (const v of sp) if (sv.has(v)) yht++;
+    const osuus = yht / (sp.size + sv.size - yht);
+    if (!best || osuus > best.osuus) best = { tyyppi, osuus, m: sv.size };
+  }
+  if (best && best.osuus >= 0.9) return { tyyppi: best.tyyppi, osuus: best.osuus };
+  return { tyyppi: "poikkeava", lahin: best ? best.tyyppi : null, n: sp.size, m: best ? best.m : 0 };
+}
+const pyhaCache = new Map();
+// Hakee pyhän ja sitä edeltävän pyhättömän viikon arkipäivän, lauantain ja sunnuntain vuorot yhdellä kyselyllä.
+async function pyhaLoad(iso, holidaySet) {
+  if (pyhaCache.has(iso)) return pyhaCache.get(iso);
+  const refs = {};
+  for (const [tyyppi, dows] of [["ma-pe", [1, 2, 3, 4, 5]], ["la", [6]], ["su", [0]]]) {
+    const d = new Date(iso + "T12:00:00");
+    for (let i = 0; i < 28; i++) {
+      d.setDate(d.getDate() - 1);
+      if (dows.includes(d.getDay()) && !holidaySet.has(isoOf(d))) { refs[tyyppi] = isoOf(d); break; }
+    }
+  }
+  const days = [["pyha", iso], ...Object.entries(refs)];
+  const feed = await findFeed();
+  const trips = days.map(([, day], i) => `x${i}: tripsForDate(serviceDate: "${day.replace(/-/g, "")}") { stoptimes { scheduledDeparture } }`).join(" ");
+  const pat = `patterns { ${trips} }`;
+  const data = CONFIG.areaScoped
+    ? await gql(`query ($ids: [String]) { routes(ids: $ids) { shortName mode ${pat} } }`, { ids: await areaRouteIds(feed) })
+    : await gql(`query ($feeds: [String]) { routes(feeds: $feeds) { shortName mode ${pat} } }`, { feeds: [feed] });
+  const modes = CONFIG.modes || ["BUS"];
+  const sets = days.map(() => []);
+  for (const r of data.routes || []) {
+    if (!modes.includes(r.mode) || !r.shortName) continue;
+    for (const p of r.patterns || []) {
+      days.forEach((_, i) => {
+        for (const tr of p["x" + i] || []) sets[i].push(r.shortName + "|" + (tr.stoptimes || []).map(x => x.scheduledDeparture).join(","));
+      });
+    }
+  }
+  const viikko = {};
+  days.forEach(([nimi], i) => { if (i > 0) viikko[nimi] = sets[i]; });
+  const res = pyhaLuokka(sets[0], viikko);
+  pyhaCache.set(iso, res);
+  return res;
+}
+// Täyttää pyhärivien [data-ex-slot]-paikat yksi pyhä kerrallaan (väli 1 s, ettei Digitransit-kiintiö kuormitu).
+async function pyhaInit(hols, holidaySet) {
+  const note = document.getElementById("exTypeNote");
+  for (const [i, h] of hols.entries()) {
+    const slot = document.querySelector(`[data-ex-slot="${h.iso}"]`);
+    if (!slot) return;
+    try {
+      if (i && !pyhaCache.has(h.iso)) await new Promise(r => setTimeout(r, 1000));
+      const r = await pyhaLoad(h.iso, holidaySet);
+      if (!document.body.contains(slot)) return;
+      slot.setAttribute("data-ex-type", r.tyyppi);
+      slot.textContent = t("exType_" + r.tyyppi.replace("-", ""));
+      if (note) note.hidden = false;
+    } catch (e) {
+      console.warn("pyhän liikennetyyppi epäonnistui", e);
+      slot.remove();
+    }
+  }
+}
+
 function viewExceptions() {
   if (CONFIG.exceptions && (CONFIG.exceptions.days || []).length) return viewCityExceptions(CONFIG.exceptions);
   const today = todayISO();
   const yr = +today.slice(0, 4);
   const names = HOLIDAY_NAMES[lang] || HOLIDAY_NAMES.fi;
+  const holidaySet = new Set([...namedHolidays(yr - 1), ...namedHolidays(yr), ...namedHolidays(yr + 1)].map(h => h.iso));
   const all = [...namedHolidays(yr), ...namedHolidays(yr + 1)]
     .filter(h => h.iso >= today)
     .sort((a, b) => a.iso.localeCompare(b.iso))
     .slice(0, 16);
+  const horizon = new Date(today + "T12:00:00");
+  horizon.setDate(horizon.getDate() + 84);
+  const inWindow = all.filter(h => h.iso <= isoOf(horizon));
   const rows = all.map(h => {
     const eve = HOLIDAY_EVES.has(h.key);
     const tag = eve ? t("exTagEve") : t("exTagHoliday");
     return `<li class="ex-row">
       <span class="ex-date"><strong>${esc(fmtDateLong(h.iso))}</strong><br><span class="muted">${esc(fmtWeekday(h.iso))}</span></span>
-      <span class="ex-name">${esc(names[h.key] || "")}</span>
+      <span class="ex-name">${esc(names[h.key] || "")}${inWindow.includes(h) ? `<br><span class="muted" data-ex-slot="${h.iso}"></span>` : ""}</span>
       <span class="ex-tag ${eve ? "ex-eve" : ""}">${esc(tag)}</span>
     </li>`;
   }).join("");
@@ -15522,10 +15619,12 @@ function viewExceptions() {
       <p class="muted">${t("exIntro")}</p>
       <p class="muted">${t("exNote")}</p>
       ${all.length ? `<ul class="ex-list">${rows}</ul>` : `<p>${t("exNone")}</p>`}
+      <p class="muted" id="exTypeNote" hidden>${t("exTypeNote")}</p>
       <p style="margin-top:0.8rem"><a class="item" href="#/">${icon("bus")} <span>${t("exCheckCta")}</span></a></p>
     </div>
     ${exCmpSectionHtml()}`);
   exCmpInit();
+  pyhaInit(inWindow, holidaySet);
 }
 
 /* ---------- Junien lähdöt (#/junat) — rata.digitraffic.fi (Fintraffic, CC BY 4.0) ---------- */
