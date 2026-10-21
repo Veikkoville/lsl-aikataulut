@@ -88,7 +88,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 1/3 · työ S · myynti 1/3 = 8
       Mittari: smoke-tarkistus näkymän vaihdosta (scrollY alle 50 ja fokus #app-otsikossa) vihreä CI:ssä; käytöstä ei
       ole mitattavaa · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-15)
-- [ ] index.html: `aria-live` pois `<main id="app">`:sta (rivi noin 2717). Nyt ruudunlukija lukee koko sivun
+- [x] index.html: `aria-live` pois `<main id="app">`:sta (rivi noin 2717). Nyt ruudunlukija lukee koko sivun
       jokaisessa siirtymässä (linjasivulla 10 769 merkkiä) ja pysäkin lähtötaulukon 30 sekunnin välein. Lisää
       `<main>`in ulkopuolelle `<div id="srStatus" class="sr-only" role="status" aria-live="polite"></div>`
       (`.sr-only` on jo olemassa) ja funktio `announce(teksti)`, joka kirjoittaa siihen. `route()` kutsuu
@@ -98,7 +98,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       ettei se kutsu `announce`a. (auditointi 2026-10-08, lähde: koodi + tuotantomittaus)
       Pisteet: arvo 3/3 · kiire 1/3 · työ S · myynti 1/3 = 8
       Mittari: smoke-tarkistus (#app ilman aria-live-attribuuttia, #srStatus ei-tyhjä linjasivulla) vihreä CI:ssä
-      · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
+      · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-21)
 - [ ] index.html: rajapintavirheet selkokielisiksi ja toipuviksi. Nyt `throw new Error(t("errApi") + "HTTP " +
       res.status)` (rivi noin 8108) näkyy käyttäjälle muodossa "Rajapintavirhe: HTTP 429", verkkovirhe
       englanniksi "Failed to fetch", eikä uusintaa ole. Tee: (1) GraphQL-haulle 8 s aikakatkaisu

@@ -259,6 +259,17 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (navFocus.y < 50 && navFocus.ok)
     ? ok("näkymän vaihto: sivu alkuun ja fokus #app-otsikkoon")
     : fail("näkymän vaihto: vieritys tai fokus ei siirtynyt: " + JSON.stringify(navFocus));
+  // Ruudunlukija: #app ei ole aria-live (muuten koko näkymä luettaisiin), ilmoitus kulkee #srStatus-alueelle.
+  await page.waitForFunction(() => (document.getElementById("srStatus")?.textContent || "").trim() !== "", { timeout: 5000 }).catch(() => {});
+  const sr = await page.evaluate(() => ({
+    appLive: document.getElementById("app").hasAttribute("aria-live"),
+    liveInApp: !!document.querySelector("#app[aria-live], main[aria-live]"),
+    status: !!document.getElementById("srStatus"),
+    len: (document.getElementById("srStatus")?.textContent || "").trim().length,
+  }));
+  (!sr.appLive && !sr.liveInApp && sr.status && sr.len > 0)
+    ? ok("näkymän vaihto: #app ilman aria-live-attribuuttia ja #srStatus ilmoittaa uuden näkymän")
+    : fail("näkymän vaihto: aria-live tai #srStatus väärin: " + JSON.stringify(sr));
   await page.evaluate(() => { document.body.style.minHeight = ""; });
   await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
 
