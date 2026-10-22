@@ -1123,7 +1123,7 @@ const TRACK_TYPES = new Set(["view", "line", "stop", "search_fail"]);
 export const TRACK_VIEWS = new Set(["home", "asetukset", "sahkoposti", "palvelutiski", "saavutettavuus",
   "tietosuoja", "kayttoehdot", "tilanne", "uusintapainatus", "tulosta", "tulosteet", "reitti", "linja",
   "linjakartta", "monitori", "kartta", "linjasto", "laiturit", "poikkeukset", "palaute", "liput", "junat",
-  "pysakki", "kaupunki"]);
+  "pysakki", "kaupunki", "laatu"]);
 const TRACK_ID_RE = /^[A-Za-z0-9_.:+~()-]{1,80}$/;   // linjan tai pysäkin GTFS-tunnus ilman feed-etuliitettä
 
 // Validoi+siistii yhden tapahtuman (puhdas, testattava). Arvo katkaistaan, eikä

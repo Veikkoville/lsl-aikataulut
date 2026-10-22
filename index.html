@@ -5140,7 +5140,7 @@ function cityFromSharedRoute() {
    Kuntalaisnäkymä on selkeyttä eikä salausta: henkilöstönäkymät näyttävät vain julkista aikataulutietoa.
    Julkaisu (ylläpito) ja uusintapainatusavain ovat workerin kirjautumisen takana. */
 const STAFF_HOSTS = ["reittari-henkilosto.pages.dev", "henkilosto.reittari.fi"];
-const STAFF_ROUTES = new Set(["palvelutiski", "tilanne", "uusintapainatus", "tulosta", "tulosteet", "kaupunki"]);
+const STAFF_ROUTES = new Set(["palvelutiski", "tilanne", "uusintapainatus", "tulosta", "tulosteet", "kaupunki", "laatu"]);
 // Työtilan polku (3.10.2026): "/tyotila/reittari" kun sovellus on välitetty kunnan työtilaan, muuten "".
 const TYOTILA_BASE = (location.pathname.match(/^\/tyotila\/reittari(?=\/)/) || [""])[0];
 function cityFromHost() {
@@ -5493,6 +5493,12 @@ const STRINGS = {
     staffDeskDesc: "Seuraavat lähdöt, junat ja tulosteet asiakkaalle mukaan.", staffScreensDesc: "Pysäkkinäytöt ja kioskiosoitteet seinänäytöille.",
     staffCorridorDesc: "Saman suunnan linjat yhdessä taulukossa.", staffOpen: "Avaa",
     cvTitle: "Kaupungin näkymä", cvDesc: "Tilannekuva, uusintapainatuslista ja johtoraportti muutosvahdista.",
+    laatuTitle: "Datan laaturaportti", laatuRowDesc: "Pysäkit, joilla ei ole linjoja tai pysäkkitunnusta.",
+    laatuIntro: "Raportti on laskettu kaupungin omasta aikataulusyötteestä. Korjaus tehdään syötteeseen, ei Reittariin.",
+    laatuLoading: "Ladataan pysäkkejä...", laatuFail: "Raporttia ei juuri nyt saada. Yritä hetken päästä uudelleen.",
+    laatuNoLines: "Pysäkit, joita ei palvele yksikään linja", laatuNoCode: "Pysäkit ilman pysäkkitunnusta",
+    laatuNone: "Ei löydöksiä.", laatuMore: "Ja {n} muuta, katso CSV.", laatuCsv: "Lataa CSV",
+    laatuSource: "Lähde: kaupungin GTFS-syöte (Digitransit).",
     cvH: "Kaupungin näkymä: {city}", cvSub: "Pysäkkijulisteiden tilanne muutosvahdin viikkoajosta. Viimeisin tarkistus {date}.",
     cvFiOnly: "Näkymän sisältö on toistaiseksi vain suomeksi.", cvStatesH: "Näin tilat luetaan",
     cvStValmis: "Valmis: pysäkin juliste on ajan tasalla.",
@@ -6422,6 +6428,12 @@ const STRINGS = {
     staffDeskDesc: "Next departures, trains and prints for the customer.", staffScreensDesc: "Stop displays and kiosk addresses for wall screens.",
     staffCorridorDesc: "Lines in the same direction in one table.", staffOpen: "Open",
     cvTitle: "City view", cvDesc: "Status, reprint list and management report from the change watch.",
+    laatuTitle: "Data quality report", laatuRowDesc: "Stops with no lines or no stop code.",
+    laatuIntro: "The report is computed from the city's own timetable feed. Fixes are made in the feed, not in Reittari.",
+    laatuLoading: "Loading stops...", laatuFail: "The report is not available right now. Please try again in a moment.",
+    laatuNoLines: "Stops not served by any line", laatuNoCode: "Stops without a stop code",
+    laatuNone: "No findings.", laatuMore: "And {n} more, see the CSV.", laatuCsv: "Download CSV",
+    laatuSource: "Source: the city's GTFS feed (Digitransit).",
     cvH: "City view: {city}", cvSub: "Status of the stop posters from the weekly change watch run. Latest check {date}.",
     cvFiOnly: "The content of this view is currently in Finnish only.", cvStatesH: "How to read the statuses",
     cvStValmis: "Valmis (done): the stop poster is up to date.",
@@ -7334,6 +7346,12 @@ const STRINGS = {
     staffDeskDesc: "Nästa avgångar, tåg och utskrifter åt kunden.", staffScreensDesc: "Hållplatsskärmar och kioskadresser för väggskärmar.",
     staffCorridorDesc: "Linjer i samma riktning i en tabell.", staffOpen: "Öppna",
     cvTitle: "Stadens vy", cvDesc: "Lägesbild, nytryckslista och ledningsrapport från ändringsvakten.",
+    laatuTitle: "Datakvalitetsrapport", laatuRowDesc: "Hållplatser utan linjer eller hållplatsnummer.",
+    laatuIntro: "Rapporten räknas från stadens egen tidtabellsfeed. Rättelser görs i feeden, inte i Reittari.",
+    laatuLoading: "Laddar hållplatser...", laatuFail: "Rapporten är inte tillgänglig just nu. Försök igen om en stund.",
+    laatuNoLines: "Hållplatser som ingen linje trafikerar", laatuNoCode: "Hållplatser utan hållplatsnummer",
+    laatuNone: "Inga fynd.", laatuMore: "Och {n} till, se CSV.", laatuCsv: "Ladda ner CSV",
+    laatuSource: "Källa: stadens GTFS-feed (Digitransit).",
     cvH: "Stadens vy: {city}", cvSub: "Läget för hållplatsaffischerna från ändringsvaktens veckokörning. Senaste kontroll {date}.",
     cvFiOnly: "Innehållet i vyn finns tills vidare bara på finska.", cvStatesH: "Så läser du statusarna",
     cvStValmis: "Valmis (klar): hållplatsens affisch är aktuell.",
@@ -12627,6 +12645,67 @@ function previewBarSync() {
     <a href="${esc(u.pathname + u.search + u.hash)}">${esc(t("previewExit"))}</a>`;
 }
 
+// Datan laaturaportti (#/laatu, vaihe 1): feedin pysäkit, joita matkustaja ei voi käyttää oikein. Puhdas funktio, jotta
+// luokittelu on testattavissa kiinteällä aineistolla. eiLinjoja = pysäkkiä ei palvele yksikään linja; eiTunnusta =
+// pysäkillä ei ole pysäkkitunnusta (code), jota juliste ja tiski näyttävät.
+function laatuRaportti(stops) {
+  const rep = { eiLinjoja: [], eiTunnusta: [] };
+  for (const s of stops || []) {
+    if (!s || !s.gtfsId) continue;
+    const rivi = { id: s.gtfsId, name: s.name || "", code: s.code || "" };
+    if (!(s.routes || []).length) rep.eiLinjoja.push(rivi);
+    if (!rivi.code) rep.eiTunnusta.push(rivi);
+  }
+  const cmp = (a, b) => a.name.localeCompare(b.name, "fi") || a.id.localeCompare(b.id);
+  rep.eiLinjoja.sort(cmp);
+  rep.eiTunnusta.sort(cmp);
+  return rep;
+}
+function laatuCsv(rep) {
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const rows = [["ongelma", "pysakki_id", "nimi", "tunnus"]];
+  for (const r of rep.eiLinjoja) rows.push(["ei_linjoja", r.id, r.name, r.code]);
+  for (const r of rep.eiTunnusta) rows.push(["ei_tunnusta", r.id, r.name, r.code]);
+  return rows.map(r => r.map(q).join(";")).join("\r\n");
+}
+async function viewQuality() {
+  const nav = navSeq;
+  setView(`${crumbHtml()}<section class="card no-print" id="laatu">
+    <h1>${icon("warning")} ${t("laatuTitle")}</h1><p class="muted">${t("laatuIntro")}</p>
+    <p id="laatuBody" role="status">${t("laatuLoading")}</p></section>`);
+  const body = document.getElementById("laatuBody");
+  let rep;
+  try {
+    const stops = await loadQualityStops();
+    if (navStale(nav)) return;
+    rep = laatuRaportti(stops);
+  } catch (e) {
+    console.warn("laatu", e);
+    if (!navStale(nav) && body) body.textContent = t("laatuFail");
+    return;
+  }
+  const section = (id, h, list) => `<section data-laatu="${id}"><h2>${h} (${list.length})</h2>
+    ${list.length ? `<ul class="laatu-list">${list.slice(0, 200).map(r =>
+      `<li><a href="#/pysakki/${encodeURIComponent(r.id)}">${esc(r.name || r.id)}</a> <span class="muted">${esc(r.code || r.id)}</span></li>`).join("")}</ul>
+      ${list.length > 200 ? `<p class="muted">${t("laatuMore", { n: list.length - 200 })}</p>` : ""}` : `<p>${t("laatuNone")}</p>`}</section>`;
+  const csv = URL.createObjectURL(new Blob(["﻿" + laatuCsv(rep)], { type: "text/csv;charset=utf-8" }));
+  document.getElementById("laatu").innerHTML = `
+    <h1>${icon("warning")} ${t("laatuTitle")}</h1><p class="muted">${t("laatuIntro")}</p>
+    ${section("ei-linjoja", t("laatuNoLines"), rep.eiLinjoja)}
+    ${section("ei-tunnusta", t("laatuNoCode"), rep.eiTunnusta)}
+    <p><a class="btnlink secondary" id="laatuCsv" href="${csv}" download="pysakkien-laatu-${cityKey}.csv">${t("laatuCsv")}</a></p>
+    <p class="muted">${t("laatuSource")}</p>`;
+}
+async function loadQualityStops() {
+  await findFeed();
+  const r = AREA.rect;
+  const data = await gql(
+    `query ($minLat: Float!, $minLon: Float!, $maxLat: Float!, $maxLon: Float!) {
+       stopsByBbox(minLat: $minLat, minLon: $minLon, maxLat: $maxLat, maxLon: $maxLon) { gtfsId name@L code lat lon routes { gtfsId } }
+     }`, { minLat: r.minLat, minLon: r.minLon, maxLat: r.maxLat, maxLon: r.maxLon });
+  return (data.stopsByBbox || []).filter(s => s.lat != null && inMunicipality(s.lat, s.lon) && inCityFeed(s.gtfsId));
+}
+
 async function viewStaff() {
   const nav = navSeq;
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
@@ -12657,7 +12736,8 @@ async function viewStaff() {
           <b class="st-v">${CONFIG.season ? esc((CONFIG.season[lang] || CONFIG.season.fi).replace(/\s+\d.*$/, "")) : t("staffSeasonAuto")}</b>
           <span class="st-d">${CONFIG.season ? esc((CONFIG.season[lang] || CONFIG.season.fi).replace(/^\D+/, "")) : t("staffSeasonAutoDesc")}</span></a>
       </div>
-      <div class="card st-city" id="stCity">${row("#/kaupunki", ico("doc"), t("cvTitle"), t("cvDesc"))}</div>
+      <div class="card st-city" id="stCity">${row("#/kaupunki", ico("doc"), t("cvTitle"), t("cvDesc"))}
+        ${row("#/laatu", ico("warning"), t("laatuTitle"), t("laatuRowDesc"))}</div>
       <div class="st-cols">
         <div class="card st-panel"><h2>${t("staffPrintsH")}</h2><p class="muted">${t("staffPrintsSub")}</p>
           ${row("#/tulosteet/julisteet", img("juliste"), t("heroHlPosters"), t("heroHlPostersDesc"))}
@@ -26452,6 +26532,7 @@ async function route() {
     else if (parts[0] === "junat") await viewTrains();
     else if (parts[0] === "pysakki" && parts[1]) { track("stop", stripFeed(parts[1])); await viewStop(parts[1], query.get("print")); }
     else if (parts[0] === "kaupunki") await viewCity();
+    else if (parts[0] === "laatu") await viewQuality();
     else await viewRoutes();
   } catch (err) {
     // Vanhentuneen näkymän virhe ei saa korvata näkymää, johon käyttäjä on jo siirtynyt.

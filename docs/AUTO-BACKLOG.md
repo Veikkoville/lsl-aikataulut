@@ -188,7 +188,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
       Mittari: smoke-tarkistus print-mediassa (sivun 1 alussa ei jatkuu-otsaketta, minuutit vähintään 10,67 px, ei
       tyhjiä sivuja) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
-- [ ] index.html: datan laaturaportti kunnalle henkilöstönäkymään (uusi reitti `#/laatu`, lisää `STAFF_ROUTES`iin).
+- [x] (vaihe 1 tehty: reitti, pysäkit ilman linjoja ja ilman tunnusta, CSV; loput vaiheet alla) index.html: datan laaturaportti kunnalle henkilöstönäkymään (uusi reitti `#/laatu`, lisää `STAFF_ROUTES`iin).
       Listaa feedistä: (1) pysäkit, joilta ei lähde yhtään vuoroa seuraavan 7 päivän aikana, (2) pysäkit, joiden kaikki
       vuorot vain saapuvat (pickupType NONE) mutta nimi on sama kuin lähtöpysäkillä (esim. Kauppatori A), (3) kaksikielisessä
       kaupungissa pysäkit ilman ruotsinkielistä nimeä. Jokaisesta pysäkin nimi, tunnus ja linkki pysäkkisivulle sekä
@@ -197,7 +197,20 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       kuntalaistilassa reitti ohjaa etusivulle. (tuotekehityksen kärki 2026-10-08, P3, lähde: auditointi)
       Pisteet: arvo 2/3 · kiire 1/3 · työ L · myynti 1/3 = 4
       Mittari: #/laatu-näkymän avaukset (view-tapahtuma laatu, admin-tilasto Analytics Enginestä) ja smoke-tarkistus
-      vihreä CI:ssä · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
+      vihreä CI:ssä · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-22; kärkivuoro, vaihe 1)
+- [ ] index.html: laaturaportti vaihe 2, pysäkit ilman lähtöjä. Lisää `#/laatu`-näkymään (`viewQuality`, `laatuRaportti`)
+      osio pysäkeistä, joilta ei lähde yhtään vuoroa seuraavan 7 päivän aikana. Haku erinä (enintään 1 kysely sekunnissa,
+      esim. `stoptimesWithoutPatterns(numberOfDepartures: 1, startTime, timeRange)` 50 pysäkin erissä), osio täydentyy
+      etenemisen mukaan ja virhe kertoo osion jääneen kesken. Todennus: smoke: `laatuRaportti` saa kolmannen kentän
+      (`eiLahtoja`) kiinteällä aineistolla; Lahden `#/laatu`-sivulla osio on olemassa. (laaturaportin vaihe 1, 2026-10-22)
+      Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 · uutuus 2/2 = 7
+      Mittari: smoke-tarkistus (eiLahtoja-kenttä ja osio) vihreä CI:ssä · tarkistus 2026-12-10
+- [ ] index.html: laaturaportti vaihe 3, saapuvien pysäkit ja ruotsinkieliset nimet. Lisää osiot: (a) pysäkit, joiden kaikki
+      vuorot vain saapuvat mutta joilla on sama nimi kuin lähtöpysäkillä (esim. Kauppatori A); (b) kaksikielisessä
+      kaupungissa pysäkit, joiden `name(language: "sv")` on sama kuin suomenkielinen nimi. Todennus: smoke kiinteällä
+      aineistolla; osiot ovat sivulla. (laaturaportin vaihe 1, 2026-10-22; edellyttää vaihetta 2)
+      Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 · uutuus 2/2 = 7
+      Mittari: smoke-tarkistus (osioiden luokittelu kiinteällä aineistolla) vihreä CI:ssä · tarkistus 2026-12-10
 - [ ] index.html: tiskin pysäkkihaku järjestää lähtöjä tarjoavat pysäkit ensin. Auditointi: Kauppatori-haun ensimmäinen osuma
       on pelkkien saapuvien pysäkki, ja Enterin jälkeen näkyy "Ei tulevia lähtöjä". Järjestä osumat niin, että pysäkit,
       joilta lähtee vuoroja, tulevat ensin; saapuvien pysäkin kohdalla kerro "Päätepysäkki: lähdöt pysäkiltä X" ja linkki.
