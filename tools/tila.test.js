@@ -92,16 +92,21 @@ test("kokoa: vanhat tapahtumat karsitaan ja määrä rajataan", () => {
 // ── Datavahdin palvelut (10.10.2026) ─────────────────────────────────────────
 
 const DATAVAHDIT = PALVELUT.filter(p => p.datavahti);
-const DM = DATAVAHDIT[0];
+const DM = DATAVAHDIT.find(p => !p.url);
 const ajo = (conclusion, tuntiaSitten = 3) => ({ conclusion, run_started_at: new Date(NYT.getTime() - tuntiaSitten * 3600000).toISOString() });
 
-test("datavahti: viisi palvelua, yksilöivät tunnukset ja repot, ei julkista sivua", () => {
-  assert.deepStrictEqual(DATAVAHDIT.map(p => p.id), ["de-minimis-rekisteri", "tapahtumaluvat", "uimavesitiedotus", "kulttuurivierailut", "elinvoimapaketti"]);
+test("datavahti: viisi ilman julkista sivua, kaksi julkaistua demoa sivun kanssa, yksilöivät tunnukset ja repot", () => {
+  assert.deepStrictEqual(DATAVAHDIT.filter(p => !p.url).map(p => p.id), ["de-minimis-rekisteri", "tapahtumaluvat", "uimavesitiedotus", "kulttuurivierailut", "elinvoimapaketti"]);
+  assert.deepStrictEqual(DATAVAHDIT.filter(p => p.url).map(p => p.id), ["tyonantajatuet", "kesatyosetelit"]);
   assert.strictEqual(new Set(PALVELUT.map(p => p.id)).size, PALVELUT.length);
   for (const p of DATAVAHDIT) {
     assert.match(p.datavahti, /^Veikkoville\/[a-z-]+$/);
-    assert.strictEqual(p.url, null);
     assert.match(p.nimi, /^Savikurki /);
+  }
+  for (const p of PALVELUT.filter(p => p.url && /pages\.dev/.test(p.url) && p.id !== "jatehuollon-asiointi")) {
+    assert.match(p.url, /^https:\/\/savikurki-[a-z]+\.pages\.dev\/$/);
+    assert.ok(p.otsikko && p.nimi.includes(p.otsikko.replace(/^Savikurki /, "")), p.id);
+    assert.strictEqual(p.esittely, p.url.replace(/^https:\/\//, "").replace(/\/$/, ""));
   }
 });
 

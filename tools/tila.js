@@ -12,7 +12,7 @@
 // ole. Niiden tila tulee tuoterepon päivittäisen datavahdin (.github/workflows/datavahti.yml) viimeisimmästä
 // ajosta: datavahti tarkistaa demon ja sen ulkoiset lähteet. Repot ovat yksityisiä, eikä tämän repon
 // GITHUB_TOKEN näe niitä (token rajautuu omaan repoonsa). Lukemiseen tarvitaan secret TILA_LUKU_TOKEN
-// (fine-grained, vain Actions: read ja Metadata: read näihin viiteen repoon), jonka tila.yml välittää
+// (fine-grained, vain Actions: read ja Metadata: read datavahtien repoihin), jonka tila.yml välittää
 // ympäristömuuttujana DATAVAHTI_TOKEN. Ilman sitä tila on ei_tietoa. Kun demo julkaistaan, palvelulle
 // lisätään url ja otsikko, ja julkisen sivun vastaus on silloin perusehto kuten muilla.
 //
@@ -48,6 +48,10 @@ const PALVELUT = [
     otsikko: "Jätehuollon asiointi",
     esittely: "jatehuolto-osoitteessa.pages.dev",
   },
+  // Julkaistut demot (22.10.2026). Työnantajatuilla ja Kesätyöseteleillä on myös datavahti, Avustuksilla vain sivu.
+  { id: "tyonantajatuet", nimi: "Savikurki Työnantajatuet", url: "https://savikurki-tyonantajatuet.pages.dev/", otsikko: "Savikurki Työnantajatuet", esittely: "savikurki-tyonantajatuet.pages.dev", datavahti: "Veikkoville/tyonantajatuet" },
+  { id: "kesatyosetelit", nimi: "Savikurki Kesätyösetelit", url: "https://savikurki-kesatyosetelit.pages.dev/", otsikko: "Savikurki Kesätyösetelit", esittely: "savikurki-kesatyosetelit.pages.dev", datavahti: "Veikkoville/kesaseteli" },
+  { id: "avustukset", nimi: "Savikurki Avustukset", url: "https://savikurki-avustukset.pages.dev/", otsikko: "Savikurki Avustukset", esittely: "savikurki-avustukset.pages.dev" },
   // Demo esitellään pyynnöstä (url null): tila datavahdista. id = savikurki.fi:n palvelusivun polku.
   { id: "de-minimis-rekisteri", nimi: "Savikurki De minimis -rekisteri", url: null, datavahti: "Veikkoville/deminimis-vahti" },
   { id: "tapahtumaluvat", nimi: "Savikurki Tapahtumaluvat", url: null, datavahti: "Veikkoville/tapahtumaluvat" },
