@@ -2644,8 +2644,10 @@
   .hp-tag:empty { display: none; }
   .hp-tag-poster { left: 0.5rem; bottom: 0.2rem; }
   .hp-tag-booklet { right: 0.5rem; top: calc(24% - 2.3rem); }
-  @media (max-width: 859px) { .hp-papers { height: 360px; max-width: 520px; } }
-  @media (max-width: 520px) { .hp-papers { height: 270px; } }
+  /* Kapeana kuvat skaalautuvat laatikon leveyden mukaan, joten korkeus seuraa leveyttä (kiinteä 270/360 px päästi
+     vihon otsikon päälle 360-859 px:llä). Juliste vie 0,78 leveydestä ja korkein vihko (Rovaniemi, 1,23) 0,24 H + 0,69,
+     joten H = 0,92 leveys. */
+  @media (max-width: 859px) { .hp-papers { height: auto; aspect-ratio: 25 / 23; max-width: 520px; } }
   .hp-h2 { margin: 2.2rem 0 0.2rem; font-size: 1.35rem; font-weight: 800; }
   /* Nostot listana eikä kortteina: yläviiva ja oma ikoni jokaiselle toiminnolle (ennen 3/5 samaa tulostinta). */
   .hero-paper .hero-primary .hl { border: 0; border-top: 2px solid var(--ink); border-radius: 0; background: transparent;
