@@ -3419,30 +3419,6 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (vp.eiAja.join() === "A" && vp.ennallaan.join() === "B" && vp.muuttuu.join() === "C" && vp.vainUusi.join() === "D")
     ? ok("vertaaPaivat: eiAja, ennallaan, muuttuu ja vainUusi luokittuvat oikein")
     : fail(`vertaaPaivat: ${JSON.stringify(vp)}`);
-  // Datan laaturaportti (#/laatu): luokittelu kiinteällä aineistolla; reitti on henkilöstöreitti, joka ohjaa
-  // kuntalaistilassa etusivulle, ja sivulla on CSV-nappi sekä kaksi osiota (voivat olla tyhjiä).
-  const lq = await page.evaluate(() => {
-    const r = laatuRaportti([
-      { gtfsId: "X:1", name: "Torikatu", code: "H0001", routes: [{ gtfsId: "X:r1" }] },
-      { gtfsId: "X:2", name: "Aseman edusta", code: "", routes: [{ gtfsId: "X:r1" }] },
-      { gtfsId: "X:3", name: "Vanha pysäkki", code: "H0003", routes: [] }]);
-    return { l: r.eiLinjoja.map(x => x.id).join(), c: r.eiTunnusta.map(x => x.id).join(), csv: laatuCsv(r).split("\r\n").length,
-      staff: STAFF_ROUTES.has("laatu") };
-  });
-  (lq.l === "X:3" && lq.c === "X:2" && lq.csv === 3 && lq.staff)
-    ? ok("laatuRaportti: pysäkit ilman linjoja ja ilman tunnusta luokittuvat, CSV ja STAFF_ROUTES")
-    : fail(`laatuRaportti: ${JSON.stringify(lq)}`);
-  await page.goto(BASE + "/#/laatu", { waitUntil: "networkidle2" });
-  await page.waitForSelector("#laatuCsv, #laatuBody", { timeout: 20000 }).catch(() => {});
-  const laatuNakyma = await page.evaluate(() => ({
-    resident: APP_MODE === "resident",
-    hash: location.hash,
-    secs: document.querySelectorAll("[data-laatu]").length,
-    csv: !!document.getElementById("laatuCsv"),
-  }));
-  laatuNakyma.resident
-    ? (laatuNakyma.hash === "#/" || laatuNakyma.hash === "" ? ok("laatu: kuntalaistilassa reitti ohjaa etusivulle") : fail(`laatu: kuntalaistila ei ohjannut: ${laatuNakyma.hash}`))
-    : (laatuNakyma.secs === 2 && laatuNakyma.csv ? ok("laatu: kaksi osiota ja CSV-nappi") : fail(`laatu: ${JSON.stringify(laatuNakyma)}`));
   // Linjan muutosseloste: a = valittu päivä, b = vertailupäivä (sekunteja). Suunta "0": 7.36 -> 7.34 siirtyy, 6.02 ja
   // 7.20 uusia (7.20 on yli 10 min päässä poistuvasta 7.36:sta, ei paria), 22.10 poistuu, 8.00:n välipysäkkiaika muuttuu.
   const le = await page.evaluate(() => linjanEro(
@@ -3513,6 +3489,38 @@ async function minuuttiLinjaus(page, rootSel, media) {
     typed ? ok("poikkeuspäivät: pyhärivillä on feedistä laskettu liikennetyyppi (data-ex-type)")
           : fail("poikkeuspäivät: pyhärivin liikennetyyppiä ei tullut 30 sekunnissa");
   }
+
+  // --- Datan laaturaportti (#/laatu) ---
+  // Oma osio: sivunvaihto keskellä poikkeuspäivien tarkistuksia kaatoi niiden vertailuosion (22.10.2026).
+  // Luokittelu kiinteällä aineistolla; reitti on henkilöstöreitti, joka ohjaa
+  // kuntalaistilassa etusivulle, ja sivulla on CSV-nappi sekä kaksi osiota (voivat olla tyhjiä).
+  const lq = await page.evaluate(() => {
+    const r = laatuRaportti([
+      { gtfsId: "X:1", name: "Torikatu", code: "H0001", routes: [{ gtfsId: "X:r1" }] },
+      { gtfsId: "X:2", name: "Aseman edusta", code: "", routes: [{ gtfsId: "X:r1" }] },
+      { gtfsId: "X:3", name: "Vanha pysäkki", code: "H0003", routes: [] }]);
+    return { l: r.eiLinjoja.map(x => x.id).join(), c: r.eiTunnusta.map(x => x.id).join(), csv: laatuCsv(r).split("\r\n").length,
+      staff: STAFF_ROUTES.has("laatu") };
+  });
+  (lq.l === "X:3" && lq.c === "X:2" && lq.csv === 3 && lq.staff)
+    ? ok("laatuRaportti: pysäkit ilman linjoja ja ilman tunnusta luokittuvat, CSV ja STAFF_ROUTES")
+    : fail(`laatuRaportti: ${JSON.stringify(lq)}`);
+  await page.goto(BASE + "/#/laatu", { waitUntil: "networkidle2" });
+  // Odota valmista näkymää: CSV-nappi, virheteksti tai kuntalaistilan uudelleenohjaus. Pelkkä latausteksti ei riitä.
+  await page.waitForFunction(() => {
+    const b = document.getElementById("laatuBody");
+    return document.getElementById("laatuCsv") || location.hash !== "#/laatu" || (b && !/Ladataan|Loading|Laddar/.test(b.textContent));
+  }, { timeout: 30000 }).catch(() => {});
+  const laatuNakyma = await page.evaluate(() => ({
+    resident: APP_MODE === "resident",
+    hash: location.hash,
+    secs: document.querySelectorAll("[data-laatu]").length,
+    csv: !!document.getElementById("laatuCsv"),
+    teksti: (document.getElementById("laatuBody") || {}).textContent || "",
+  }));
+  laatuNakyma.resident
+    ? (laatuNakyma.hash === "#/" || laatuNakyma.hash === "" ? ok("laatu: kuntalaistilassa reitti ohjaa etusivulle") : fail(`laatu: kuntalaistila ei ohjannut: ${laatuNakyma.hash}`))
+    : (laatuNakyma.secs === 2 && laatuNakyma.csv ? ok("laatu: kaksi osiota ja CSV-nappi") : fail(`laatu: ${JSON.stringify(laatuNakyma)}`));
 
   // --- Palaute / vikailmoitus (lomake + tyhjän validointi, ei lähetetä verkkoon) ---
   await page.goto(BASE + "/#/palaute", { waitUntil: "networkidle2" });
