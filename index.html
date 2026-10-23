@@ -1170,10 +1170,11 @@
   .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix th.poster-line { padding: 0 1mm 1.2mm 1mm; }
   .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix td.t0 { padding-left: 1mm; }
   .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix td.tz { padding-right: 1mm; }
-  /* Voimassaolorivi (stopValidityHtml): tuleva muutos keltaisella pohjalla mustana, jotta se erottuu
-     otsikkopalkista myös mustavalkotulosteessa; "voimassa toistaiseksi" tavallisena rivinä. */
+  /* Lomakooste (lomaNoticeHtml): etusivun ja monitorin rivi koulujen loma-jaksosta. */
   .loma-notice { display: block; margin: 0.5rem 0; padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 600; color: inherit; border: 1px solid currentColor; }
   .m-loma .loma-notice { margin: 0.5rem 0 0; }
+  /* Voimassaolorivi (stopValidityHtml): tuleva muutos keltaisella pohjalla mustana, jotta se erottuu
+     otsikkopalkista myös mustavalkotulosteessa; "voimassa toistaiseksi" tavallisena rivinä. */
   .poster-valid, .poster-loma { font-weight: 700; margin: 0.3rem 0 0; }
   .poster-valid-change { display: inline-block; background: #ffe066; color: #000; padding: 0.1em 0.45em;
     border-radius: 0.2em; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -8986,13 +8987,31 @@ function lomaNoticeHtml(jaksot, todayIso, stopId) {
   const period = next.alku === next.loppu ? fmtDayMonthNum(next.alku) : `${fmtDayMonthNum(next.alku)}–${fmtDayMonthNum(next.loppu)}`;
   return `<a class="loma-notice" data-loma-notice href="#/pysakki/${encodeURIComponent(stopId)}">${icon("calendar")} ${esc(t("lomaNotice", { period }))}</a>`;
 }
+// Pysäkin lomajaksot koostetta varten: vain serviceId + activeDates yhdellä kyselyllä ja tulos päivän
+// välimuistiin. stopPosterBlocks hakee koko aikataulun pysäytysaikoineen (Lahti Trio 18 kutsua, noin
+// 600 kt joka etusivun latauksella, mitattu 23.10.2026), vaikka loma-päivät tarvitsevat vain ajopäivät.
+async function stopLomaJaksot(stopId, today) {
+  const key = `loma:${stopId}`;
+  const hit = cacheGet(key);
+  if (hit && hit.data.day === today) return hit.data.jaksot;
+  const data = await gql(`query ($id: String!) {
+      stop(id: $id) { patterns { route { shortName } trips { serviceId activeDates } } }
+    }`, { id: stopId });
+  const eventLines = CONFIG.eventLines || [];
+  const trips = (data.stop?.patterns || [])
+    .filter(p => !eventLines.includes(p.route?.shortName))
+    .flatMap(p => p.trips || []);
+  const jaksot = lomajaksot(kouluLomaPaivat(trips, today, 90));
+  cachePut(key, { day: today, jaksot });
+  return jaksot;
+}
 // Täyttää kooste-elementin pysäkin lomajaksoilla. window.__lomaTesti ([{alku, loppu}]) ohittaa feedin (smoke-koukku).
 async function fillLomaNotice(el, stopId) {
   if (!el || !stopId) return;
   const today = todayISO();
   let jaksot = window.__lomaTesti;
   if (!Array.isArray(jaksot)) {
-    try { jaksot = (await stopPosterBlocks(stopId, today)).lomaJaksot; } catch (e) { return; }
+    try { jaksot = await stopLomaJaksot(stopId, today); } catch (e) { return; }
   }
   if (el.isConnected) el.innerHTML = lomaNoticeHtml(jaksot, today, stopId);
 }
@@ -14921,6 +14940,8 @@ async function viewMonitor(stopId) {
       if (tbody) tbody.innerHTML = rowsHtml(fresh.stop);
       const live = document.getElementById("mLive");
       if (live) live.innerHTML = liveStatusHtml(fresh.cachedAt);
+      // Infonäyttö voi olla auki viikkoja: lomarivi päivittyy päivän vaihtuessa (muuten välimuistista).
+      fillLomaNotice(document.getElementById("mLoma"), stopId);
     } catch (err) { /* verkkohikka ilman cachea: säilytetään edelliset, yritetään 30 s päästä */ }
   };
   refreshTimer = setInterval(refreshNow, 30000);
