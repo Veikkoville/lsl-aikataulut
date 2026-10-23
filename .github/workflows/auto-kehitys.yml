@@ -132,6 +132,11 @@ jobs:
         id: agentti
         if: steps.avoin.outputs.saa == 'true'
         uses: anthropics/claude-code-action@v1
+        # Ei taustatehtäviä (23.10.2026): De minimis -vahdin agentti käynnisti 22.10. tarkistuksen taustalle ja lopetti
+        # vuoronsa odottamaan sen tulosta, joten ajo päättyi ennen committia ja haara jäi pushaamatta (ajo punainen).
+        # Muuttuja poistaa Bashin run_in_background-parametrin ja automaattisen taustalle siirron.
+        env:
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -146,6 +151,8 @@ jobs:
 
             KOMENNOT (14.10.2026: 13.-14.10. ajoissa estettiin 6-11 komentoa ajoa kohden): aja yksi komento kerrallaan,
             älä ketjuta komentoja &&:lla tai ;:lla (putki head-, tail-, grep-, wc- tai sort-komentoon on sallittu).
+            Älä aja mitään taustalle äläkä jää odottamaan taustatehtävän tai Monitorin ilmoitusta: ajo päättyy, kun
+            lopetat vuorosi, ja kesken jäänyt työ katoaa. Aja jokainen tarkistus loppuun ennen committia, pushia ja PR:ää.
             Kirjoita väliaikaiset tiedostot /tmp-kansioon Write-työkalulla. Commit-viesti ja PR:n kuvaus kirjoitetaan ensin
             tiedostoon Write-työkalulla: git commit -F <tiedosto> ja gh pr create --body-file <tiedosto>, koska monirivinen
             viesti komentorivillä estetään. Muokkaa tiedostoja Edit- ja Write-työkaluilla, ei sed -i:llä eikä python3:lla
