@@ -1170,6 +1170,9 @@
   .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix th.poster-line { padding: 0 1mm 1.2mm 1mm; }
   .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix td.t0 { padding-left: 1mm; }
   .poster-compact .poster-stop[data-narrow="1"] table.poster-matrix td.tz { padding-right: 1mm; }
+  /* Lomakooste (lomaNoticeHtml): etusivun ja monitorin rivi koulujen loma-jaksosta. */
+  .loma-notice { display: block; margin: 0.5rem 0; padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 600; color: inherit; border: 1px solid currentColor; }
+  .m-loma .loma-notice { margin: 0.5rem 0 0; }
   /* Voimassaolorivi (stopValidityHtml): tuleva muutos keltaisella pohjalla mustana, jotta se erottuu
      otsikkopalkista myös mustavalkotulosteessa; "voimassa toistaiseksi" tavallisena rivinä. */
   .poster-valid, .poster-loma { font-weight: 700; margin: 0.3rem 0 0; }
@@ -5830,6 +5833,7 @@ const STRINGS = {
     validChangeShown: "Aikataulu muuttuu {date}. Muuttuvat lähdöt on merkitty kirjaimella, katso selite.",
     validNoChange: "Voimassa toistaiseksi. Aikataulumuutoksia ei ole tiedossa (tarkistettu {date}).",
     posterHoliday: "Koulujen loma-aikoina (seuraava {period}) osa vuoroista ei aja.",
+    lomaNotice: "Koulujen loma {period}: osa vuoroista ei aja",
     loadingDeps: "Haetaan lähtöjä…",
     fullTimetableTitle: "Koko aikataulu pysäkeittäin",
     fullTimetableShow: "Näytä koko aikataulu",
@@ -6757,6 +6761,7 @@ const STRINGS = {
     validChangeShown: "The timetable changes on {date}. Departures that change are marked with a letter, see the key.",
     validNoChange: "Valid until further notice. No timetable changes are known (checked {date}).",
     posterHoliday: "During school holidays (next {period}) some departures do not run.",
+    lomaNotice: "School holiday {period}: some departures do not run",
     loadingDeps: "Loading departures…",
     fullTimetableTitle: "Full timetable by stop",
     fullTimetableShow: "Show full timetable",
@@ -7675,6 +7680,7 @@ const STRINGS = {
     validChangeShown: "Tidtabellen ändras {date}. Avgångar som ändras är märkta med en bokstav, se förklaringen.",
     validNoChange: "Gäller tills vidare. Inga kända tidtabellsändringar (kontrollerat {date}).",
     posterHoliday: "Under skollov (nästa {period}) går en del av turerna inte.",
+    lomaNotice: "Skollov {period}: en del av turerna går inte",
     loadingDeps: "Hämtar avgångar…",
     fullTimetableTitle: "Hela tidtabellen per hållplats",
     fullTimetableShow: "Visa hela tidtabellen",
@@ -8987,6 +8993,47 @@ function posterHolidayHtml(blocks, todayIso) {
   if (!next) return "";
   const period = next.alku === next.loppu ? fmtDayMonthNum(next.alku) : `${fmtDayMonthNum(next.alku)}–${fmtDayMonthNum(next.loppu)}`;
   return `<p class="poster-loma" data-loma>${esc(t("posterHoliday", { period }))}</p>`;
+}
+// Poikkeuskooste kuntalaisen etusivulle ja monitoriin: yksi rivi, kun seuraava (tai käynnissä oleva) koulujen
+// loma-jakso alkaa 14 vrk:n sisällä. Linkki pysäkin aikatauluun; tyhjä jos jaksoa ei ole.
+function lomaNoticeHtml(jaksot, todayIso, stopId) {
+  const num = s => +String(s).replace(/-/g, "");
+  const today = num(todayIso);
+  const limit = new Date(todayIso + "T12:00:00");
+  limit.setDate(limit.getDate() + 14);
+  const next = (jaksot || []).find(j => j.loppu >= today);
+  if (!next || next.alku > num(isoOf(limit))) return "";
+  const period = next.alku === next.loppu ? fmtDayMonthNum(next.alku) : `${fmtDayMonthNum(next.alku)}–${fmtDayMonthNum(next.loppu)}`;
+  return `<a class="loma-notice" data-loma-notice href="#/pysakki/${encodeURIComponent(stopId)}">${icon("calendar")} ${esc(t("lomaNotice", { period }))}</a>`;
+}
+// Pysäkin lomajaksot koostetta varten: vain vuoron tunniste ja ajopäivät yhdellä kyselyllä ja tulos päivän
+// välimuistiin. stopPosterBlocks hakee koko aikataulun pysäytysaikoineen (Lahti Trio 18 kutsua, noin
+// 600 kt joka etusivun latauksella, mitattu 23.10.2026), vaikka loma-päivät tarvitsevat vain ajopäivät.
+// Palvelutunniste puretaan vuoro-ID:stä (tripServiceId), koska Digitransitin serviceId on aina null.
+async function stopLomaJaksot(stopId, today) {
+  const key = `loma:${stopId}`;
+  const hit = cacheGet(key);
+  if (hit && hit.data.day === today) return hit.data.jaksot;
+  const data = await gql(`query ($id: String!) {
+      stop(id: $id) { patterns { route { shortName } trips { gtfsId serviceId activeDates } } }
+    }`, { id: stopId });
+  const eventLines = CONFIG.eventLines || [];
+  const trips = (data.stop?.patterns || [])
+    .filter(p => !eventLines.includes(p.route?.shortName))
+    .flatMap(p => withServiceIds(p.trips || []));
+  const jaksot = lomajaksot(kouluLomaPaivat(trips, today, 90));
+  cachePut(key, { day: today, jaksot });
+  return jaksot;
+}
+// Täyttää kooste-elementin pysäkin lomajaksoilla. window.__lomaTesti ([{alku, loppu}]) ohittaa feedin (smoke-koukku).
+async function fillLomaNotice(el, stopId) {
+  if (!el || !stopId) return;
+  const today = todayISO();
+  let jaksot = window.__lomaTesti;
+  if (!Array.isArray(jaksot)) {
+    try { jaksot = await stopLomaJaksot(stopId, today); } catch (e) { return; }
+  }
+  if (el.isConnected) el.innerHTML = lomaNoticeHtml(jaksot, today, stopId);
 }
 
 // Ryhmittele patternin vuorot TODELLISEN ajopäivä-patternin mukaan (activeDates).
@@ -12904,6 +12951,7 @@ function viewRoutes() {
   if (!PROXY_URL && !apiKey) { redirectHash("#/asetukset"); return; }
   setView(`
     <div id="alertsBox" class="alerts-banner"></div>
+    <div id="lomaNotice"></div>
     ${CONFIG.heroEmphasis === "layer" && APP_MODE !== "resident" ? heroLayerHtml() : heroJourneyHtml()}
     <!-- Universaalihaku omana lohkonaan (linja/pysäkki/osoite), erotettu A->B-herosta neutraalilla
          taustalla. "Lähellä" yhdistetty heron "Näytä lähimmät lähdöt" -toimintoon (yksi nappi). -->
@@ -12945,6 +12993,9 @@ function viewRoutes() {
   } catch (e) { /* rikkinäinen merkintä ohitetaan */ }
   fillWatchHighlight();
   fillHeroPapers();
+  // Lomakooste kaupungin kotipysäkin aikatauluista; ilman kotipysäkkiä riviä ei ole. Taustalla, ei estä ensipiirtoa.
+  onIdle(() => fillLomaNotice(document.getElementById("lomaNotice"),
+    CONFIG.deskHomeStop && (CONFIG.deskHomeStop.id || (CONFIG.deskHomeStop.ids || [])[0])));
   // Uusintapainatus-nosto vasta ensimaalauksen jälkeen: se on ainoa nosto joka voi tehdä
   // verkkokyselyitä (yksi per seurattu tuloste), eikä etusivu saa odottaa niitä.
   onIdle(() => fillReprintHighlight());
@@ -14883,6 +14934,7 @@ async function viewMonitor(stopId) {
         <thead><tr><th>${t("thLine")}</th><th>${t("thDest")}</th><th class="m-when">${t("thDeparts")}</th></tr></thead>
         <tbody id="mRows">${rowsHtml(stop)}</tbody>
       </table>
+      <div id="mLoma" class="m-loma"></div>
       <div class="m-foot">
         <a href="#/pysakki/${encodeURIComponent(stopId)}" class="m-exit">✕ ${t("monitorExit")}</a>
         <span class="muted" id="mLive">${liveStatusHtml(cachedAt)}</span>
@@ -14898,6 +14950,7 @@ async function viewMonitor(stopId) {
     }
   };
   tickClock();
+  fillLomaNotice(document.getElementById("mLoma"), stopId);
   monitorTimer = setInterval(tickClock, 1000);
   requestWakeLock();
 
@@ -14908,6 +14961,8 @@ async function viewMonitor(stopId) {
       if (tbody) tbody.innerHTML = rowsHtml(fresh.stop);
       const live = document.getElementById("mLive");
       if (live) live.innerHTML = liveStatusHtml(fresh.cachedAt);
+      // Infonäyttö voi olla auki viikkoja: lomarivi päivittyy päivän vaihtuessa (muuten välimuistista).
+      fillLomaNotice(document.getElementById("mLoma"), stopId);
     } catch (err) { /* verkkohikka ilman cachea: säilytetään edelliset, yritetään 30 s päästä */ }
   };
   refreshTimer = setInterval(refreshNow, 30000);
