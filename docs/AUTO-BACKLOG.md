@@ -151,7 +151,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Mittari: smoke-tarkistus (lomajaksot kiinteällä päivälistalla, alaviite Lahden testipysäkin julisteessa) vihreä
       CI:ssä; tuotannon julisteessa näkyy seuraava loma ennen joululomaa (käsin tulostenäkymästä)
       · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-13)
-- [ ] index.html: sama poikkeuskooste kuntalaisen etusivulle ja monitoriin. Käytä edellisen rivin `lomajaksot`-funktiota:
+- [x] index.html: sama poikkeuskooste kuntalaisen etusivulle ja monitoriin. Käytä edellisen rivin `lomajaksot`-funktiota:
       kun seuraava jakso alkaa 14 päivän sisällä, näytä etusivulla ja `#/monitori`-näkymässä yksi rivi fi/sv/en ("Syysloma
       19.-23.10.: osa vuoroista ei aja"), joka linkittää pysäkin tai linjan aikatauluun. Ei näytetä, jos jaksoa ei ole.
       Todennus: smokessa jakso pakotetaan sivulle (`window.__lomaTesti = [{alku, loppu}]` tai vastaava testikoukku) ja
@@ -160,7 +160,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 3/3 · työ L · myynti 1/3 = 8
       Mittari: smoke-tarkistus (testikoukulla pakotettu jakso näkyy etusivulla ja monitorissa, ilman jaksoa ei) vihreä
       CI:ssä; tuotannossa rivi näkyy etusivulla ja monitorissa 14 päivää ennen joululomaa (käsin)
-      · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
+      · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-23)
 - [ ] index.html: perutut vuorot näkyviin. Lähtökyselyt eivät pyydä `realtimeState`a (auditointi: 0 osumaa lähtökyselyissä).
       Lisää kenttä pysäkin ja monitorin lähtökyselyihin, ja kun `realtimeState === "CANCELED"`, näytä lähtö yliviivattuna
       sanalla "Peruttu" (fi/sv/en, ruudunlukijalle tekstinä, ei pelkkä yliviivaus). Tulosteisiin ei muutosta. Todennus:

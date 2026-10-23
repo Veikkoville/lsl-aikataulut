@@ -3368,6 +3368,31 @@ async function minuuttiLinjaus(page, rootSel, media) {
     const exited = await page.evaluate(() => !document.body.classList.contains("monitor-mode"));
     exited ? ok("monitori: kioskitila puretaan poistuttaessa")
            : fail("monitori: kioskitila jäi päälle");
+
+    // Poikkeuskooste: testikoukku window.__lomaTesti pakottaa loma-jakson 3-5 vrk päähän. Rivi näkyy monitorissa ja
+    // etusivulla; tyhjä jakso-lista tai yli 14 vrk päässä alkava jakso ei tuota riviä. Koukku poistetaan lopuksi.
+    const lomaSet = jaksot => page.evaluate(j => {
+      const n = o => { const d = new Date(); d.setDate(d.getDate() + o); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
+      window.__lomaTesti = j.map(([a, b]) => ({ alku: n(a), loppu: n(b) }));
+    }, jaksot);
+    const lomaNakyy = async (hash, sel) => {
+      await page.goto(BASE + "/" + hash, { waitUntil: "networkidle2" });
+      await new Promise(r => setTimeout(r, 1500));
+      return page.$(sel).then(h => !!h);
+    };
+    await lomaSet([[3, 5]]);
+    const lomaMon = await lomaNakyy(monitorHref, "#mLoma [data-loma-notice]");
+    const lomaHome = await lomaNakyy("#/", "#lomaNotice [data-loma-notice]");
+    (lomaMon && lomaHome) ? ok("poikkeuskooste: loma-rivi näkyy monitorissa ja etusivulla, kun jakso alkaa 14 vrk:n sisällä")
+                          : fail(`poikkeuskooste: rivi puuttuu (monitori ${lomaMon}, etusivu ${lomaHome})`);
+    await lomaSet([[30, 34]]);
+    const lomaKaukana = await lomaNakyy(monitorHref, "#mLoma [data-loma-notice]");
+    await lomaSet([]);
+    const lomaEi = await lomaNakyy("#/", "#lomaNotice [data-loma-notice]");
+    (!lomaKaukana && !lomaEi) ? ok("poikkeuskooste: riviä ei ole, kun jaksoa ei ole tai se alkaa yli 14 vrk päästä")
+                              : fail(`poikkeuskooste: rivi näkyy väärin (kaukana ${lomaKaukana}, tyhjä ${lomaEi})`);
+    await page.evaluate(() => { delete window.__lomaTesti; });
+    await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   }
 
   // --- Live-kartta: koko verkon bussit reaaliajassa ---
