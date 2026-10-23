@@ -42,6 +42,26 @@ tarkista("Jyväskylä M-P ei koulp on loma", classify("LINKKI:M-P ei koulp"), "l
 tarkista("Lappeenranta koulujen loma-ajat on loma", classify("Ma-Pe koulujen loma-ajat"), "loma");
 tarkista("LP on loma", classify("Lahti LP talvi"), "loma");
 
+// Palvelutunniste vuoron gtfsId:stä (23.10.2026: Digitransitin Trip.serviceId on aina null). Fixtuurit ovat
+// 23.10. kotipysäkkien oikeita vuoro-ID:itä; Föli ei ole Waltti-muotoa, ja sen tunniste jää tyhjäksi.
+const { tripServiceId } = require("./kausivalidointi.js");
+tarkista("Lahti: palvelu vuoro-ID:stä kuten alkuperäinen serviceId",
+  tripServiceId({ gtfsId: "Lahti:2026-2027_Ma-To_KP_20261101_asti_960_1_033500_035800_5", serviceId: null }),
+  "Lahti:2026-2027 Ma-To KP 20261101 asti");
+tarkista("Oulu: palvelussa alaviivallinen päivä", tripServiceId({ gtfsId: "OULU:T_T_26-27_MaTo_KP_alk_10_5_702_0_123456_134500_0" }),
+  "OULU:T T 26-27 MaTo KP alk 10 5");
+tarkista("Kotka: linjatunnus kirjaimella", tripServiceId({ gtfsId: "Kotka:2026-2027_TALVI_lomapäivisin_7V_0_061500_070000_0" }),
+  "Kotka:2026-2027 TALVI lomapäivisin");
+tarkista("Föli: muu muoto -> tyhjä", tripServiceId({ gtfsId: "FOLI:00015254__1005001100" }), "");
+tarkista("rajapinnan serviceId voittaa", tripServiceId({ gtfsId: "Lahti:x_1_0_000000_000000_0", serviceId: "Lahti:2026 Jouluaatto" }),
+  "Lahti:2026 Jouluaatto");
+tarkista("ei gtfsId:tä -> tyhjä", tripServiceId({ serviceId: null }), "");
+tarkista("Kuopio: pieni kp on koulupäivä", classify("Kuopio:2026 Talvi kp"), "koul");
+tarkista("Joensuu: syyslomaan on voimassaolo, ei loma", classify("Joensuu:Talviaikataulu M-P syyslomaan") !== "loma", true);
+tarkista("Joensuu: syyslomasta on voimassaolo, ei loma", classify("Joensuu:Talviaikataulu Su syyslomasta") !== "loma", true);
+tarkista("Pori: syysloma-palvelu on loma", classify("Pori:261019 syysloma 2026"), "loma");
+tarkista("Jyväskylä purettuna: M-P ei koulp on loma", classify(tripServiceId({ gtfsId: "LINKKI:M-P_ei_koulp_talvi_2024-2025_905_0_061500_070000_0" })), "loma");
+
 // Aluerajaus (areaScoped, Inkoo): linja mukaan vain, jos sillä on kunnan alueella vähintään minStops pysäkkiä.
 const { areaRouteIds } = require("./kausivalidointi.js");
 const alue = { area: { rect: { minLat: 0, maxLat: 10, minLon: 0, maxLon: 10 },

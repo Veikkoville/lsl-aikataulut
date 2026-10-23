@@ -98,16 +98,28 @@ async function gql(query, variables, router) {
 const DAY = "(?:ma|ti|ke|to|pe|la|su)";
 const DAY_RE = new RegExp("(?<![A-Za-z])" + DAY + "(?:[-_,]?" + DAY + ")*(?![A-Za-z])", "i");
 const classify = sid => {
-  sid = sid || "";
+  sid = (sid || "").replace(/[a-zåäö]*loma(an|sta)\b/gi, "");   // "syyslomaan" = voimassaolo, ks. schoolOf
   if (/\bei[\s_-]*loma/i.test(sid)) return "koul";
   if (/\bei[\s_-]*koul/i.test(sid) || (/loma/i.test(sid) && /koul/i.test(sid))) return "loma";
-  if (/koul/i.test(sid) || /\bKP\b/.test(sid)) return "koul";
-  if (/loma|joulu(?:aatto|p[aä]iv[aä])/i.test(sid) || /\bLP\b/.test(sid)) return "loma";
+  if (/koul/i.test(sid) || /\bKP\b/i.test(sid)) return "koul";
+  if (/loma|joulu(?:aatto|p[aä]iv[aä])/i.test(sid) || /\bLP\b/i.test(sid)) return "loma";
   if (/rally|fest|lis[aä]|\d{1,2}\.\d{1,2}\.|\d{4}-\d{2}-\d{2}/i.test(sid)) return "";
   if (DAY_RE.test(sid)) return "viikonpaiva";
   if (/talvi|kes[aä]|syys|kev[aä]t/i.test(sid)) return "kausi";
   return "";
 };
+
+// Palvelutunniste vuoron gtfsId:stä, sama sääntö kuin sovelluksen tripServiceId (index.html): Digitransit palauttaa
+// Trip.serviceId:n aina null 20.-23.10.2026 alkaen, ja tämä vahti näki sen jälkeen 0 tunnistetta ja raportoi PASS.
+// Vertailu vertailupohjaan alaviivat välilyönneiksi normalisoituna, koska alkuperäisessä serviceId:ssä oli kumpiakin
+// ("Kuopio:2026_Talvi_Loma_Ma-Pe") eikä trip_id:stä voi tietää kumpi.
+const tripServiceId = t => {
+  if (t?.serviceId) return t.serviceId;
+  const [feed, id] = String(t?.gtfsId || "").split(/:(.*)/);
+  const m = (id || "").match(/^(.+)_[^_]+_\d+_\d{6}_\d{6}_\d+$/);
+  return m ? `${feed}:${m[1].replace(/_/g, " ")}` : "";
+};
+const normSid = s => String(s).replace(/_/g, " ");
 
 // areaScoped-kaupunki (Inkoo): valtakunnallisessa MATKA-feedissä on noin 5 400 serviceId:tä, joista 30-140
 // vaihtuu viikossa muualla Suomessa (ajot 22.9.-11.10.2026), joten koko feedin inventaario hälyttäisi joka viikko.
@@ -170,19 +182,27 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
       `kunnan alueelta 0 linjaa (polygoni tai minStops ${cfg.area.minStops}) — sovellus palaa suorakaiteeseen, ${area.ids.length} linjaa`);
     if (!area.ids.length) { log("FAIL", key, "aluerajaus", "suorakaiteessakaan ei yhtään feedin linjaa"); return; }
     await sleep(QUERY_GAP_MS);
-    inv = await q(`query ($ids: [String]) { routes(ids: $ids) { shortName trips { serviceId } } }`, { ids: area.ids });
+    inv = await q(`query ($ids: [String]) { routes(ids: $ids) { shortName trips { gtfsId serviceId } } }`, { ids: area.ids });
   } else {
     inv = await q(
-      `query ($feeds: [String]) { routes(feeds: $feeds) { shortName trips { serviceId } } }`,
+      `query ($feeds: [String]) { routes(feeds: $feeds) { shortName trips { gtfsId serviceId } } }`,
       { feeds: [feed] });
   }
-  const sids = [...new Set((inv.routes || []).flatMap(r => (r.trips || []).map(t => t.serviceId || "")))]
+  const tripCount = (inv.routes || []).reduce((n, r) => n + (r.trips || []).length, 0);
+  const sids = [...new Set((inv.routes || []).flatMap(r => (r.trips || []).map(tripServiceId)))]
     .filter(Boolean).sort();
-  const known = new Set(baseline[key] || []);
-  const fresh = sids.filter(s => !known.has(s));
+  const known = new Set((baseline[key] || []).map(normSid));
+  const fresh = sids.filter(s => !known.has(normSid(s)));
   const counts = { koul: 0, loma: 0, kausi: 0, viikonpaiva: 0, muu: 0 };
   sids.forEach(s => counts[classify(s) || "muu"]++);
-  if (!baseline[key]) {
+  // Tyhjä inventaario ei ole "ei uusia": vuorot ovat olemassa, mutta niiden palvelua ei saada (rajapinta tai
+  // trip_id:n muoto muuttui), ja koulu/loma-leimat katoavat tulosteista. FAIL, jos kaupungilla oli niitä.
+  if (tripCount && !sids.length) {
+    const hadSchool = (baseline[key] || []).some(s => ["koul", "loma"].includes(classify(s)));
+    log(hadSchool ? "FAIL" : "WARN", key, "serviceId-inventaario",
+      `${tripCount} vuoroa, 0 palvelutunnistetta (serviceId tyhjä eikä vuoro-ID:stä purettu)` +
+      (hadSchool ? " → koulu/loma-lohkot puuttuvat tulosteista" : ""));
+  } else if (!baseline[key]) {
     log("WARN", key, "serviceId-baseline", `puuttuu — ${sids.length} serviceId:tä kirjattu ehdotukseen`);
   } else if (fresh.length && fresh.every(classify)) {
     log("PASS", key, "serviceId-uudet", `${fresh.length} uutta serviceId:tä, kaikki luokiteltu: ` +
@@ -343,4 +363,4 @@ if (require.main === module) (async () => {
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error("kausivalidointi kaatui: " + e.message); process.exit(2); });
 
-module.exports = { classify, extractConfigs, areaRouteIds };   // extractConfigs: myös tests/datavahti.js
+module.exports = { classify, extractConfigs, areaRouteIds, tripServiceId };   // extractConfigs: myös tests/datavahti.js
