@@ -9006,20 +9006,21 @@ function lomaNoticeHtml(jaksot, todayIso, stopId) {
   const period = next.alku === next.loppu ? fmtDayMonthNum(next.alku) : `${fmtDayMonthNum(next.alku)}–${fmtDayMonthNum(next.loppu)}`;
   return `<a class="loma-notice" data-loma-notice href="#/pysakki/${encodeURIComponent(stopId)}">${icon("calendar")} ${esc(t("lomaNotice", { period }))}</a>`;
 }
-// Pysäkin lomajaksot koostetta varten: vain serviceId + activeDates yhdellä kyselyllä ja tulos päivän
+// Pysäkin lomajaksot koostetta varten: vain vuoron tunniste ja ajopäivät yhdellä kyselyllä ja tulos päivän
 // välimuistiin. stopPosterBlocks hakee koko aikataulun pysäytysaikoineen (Lahti Trio 18 kutsua, noin
 // 600 kt joka etusivun latauksella, mitattu 23.10.2026), vaikka loma-päivät tarvitsevat vain ajopäivät.
+// Palvelutunniste puretaan vuoro-ID:stä (tripServiceId), koska Digitransitin serviceId on aina null.
 async function stopLomaJaksot(stopId, today) {
   const key = `loma:${stopId}`;
   const hit = cacheGet(key);
   if (hit && hit.data.day === today) return hit.data.jaksot;
   const data = await gql(`query ($id: String!) {
-      stop(id: $id) { patterns { route { shortName } trips { serviceId activeDates } } }
+      stop(id: $id) { patterns { route { shortName } trips { gtfsId serviceId activeDates } } }
     }`, { id: stopId });
   const eventLines = CONFIG.eventLines || [];
   const trips = (data.stop?.patterns || [])
     .filter(p => !eventLines.includes(p.route?.shortName))
-    .flatMap(p => p.trips || []);
+    .flatMap(p => withServiceIds(p.trips || []));
   const jaksot = lomajaksot(kouluLomaPaivat(trips, today, 90));
   cachePut(key, { day: today, jaksot });
   return jaksot;
