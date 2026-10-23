@@ -8916,13 +8916,32 @@ function periodLabel(p) {
 // sanansisäisiin kirjainpareihin. "ei koul" ja "koulujen loma-ajat" ovat loma-aikaa (Jyväskylä
 // "M-P ei koulp" ja Lappeenranta "Ma-Pe koulujen loma-ajat" tulostuivat "koulupäivinä", vertailu ja
 // auditointi 25.9.2026), "ei loma" on koulupäivä. Sama sääntö julisteelle, vihkolle ja linjasivulle.
+// 23.10.2026: KP/LP myös pienillä kirjaimilla (Kuopio "2026 Talvi kp" jäi luokittelematta), ja loman
+// rajaama voimassaolo ("Talviaikataulu M-P syyslomaan" / "syyslomasta", Joensuu) ei ole loma-ajan palvelu.
 function schoolOf(sid) {
-  sid = sid || "";
+  sid = (sid || "").replace(/[a-zåäö]*loma(an|sta)\b/gi, "");
   if (/\bei[\s_-]*loma/i.test(sid)) return "koul";
   if (/\bei[\s_-]*koul/i.test(sid) || (/loma/i.test(sid) && /koul/i.test(sid))) return "loma";
-  if (/koul/i.test(sid) || /\bKP\b/.test(sid)) return "koul";
-  if (/loma/i.test(sid) || /\bLP\b/.test(sid)) return "loma";
+  if (/koul/i.test(sid) || /\bKP\b/i.test(sid)) return "koul";
+  if (/loma/i.test(sid) || /\bLP\b/i.test(sid)) return "loma";
   return "";
+}
+// Vuoron palvelutunniste. Digitransit (OTP) palauttaa Trip.serviceId:n aina null (todettu 23.10.2026, skeeman
+// deprecationReason "This field always returns null"; 20.10. 05:23 UTC kenttä oli vielä täytetty). Ilman sitä
+// koulupäivä/loma-lohkot, loma-alaviite ja splitByPeriodin palvelujako katosivat tulosteista hiljaa. Waltti-feedien
+// trip_id on <service_id>_<linja>_<suunta>_<HHMMSS>_<HHMMSS>_<n> (Lahti "2026-2027_Ma-To_KP_20261101_asti_960_1_
+// 033500_035800_5"), joten tunniste puretaan siitä: syöte-etuliite ja alaviivat välilyönneiksi kuten alkuperäisessä
+// serviceId:ssä ("Lahti:2026-2027 Ma-To KP 20261101 asti"), jotta schoolOfin \b-säännöt toimivat. Muun muotoinen
+// trip_id (Föli) -> "" kuten ilman serviceId:tä. Vaatii kyselyyn vuoron gtfsId:n.
+function tripServiceId(tr) {
+  if (tr?.serviceId) return tr.serviceId;
+  const [feed, id] = String(tr?.gtfsId || "").split(/:(.*)/);
+  const m = (id || "").match(/^(.+)_[^_]+_\d+_\d{6}_\d{6}_\d+$/);
+  return m ? `${feed}:${m[1].replace(/_/g, " ")}` : "";
+}
+function withServiceIds(trips) {
+  for (const tr of trips || []) if (tr) tr.serviceId = tripServiceId(tr);
+  return trips;
 }
 
 // Koulujen loma-jaksot julisteen alaviitettä varten. paivat = arkipäivät (yyyyMMdd, merkkijono tai luku), joina
@@ -9168,11 +9187,11 @@ async function patternTripsWithDays(code) {
   const { data } = await cachedGql(`ptd:${code}`,
     `query ($code: String!) {
        pattern(id: $code) {
-         trips { serviceId tripHeadsign@L activeDates
+         trips { gtfsId serviceId tripHeadsign@L activeDates
            stoptimes { timepoint scheduledDeparture pickupType headsign@L stop { gtfsId name@L } } }
        }
      }`, { code });
-  return data.pattern?.trips || [];
+  return withServiceIds(data.pattern?.trips || []);
 }
 
 // Monen patternin vuorohaku yhdellä kyselyllä. Digitransit EI tue patterns(ids:)
@@ -9183,7 +9202,7 @@ async function patternTripsWithDays(code) {
 // nippu kaataisi koko erän yhteen virheeseen. Epäonnistunut erä EI heitä vaan jättää
 // koodit memoon hakematta → kutsuja hakee ne yksitellen (hitaampi mutta oikea).
 const PTD_ALIAS_CHUNK = 5;
-const PTD_ALIAS_FIELDS = `trips { serviceId tripHeadsign@L activeDates
+const PTD_ALIAS_FIELDS = `trips { gtfsId serviceId tripHeadsign@L activeDates
   stoptimes { timepoint scheduledDeparture pickupType headsign@L stop { gtfsId name@L } } }`;
 async function patternTripsMany(codes, memo, conc = 3) {
   const missing = [...new Set(codes)].filter(c => c && !memo.has(c));
@@ -9201,7 +9220,7 @@ async function patternTripsMany(codes, memo, conc = 3) {
       const trips = data["p" + i]?.trips;
       // Ei cachePutia: erä on kymmeniä patterneja stoptimeineen, ja niiden kirjoitus
       // localStorageen täyttäisi välimuistin (cachePut joutuisi tyhjennyskierrokseen).
-      if (trips) memo.set(code, Promise.resolve(trips));
+      if (trips) memo.set(code, Promise.resolve(withServiceIds(trips)));
     });
   });
 }
@@ -13753,12 +13772,12 @@ function lineDirDeps(routeId, dirPatterns, curDir, current, routeCachedAt, memoD
   };
   const loadDayTrips = async (iso) => {
     const aliases = dirPatterns.map((p, i) =>
-      `c${i}: pattern(id: "${p.code}") { tripsForDate(serviceDate: $date) { serviceId stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } } } }`).join("\n");
+      `c${i}: pattern(id: "${p.code}") { tripsForDate(serviceDate: $date) { gtfsId serviceId stoptimes { timepoint scheduledDeparture stop { gtfsId name@L } } } }`).join("\n");
     const { data } = await cachedGql(`matrix2:${routeId}:dir${curDir}:${iso}`,
       `query ($date: String!) { ${aliases} }`, { date: iso.replace(/-/g, "") });
     let pat = current, trips = [], allTrips = [];
     dirPatterns.forEach((p, i) => {
-      const tr = (data["c" + i] && data["c" + i].tripsForDate) || [];
+      const tr = withServiceIds((data["c" + i] && data["c" + i].tripsForDate) || []);
       allTrips.push(...tr);
       // tasapelissä pidempi reittikuvio (ks. byTrips)
       if (tr.length > trips.length || (tr.length && tr.length === trips.length && (p.stops || []).length > (pat.stops || []).length)) {
@@ -13844,6 +13863,7 @@ function lineDirDeps(routeId, dirPatterns, curDir, current, routeCachedAt, memoD
     for (const g of (tt.stop?.stoptimesForServiceDate || [])) {
       if (!dirCodes.has(g.pattern.code) || arrOnly.has(g.pattern.code)) continue;
       for (const s of (g.stoptimes || [])) {
+        if (s.trip) s.trip.serviceId = tripServiceId(s.trip);
         if (serviceDay == null && s.serviceDay) serviceDay = s.serviceDay;
         const key = s.trip?.gtfsId || ("anon:" + s.scheduledDeparture);
         const prev = byTrip.get(key);
@@ -18381,7 +18401,7 @@ async function deskPrintItinerary(node, nodes, from, to, stEl) {
 const POCKET_PAT_QUERY = `query PocketPatterns($id: String!) {
   stop(id: $id) { gtfsId name@L patterns { code route { gtfsId shortName longName@L color textColor mode } stops { gtfsId } } }
 }`;
-const POCKET_TRIP_FIELDS = `trips { serviceId activeDates
+const POCKET_TRIP_FIELDS = `trips { gtfsId serviceId activeDates
   stoptimes { scheduledArrival scheduledDeparture pickupType dropoffType stop { gtfsId } } }`;
 // Istunnon ajan: sama pysäkkipari tulostetaan usein uudelleen (iso teksti, toinen asiakas). Ei localStorageen, koska
 // vuorot pysäkkiaikoineen ovat isoja.
@@ -18401,7 +18421,7 @@ async function pocketTripsFor(codes) {
     }
     // Lopullinen virhe heittää: taskuaikataulu ei saa tulostua vajaana (puuttuva linja näyttäisi "ei lähtöjä").
     if (!data) throw err || new Error("pocket");
-    chunk.forEach((c, i) => pocketTripMemo.set(c, data["p" + i]?.trips || []));
+    chunk.forEach((c, i) => pocketTripMemo.set(c, withServiceIds(data["p" + i]?.trips || [])));
   });
   return codes.map(c => pocketTripMemo.get(c) || []);
 }

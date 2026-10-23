@@ -3216,6 +3216,22 @@ async function minuuttiLinjaus(page, rootSel, media) {
         && lj.kaksi[1].alku === 20261028 && lj.yksi.length === 1 && lj.tyhja.length === 0)
         ? ok("lomajaksot: viikonloppu ei katkaise jaksoa, puuttuva arkipäivä katkaisee")
         : fail(`lomajaksot: ${JSON.stringify(lj)}`);
+      // Palvelutunniste (23.10.2026): Digitransitin Trip.serviceId on aina null, ja ilman tunnistetta koulupäivä- ja
+      // lomalohkot katosivat tulosteista hiljaa (tämä smoke oli vihreä). Puhdas osuus kiinteillä vuoro-ID:illä, ja
+      // rajapintavahti: Trion vuoroista valtaosa saa tunnisteen (vuoro-ID:n muodon muutos kaataa tämän, ei kausi).
+      const pt = await page.evaluate(async () => {
+        const lahti = tripServiceId({ gtfsId: "Lahti:2026-2027_Ma-To_KP_20261101_asti_960_1_033500_035800_5", serviceId: null });
+        const luokat = [schoolOf(lahti), schoolOf("Kuopio:2026 Talvi kp"), schoolOf("Joensuu:Talviaikataulu M-P syyslomaan"),
+          schoolOf(tripServiceId({ gtfsId: "Lahti:2026-2027_Pe_LP_20270404_asti_020_0_061500_070000_0" }))].join(",");
+        const foli = tripServiceId({ gtfsId: "FOLI:00015254__1005001100" });
+        const d = await gql(`{ stop(id: "Lahti:505725") { patterns { code } } }`);
+        const trips = await patternTripsWithDays(d.stop.patterns[0].code);
+        return { lahti, luokat, foli, vuoroja: trips.length, tunnisteella: trips.filter(tr => tr.serviceId).length };
+      });
+      (pt.lahti === "Lahti:2026-2027 Ma-To KP 20261101 asti" && pt.luokat === "koul,koul,,loma" && pt.foli === ""
+        && pt.vuoroja > 0 && pt.tunnisteella / pt.vuoroja >= 0.9)
+        ? ok(`palvelutunniste: puretaan vuoro-ID:stä ja luokitellaan (Trio ${pt.tunnisteella}/${pt.vuoroja} vuoroa)`)
+        : fail(`palvelutunniste: ${JSON.stringify(pt)}`);
       const loma = await page.evaluate(() => ({
         elementteja: document.querySelectorAll("#stopPrintOut [data-loma]").length,
       }));
