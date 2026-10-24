@@ -437,7 +437,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 3/3 · työ M · myynti 2/3 · uutuus 2/2 = 12
       Mittari: smoke-tarkistus (pyhaLuokka kiinteällä aineistolla) vihreä CI:ssä; käsin: kaupunki ilman omaa listaa näyttää
       joulupäivälle feedin mukaisen luokan · tarkistus 2026-12-01 (pisteet ja mittari: CoS 19.10.) (PR, 2026-10-20)
-- [ ] index.html: päivävertailun vertailupäivä ohittaa lomaviikon, ja valitun päivän voi linkittää. Nyt `exCmpLoad`
+- [x] index.html: päivävertailun vertailupäivä ohittaa lomaviikon, ja valitun päivän voi linkittää. Nyt `exCmpLoad`
       (rivi noin 15387) vertaa aina 7 päivää aiempaan, joten kun valittu päivä on heti koulujen lomaviikon jälkeen
       (syyslomaviikon jälkeinen maanantai on yleinen muutospäivä), lomalla ajamatta jääneet koulupäivävuorot näkyvät
       uusina ja oikeat muutokset hukkuvat niiden alle. Muutosvahti hoitaa saman jo omalla viikkologiikallaan
@@ -453,7 +453,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       reittioppaaseen ilman suoraa linkkiä muutoslistaan)
       Pisteet: arvo 2/3 · kiire 3/3 · työ M · myynti 1/3 · uutuus 1/2 = 8
       Mittari: smoke-tarkistus (valitseVertailu ja ?pvm) vihreä CI:ssä; käsin: joululoman jälkeisen maanantain
-      vertailupäivä on kahden viikon takainen · tarkistus 2027-01-11 (pisteet ja mittari: CoS 19.10.)
+      vertailupäivä on kahden viikon takainen · tarkistus 2027-01-11 (pisteet ja mittari: CoS 19.10.) (PR, 2026-10-24)
 
 ## Tehdyt
 

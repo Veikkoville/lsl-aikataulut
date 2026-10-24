@@ -3508,6 +3508,27 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (cmpEl.osio && cmpEl.tulos)
     ? ok("poikkeuspäivät: päivävertailun valitsin ja tulosalue ovat sivulla")
     : fail(`poikkeuspäivät: vertailuosio puuttuu ${JSON.stringify(cmpEl)}`);
+  // Vertailupäivän valinta: b7:stä puuttuu linja A (lomaviikko), b14 identtinen a:n kanssa -> "b14"; tyhjä b14 -> "b7";
+  // tasapeli -> "b7".
+  const vv = await page.evaluate(() => {
+    const a = { A: ["1,2"], B: ["3,4"] };
+    return {
+      b14: valitseVertailu(a, { B: ["3,4"] }, { A: ["1,2"], B: ["3,4"] }),
+      tyhja: valitseVertailu(a, { B: ["3,4"] }, {}),
+      tasan: valitseVertailu(a, { B: ["3,4"] }, { A: ["1,2"] }),
+    };
+  });
+  (vv.b14 === "b14" && vv.tyhja === "b7" && vv.tasan === "b7")
+    ? ok("valitseVertailu: lomaviikon jälkeen vertailu kahden viikon taakse, tyhjällä ja tasapelissä viikon taakse")
+    : fail(`valitseVertailu: ${JSON.stringify(vv)}`);
+  // ?pvm avaa vertailun annetulle päivälle.
+  await page.evaluate(() => { location.hash = "#/poikkeukset?pvm=2031-03-04"; });
+  try {
+    await page.waitForFunction(() => document.getElementById("exCmpDay")?.value === "2031-03-04", { timeout: 15000 });
+    ok("poikkeuspäivät: ?pvm asettaa päivävalitsimen arvon");
+  } catch (e) {
+    fail("poikkeuspäivät: ?pvm ei asettanut päivävalitsinta");
+  }
   // Pyhän liikennetyyppi: lauantain kanssa identtinen -> "la", tyhjä -> "ei", puolet lauantain vuoroista -> "poikkeava".
   const pl = await page.evaluate(() => {
     const la = ["1|100,200", "1|300,400", "2|100,200", "2|500,600"];
