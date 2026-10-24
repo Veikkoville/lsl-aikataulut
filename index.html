@@ -15566,28 +15566,37 @@ function linjanEroRivit(e, max) {
   ].sort((x, y) => x.at - y.at);
   return { rows: rows.slice(0, max), more: Math.max(0, rows.length - max) };
 }
+// Valitsee vertailupäivän: "b7" (viikko sitten) tai "b14" (kaksi viikkoa sitten). b14 valitaan vain, kun sen kanssa
+// eiAja + muuttuu + vainUusi -linjoja on selvästi vähemmän; tasapelissä ja tyhjällä b14:llä "b7".
+function valitseVertailu(a, b7, b14) {
+  if (!b14 || !Object.keys(b14).length) return "b7";
+  const n = x => { const r = vertaaPaivat(a, x); return r.eiAja.length + r.muuttuu.length + r.vainUusi.length; };
+  return n(b14) < n(b7) ? "b14" : "b7";
+}
 const exCmpCache = new Map();
 // Yksi kysely kahdelle päivälle: linjatunnus -> vuorosarjat, ja tunnus -> gtfsId linkkiä varten.
 async function exCmpLoad(iso) {
   if (exCmpCache.has(iso)) return exCmpCache.get(iso);
   const d = new Date(iso + "T12:00:00");
   d.setDate(d.getDate() - 7);
-  const prev = isoOf(d);
+  const prev7 = isoOf(d);
+  d.setDate(d.getDate() - 7);
+  const prev14 = isoOf(d);
   const feed = await findFeed();
   const trips = (n, day) => `${n}: tripsForDate(serviceDate: "${day.replace(/-/g, "")}") { stoptimes { scheduledDeparture } }`;
-  const pat = `patterns { directionId headsign stops { gtfsId code name } ${trips("a", iso)} ${trips("b", prev)} }`;
+  const pat = `patterns { directionId headsign stops { gtfsId code name } ${trips("a", iso)} ${trips("b", prev7)} ${trips("c", prev14)} }`;
   const data = CONFIG.areaScoped
     ? await gql(`query ($ids: [String]) { routes(ids: $ids) { gtfsId shortName mode ${pat} } }`, { ids: await areaRouteIds(feed) })
     : await gql(`query ($feeds: [String]) { routes(feeds: $feeds) { gtfsId shortName mode ${pat} } }`, { feeds: [feed] });
   const modes = CONFIG.modes || ["BUS"];
-  const a = {}, b = {}, ids = {}, det = { a: {}, b: {} }, heads = {}, stp = { a: {}, b: {} };
+  const a = {}, b = {}, c = {}, ids = {}, det = { a: {}, b: {}, c: {} }, heads = {}, stp = { a: {}, b: {}, c: {} };
   for (const r of data.routes || []) {
     if (!modes.includes(r.mode) || !r.shortName) continue;
     ids[r.shortName] = ids[r.shortName] || r.gtfsId;
     for (const p of r.patterns || []) {
       const dir = (p.directionId ?? "") + "|" + (p.headsign || "");
       heads[r.shortName + "#" + dir] = p.headsign || "";
-      for (const [dst, key] of [[a, "a"], [b, "b"]]) {
+      for (const [dst, key] of [[a, "a"], [b, "b"], [c, "c"]]) {
         if ((p[key] || []).length) {
           const sl = (stp[key][r.shortName] = stp[key][r.shortName] || {});
           const m = (sl[dir] = sl[dir] || new Map());
@@ -15602,10 +15611,14 @@ async function exCmpLoad(iso) {
       }
     }
   }
-  const cmp = vertaaPaivat(a, b);
+  // Vertailupäivä: viikko sitten, tai kaksi viikkoa sitten jos viikon takainen oli lomaviikko ja antaa enemmän turhia eroja.
+  const vs = valitseVertailu(a, b, c);
+  const vk = vs === "b14" ? "c" : "b";
+  const prev = vs === "b14" ? prev14 : prev7;
+  const cmp = vertaaPaivat(a, vk === "c" ? c : b);
   const ero = {};
   const stops = (key, k) => Object.fromEntries(Object.entries(stp[key][k] || {}).map(([dir, m]) => [dir, [...m.values()]]));
-  const laske = k => Object.entries(linjanEro(det.a[k], det.b[k], stops("a", k), stops("b", k))).map(([dir, e]) => ({ head: heads[k + "#" + dir] || "", e }));
+  const laske = k => Object.entries(linjanEro(det.a[k], det[vk][k], stops("a", k), stops(vk, k))).map(([dir, e]) => ({ head: heads[k + "#" + dir] || "", e }));
   for (const k of cmp.muuttuu) ero[k] = laske(k);
   // Linja, jonka vuorosarjat ovat samat mutta pysäkkijoukko muuttuu, kuuluu muuttuviin.
   for (const k of [...cmp.ennallaan]) {
@@ -15665,11 +15678,19 @@ function exCmpInit() {
       out.innerHTML = `<p class="muted">${t("exCmpFail")}</p>`;
     }
   };
-  inp.addEventListener("change", run);
-  // Oletuspäivä: kaupungin muutosvahdin voimaantulopäivä, jos se on tulevaisuudessa (muuten huominen kuten HTML:ssä).
+  // Valittu päivä osoitteeseen (#/poikkeukset?pvm=VVVV-KK-PP), jotta vertailun voi linkittää; ei uutta historiamerkintää.
+  inp.addEventListener("change", () => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(inp.value)) history.replaceState(null, "", "#/poikkeukset?pvm=" + inp.value);
+    run();
+  });
+  // Oletuspäivä: osoitteen ?pvm, muuten kaupungin muutosvahdin voimaantulopäivä jos se on tulevaisuudessa (muuten huominen).
+  const hash = location.hash, qi = hash.indexOf("?");
+  const pvm = new URLSearchParams(qi >= 0 ? hash.slice(qi + 1) : "").get("pvm");
+  const pvmOk = typeof pvm === "string" && /^\d{4}-\d{2}-\d{2}$/.test(pvm) && !isNaN(new Date(pvm + "T12:00:00"));
   fetch("docs/muutosvahti/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null).then(ix => {
     const v = ix?.kaupungit?.[cityKey]?.voimaan;
-    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && v > todayISO()) inp.value = v;
+    if (pvmOk) inp.value = pvm;
+    else if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && v > todayISO()) inp.value = v;
     if (document.body.contains(inp)) run();
   });
 }
