@@ -605,7 +605,9 @@
   .foot-brand { display: flex; gap: 0.6rem; align-items: flex-start; }
   .foot-brand img { border-radius: 8px; flex-shrink: 0; }
   .foot-brand strong { color: var(--text); }
-  .foot-col h4 { margin: 0 0 0.4rem; font-size: 0.78rem; text-transform: uppercase;
+  /* Sarakeotsikot ovat h2 (ennen h4, otsikkotaso hyppäsi h2 -> h4; saavutettavuuspuu 24.10.2026, R11). Paino 700 = h4:n
+     oletus, joten ulkoasu ei muutu. */
+  .foot-col h2 { margin: 0 0 0.4rem; font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.06em; color: var(--text); }
   .foot-col a { display: block; padding: 0.22rem 0; color: var(--blue); text-decoration: none; }
   .foot-col a:hover { text-decoration: underline; }
@@ -764,6 +766,9 @@
   }
   button.star:hover { background: none; }
   button.star[aria-pressed="false"] { color: var(--border); }
+  /* Suosikkinappi on otsikon edessä eikä sen sisällä (R7). Ikonin väri ja väli kuten ennen, jolloin ne tulivat
+     säännöstä h2 .ic. */
+  #favBtn .ic { color: var(--blue); margin-right: 0.1rem; }
   h3.stophead {
     font-size: 0.98rem;
     margin: 0.85rem 0 0.15rem;
@@ -2102,6 +2107,12 @@
   }
   .plan-skip { position: absolute; left: -9999px; }
   .plan-skip:focus { position: static; display: inline-block; margin: 0 0 8px; }
+  /* Ohituslinkki (saavutettavuuspuu 24.10.2026, R5): sivun ensimmäinen sarkainpysäkki, näkyy vain kohdistettuna.
+     Tiski ja monitori piilottavat ylätunnisteen, joten niissä ohitettavaa ei ole. */
+  .skip-link { position: absolute; left: -9999px; top: 0.5rem; z-index: 10000; padding: 0.5rem 0.9rem;
+    background: var(--card); color: var(--blue); border-radius: 6px; font-weight: 600; }
+  .skip-link:focus { left: 0.5rem; }
+  body.desk-mode .skip-link, body.monitor-mode .skip-link { display: none; }
   details.plan-more { flex-basis: 100%; }
   details.plan-more > summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--ink);
     min-height: 44px; display: inline-flex; align-items: center; gap: 6px; }
@@ -2704,6 +2715,7 @@
 </style>
 </head>
 <body>
+<a class="skip-link" id="skipLink" href="#app">Siirry sisältöön</a>
 <header>
   <div class="header-inner">
     <a class="brand" id="brandLink" href="#/" aria-label="Etusivulle">
@@ -5663,6 +5675,7 @@ const STRINGS = {
     cmsSource: "Lähde: lsl.fi",
     adminSource: "Kaupungin tiedote",
     lineMapLink: "Linja kartalla",
+    lineMapLinkN: "Linja {line} kartalla",
     lineMapHint: "Linjan reitti ja bussit reaaliajassa. Klikkaa bussia nähdäksesi määränpään ja seuraavat pysäkit.",
     lineFullTimetable: "Koko aikataulu",
     printHubLink: "Näytöt ja tulosteet",
@@ -5792,6 +5805,7 @@ const STRINGS = {
     loadingRoutes: "Haetaan linjoja…",
     nearbyTitle: "Lähimmät lähdöt",
     rtLegend: "= reaaliaikainen arvio. Päivittyy 30 s välein.",
+    rtMarkSr: "reaaliaikainen",
     rtLegendStop: "= reaaliaikainen arvio, muut aikataulun mukaan. Päivittyy 30 s välein.",
     planTitle: "Reittihaku",
     planLink: "Hae reitti osoitteesta osoitteeseen",
@@ -5808,6 +5822,8 @@ const STRINGS = {
     routesTitle: "Kaikki linjat",
     routeFilterPlaceholder: "Suodata linjaa tai määränpäätä…", routeFilterAria: "Suodata linjoja",
     noMatches: "Ei osumia.",
+    searchResults1: "1 tulos", searchResultsN: "{n} tulosta",
+    skipToContent: "Siirry sisältöön",
     // linjasivu
     loadingRoute: "Haetaan linjan tietoja…",
     errRouteNotFound: "Linjaa ei löytynyt: ",
@@ -6101,6 +6117,7 @@ const STRINGS = {
     loadingStopDeps: "Haetaan pysäkin lähtöjä…",
     loadingAlerts: "Haetaan häiriötiedotteita…",
     errStopNotFound: "Pysäkkiä ei löytynyt: ",
+    depsTableAria: "Seuraavat lähdöt",
     thLine: "Linja", thDest: "Määränpää", thDeparts: "Lähtee", thArrives: "Saapuu", thFrom: "Mistä",
     stopMapAria: "Pysäkki kartalla",
     // reittihaku
@@ -6596,6 +6613,7 @@ const STRINGS = {
     cmsSource: "Source: lsl.fi",
     adminSource: "City notice",
     lineMapLink: "Line on map",
+    lineMapLinkN: "Line {line} on map",
     lineMapHint: "The line's route and live buses. Tap a bus to see its destination and next stops.",
     lineFullTimetable: "Full timetable",
     printHubLink: "Displays & printing",
@@ -6721,6 +6739,7 @@ const STRINGS = {
     loadingRoutes: "Loading routes…",
     nearbyTitle: "Nearest departures",
     rtLegend: "= real-time estimate. Updates every 30 s.",
+    rtMarkSr: "real-time",
     rtLegendStop: "= real-time estimate, others as scheduled. Updates every 30 s.",
     planTitle: "Journey planner",
     planLink: "Plan a journey from address to address",
@@ -6737,6 +6756,8 @@ const STRINGS = {
     routesTitle: "All routes",
     routeFilterPlaceholder: "Filter by route or destination…", routeFilterAria: "Filter routes",
     noMatches: "No matches.",
+    searchResults1: "1 result", searchResultsN: "{n} results",
+    skipToContent: "Skip to content",
     loadingRoute: "Loading route details…",
     errRouteNotFound: "Route not found: ",
     allRoutes: "All routes",
@@ -7020,6 +7041,7 @@ const STRINGS = {
     loadingStopDeps: "Loading stop departures…",
     loadingAlerts: "Loading disruption alerts…",
     errStopNotFound: "Stop not found: ",
+    depsTableAria: "Next departures",
     thLine: "Route", thDest: "Destination", thDeparts: "Departs", thArrives: "Arrives", thFrom: "From",
     stopMapAria: "Stop on map",
     from: "From", to: "To",
@@ -7515,6 +7537,7 @@ const STRINGS = {
     cmsSource: "Källa: lsl.fi",
     adminSource: "Stadens meddelande",
     lineMapLink: "Linjen på karta",
+    lineMapLinkN: "Linje {line} på kartan",
     lineMapHint: "Linjens rutt och bussar i realtid. Tryck på en buss för destination och kommande hållplatser.",
     lineFullTimetable: "Hela tidtabellen",
     printHubLink: "Skärmar och utskrifter",
@@ -7640,6 +7663,7 @@ const STRINGS = {
     loadingRoutes: "Hämtar linjer…",
     nearbyTitle: "Närmaste avgångar",
     rtLegend: "= realtidsuppskattning. Uppdateras var 30:e sekund.",
+    rtMarkSr: "realtid",
     rtLegendStop: "= realtidsuppskattning, övriga enligt tidtabell. Uppdateras var 30:e sekund.",
     planTitle: "Reseplanerare",
     planLink: "Sök resa från adress till adress",
@@ -7656,6 +7680,8 @@ const STRINGS = {
     routesTitle: "Alla linjer",
     routeFilterPlaceholder: "Filtrera linje eller destination…", routeFilterAria: "Filtrera linjer",
     noMatches: "Inga träffar.",
+    searchResults1: "1 träff", searchResultsN: "{n} träffar",
+    skipToContent: "Hoppa till innehållet",
     loadingRoute: "Hämtar linjens uppgifter…",
     errRouteNotFound: "Linjen hittades inte: ",
     allRoutes: "Alla linjer",
@@ -7939,6 +7965,7 @@ const STRINGS = {
     loadingStopDeps: "Hämtar hållplatsens avgångar…",
     loadingAlerts: "Hämtar störningsmeddelanden…",
     errStopNotFound: "Hållplatsen hittades inte: ",
+    depsTableAria: "Följande avgångar",
     thLine: "Linje", thDest: "Destination", thDeparts: "Avgår", thArrives: "Ankommer", thFrom: "Från",
     stopMapAria: "Hållplats på kartan",
     from: "Från", to: "Till",
@@ -8186,6 +8213,8 @@ function updateChrome() {
   document.getElementById("appTitle").textContent = t("appTitle");
   document.getElementById("appSub").textContent = headerSubText();
   document.getElementById("brandLink").setAttribute("aria-label", t("toHomeAria"));
+  const skip = document.getElementById("skipLink");
+  if (skip) skip.textContent = t("skipToContent");
   const nav = document.getElementById("hdrNav");
   nav.setAttribute("aria-label", t("navAria"));
   const navItems = APP_MODE === "resident" ? [["", "#/", t("navHome")]]
@@ -8207,7 +8236,7 @@ function updateChrome() {
         </div>
       </div>
       <nav class="foot-col" aria-label="${t("footColService")}">
-        <h4>${t("footColService")}</h4>
+        <h2>${t("footColService")}</h2>
         ${CONFIG.externalPlanner
           ? `<a href="${esc(extPlannerUrl())}" target="_blank" rel="noopener">${t("planTitle")} ↗</a>`
           : `<a href="#/reitti">${t("planTitle")}</a>`}
@@ -8217,7 +8246,7 @@ function updateChrome() {
         ${PROXY_URL ? `<a href="#/sahkoposti">${t("emailSubTitle")}</a>` : ""}
       </nav>
       <nav class="foot-col" aria-label="${t("footColInfo")}">
-        <h4>${t("footColInfo")}</h4>
+        <h2>${t("footColInfo")}</h2>
         <a href="#/saavutettavuus" id="footA11y">${t("a11yStatement")}</a>
         <a href="#/tietosuoja">${t("privacyLink")}</a>
         <a href="#/kayttoehdot">${t("termsLink")}</a>
@@ -10406,6 +10435,10 @@ function makeMap(elId, center, zoom) {
     attribution: t("osmAttribution"),
     maxZoom: 19,
   }).addTo(map);
+  // Kartan SVG-kerros (reittiviivat, pysäkkiympyrät) näkyi ruudunlukijalle nimettömänä kuvana (saavutettavuuspuu
+  // 24.10.2026, R13). Kerros syntyy ensimmäisen viivan tai ympyrän mukana, joten se piilotetaan lisäyshetkellä.
+  map.on("layeradd", () => map.getPane("overlayPane").querySelectorAll("svg:not([aria-hidden])")
+    .forEach(s => s.setAttribute("aria-hidden", "true")));
   return map;
 }
 
@@ -10556,7 +10589,9 @@ async function startVehicles(map, routeList, onMessage) {
     let m = markers.get(vehId);
     if (!m) {
       const icon = L.divIcon({ className: "bus-marker", html: esc(route.shortName), iconSize: [26, 26] });
-      m = { marker: L.marker([pos.lat, pos.lon], { icon, zIndexOffset: 1000 })
+      // keyboard: false (R8): liikkuvat bussit eivät ole sarkainpysäkkejä (kartalla jopa kymmeniä). Hiirellä ja
+      // kosketuksella merkin tiedot avautuvat kuten ennen.
+      m = { marker: L.marker([pos.lat, pos.lon], { icon, zIndexOffset: 1000, keyboard: false })
         .addTo(map).bindTooltip("").bindPopup(t("vehLoading"), { maxWidth: 280 }) };
       m.marker.on("popupopen", async () => {
         try {
@@ -10634,7 +10669,8 @@ async function startLiveMap(map, byNum, onCount) {
       const fg = route?.color ? badgeText(route.color, route.textColor) : "#fff";
       const icon = L.divIcon({ className: "bus-live-wrap",
         html: `<span class="bus-live" style="background:${bg};color:${fg}">${esc(label)}</span>`, iconSize: [28, 28] });
-      m = { marker: L.marker([pos.lat, pos.lon], { icon, zIndexOffset: 1000 })
+      // keyboard: false (R8): ajoneuvot pois sarkainjärjestyksestä, ks. startVehicles.
+      m = { marker: L.marker([pos.lat, pos.lon], { icon, zIndexOffset: 1000, keyboard: false })
         .addTo(map).bindTooltip("").bindPopup(t("vehLoading"), { maxWidth: 280 }) };
       m.marker.on("popupopen", async () => {
         try { m.marker.setPopupContent(await vehiclePopupHtml(m.tripId, m.nextStop)); }
@@ -10820,11 +10856,22 @@ function initHeaderControls() {
   const langBox = document.getElementById("hdrLang");
   if (langBox) {
     langBox.setAttribute("aria-label", t("langTitle"));
-    langBox.innerHTML = LANG_OPTIONS.map(([v]) =>
-      `<button type="button" class="hdr-btn" data-lang-opt="${v}" lang="${v}" aria-pressed="${v === lang}">${v.toUpperCase()}</button>`).join("");
+    // Nimessä näkyvä lyhenne ja kielen oma nimi (R14): "FI", "SV" ja "EN" luettiin kirjaimina. Lyhenne pysyy nimen
+    // alussa, jotta puheohjaus löytää napin näkyvällä tekstillä (WCAG 2.5.3).
+    langBox.innerHTML = LANG_OPTIONS.map(([v, label]) =>
+      `<button type="button" class="hdr-btn" data-lang-opt="${v}" lang="${v}" aria-label="${v.toUpperCase()}, ${label}" aria-pressed="${v === lang}">${v.toUpperCase()}</button>`).join("");
     langBox.querySelectorAll("[data-lang-opt]").forEach(btn =>
       btn.addEventListener("click", () => setLanguage(btn.dataset.langOpt)));
   }
+  // Ohituslinkki (R5): hash-reititys tulkitsisi osoitteen #app näkymäksi, joten kohdistus siirretään skriptillä
+  // näkymän otsikkoon samaan tapaan kuin näkymänvaihdossa (route()).
+  document.getElementById("skipLink")?.addEventListener("click", e => {
+    e.preventDefault();
+    const app = document.getElementById("app");
+    const target = app.querySelector("h1, h2") || app;
+    target.setAttribute("tabindex", "-1");
+    target.focus();
+  });
   document.getElementById("hdrSize")?.setAttribute("aria-label", t("textSizeAria"));
   document.getElementById("hdrTools")?.setAttribute("aria-label", t("hdrToolsAria"));
   document.getElementById("hdrTextDown")?.addEventListener("click", () => stepTextSize(-1));
@@ -11755,6 +11802,9 @@ function bindUnifiedSearch(input, results) {
           ? t("noMatchesArea", { city: lang === "fi" ? cityGenName() : cityName() })
           : t("noMatches");
         results.innerHTML = html || `<li><p class="muted">${esc(emptyMsg)}</p></li>`;
+        // Tulosten määrä ruudunlukijalle (R3): kohdistus jää kenttään, eikä tuloslista ole live-alue.
+        const hits = lineHits.length + stopHits.length + placeHits.length;
+        announce(hits ? t(hits === 1 ? "searchResults1" : "searchResultsN", { n: hits }) : emptyMsg);
 
         // Osoiteklikkaus: aseta reittioppaan määränpää ja avaa reittihaku
         results.querySelectorAll("button[data-place]").forEach(btn =>
@@ -11797,6 +11847,8 @@ function toggleFav(item) {
   return i < 0;
 }
 
+// Nappi sijoitetaan otsikon eteen eikä sen sisään (saavutettavuuspuu 24.10.2026, R7): muuten otsikon nimi oli
+// "Lisää suosikkeihin Matkakeskus C 181342". float: right pitää sen näkyvästi samassa kohdassa.
 function favButtonHtml(id) {
   const fav = isFav(id);
   return `<button class="star no-print" id="favBtn" aria-pressed="${fav}"
@@ -12051,9 +12103,61 @@ function depClockCell(st, d) {
   const n = Math.round(Math.abs(diff) / 60);
   const off = Math.abs(diff) >= 60 && n >= 1 ? t(diff > 0 ? "depLate" : "depEarly", { n }) : "";
   return `${d.day ? `<span class="dep-day">${esc(d.day)}</span> ` : ""}<span class="dep-clock">${fmtSec(dep)}</span>` +
-    `${rel ? ` <span class="dep-rel">(${esc(rel)})</span>` : ""}${d.rt ? " ●" : ""}` +
+    `${rel ? ` <span class="dep-rel">(${esc(rel)})</span>` : ""}${d.rt ? rtMarkHtml() : ""}` +
     `${off ? `<span class="dep-off${diff > 0 ? " dep-late" : ""}"><span class="dep-nw">${esc(off)}</span> ` +
       `<span class="dep-nw">(${esc(t("depSched", { time: fmtSec(st.scheduledDeparture) }))})</span></span>` : ""}`;
+}
+// Reaaliaikamerkki lähtörivillä (saavutettavuuspuu 24.10.2026, R12): "●" piilotetaan ruudunlukijalta ja tilalle tulee
+// sana, ettei pelkkää merkkiä lueta rivin osana. Näkyvä merkki ennallaan.
+function rtMarkHtml() {
+  return ` <span aria-hidden="true">●</span><span class="sr-only">${esc(t("rtMarkSr"))} </span>`;
+}
+// Silmälle piilotetut sarakeotsikot otsikottomiin lähtötaulukoihin (R4), jotta ruudunlukija lukee solut otsikkoineen.
+function depTheadSr() {
+  return `<thead class="sr-only"><tr><th scope="col">${t("thLine")}</th><th scope="col">${t("thDest")}</th>` +
+    `<th scope="col">${t("thDeparts")}</th></tr></thead>`;
+}
+// Lähdön tunniste: linja, kilpi ja aikataulun mukainen lähtöhetki. Poistaa feed-duplikaatit, ja rivin data-depkey
+// kertoo päivityksen jälkeen, mikä rivi on sama lähtö (R1).
+function depKey(st) {
+  const r = st.trip && st.trip.route;
+  return ((r && r.shortName) || "") + "|" + (st.headsign || "") + "|" + ((st.serviceDay || 0) + (st.scheduledDeparture || 0));
+}
+// Kohdistus säilyy lähtölistan päivityksessä (R1). 30 s päivitys korvaa rivit innerHTML:llä, jolloin kohdistettu linkki
+// tuhoutui ja kohdistus putosi body-elementtiin: näppäimistön ja ruudunlukijan käyttäjä palasi sivun alkuun.
+// focusSnap ottaa ennen piirtoa talteen kohdistetun elementin tunnisteen (lähtörivin data-depkey ja järjestysnumero
+// rivin kohdistettavista, muuten tagi, id, href, arvo ja teksti). focusRestore palauttaa kohdistuksen piirron jälkeen
+// vastinpariin. Jos vastinetta ei ole (lähtö ehti mennä), kohdistus siirtyy listan taulukkoon tai säiliöön
+// (tabindex="-1"), ei sivun alkuun. Näkyvä toiminta ei muutu.
+const FOCUS_SEL = "a[href], button, input, select, textarea, [tabindex]";
+const focusSig = e => [e.tagName, e.id, e.getAttribute("href") || "", e.matches("input, select, textarea") ? e.value : "",
+  e.textContent.trim()].join("|");
+function focusSnap(...boxes) {
+  const a = document.activeElement;
+  const box = boxes.find(b => b && a && b !== a && b.contains(a));
+  if (!box) return null;
+  const row = a.closest("[data-depkey]");
+  const inRow = !!row && box.contains(row);
+  return { box, depkey: inRow ? row.dataset.depkey : null,
+    idx: inRow ? [...row.querySelectorAll(FOCUS_SEL)].indexOf(a) : -1, sig: focusSig(a) };
+}
+function focusRestore(snap) {
+  if (!snap || !snap.box.isConnected) return;
+  const a = document.activeElement;
+  if (a && a !== document.body && a.isConnected) return;   // kohdistettu elementti säilyi piirrossa
+  const box = snap.box;
+  let el = null;
+  if (snap.depkey != null) {
+    const row = [...box.querySelectorAll("[data-depkey]")].find(r => r.dataset.depkey === snap.depkey);
+    if (row) el = row.querySelectorAll(FOCUS_SEL)[snap.idx] || null;
+  } else {
+    el = [...box.querySelectorAll(FOCUS_SEL)].find(e => focusSig(e) === snap.sig) || null;
+  }
+  if (!el || el.disabled || el.closest("[hidden]")) {
+    el = box.matches("table") ? box : (box.querySelector("table.deps") || box);
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
+  }
+  el.focus({ preventScroll: true });
 }
 const DESK_DEP_OPTS = { clock: true };
 function depTableRows(stoptimes, opts) {
@@ -12061,8 +12165,7 @@ function depTableRows(stoptimes, opts) {
   // Poista feed-duplikaatit (sama linja kahdesti eri liikennöitsijällä → tuplalähdöt)
   const seen = new Set();
   return (stoptimes || []).filter(st => {
-    const r = st.trip && st.trip.route;
-    const k = ((r && r.shortName) || "") + "|" + (st.headsign || "") + "|" + ((st.serviceDay || 0) + (st.scheduledDeparture || 0));
+    const k = depKey(st);
     if (seen.has(k)) return false;
     seen.add(k);
     return true;
@@ -12071,8 +12174,10 @@ function depTableRows(stoptimes, opts) {
     const acc = st.trip?.wheelchairAccessible === "POSSIBLE"
       ? ` <span role="img" aria-label="${t("accVehicle")}" title="${t("accVehicle")}">${icon("wheelchair")}</span>` : "";
     const rid = st.trip && st.trip.route && st.trip.route.gtfsId;
+    // Linjamerkin nimessä linja ja kohde (R9): pelkkä numero ei kertonut ruudunlukijalle, mitä linkki tekee.
+    const mapLbl = rid ? esc(t("lineMapLinkN", { line: st.trip.route.shortName || "" })) : "";
     const badge = rid
-      ? `<a class="badgelink" href="#/linjakartta/${encodeURIComponent(rid)}" title="${t("lineMapLink")}">${badgeHtml(st.trip.route)}</a>`
+      ? `<a class="badgelink" href="#/linjakartta/${encodeURIComponent(rid)}" title="${mapLbl}" aria-label="${mapLbl}">${badgeHtml(st.trip.route)}</a>`
       : badgeHtml(st.trip.route);
     // _from: vuoro lähtee eri pysäkiltä kuin muut (tiskin linjakortti, lineDirDeps). Tekstinä eikä
     // pelkkänä merkkinä tai värinä, jotta ruudunlukija lukee sen rivin osana.
@@ -12080,11 +12185,11 @@ function depTableRows(stoptimes, opts) {
     // _plat: tiskin terminaalinäkymän rivin laituri (kaikki laiturit yhdessä listassa). Linkki avaa laiturin oman
     // kortin, josta saa myös sen pysäkin tulosteen.
     const plat = st._plat ? platChipHtml(st._plat) + " " : "";
-    return `<tr>
+    return `<tr data-depkey="${esc(depKey(st))}">
       <td>${badge}</td>
       <td>${plat}${esc(st.headsign || "")}${acc}${occupancyHtml(st.trip)}${from}</td>
       <td class="${d.rt ? "rt" : ""}${clock ? " dep-when" : ""}">${clock ? depClockCell(st, d)
-        : `${d.day ? `<span class="dep-day">${esc(d.day)}</span> ` : ""}${d.when}${d.rt ? " ●" : ""}`}</td>
+        : `${d.day ? `<span class="dep-day">${esc(d.day)}</span> ` : ""}${d.when}${d.rt ? rtMarkHtml() : ""}`}</td>
     </tr>`;
   }).join("");
 }
@@ -12098,7 +12203,7 @@ function stopDepGroupHtml(stop, extra, opts) {
     ? ` <span class="acc-mark" role="img" aria-label="${t("accStop")}" title="${t("accStop")}">${icon("wheelchair")}</span>` : "";
   return `<h3 class="stophead"><a href="#/pysakki/${encodeURIComponent(stop.gtfsId)}">${esc(stop.name)}</a>${acc}
       ${extra ? `<span class="dist">${extra}</span>` : ""}</h3>
-    <table class="deps"><tbody>${rows}</tbody></table>`;
+    <table class="deps">${depTheadSr()}<tbody>${rows}</tbody></table>`;
 }
 
 async function renderNearby() {
@@ -12614,10 +12719,12 @@ function posterSheetCount(st, box) {
 }
 
 // Journey-hero (greenfield: A->B ensisijaisena). REILA F5: ilmava soft-accent-hero-kaista
-// (H1 + alaotsikko) + hakukortti limittyy kaistaan (sc-hero). Kentät/ID:t ennallaan.
+// (otsikko + alaotsikko) + hakukortti limittyy kaistaan (sc-hero). Kentät/ID:t ennallaan.
+// Otsikko on h2 (saavutettavuuspuu 24.10.2026, R11): sivun ainoa h1 on ylätunnisteen palvelun nimi kuten muissa
+// näkymissä. Luokka .reila-hero-h1 ja ulkoasu ennallaan.
 function heroJourneyHtml() {
   return `<section class="reila-hero no-print">
-      <h1 class="reila-hero-h1">${t("heroTitle")}</h1>
+      <h2 class="reila-hero-h1">${t("heroTitle")}</h2>
       <p class="reila-hero-sub">${t("heroTagline")}</p>
     </section>${CONFIG.externalPlanner ? heroExtPlannerHtml() : heroFieldsHtml("sc-hero")}`;
 }
@@ -12640,7 +12747,7 @@ function heroLayerHtml() {
       <div class="hp-grid">
         <div class="hp-text">
           ${season ? `<p class="hp-eyebrow">${esc(season)}</p>` : ""}
-          <h1 class="reila-hero-h1">${t("heroLayerTitle")}</h1>
+          <h2 class="reila-hero-h1">${t("heroLayerTitle")}</h2>
           <p class="reila-hero-sub">${t("heroLayerSub")}</p>
           <div class="hp-cta">
             <a class="btnlink" href="#/tulosteet/julisteet">${icon("print")}${t("heroCtaPoster")}</a>
@@ -14031,7 +14138,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
   setView(`
     ${crumbHtml()}
     <div class="card no-print">
-      <h2>${favButtonHtml(routeId)}${badgeHtml(route)} ${esc(route.longName)}</h2>
+      ${favButtonHtml(routeId)}<h2>${badgeHtml(route)} ${esc(route.longName)}</h2>
       ${(() => {
         // Kaupungin linjakohtainen huomautus (CONFIG.lineNotes), esim. palvelulinjan tilausnumero
         // (Lappeenranta P1/P3, vihko s. 53 ja 55; kierros 2 25.9.2026).
@@ -14225,7 +14332,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
         nextDep = depEpoch(upcoming[0]);
         nextHtml = `<p>${t("nextDeps")} ${upcoming.map(st => {
           const d = depInfo(st);
-          return `<strong class="${d.rt ? "rt" : ""}">${d.day ? esc(d.day) + " " : ""}${d.when}${d.rt ? " ●" : ""}</strong>`;
+          return `<strong class="${d.rt ? "rt" : ""}">${d.day ? esc(d.day) + " " : ""}${d.when}${d.rt ? rtMarkHtml() : ""}</strong>`;
         }).join(" · ")}</p>`;
         if (pushSupported()) {
           remindHtml = `<div class="remind no-print" id="remindBox">
@@ -14626,8 +14733,10 @@ async function viewStop(stopId, autoPrint) {
     if (routes.length < 2) return "";
     return `<div class="legchips no-print" id="stopRoutes">${routes.map(r => {
       const style = r.color ? ` style="background:#${esc(r.color)};color:${badgeText(r.color, r.textColor)}"` : "";
+      // Nimenä tarkoitus eikä pelkkä numero (R9); title on sama teksti.
+      const lbl = t("filterByRoute", { line: esc(r.shortName) });
       return `<button class="badge" data-route="${esc(r.gtfsId)}" aria-pressed="false"${style}
-        title="${t("filterByRoute", { line: esc(r.shortName) })}">${esc(r.shortName)}</button>`;
+        title="${lbl}" aria-label="${lbl}">${esc(r.shortName)}</button>`;
     }).join("")}</div>`;
   };
 
@@ -14645,12 +14754,12 @@ async function viewStop(stopId, autoPrint) {
          jossa luki "nyt / 3 min" (live-lähtölista) — merkityksetön paperilla ja toistaa
          pysäkin nimen. Juliste on kortin ULKOPUOLELLA, joten se ei piiloudu. -->
     <div class="card no-print">
-      <h2>${favButtonHtml(stopId)}${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
+      ${favButtonHtml(stopId)}<h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
       ${accNote}
       ${stopRoutesHtml(stop)}
       <div id="staleNote">${cachedAt ? staleNoteHtml(cachedAt) : ""}</div>
-      <table class="deps">
-        <thead><tr><th>${t("thLine")}</th><th>${t("thDest")}</th><th>${t("thDeparts")}</th></tr></thead>
+      <table class="deps" aria-label="${t("depsTableAria")}">
+        <thead><tr><th scope="col">${t("thLine")}</th><th scope="col">${t("thDest")}</th><th scope="col">${t("thDeparts")}</th></tr></thead>
         <tbody id="depRows">${renderRows(stop)}</tbody>
       </table>
       ${rtLegendHtml("rtLegendStop")}
@@ -14848,7 +14957,9 @@ async function viewStop(stopId, autoPrint) {
       const fresh = await fetchStop();
       lastStopData = fresh.stop;
       const tbody = document.getElementById("depRows");
+      const snap = focusSnap(tbody && tbody.closest("table"));   // R1: kohdistus säilyy päivityksessä
       if (tbody) tbody.innerHTML = renderRows(fresh.stop);
+      focusRestore(snap);
       const note = document.getElementById("staleNote");
       if (note) note.innerHTML = fresh.cachedAt ? staleNoteHtml(fresh.cachedAt) : "";
     } catch (err) {
@@ -19008,7 +19119,7 @@ async function viewServiceDesk() {
         </section>
         ${railCodes().length ? `<section class="desk-col desk-trains" aria-labelledby="deskTrainsH">
           <h2 id="deskTrainsH">${icon("train")} ${t("trainsViewTitle")}</h2>
-          <div id="deskTrains" aria-live="polite"><p class="muted">…</p></div>
+          <div id="deskTrains"><p class="muted">…</p></div>
           <p class="muted">${t("trainsSrc")}</p>
         </section>` : ""}
         <div class="desk-fares-slot" id="deskFaresSlot"></div>
@@ -19110,6 +19221,8 @@ async function viewServiceDesk() {
   const deskRail = railCodes();
   if (deskRail.length) {
     const mySeq = viewSeq;
+    // Junalohko ei ole live-alue (saavutettavuuspuu 24.10.2026, R2): se piirretään minuutin välein kokonaan uudelleen,
+    // ja ruudunlukija luki otsikot ja molemmat taulukot joka kerta.
     const drawTrains = async () => {
       let names, lahdot, saapuvat;
       try {
@@ -20100,7 +20213,7 @@ async function viewServiceDesk() {
     const lines = dedupeRoutesByShort(routes);
     return `<p class="desk-deps-lines"><strong>${t("deskDepsLines")}</strong> ${
       lines.length ? lines.map(r => r.gtfsId
-        ? `<a class="badgelink" href="#/linjakartta/${encodeURIComponent(r.gtfsId)}" title="${esc(t("deskOpenLine", { line: r.shortName || "" }))}"><span class="badge">${esc(r.shortName || "")}</span></a>`
+        ? `<a class="badgelink" href="#/linjakartta/${encodeURIComponent(r.gtfsId)}" title="${esc(t("deskOpenLine", { line: r.shortName || "" }))}" aria-label="${esc(t("deskOpenLine", { line: r.shortName || "" }))}"><span class="badge">${esc(r.shortName || "")}</span></a>`
         : `<span class="badge">${esc(r.shortName || "")}</span>`).join(" ")
         : `<span class="muted">${t("deskStopNoLines")}</span>`}</p>`;
   };
@@ -20123,13 +20236,16 @@ async function viewServiceDesk() {
   const renderDeskDeps = (stop, opts) => {
     const dep = document.getElementById("deskDeps");
     if (!dep) return;
+    // R1: kohdistus säilyy 30 s päivityksessä, jossa lähtölista, linjamerkit ja Tulosteet-välilehden linjavalinta
+    // piirretään uudelleen.
+    const snap = focusSnap(dep, document.getElementById("deskLines"), document.getElementById("deskLineList"));
     // Terminaali: otsikkona aseman nimi ja pysäkkien määrä, rivillä pysäkin tunnus (linkki pysäkin omaan korttiin).
     // clock: kellonaika, minuutit ja myöhästyminen samalla rivillä (erä B, B5).
     const rows = stop.terminal ? depTableRows(stop.stoptimesWithoutPatterns, DESK_DEP_OPTS) : "";
     const deps = stop.terminal
       ? `<h3 class="stophead">${esc(stop.name || "")} <span class="muted desk-terminal-n">${esc(t("deskTerminalAll", { n: stop.platforms || "" }))}</span></h3>`
         + ((stop.plats || []).length ? `<p class="desk-terminal-plats">${t("deskTerminalStops")} ${stop.plats.map(platChipHtml).join(" ")}</p>` : "")
-        + (rows ? `<table class="deps"><tbody>${rows}</tbody></table>`
+        + (rows ? `<table class="deps">${depTheadSr()}<tbody>${rows}</tbody></table>`
           : stop.filter ? (stop.filter.emptyMsg ? `<p class="muted">${esc(stop.filter.emptyMsg)}</p>` : "")
           : `<p class="muted">${t("deskDepsNone")}</p>`)
       : stopDepGroupHtml(stop, "", DESK_DEP_OPTS)
@@ -20148,6 +20264,7 @@ async function viewServiceDesk() {
     deskStopRouteIds = new Set((stop.routes || []).filter(r => r && r.gtfsId).map(r => r.gtfsId));
     deskStopShorts = dedupeRoutesByShort((stop.routes || []).filter(Boolean)).map(r => String(r.shortName));
     renderDeskLines();
+    focusRestore(snap);
     renderStopAlerts(stop);
   };
   // Pysäkkikortin häiriöt (erä B, B3): pysäkkiä (terminaalissa mitä tahansa sen pysäkkiä) koskevat tiedotteet kortin
@@ -20176,7 +20293,7 @@ async function viewServiceDesk() {
     box.innerHTML = (m.stop.length || hitLines.length) ? `<div class="desk-card-alerts" role="region" aria-label="${esc(t("deskStopAlerts"))}">${
       m.stop.length ? `<p class="desk-card-alerts-h">${icon("warning")} ${esc(t("deskStopAlerts"))}</p>${m.stop.map((a, i) => alertHtml(a, i === 0)).join("")}` : ""}${
       hitLines.length ? `<p class="desk-alert-lines">${icon("warning")} ${esc(t("deskAlertLines"))} ${hitLines.map(r =>
-        `<a class="badgelink" href="#/linjakartta/${encodeURIComponent(r.gtfsId)}" title="${esc(t("deskOpenLine", { line: r.shortName || "" }))}"><span class="badge">${esc(r.shortName || "")}</span></a>`).join(" ")}</p>` : ""}</div>` : "";
+        `<a class="badgelink" href="#/linjakartta/${encodeURIComponent(r.gtfsId)}" title="${esc(t("deskOpenLine", { line: r.shortName || "" }))}" aria-label="${esc(t("deskOpenLine", { line: r.shortName || "" }))}"><span class="badge">${esc(r.shortName || "")}</span></a>`).join(" ")}</p>` : ""}</div>` : "";
   };
   // ---- Terminaalin Minne?-suodatin (erä V3, B10) ----
   // Turun Kauppatorilla on 26 pysäkkiä, joten 12 lähdön lista kattaa vain muutaman minuutin. Suodatin rajaa listan
@@ -20279,11 +20396,13 @@ async function viewServiceDesk() {
       const info = document.getElementById("deskTermInfo");
       if (info) info.textContent = "";
       const name = curStopObj && curStopObj.name;
+      const snap = focusSnap(dep);   // R1
       dep.innerHTML = (name ? `<h3 class="stophead">${esc(name)}</h3>` : "") + `<div class="desk-deps-err"></div>`;
       showErr(dep.querySelector(".desk-deps-err"), "deskDepsErr", () => {
         dep.innerHTML = `<p class="muted">${t("loadingStopDeps")}</p>`;
         loadDeskDeps(gtfsId);
       });
+      focusRestore(snap);
     }
   };
   const startDepTimer = () => {
@@ -20412,10 +20531,12 @@ async function viewServiceDesk() {
       // Määränpää = vuoron päätepysäkki (lyhyt vuoro näkyy oikein); linjamerkki kortin linjasta.
       const rows = next.map(st => ({ ...st, headsign: st.trip?.arrivalStoptime?.stop?.name || "",
         trip: { ...(st.trip || {}), route: cl.route } }));
+      const snap = focusSnap(box());   // R1: kohdistus säilyy 30 s päivityksessä
       box().innerHTML = rows.length
-        ? `<table class="deps"><tbody>${depTableRows(rows, DESK_DEP_OPTS)}</tbody></table>
+        ? `<table class="deps">${depTheadSr()}<tbody>${depTableRows(rows, DESK_DEP_OPTS)}</tbody></table>
            <p class="muted desk-deps-upd">${t("deskUpdated", { time: fmtClock(new Date().toISOString()) })}</p>`
         : `<p class="muted">${t("deskLineDepsNone")}</p>`;
+      focusRestore(snap);
     } catch (e) {
       if (curLine !== cl || cl.dirIdx !== i || !box() || !live()) return;
       // Jo näkyvä lähtölista jää näkyviin merkinnällä; ensimmäinen epäonnistunut haku näkyy virheenä.
@@ -21729,7 +21850,7 @@ async function viewPlan(parts) {
     setView(`
     ${crumbHtml()}
     <section class="reila-hero no-print">
-      <h1 class="reila-hero-h1">${t("planTitle")}</h1>
+      <h2 class="reila-hero-h1">${t("planTitle")}</h2>
       <p class="reila-hero-sub">${t("extPlannerLead", { name })}</p>
     </section>
     <div class="card">
@@ -21746,7 +21867,7 @@ async function viewPlan(parts) {
   setView(`
     ${crumbHtml()}
     <section class="reila-hero no-print">
-      <h1 class="reila-hero-h1">${t("planTitle")}</h1>
+      <h2 class="reila-hero-h1">${t("planTitle")}</h2>
       <p class="reila-hero-sub">${t("heroTagline")}</p>
     </section>
     <button type="button" class="plan-skip linkish no-print" id="planSkip">${t("planSkipResults")}</button>
@@ -26641,6 +26762,13 @@ async function route() {
   const viewKey = (parts[0] || "") + "/" + (parts[1] || "");
   const viewChanged = lastViewKey !== null && lastViewKey !== viewKey;
   lastViewKey = viewKey;
+  // Sivun otsikko näkymän mukaan (saavutettavuuspuu 24.10.2026, R6): sama otsikko, jonka näkymänvaihto ilmoittaa,
+  // ja perään palvelun nimi. Etusivulla pelkkä palvelun nimi.
+  if (!navStale(nav)) {
+    const h = document.querySelector("#app h1, #app h2");
+    const name = h ? h.textContent.replace(/\s+/g, " ").trim() : "";
+    document.title = parts[0] && name ? name + ": " + t("appTitleTag") : t("appTitleTag");
+  }
   if (viewChanged && !navStale(nav)) {
     window.scrollTo(0, 0);
     const heading = document.querySelector("#app h1, #app h2");
@@ -26653,8 +26781,9 @@ async function route() {
 }
 let lastViewKey = null;
 
-// Ruudunlukijan ilmoitus näkymän vaihdosta. Vain route() kutsuu tätä näkymän vaihtuessa; lähtötaulukon
-// 30 s automaattipäivitys (refreshNow) ei kutsu, joten ruudunlukija ei lue taulukkoa uudelleen.
+// Ruudunlukijan ilmoitus näkymän vaihdosta (route()) ja käyttäjän toiminnon tuloksesta, esim. yhdistetyn haun
+// tulosmäärä (R3). Lähtötaulukon 30 s automaattipäivitys (refreshNow) ei kutsu, joten ruudunlukija ei lue taulukkoa
+// uudelleen.
 function announce(teksti) {
   const el = document.getElementById("srStatus");
   if (!el) return;
