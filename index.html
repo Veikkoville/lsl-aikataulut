@@ -11970,11 +11970,13 @@ async function renderFavStops() {
     const data = await gql(FAV_STOPS_QUERY, { ids: stopFavs.map(f => f.id) });
     const el = document.getElementById("favStops");
     if (!el) return;
+    const snap = focusSnap(el);   // kohdistus säilyy 30 s päivityksessä (R1)
     el.innerHTML = (data.stops || []).filter(Boolean)
       .map(s => stopDepGroupHtml(s, "") ||
         `<h3 class="stophead"><a href="#/pysakki/${encodeURIComponent(s.gtfsId)}">${esc(s.name)}</a></h3>
          <p class="muted">${t("noUpcoming")}</p>`)
       .join("");
+    focusRestore(snap);
   } catch (err) { /* verkkohikka: edelliset lähdöt jäävät näkyviin */ }
 }
 
@@ -12129,6 +12131,8 @@ function depKey(st) {
 // rivin kohdistettavista, muuten tagi, id, href, arvo ja teksti). focusRestore palauttaa kohdistuksen piirron jälkeen
 // vastinpariin. Jos vastinetta ei ole (lähtö ehti mennä), kohdistus siirtyy listan taulukkoon tai säiliöön
 // (tabindex="-1"), ei sivun alkuun. Näkyvä toiminta ei muutu.
+// data-depkey voi olla myös kohdistettavassa elementissä itsessään (linjasivun lähtönapit, joiden teksti muuttuu
+// reaaliaika-arvion mukana): silloin idx on -1 ja palautus kohdistaa saman lähdön napin.
 const FOCUS_SEL = "a[href], button, input, select, textarea, [tabindex]";
 const focusSig = e => [e.tagName, e.id, e.getAttribute("href") || "", e.matches("input, select, textarea") ? e.value : "",
   e.textContent.trim()].join("|");
@@ -12139,7 +12143,7 @@ function focusSnap(...boxes) {
   const row = a.closest("[data-depkey]");
   const inRow = !!row && box.contains(row);
   return { box, depkey: inRow ? row.dataset.depkey : null,
-    idx: inRow ? [...row.querySelectorAll(FOCUS_SEL)].indexOf(a) : -1, sig: focusSig(a) };
+    idx: inRow && row !== a ? [...row.querySelectorAll(FOCUS_SEL)].indexOf(a) : -1, sig: focusSig(a) };
 }
 function focusRestore(snap) {
   if (!snap || !snap.box.isConnected) return;
@@ -12149,7 +12153,7 @@ function focusRestore(snap) {
   let el = null;
   if (snap.depkey != null) {
     const row = [...box.querySelectorAll("[data-depkey]")].find(r => r.dataset.depkey === snap.depkey);
-    if (row) el = row.querySelectorAll(FOCUS_SEL)[snap.idx] || null;
+    if (row) el = snap.idx < 0 ? (row.matches(FOCUS_SEL) ? row : null) : (row.querySelectorAll(FOCUS_SEL)[snap.idx] || null);
   } else {
     el = [...box.querySelectorAll(FOCUS_SEL)].find(e => focusSig(e) === snap.sig) || null;
   }
@@ -12236,7 +12240,9 @@ async function renderNearby() {
         + rtLegendHtml("rtLegend")
       : `<p class="muted">${accFilterOn ? t("accNearbyNone") : t("noDepsRadius")}</p>`;
     const box = document.getElementById("nearbyBody");
+    const snap = focusSnap(box);   // kohdistus säilyy 30 s päivityksessä ja esteettömyyssuotimen vaihdossa (R1)
     box.innerHTML = toggle + list;
+    focusRestore(snap);
     const cb = document.getElementById("accOnly");
     if (cb) cb.addEventListener("change", () => {
       nearbyAccessibleOnly = cb.checked;
@@ -14362,7 +14368,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       const school = schoolOf(st.trip?.serviceId) === "koul";
       const h = fmtSec(dep).slice(0, 2);
       if (!hours.has(h)) hours.set(h, []);
-      hours.get(h).push(`<button type="button" class="${cls}" data-dep="${st.scheduledDeparture}" aria-pressed="false"` +
+      hours.get(h).push(`<button type="button" class="${cls}" data-dep="${st.scheduledDeparture}" data-depkey="${st.scheduledDeparture}" aria-pressed="false"` +
         ` aria-label="${t("depSelectAria", { time: fmtSec(dep) })}${fromTitle ? ", " + esc(fromTitle) : ""}${school ? ", " + esc(t("depSchoolLegend")) : ""}"` +
         `${st.realtime && !past ? ` title="${t("rtTitleAttr")}"` : fromTitle ? ` title="${esc(fromTitle)}"` : ""}>` +
         `${fmtSec(dep).slice(3)}${school ? " " + t("depSchoolMark") : ""}${st._to ? " " + t("depShortMark") : ""}${st.realtime && !past ? " ●" : ""}${st._from ? "*" : ""}</button>`);
@@ -14372,6 +14378,8 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
     const otherFrom = [...new Set(sts.filter(st => st._from).map(st => st._from))];
     const shortTo = [...new Set(sts.filter(st => st._to).map(st => st._to))];
     const anySchool = sts.some(st => schoolOf(st.trip?.serviceId) === "koul");
+    // R1: kohdistus säilyy 30 s päivityksessä samassa lähtönapissa (data-depkey), muistutusvalinnassa tai linkissä.
+    const snap = focusSnap(el);
     el.innerHTML = `
       ${redirectNote ? `<p class="redirect-note">${icon("warning")} ${esc(redirectNote)}</p>` : ""}
       ${stale ? staleNoteHtml(stale) : ""}
@@ -14383,6 +14391,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       ${shortTo.length ? `<p class="muted">${esc(t("depShortMark"))} = ${esc(t("depShortLegend", { stops: shortTo.join(", ") }))}</p>` : ""}
       ${otherFrom.length ? `<p class="muted">* ${esc(t("depOtherOriginLegend", { stops: otherFrom.join(", ") }))}</p>` : ""}
       ${isToday ? rtLegendHtml("rtLegend") : ""}`;
+    focusRestore(snap);
     const rb = document.getElementById("remindBtn");
     if (rb) rb.addEventListener("click", () =>
       setDepartureReminder(nextDep, route.shortName || "", patternLabel(current)));
@@ -16059,12 +16068,14 @@ function railTableHtml(rows, limit, kind = "DEPARTURE") {
 async function viewTrains() {
   const codes = railCodes();
   if (!codes.length) { redirectHash("#/"); return; }
+  // #trainsOut ei ole live-alue (kuten palvelutiskin junalohko, R2): se piirretään minuutin välein kokonaan
+  // uudelleen, ja ruudunlukija luki otsikot ja taulukot joka kerta.
   setView(`
     ${crumbHtml()}
     <div class="card">
       <h2>${icon("train")} ${t("trainsViewTitle")}</h2>
       <p class="muted" id="trainsIntro"></p>
-      <div id="trainsOut" aria-live="polite"><p class="muted">…</p></div>
+      <div id="trainsOut"><p class="muted">…</p></div>
       <p class="muted" style="margin-top:0.8rem">${t("trainsSrc")}</p>
     </div>`);
   const my = viewSeq;
