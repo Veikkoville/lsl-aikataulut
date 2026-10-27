@@ -3561,11 +3561,18 @@ async function minuuttiLinjaus(page, rootSel, media) {
       { gtfsId: "X:1", name: "Torikatu", code: "H0001", routes: [{ gtfsId: "X:r1" }] },
       { gtfsId: "X:2", name: "Aseman edusta", code: "", routes: [{ gtfsId: "X:r1" }] },
       { gtfsId: "X:3", name: "Vanha pysäkki", code: "H0003", routes: [] }]);
+    // Vaihe 2: X:1 ja X:2 ovat linjallisia; vain X:1:ltä löytyi lähtö -> X:2 ilman lähtöjä. Ilman hakua kenttä on tyhjä.
+    const stops2 = [
+      { gtfsId: "X:1", name: "Torikatu", code: "H0001", routes: [{ gtfsId: "X:r1" }] },
+      { gtfsId: "X:2", name: "Aseman edusta", code: "", routes: [{ gtfsId: "X:r1" }] },
+      { gtfsId: "X:3", name: "Vanha pysäkki", code: "H0003", routes: [] }];
+    const r2 = laatuRaportti(stops2, new Set(["X:1"]));
     return { l: r.eiLinjoja.map(x => x.id).join(), c: r.eiTunnusta.map(x => x.id).join(), csv: laatuCsv(r).split("\r\n").length,
-      staff: STAFF_ROUTES.has("laatu") };
+      staff: STAFF_ROUTES.has("laatu"), e0: r.eiLahtoja.length, e: r2.eiLahtoja.map(x => x.id).join(),
+      csv2: laatuCsv(r2).split("\r\n").filter(x => x.indexOf("ei_lahtoja") === 1).length };
   });
-  (lq.l === "X:3" && lq.c === "X:2" && lq.csv === 3 && lq.staff)
-    ? ok("laatuRaportti: pysäkit ilman linjoja ja ilman tunnusta luokittuvat, CSV ja STAFF_ROUTES")
+  (lq.l === "X:3" && lq.c === "X:2" && lq.csv === 3 && lq.staff && lq.e0 === 0 && lq.e === "X:2" && lq.csv2 === 1)
+    ? ok("laatuRaportti: pysäkit ilman linjoja, tunnusta ja lähtöjä luokittuvat, CSV ja STAFF_ROUTES")
     : fail(`laatuRaportti: ${JSON.stringify(lq)}`);
   await page.goto(BASE + "/#/laatu", { waitUntil: "networkidle2" });
   // Odota valmista näkymää: CSV-nappi, virheteksti tai kuntalaistilan uudelleenohjaus. Pelkkä latausteksti ei riitä.
@@ -3582,7 +3589,7 @@ async function minuuttiLinjaus(page, rootSel, media) {
   }));
   laatuNakyma.resident
     ? (laatuNakyma.hash === "#/" || laatuNakyma.hash === "" ? ok("laatu: kuntalaistilassa reitti ohjaa etusivulle") : fail(`laatu: kuntalaistila ei ohjannut: ${laatuNakyma.hash}`))
-    : (laatuNakyma.secs === 2 && laatuNakyma.csv ? ok("laatu: kaksi osiota ja CSV-nappi") : fail(`laatu: ${JSON.stringify(laatuNakyma)}`));
+    : (laatuNakyma.secs === 3 && laatuNakyma.csv ? ok("laatu: kolme osiota (myös lähdöttömät pysäkit) ja CSV-nappi") : fail(`laatu: ${JSON.stringify(laatuNakyma)}`));
 
   // --- Palaute / vikailmoitus (lomake + tyhjän validointi, ei lähetetä verkkoon) ---
   await page.goto(BASE + "/#/palaute", { waitUntil: "networkidle2" });
