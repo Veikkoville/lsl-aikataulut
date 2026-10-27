@@ -5516,6 +5516,10 @@ const STRINGS = {
     laatuNoLines: "Pysäkit, joita ei palvele yksikään linja", laatuNoCode: "Pysäkit ilman pysäkkitunnusta",
     laatuNone: "Ei löydöksiä.", laatuMore: "Ja {n} muuta, katso CSV.", laatuCsv: "Lataa CSV",
     laatuSource: "Lähde: kaupungin GTFS-syöte (Digitransit).",
+    laatuNoDeps: "Pysäkit, joilta ei lähde yhtään vuoroa seuraavan 7 päivän aikana",
+    laatuDepsProgress: "Tarkistetaan lähtöjä: {done} / {n} pysäkkiä.",
+    laatuDepsFail: "Tarkistus jäi kesken ({done} / {n} pysäkkiä), lista on vajaa. Päivitä sivu yrittääksesi uudelleen.",
+    laatuDepsCount: "Löydetty tähän mennessä: {n}.",
     cvH: "Kaupungin näkymä: {city}", cvSub: "Pysäkkijulisteiden tilanne muutosvahdin viikkoajosta. Viimeisin tarkistus {date}.",
     cvFiOnly: "Näkymän sisältö on toistaiseksi vain suomeksi.", cvStatesH: "Näin tilat luetaan",
     cvStValmis: "Valmis: pysäkin juliste on ajan tasalla.",
@@ -6457,6 +6461,10 @@ const STRINGS = {
     laatuNoLines: "Stops not served by any line", laatuNoCode: "Stops without a stop code",
     laatuNone: "No findings.", laatuMore: "And {n} more, see the CSV.", laatuCsv: "Download CSV",
     laatuSource: "Source: the city's GTFS feed (Digitransit).",
+    laatuNoDeps: "Stops with no departures in the next 7 days",
+    laatuDepsProgress: "Checking departures: {done} / {n} stops.",
+    laatuDepsFail: "The check stopped early ({done} / {n} stops), so the list is incomplete. Reload the page to try again.",
+    laatuDepsCount: "Found so far: {n}.",
     cvH: "City view: {city}", cvSub: "Status of the stop posters from the weekly change watch run. Latest check {date}.",
     cvFiOnly: "The content of this view is currently in Finnish only.", cvStatesH: "How to read the statuses",
     cvStValmis: "Valmis (done): the stop poster is up to date.",
@@ -7381,6 +7389,10 @@ const STRINGS = {
     laatuNoLines: "Hållplatser som ingen linje trafikerar", laatuNoCode: "Hållplatser utan hållplatsnummer",
     laatuNone: "Inga fynd.", laatuMore: "Och {n} till, se CSV.", laatuCsv: "Ladda ner CSV",
     laatuSource: "Källa: stadens GTFS-feed (Digitransit).",
+    laatuNoDeps: "Hållplatser utan avgångar de närmaste 7 dagarna",
+    laatuDepsProgress: "Kontrollerar avgångar: {done} / {n} hållplatser.",
+    laatuDepsFail: "Kontrollen avbröts ({done} / {n} hållplatser), så listan är ofullständig. Ladda om sidan för att försöka igen.",
+    laatuDepsCount: "Hittade hittills: {n}.",
     cvH: "Stadens vy: {city}", cvSub: "Läget för hållplatsaffischerna från ändringsvaktens veckokörning. Senaste kontroll {date}.",
     cvFiOnly: "Innehållet i vyn finns tills vidare bara på finska.", cvStatesH: "Så läser du statusarna",
     cvStValmis: "Valmis (klar): hållplatsens affisch är aktuell.",
@@ -12828,18 +12840,22 @@ function previewBarSync() {
 
 // Datan laaturaportti (#/laatu, vaihe 1): feedin pysäkit, joita matkustaja ei voi käyttää oikein. Puhdas funktio, jotta
 // luokittelu on testattavissa kiinteällä aineistolla. eiLinjoja = pysäkkiä ei palvele yksikään linja; eiTunnusta =
-// pysäkillä ei ole pysäkkitunnusta (code), jota juliste ja tiski näyttävät.
-function laatuRaportti(stops) {
-  const rep = { eiLinjoja: [], eiTunnusta: [] };
+// pysäkillä ei ole pysäkkitunnusta (code), jota juliste ja tiski näyttävät. Vaihe 2: eiLahtoja = pysäkillä on linjoja,
+// mutta sieltä ei lähde yhtään vuoroa seuraavan 7 päivän aikana. lahdot on niiden pysäkkien gtfsId-joukko, joilta
+// lähtö löytyi; null = hakua ei ole (vielä) tehty, jolloin eiLahtoja jää tyhjäksi.
+function laatuRaportti(stops, lahdot) {
+  const rep = { eiLinjoja: [], eiTunnusta: [], eiLahtoja: [] };
   for (const s of stops || []) {
     if (!s || !s.gtfsId) continue;
     const rivi = { id: s.gtfsId, name: s.name || "", code: s.code || "" };
     if (!(s.routes || []).length) rep.eiLinjoja.push(rivi);
+    else if (lahdot && !lahdot.has(s.gtfsId)) rep.eiLahtoja.push(rivi);
     if (!rivi.code) rep.eiTunnusta.push(rivi);
   }
   const cmp = (a, b) => a.name.localeCompare(b.name, "fi") || a.id.localeCompare(b.id);
   rep.eiLinjoja.sort(cmp);
   rep.eiTunnusta.sort(cmp);
+  rep.eiLahtoja.sort(cmp);
   return rep;
 }
 function laatuCsv(rep) {
@@ -12847,6 +12863,7 @@ function laatuCsv(rep) {
   const rows = [["ongelma", "pysakki_id", "nimi", "tunnus"]];
   for (const r of rep.eiLinjoja) rows.push(["ei_linjoja", r.id, r.name, r.code]);
   for (const r of rep.eiTunnusta) rows.push(["ei_tunnusta", r.id, r.name, r.code]);
+  for (const r of rep.eiLahtoja || []) rows.push(["ei_lahtoja", r.id, r.name, r.code]);
   return rows.map(r => r.map(q).join(";")).join("\r\n");
 }
 async function viewQuality() {
@@ -12855,9 +12872,9 @@ async function viewQuality() {
     <h1>${icon("warning")} ${t("laatuTitle")}</h1><p class="muted">${t("laatuIntro")}</p>
     <p id="laatuBody" role="status">${t("laatuLoading")}</p></section>`);
   const body = document.getElementById("laatuBody");
-  let rep;
+  let rep, stops;
   try {
-    const stops = await loadQualityStops();
+    stops = await loadQualityStops();
     if (navStale(nav)) return;
     rep = laatuRaportti(stops);
   } catch (e) {
@@ -12865,17 +12882,55 @@ async function viewQuality() {
     if (!navStale(nav) && body) body.textContent = t("laatuFail");
     return;
   }
-  const section = (id, h, list) => `<section data-laatu="${id}"><h2>${h} (${list.length})</h2>
-    ${list.length ? `<ul class="laatu-list">${list.slice(0, 200).map(r =>
+  const listHtml = list => list.length ? `<ul class="laatu-list">${list.slice(0, 200).map(r =>
       `<li><a href="#/pysakki/${encodeURIComponent(r.id)}">${esc(r.name || r.id)}</a> <span class="muted">${esc(r.code || r.id)}</span></li>`).join("")}</ul>
-      ${list.length > 200 ? `<p class="muted">${t("laatuMore", { n: list.length - 200 })}</p>` : ""}` : `<p>${t("laatuNone")}</p>`}</section>`;
-  const csv = URL.createObjectURL(new Blob(["﻿" + laatuCsv(rep)], { type: "text/csv;charset=utf-8" }));
+      ${list.length > 200 ? `<p class="muted">${t("laatuMore", { n: list.length - 200 })}</p>` : ""}` : `<p>${t("laatuNone")}</p>`;
+  const section = (id, h, list) => `<section data-laatu="${id}"><h2>${h} (${list.length})</h2>${listHtml(list)}</section>`;
+  const csvUrl = r => URL.createObjectURL(new Blob(["﻿" + laatuCsv(r)], { type: "text/csv;charset=utf-8" }));
+  const withLines = stops.filter(s => s.gtfsId && (s.routes || []).length);
   document.getElementById("laatu").innerHTML = `
     <h1>${icon("warning")} ${t("laatuTitle")}</h1><p class="muted">${t("laatuIntro")}</p>
     ${section("ei-linjoja", t("laatuNoLines"), rep.eiLinjoja)}
     ${section("ei-tunnusta", t("laatuNoCode"), rep.eiTunnusta)}
-    <p><a class="btnlink secondary" id="laatuCsv" href="${csv}" download="pysakkien-laatu-${cityKey}.csv">${t("laatuCsv")}</a></p>
+    <section data-laatu="ei-lahtoja"><h2>${t("laatuNoDeps")}</h2><div id="laatuDeps"><p class="muted" role="status">${t("laatuDepsProgress", { done: 0, n: withLines.length })}</p></div></section>
+    <p><a class="btnlink secondary" id="laatuCsv" href="${csvUrl(rep)}" download="pysakkien-laatu-${cityKey}.csv">${t("laatuCsv")}</a></p>
     <p class="muted">${t("laatuSource")}</p>`;
+  // Vaihe 2: lähdöttömät pysäkit haetaan erissä; osio täydentyy etenemisen mukaan ja listaa vain jo tarkistetut pysäkit.
+  const depsEl = document.getElementById("laatuDeps");
+  const lahdot = new Set();
+  const paivita = (done, failed) => {
+    if (navStale(nav) || !depsEl.isConnected) return;
+    const r = laatuRaportti(withLines.slice(0, done), lahdot);
+    const kesken = failed || done < withLines.length;
+    if (!kesken) document.getElementById("laatuCsv").href = csvUrl(laatuRaportti(stops, lahdot));
+    const tila = failed ? t("laatuDepsFail", { done, n: withLines.length }) : kesken ? t("laatuDepsProgress", { done, n: withLines.length }) : "";
+    depsEl.innerHTML = (tila ? `<p class="muted" role="status">${tila}</p>` : "") + `<p>${t("laatuDepsCount", { n: r.eiLahtoja.length })}</p>` + listHtml(r.eiLahtoja);
+    depsEl.dataset.state = failed ? "fail" : kesken ? "partial" : "done";
+  };
+  try {
+    await laatuHaeLahdot(withLines.map(s => s.gtfsId), lahdot, done => { paivita(done, false); return !navStale(nav); });
+    paivita(withLines.length, false);
+  } catch (e) {
+    console.warn("laatu lähdöt", e);
+    paivita(lahdot._done || 0, true);
+  }
+}
+// Hakee pysäkit erissä (enintään 1 kysely sekunnissa) ja lisää joukkoon ne, joilta lähtee vuoro seuraavan 7 päivän aikana.
+async function laatuHaeLahdot(ids, lahdot, onProgress) {
+  const ERA = 50;
+  const start = Math.floor(Date.now() / 1000);
+  for (let i = 0; i < ids.length; i += ERA) {
+    const t0 = Date.now();
+    const data = await gql(
+      `query ($ids: [String], $start: Long, $range: Int) {
+         stops(ids: $ids) { gtfsId stoptimesWithoutPatterns(numberOfDepartures: 1, startTime: $start, timeRange: $range, omitNonPickups: true) { scheduledDeparture } }
+       }`, { ids: ids.slice(i, i + ERA), start, range: 7 * 86400 });
+    for (const s of (data && data.stops) || []) if (s && (s.stoptimesWithoutPatterns || []).length) lahdot.add(s.gtfsId);
+    lahdot._done = Math.min(i + ERA, ids.length);
+    if (onProgress(lahdot._done) === false) return;
+    const odota = 1000 - (Date.now() - t0);
+    if (odota > 0 && i + ERA < ids.length) await new Promise(r => setTimeout(r, odota));
+  }
 }
 async function loadQualityStops() {
   await findFeed();
