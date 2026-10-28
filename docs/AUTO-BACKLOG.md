@@ -454,6 +454,46 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 3/3 · työ M · myynti 1/3 · uutuus 1/2 = 8
       Mittari: smoke-tarkistus (valitseVertailu ja ?pvm) vihreä CI:ssä; käsin: joululoman jälkeisen maanantain
       vertailupäivä on kahden viikon takainen · tarkistus 2027-01-11 (pisteet ja mittari: CoS 19.10.) (PR, 2026-10-24)
+- [ ] tests/muutosvahti.js: nykytilan viikon (W1) pyhäkorvaus ei saa tehdä viikon alussa alkavasta pysyvästä muutoksesta
+      poikkeusviikkoa. Viikkoajossa 2026-10-25 `representativeDays(7)` korvasi isänpäivän su 8.11. viikkoa aiemmalla
+      su 1.11.:llä (lokissa `INFO [lahti] near sun 2026-11-08 on pyhäpäivä -> 2026-11-01`). Su 1.11. on ennen ma 2.11.
+      alkavaa uutta linjaa 28, joten W1 sekoitti vanhan ja uuden tilan, ja `classifyNear` (rivi noin 278) luokitteli
+      54 pysäkkiä poikkeusviikoksi (`docs/muutosvahti/lahti.json`, esimerkiksi Kansanopisto P ja E:
+      `"muuttunut":true,"poikkeus":"near"`). Yhteenveto sanoo silloin `changesWeek`-tekstillä "Yhden viikon poikkeus ...
+      ei pysyvä muutos, ei tulosteta uudelleen", vaikka muutos on pysyvä. Rivin 131 kommentti ennakoi saman W2:lle; W1:llä
+      sama tapahtuu, kun ajopäivä on viikkoa myöhemmin. Korjaa niin, että pelkästään korvatusta päivästä johtuva W1:n ja
+      W2:n ero ei tee pysäkistä poikkeusviikkoa, kun korvaava päivä on ankkuriviikon (ti) maanantaita aiemmin. Toteutustapa
+      on vapaa (esimerkiksi W1:n ja W2:n vertailu ilman korvattua päivää, tai W1:n korvaus eteenpäin vain tässä
+      tapauksessa), kunhan alla olevat testit pitävät. Ei tuotantoajoa (viikkoajo hoitaa). Todennus:
+      tests/muutosvahti-luokittelu.test.js saa uuden tapauksen "ajo 25.10.: linja alkaa ma 2.11. ja ajaa sunnuntaisin,
+      su 8.11. isänpäivä -> ei poikkeusviikkoa, muuttunut" kiinteällä aineistolla (kuten rivin noin 40 tapaus); nykyiset
+      tapaukset (rivit noin 79, 83, 84-86 ja 97-101: la 31.10. pyhä, isänpäivän lisälähtö, lauantaimuutos 7.11.) pysyvät
+      vihreinä; `node --check tests/muutosvahti.js`. (tutkimuskierros 2026-10-26, lähde: muutosvahdin viikkoajo
+      2026-10-25, sen loki ja docs/muutosvahti/lahti.json)
+      Pisteet: arvo 3/3 · kiire 2/3 · työ M · myynti 1/3 · uutuus 0/2 = 8
+      Mittari: luokittelutesti vihreä CI:ssä; käsin: seuraavassa viikkoajossa, jonka nykytilan viikolla on korvattu pyhä
+      (su 6.12. ajossa 22.11.), poikkeusviikkoluku ei sisällä pysyvän muutoksen pysäkkejä (docs/muutosvahti/index.json) ·
+      tarkistus 2026-12-14 (pisteet ja mittari: CoS 26.10.)
+- [ ] tests/datavahti.js: uusi tarkistus 9, rajapinnan vanhentuvat kentät. Digitransitin OpenTripPlanner-julkaisu
+      2026-10-20 ("Deprecate serviceId in GTFS API and stop populating it", HSLdevcom/OpenTripPlanner #7991) tyhjensi
+      kentän, jolla sovellus erotteli koulu- ja lomavuorot. Digitransitin kehittäjien muutoslistalla ei ollut tiedotetta,
+      ja katko löytyi vasta kolmen päivän päästä (PR #132). Lisää collect()-vaiheeseen yksi introspektiokysely proxyn läpi
+      samalla reitillä kuin muut kyselyt (`__schema { types { name fields(includeDeprecated: true) { name isDeprecated
+      deprecationReason } } }`, kerran per router, ei per kaupunki) ja evaluate()-vaiheeseen puhdas päätös: vanhentunut
+      kenttä, jonka nimi esiintyy index.html:n GraphQL-kyselymerkkijonoissa sanana ja jota ei ole uudessa tiedostossa
+      `tests/datavahti-vanhentuneet.json` (toteutushetkellä tunnetut, kukin perusteluineen) -> WARN, jossa tyyppi, kenttä
+      ja deprecationReason. Ei FAILia, koska kenttä vastaa vielä. Introspektion virhe tai tyhjä vastaus -> WARN
+      "rajapinnan kuvausta ei saatu", ei koskaan hiljainen OK. Jos introspektio ei toimi proxyn tai Digitransitin päässä
+      (TODENTAMATTA 26.10.), kirjaa se PR:n runkoon ja lue sen sijaan julkaisutiedotteet
+      (`https://api.github.com/repos/HSLdevcom/OpenTripPlanner/releases?per_page=5`): viimeisen 14 päivän julkaisun rivi,
+      jossa on "Deprecate" tai "Remove" ja jokin index.html:n kyselyjen kentän nimi -> WARN. Todennus:
+      tests/datavahti.test.js: evaluate saa kiinteän skeeman (tai kiinteän julkaisutekstin), jossa käytössä oleva kenttä
+      on vanhentunut eikä listalla -> WARN; sama kenttä listalla -> ei WARNia; haun virhe -> WARN; `node --check
+      tests/datavahti.js`. (tutkimuskierros 2026-10-26, lähde: OpenTripPlannerin julkaisutiedote 2026-10-20 ja oma katko
+      20.-23.10.2026)
+      Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 · uutuus 0/2 = 5
+      Mittari: datavahdin raportissa tarkistus 9 näkyy joka ajossa (OK tai WARN, ei puuttuvana); seuraava Digitransitin
+      deprekointi näkyy WARNina vuorokauden sisällä · tarkistus 2027-01-15 (pisteet ja mittari: CoS 26.10.)
 
 ## Tehdyt
 
