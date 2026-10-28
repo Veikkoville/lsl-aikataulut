@@ -5334,6 +5334,7 @@ const STRINGS = {
     // virheet ja tila
     errApiKey: "API-avain puuttuu tai on virheellinen. Tarkista avain asetuksista.",
     errApi: "Rajapintavirhe: ",
+    errApiDown: "Aikataulutietoja ei juuri nyt saada. Yritä hetken päästä uudelleen.",
     errFeedNotFound: "Kaupungin {city} syötettä ei löytynyt Waltti-rajapinnasta.",
     errLibLoad: "Kirjaston lataus epäonnistui: ",
     errGeocode: "Osoitehaku epäonnistui: HTTP ",
@@ -6290,6 +6291,7 @@ const STRINGS = {
     settings: "Settings", home: "Home", toHome: "To the front page", back: "Back", save: "Save",
     errApiKey: "The API key is missing or invalid. Check the key in settings.",
     errApi: "API error: ",
+    errApiDown: "Timetable data is not available right now. Please try again in a moment.",
     errFeedNotFound: "The {city} feed was not found in the Waltti API.",
     errLibLoad: "Failed to load library: ",
     errGeocode: "Address search failed: HTTP ",
@@ -7216,6 +7218,7 @@ const STRINGS = {
     settings: "Inställningar", home: "Startsida", toHome: "Till startsidan", back: "Tillbaka", save: "Spara",
     errApiKey: "API-nyckeln saknas eller är ogiltig. Kontrollera nyckeln i inställningarna.",
     errApi: "Gränssnittsfel: ",
+    errApiDown: "Tidtabellsdata kan inte hämtas just nu. Försök igen om en stund.",
     errFeedNotFound: "Flödet för {city} hittades inte i Waltti-gränssnittet.",
     errLibLoad: "Biblioteket kunde inte laddas: ",
     errGeocode: "Adresssökningen misslyckades: HTTP ",
@@ -8296,18 +8299,42 @@ function localizeQuery(query) {
 // opts.allowPartial: hyväksy vastaus, jossa on sekä dataa että kenttäkohtaisia virheitä.
 // Tarvitaan finland-routerissa: osalla feedeistä ei ole FeedInfoa, jolloin publisher-kenttä
 // virhettää yksitellen vaikka feeds-lista itsessään on täysin käyttökelpoinen.
+// Ohimenevä rajapintavirhe: käyttäjälle selkokielinen teksti ja "Yritä uudelleen" (showError),
+// tekninen syy vain konsoliin.
+function apiDownError(why) {
+  console.warn("Rajapintavirhe:", why);
+  const e = new Error(t("errApiDown"));
+  e.apiDown = true;
+  return e;
+}
+const GQL_RETRY_STATUS = [429, 502, 503, 504];
 async function gql(query, variables, opts) {
   const headers = { "Content-Type": "application/json" };
   if (!PROXY_URL) headers["digitransit-subscription-key"] = apiKey;
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ query: localizeQuery(query), variables }),
-  });
+  const body = JSON.stringify({ query: localizeQuery(query), variables });
+  let res;
+  for (let attempt = 0; ; attempt++) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
+    let transient = null;
+    try {
+      res = await fetch(API_URL, { method: "POST", headers, body, signal: ctl.signal });
+      if (GQL_RETRY_STATUS.includes(res.status)) transient = "HTTP " + res.status;
+    } catch (e) {
+      // Aikakatkaisua yritetään uudelleen; verkkovirhe (esim. offline) ei viivästä välimuistipolkua.
+      if (e && e.name === "AbortError") transient = "aikakatkaisu";
+      else throw apiDownError(e);
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!transient) break;
+    if (attempt >= 1) throw apiDownError(transient);
+    await new Promise(r => setTimeout(r, 2000));
+  }
   if (res.status === 401 || res.status === 403) {
     throw new Error(t("errApiKey"));
   }
-  if (!res.ok) throw new Error(t("errApi") + "HTTP " + res.status);
+  if (!res.ok) throw apiDownError("HTTP " + res.status);
   const txt = await res.text();
   const json = JSON.parse(txt);
   if (json.errors && !(opts && opts.allowPartial && json.data))
@@ -10774,6 +10801,12 @@ function setView(html) {
 }
 
 function showError(err) {
+  if (err && err.apiDown) {
+    setView(`<div class="error" role="alert">${esc(err.message)}</div>
+    <p><button type="button" class="err-retry">${t("deskRetry")}</button> · <a href="#/">${t("toHome")}</a></p>`);
+    app.querySelector(".err-retry").addEventListener("click", () => route());
+    return;
+  }
   setView(`<div class="error">${esc(err.message || err)}</div>
     <p><a href="#/asetukset">${t("settings")}</a> · <a href="#/">${t("toHome")}</a></p>`);
 }
