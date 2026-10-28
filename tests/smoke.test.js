@@ -5352,11 +5352,12 @@ async function minuuttiLinjaus(page, rootSel, media) {
   errPage.on("request", req => {
     const url = req.url();
     if (req.method() === "OPTIONS" && !url.startsWith(BASE)) return req.respond({ status: 204, headers: cors });
-    if (req.method() === "POST" && gqlDown && !url.startsWith(BASE) && !url.includes("workers.dev"))
+    // GraphQL tunnistetaan rungosta: Lahden kyselyt kulkevat workers.dev-proxyn kautta, joten osoite ei kelpaa erotteluun.
+    if (req.method() === "POST" && gqlDown && !url.startsWith(BASE) && /"query"/.test(req.postData() || ""))
       return req.respond({ status: 503, contentType: "text/plain", headers: cors, body: "down" });
     req.continue();
   });
-  await errPage.goto(BASE + "/?city=lahti#/pysakki/Lahti:virhetesti", { waitUntil: "domcontentloaded" });
+  await errPage.goto(BASE + "/?city=lahti#/pysakki/Lahti:181342", { waitUntil: "domcontentloaded" });
   const errRetry = await errPage.waitForSelector("#app .err-retry", { timeout: 25000 }).catch(() => null);
   const errTxt = errRetry ? await errPage.evaluate(() => document.getElementById("app").innerText) : "";
   (errRetry && !/HTTP|Failed/.test(errTxt) && !(await errPage.$('#app a[href="#/asetukset"]')))
@@ -5364,10 +5365,12 @@ async function minuuttiLinjaus(page, rootSel, media) {
     : fail("rajapintavirhe: 503-näkymä: " + (errRetry ? errTxt.slice(0, 120) : "ei .err-retry-painiketta"));
   gqlDown = false;
   if (errRetry) await errRetry.click();
-  await errPage.waitForFunction(() => !document.querySelector("#app .err-retry"), { timeout: 20000 })
-    .then(() => ok("rajapintavirhe: Yritä uudelleen piirtää näkymän uudelleen"))
-    .catch(() => fail("rajapintavirhe: virhenäkymä ei poistunut uusinnan jälkeen"));
-  await errPage.setRequestInterception(false);
+  // Uusinnan jälkeen pysäkkinäkymä, ei mikään virhenäkymä (esim. "Pysäkkiä ei löytynyt" kelpaisi muuten toipumiseksi).
+  await errPage.waitForFunction(() => document.querySelector("#app .crumb") && !document.querySelector("#app .error, #app .err-retry"), { timeout: 20000 })
+    .then(() => ok("rajapintavirhe: Yritä uudelleen piirtää pysäkkinäkymän uudelleen"))
+    .catch(() => fail("rajapintavirhe: pysäkkinäkymä ei palautunut uusinnan jälkeen"));
+  // Kuuntelija pois ennen sulkemista: sieppauksen poisto kesken pyyntöjen kaataa req.continue()-kutsun.
+  errPage.removeAllListeners("request");
   await errPage.close();
 
   // --- Päätepysäkin saapumiset eivät ole lähtöjä (Joensuun seutulinjat 24.9.2026) ---
