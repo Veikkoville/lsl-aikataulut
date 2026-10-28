@@ -99,7 +99,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 1/3 · työ S · myynti 1/3 = 8
       Mittari: smoke-tarkistus (#app ilman aria-live-attribuuttia, #srStatus ei-tyhjä linjasivulla) vihreä CI:ssä
       · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-21)
-- [ ] index.html: rajapintavirheet selkokielisiksi ja toipuviksi. Nyt `throw new Error(t("errApi") + "HTTP " +
+- [x] index.html: rajapintavirheet selkokielisiksi ja toipuviksi. Nyt `throw new Error(t("errApi") + "HTTP " +
       res.status)` (rivi noin 8108) näkyy käyttäjälle muodossa "Rajapintavirhe: HTTP 429", verkkovirhe
       englanniksi "Failed to fetch", eikä uusintaa ole. Tee: (1) GraphQL-haulle 8 s aikakatkaisu
       `AbortController`illa; (2) yksi automaattinen uusinta 2 s viiveellä tiloille 429, 502, 503, 504 ja
@@ -113,7 +113,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       (auditointi 2026-10-08, lähde: tuotanto + koodi)
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
       Mittari: smoke-tarkistus (vastaus 503 -> .err-retry, näkyvässä tekstissä ei HTTP eikä Failed, uusinta palauttaa
-      lähdöt) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
+      lähdöt) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-28)
 - [ ] index.html: kuntalaisnäkymän (`APP_MODE === "resident"`) etusivulla ei näytetä henkilöstön reittejä.
       Nyt `homeToolGroupsHtml` (rivi noin 11751) näyttää linkit "Tulosteet ja näytöt" (`#/tulosteet/...`) ja
       `#/uusintapainatus`, mutta `route()` (rivi noin 25737) ohjaa `STAFF_ROUTES`-reitit kuntalaistilassa
