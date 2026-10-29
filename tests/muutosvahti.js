@@ -294,6 +294,15 @@ function classifyNear(n1, n2, f1, f2, prev) {
   return { base: n2, poikkeus: "near" };
 }
 
+// W1:n pyhäkorvaus menee viikkoa taaksepäin, joten viikon alussa alkava pysyvä muutos näkyy vain W2:ssa ja
+// luokittuisi poikkeusviikoksi (ajo 25.10.2026: Lahti linja 28 alkaa ma 2.11., su 8.11. -> su 1.11., 54 pysäkkiä).
+// nAlt = W1 korvatut päivät viikkoa eteenpäin (= W2:n vastaavat päivät). Jos W1 ja W2 eroavat vain korvatun päivän
+// takia (nAlt = W2), W1:ksi otetaan nAlt; muuten W1 ennallaan, joten aito yhden viikon poikkeus säilyy.
+function w1Valinta(n1, nAlt, n2) {
+  if (n1 && n2 && nAlt && n1.hash !== n2.hash && nAlt.hash === n2.hash) return nAlt;
+  return n1;
+}
+
 // Onko edellinen ajo tehty ilman pyhäsääntöä niin, että sen lähiviikkojen (W1, W2) edustavissa päivissä oli pyhä?
 // Silloin sen nykytila voi olla pyhäviikon tunniste, ja runCity kääntää sen pyhättömäksi tai jättää pois.
 function prevPyhaviikko(prev) {
@@ -389,6 +398,13 @@ async function runCity(key, cfg, feedsByRouter) {
     for (const [k, v] of Object.entries(h.korvattu)) console.log(`INFO [${key}] ${nimi} ${k} ${v.pyha} on pyhäpäivä -> ${v.tilalla}`);
   const sigNear = await signaturesFor(ids, near.sig, router);
   const sigNear2 = await signaturesFor(ids, near2.sig, router);
+  // W1:n korvatut päivät viikkoa eteenpäin: erottaa korvauksesta johtuvan eron aidosta poikkeusviikosta (ks. w1Valinta).
+  let sigNearAlt = null;
+  if (Object.keys(near.korvattu).length) {
+    const alt = { ...near.sig };
+    for (const k of Object.keys(near.korvattu)) { alt[k] = new Date(near.korvattu[k].pyha + "T12:00:00"); alt[k].setDate(alt[k].getDate() + 7); }
+    sigNearAlt = await signaturesFor(ids, alt, router);
+  }
   const sigFar = await signaturesFor(ids, far.sig, router);
   const sigFar2 = await signaturesFor(ids, far2.sig, router);
 
@@ -418,7 +434,8 @@ async function runCity(key, cfg, feedsByRouter) {
   const baseSig = new Map(); // vakaa nykytila per pysäkki
   const same = (a, b) => !!(a && b && a.hash === b.hash);
   const rows = ids.map(id => {
-    const n1 = sigNear.get(id), n2 = sigNear2.get(id), f1 = sigFar.get(id), f2 = sigFar2.get(id);
+    const n2 = sigNear2.get(id);
+    const n1 = sigNearAlt ? w1Valinta(sigNear.get(id), sigNearAlt.get(id), n2) : sigNear.get(id), f1 = sigFar.get(id), f2 = sigFar2.get(id);
     const farStable = same(f1, f2);
     let { base, poikkeus } = classifyNear(n1, n2, f1, f2, prevHash.get(id));
     if (base) baseSig.set(id, base);
@@ -473,7 +490,7 @@ async function runCity(key, cfg, feedsByRouter) {
 }
 
 module.exports = { classifyNear, firstChangeDay, addDays, pointInRing, inMunicipality, areaSelection, extractConfigs,
-  onPyha, pyhapaivat, representativeDays, prevPyhaviikko };
+  onPyha, pyhapaivat, representativeDays, prevPyhaviikko, w1Valinta };
 
 if (require.main === module) (async () => {
   const configs = extractConfigs();
