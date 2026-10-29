@@ -454,7 +454,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 3/3 · työ M · myynti 1/3 · uutuus 1/2 = 8
       Mittari: smoke-tarkistus (valitseVertailu ja ?pvm) vihreä CI:ssä; käsin: joululoman jälkeisen maanantain
       vertailupäivä on kahden viikon takainen · tarkistus 2027-01-11 (pisteet ja mittari: CoS 19.10.) (PR, 2026-10-24)
-- [ ] tests/muutosvahti.js: nykytilan viikon (W1) pyhäkorvaus ei saa tehdä viikon alussa alkavasta pysyvästä muutoksesta
+- [x] tests/muutosvahti.js: nykytilan viikon (W1) pyhäkorvaus ei saa tehdä viikon alussa alkavasta pysyvästä muutoksesta
       poikkeusviikkoa. Viikkoajossa 2026-10-25 `representativeDays(7)` korvasi isänpäivän su 8.11. viikkoa aiemmalla
       su 1.11.:llä (lokissa `INFO [lahti] near sun 2026-11-08 on pyhäpäivä -> 2026-11-01`). Su 1.11. on ennen ma 2.11.
       alkavaa uutta linjaa 28, joten W1 sekoitti vanhan ja uuden tilan, ja `classifyNear` (rivi noin 278) luokitteli
@@ -473,7 +473,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 2/3 · työ M · myynti 1/3 · uutuus 0/2 = 8
       Mittari: luokittelutesti vihreä CI:ssä; käsin: seuraavassa viikkoajossa, jonka nykytilan viikolla on korvattu pyhä
       (su 6.12. ajossa 22.11.), poikkeusviikkoluku ei sisällä pysyvän muutoksen pysäkkejä (docs/muutosvahti/index.json) ·
-      tarkistus 2026-12-14 (pisteet ja mittari: CoS 26.10.)
+      tarkistus 2026-12-14 (pisteet ja mittari: CoS 26.10.) (PR, 2026-10-29)
 - [ ] tests/datavahti.js: uusi tarkistus 9, rajapinnan vanhentuvat kentät. Digitransitin OpenTripPlanner-julkaisu
       2026-10-20 ("Deprecate serviceId in GTFS API and stop populating it", HSLdevcom/OpenTripPlanner #7991) tyhjensi
       kentän, jolla sovellus erotteli koulu- ja lomavuorot. Digitransitin kehittäjien muutoslistalla ei ollut tiedotetta,

@@ -2,7 +2,7 @@
 // aluerajatun kaupungin (areaScoped) pysäkkijoukko.
 // Ajo: node tests/muutosvahti-luokittelu.test.js   (osa npm testiä)
 const { classifyNear, firstChangeDay, addDays, areaSelection, inMunicipality, extractConfigs,
-  onPyha, pyhapaivat, representativeDays, prevPyhaviikko } = require("./muutosvahti.js");
+  onPyha, pyhapaivat, representativeDays, prevPyhaviikko, w1Valinta } = require("./muutosvahti.js");
 
 let ok = 0, fail = 0;
 function tarkista(nimi, saatu, odotettu) {
@@ -24,6 +24,14 @@ tarkista("W1 = W2 -> nykytila W1", tulkinta("A", "A", "C", "C", "A"), ["A", ""])
 tarkista("Ei edellistä ajoa, W2 = kauko -> W2, poikkeus W1", tulkinta("X", "A", "A", "A", undefined), ["A", "near"]);
 tarkista("Ei edellistä ajoa, W1 = kauko -> W1, poikkeus W2", tulkinta("A", "X", "A", "A", undefined), ["A", "near2"]);
 tarkista("Ei edellistä ajoa eikä tukea -> W2, poikkeus W1", tulkinta("A", "X", "C", "C", undefined), ["X", "near"]);
+
+// Ajo 25.10.2026: linja 28 alkaa ma 2.11. ja ajaa sunnuntaisin, su 8.11. isänpäivä -> W1:n su korvattu su 1.11. (vanha tila).
+// W1 (korvattu) = A, W1 korvaus eteenpäin = B (uusi), W2 = B, W5 = W6 = B, edellinen ajo A.
+const w1 = (n1, nAlt, n2, f, prev) => { const r = classifyNear(w1Valinta(s(n1), s(nAlt), s(n2)), s(n2), s(f), s(f), prev); return [r.base.hash, r.poikkeus, r.base.hash !== prev]; };
+tarkista("Ajo 25.10.: pysyvä muutos ma 2.11., su 8.11. isänpäivä -> ei poikkeusviikkoa, muuttunut", w1("A", "B", "B", "B", "A"), ["B", "", true]);
+tarkista("Aito W1-poikkeus (korvaus eteenpäin ei vastaa W2:ta) -> W1 ennallaan, poikkeusviikko säilyy", w1("X", "X", "A", "A", "A").slice(0, 2), ["A", "near"]);
+tarkista("W1 = W2 ilman korvausta -> w1Valinta ei muuta W1:tä", w1Valinta(s("A"), s("B"), s("A")).hash, "A");
+tarkista("Puuttuva W1 tai vaihtoehto -> w1Valinta palauttaa W1:n", [w1Valinta(undefined, s("B"), s("B")), w1Valinta(s("A"), undefined, s("B")).hash], [null, "A"]);
 
 // --- Pysäkin muutospäivä viikonpäivittäin ---
 // Ajo su 27.9.2026: nykytilan viikko ma 5.10., kaukoviikko ma 2.11., vahvistusviikko ma 9.11.
