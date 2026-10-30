@@ -3250,6 +3250,7 @@ const CONFIGS = {
     city: "Vaasa",
     cityGenitive: "Vaasan",
     // Kaksikielinen kaupunki: ruotsiksi "Vasa" (otsikot/title-tagi). EN = "Vaasa" (oletus).
+    bilingual: true,
     cityNames: { sv: "Vasa" },
     cityGenitives: { sv: "Vasa" },
     operator: "Vaasan paikallisliikenne",
@@ -3527,6 +3528,7 @@ const CONFIGS = {
     city: "Raasepori",
     cityGenitive: "Raaseporin",
     // Kaksikielinen kunta (SV-enemmistö): ruotsiksi "Raseborg". EN = "Raasepori" (oletus).
+    bilingual: true,
     cityNames: { sv: "Raseborg" },
     cityGenitives: { sv: "Raseborgs" },
     operator: "Raaseporin joukkoliikenne",
@@ -4852,6 +4854,7 @@ const CONFIGS = {
   turku: {
     city: "Turku",
     cityGenitive: "Turun",
+    bilingual: true,
     cityNames: { sv: "Åbo" },
     cityGenitives: { sv: "Åbo" },
     operator: "Föli, Turun seudun joukkoliikenne",
@@ -4992,6 +4995,7 @@ const CONFIGS = {
   inkoo: {
     city: "Inkoo",
     cityGenitive: "Inkoon",
+    bilingual: true,
     cityNames: { sv: "Ingå" },
     cityGenitives: { sv: "Ingå" },
     // Uudenmaan ELY-keskus ei ole ollut joukkoliikenteen tilaaja 1.1.2026 jälkeen.
@@ -12916,9 +12920,10 @@ function laatuRaportti(stops, lahdot, nimet) {
   rep.eiSvNimea.sort(cmp);
   return rep;
 }
-// Kaksikielinen kaupunki: ruotsinkielinen nimi on määritelty (cityNames.sv) tai feedin natiivikieli on ruotsi.
-function laatuKaksikielinen() {
-  return !!((CONFIG.cityNames && CONFIG.cityNames.sv) || CONFIG.feedLang === "sv");
+// Kaksikielinen kunta: CONFIG.bilingual tai feedin natiivikieli on ruotsi. cityNames.sv ei riitä, koska myös
+// yksikielisellä kunnalla voi olla ruotsinkielinen nimi (Lappeenranta = Villmanstrand, feedissä ei sv-nimiä).
+function laatuKaksikielinen(cfg = CONFIG) {
+  return !!(cfg.bilingual || cfg.feedLang === "sv");
 }
 function laatuCsv(rep) {
   const q = v => '"' + String(v).replace(/"/g, '""') + '"';

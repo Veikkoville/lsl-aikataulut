@@ -3579,12 +3579,16 @@ async function minuuttiLinjaus(page, rootSel, media) {
     const r3b = laatuRaportti(stops3, new Set(["X:4", "X:7"]));
     return { arr: r3.vainSaapuvat.map(x => x.id).join(), sv: r3.eiSvNimea.map(x => x.id).join(),
       sv0: r3b.eiSvNimea.length, csv3: laatuCsv(r3).split("\r\n").filter(x => x.indexOf("vain_saapuva") === 1 || x.indexOf("ei_ruotsinkielista_nimea") === 1).length,
-      bil: laatuKaksikielinen(), l: r.eiLinjoja.map(x => x.id).join(), c: r.eiTunnusta.map(x => x.id).join(), csv: laatuCsv(r).split("\r\n").length,
+      bil: laatuKaksikielinen(),
+      // Kaksikielisyys kunnan mukaan, ei ruotsinkielisestä nimestä: Lappeenranta (Villmanstrand) on yksikielinen.
+      bilCfg: laatuKaksikielinen(CONFIGS.turku) && laatuKaksikielinen(CONFIGS.raasepori) && laatuKaksikielinen(CONFIGS.vaasa)
+        && laatuKaksikielinen(CONFIGS.inkoo) && !laatuKaksikielinen(CONFIGS.lappeenranta) && !laatuKaksikielinen(CONFIGS.lahti),
+      l: r.eiLinjoja.map(x => x.id).join(), c: r.eiTunnusta.map(x => x.id).join(), csv: laatuCsv(r).split("\r\n").length,
       staff: STAFF_ROUTES.has("laatu"), e0: r.eiLahtoja.length, e: r2.eiLahtoja.map(x => x.id).join(),
       csv2: laatuCsv(r2).split("\r\n").filter(x => x.indexOf("ei_lahtoja") === 1).length };
   });
   (lq.l === "X:3" && lq.c === "X:2" && lq.csv === 3 && lq.staff && lq.e0 === 0 && lq.e === "X:2" && lq.csv2 === 1
-      && lq.arr === "X:5" && lq.sv === "X:4" && lq.sv0 === 0 && lq.csv3 === 2)
+      && lq.arr === "X:5" && lq.sv === "X:4" && lq.sv0 === 0 && lq.csv3 === 2 && lq.bilCfg)
     ? ok("laatuRaportti: pysäkit ilman linjoja, tunnusta ja lähtöjä, vain saapuvat ja ruotsinkielinen nimi luokittuvat, CSV ja STAFF_ROUTES")
     : fail(`laatuRaportti: ${JSON.stringify(lq)}`);
   await page.goto(BASE + "/#/laatu", { waitUntil: "networkidle2" });
