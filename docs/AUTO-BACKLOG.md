@@ -205,12 +205,12 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       (`eiLahtoja`) kiinteällä aineistolla; Lahden `#/laatu`-sivulla osio on olemassa. (laaturaportin vaihe 1, 2026-10-22)
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 · uutuus 2/2 = 7
       Mittari: smoke-tarkistus (eiLahtoja-kenttä ja osio) vihreä CI:ssä · tarkistus 2026-12-10 (PR, 2026-10-27; kärkivuoro)
-- [ ] index.html: laaturaportti vaihe 3, saapuvien pysäkit ja ruotsinkieliset nimet. Lisää osiot: (a) pysäkit, joiden kaikki
+- [x] index.html: laaturaportti vaihe 3, saapuvien pysäkit ja ruotsinkieliset nimet. Lisää osiot: (a) pysäkit, joiden kaikki
       vuorot vain saapuvat mutta joilla on sama nimi kuin lähtöpysäkillä (esim. Kauppatori A); (b) kaksikielisessä
       kaupungissa pysäkit, joiden `name(language: "sv")` on sama kuin suomenkielinen nimi. Todennus: smoke kiinteällä
       aineistolla; osiot ovat sivulla. (laaturaportin vaihe 1, 2026-10-22; edellyttää vaihetta 2)
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 · uutuus 2/2 = 7
-      Mittari: smoke-tarkistus (osioiden luokittelu kiinteällä aineistolla) vihreä CI:ssä · tarkistus 2026-12-10
+      Mittari: smoke-tarkistus (osioiden luokittelu kiinteällä aineistolla) vihreä CI:ssä · tarkistus 2026-12-10 (PR, 2026-10-30; kärkivuoro)
 - [ ] index.html: tiskin pysäkkihaku järjestää lähtöjä tarjoavat pysäkit ensin. Auditointi: Kauppatori-haun ensimmäinen osuma
       on pelkkien saapuvien pysäkki, ja Enterin jälkeen näkyy "Ei tulevia lähtöjä". Järjestä osumat niin, että pysäkit,
       joilta lähtee vuoroja, tulevat ensin; saapuvien pysäkin kohdalla kerro "Päätepysäkki: lähdöt pysäkiltä X" ja linkki.

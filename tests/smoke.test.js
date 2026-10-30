@@ -3567,12 +3567,29 @@ async function minuuttiLinjaus(page, rootSel, media) {
       { gtfsId: "X:2", name: "Aseman edusta", code: "", routes: [{ gtfsId: "X:r1" }] },
       { gtfsId: "X:3", name: "Vanha pysäkki", code: "H0003", routes: [] }];
     const r2 = laatuRaportti(stops2, new Set(["X:1"]));
-    return { l: r.eiLinjoja.map(x => x.id).join(), c: r.eiTunnusta.map(x => x.id).join(), csv: laatuCsv(r).split("\r\n").length,
+    // Vaihe 3: X:5 "Kauppatori A" ei saa lähtöjä mutta X:4 "Kauppatori A" saa -> vainSaapuvat; X:6 "Rautatieasema" ilman
+    // lähtöjä ja ilman samannimistä lähtöpysäkkiä ei ole. Nimet: X:4 sv = fi -> eiSvNimea, X:7 sv eri -> ei.
+    const stops3 = [
+      { gtfsId: "X:4", name: "Kauppatori A", code: "H4", routes: [{ gtfsId: "X:r1" }] },
+      { gtfsId: "X:5", name: "kauppatori a", code: "H5", routes: [{ gtfsId: "X:r1" }] },
+      { gtfsId: "X:6", name: "Rautatieasema", code: "H6", routes: [{ gtfsId: "X:r1" }] },
+      { gtfsId: "X:7", name: "Satama", code: "H7", routes: [{ gtfsId: "X:r1" }] }];
+    const r3 = laatuRaportti(stops3, new Set(["X:4", "X:7"]), new Map([
+      ["X:4", { fi: "Kauppatori A", sv: "Kauppatori A" }], ["X:7", { fi: "Satama", sv: "Hamnen" }]]));
+    const r3b = laatuRaportti(stops3, new Set(["X:4", "X:7"]));
+    return { arr: r3.vainSaapuvat.map(x => x.id).join(), sv: r3.eiSvNimea.map(x => x.id).join(),
+      sv0: r3b.eiSvNimea.length, csv3: laatuCsv(r3).split("\r\n").filter(x => x.indexOf("vain_saapuva") === 1 || x.indexOf("ei_ruotsinkielista_nimea") === 1).length,
+      bil: laatuKaksikielinen(),
+      // Kaksikielisyys kunnan mukaan, ei ruotsinkielisestä nimestä: Lappeenranta (Villmanstrand) on yksikielinen.
+      bilCfg: laatuKaksikielinen(CONFIGS.turku) && laatuKaksikielinen(CONFIGS.raasepori) && laatuKaksikielinen(CONFIGS.vaasa)
+        && laatuKaksikielinen(CONFIGS.inkoo) && !laatuKaksikielinen(CONFIGS.lappeenranta) && !laatuKaksikielinen(CONFIGS.lahti),
+      l: r.eiLinjoja.map(x => x.id).join(), c: r.eiTunnusta.map(x => x.id).join(), csv: laatuCsv(r).split("\r\n").length,
       staff: STAFF_ROUTES.has("laatu"), e0: r.eiLahtoja.length, e: r2.eiLahtoja.map(x => x.id).join(),
       csv2: laatuCsv(r2).split("\r\n").filter(x => x.indexOf("ei_lahtoja") === 1).length };
   });
-  (lq.l === "X:3" && lq.c === "X:2" && lq.csv === 3 && lq.staff && lq.e0 === 0 && lq.e === "X:2" && lq.csv2 === 1)
-    ? ok("laatuRaportti: pysäkit ilman linjoja, tunnusta ja lähtöjä luokittuvat, CSV ja STAFF_ROUTES")
+  (lq.l === "X:3" && lq.c === "X:2" && lq.csv === 3 && lq.staff && lq.e0 === 0 && lq.e === "X:2" && lq.csv2 === 1
+      && lq.arr === "X:5" && lq.sv === "X:4" && lq.sv0 === 0 && lq.csv3 === 2 && lq.bilCfg)
+    ? ok("laatuRaportti: pysäkit ilman linjoja, tunnusta ja lähtöjä, vain saapuvat ja ruotsinkielinen nimi luokittuvat, CSV ja STAFF_ROUTES")
     : fail(`laatuRaportti: ${JSON.stringify(lq)}`);
   await page.goto(BASE + "/#/laatu", { waitUntil: "networkidle2" });
   // Odota valmista näkymää: CSV-nappi, virheteksti tai kuntalaistilan uudelleenohjaus. Pelkkä latausteksti ei riitä.
@@ -3584,12 +3601,13 @@ async function minuuttiLinjaus(page, rootSel, media) {
     resident: APP_MODE === "resident",
     hash: location.hash,
     secs: document.querySelectorAll("[data-laatu]").length,
+    odotetut: laatuKaksikielinen() ? 5 : 4,
     csv: !!document.getElementById("laatuCsv"),
     teksti: (document.getElementById("laatuBody") || {}).textContent || "",
   }));
   laatuNakyma.resident
     ? (laatuNakyma.hash === "#/" || laatuNakyma.hash === "" ? ok("laatu: kuntalaistilassa reitti ohjaa etusivulle") : fail(`laatu: kuntalaistila ei ohjannut: ${laatuNakyma.hash}`))
-    : (laatuNakyma.secs === 3 && laatuNakyma.csv ? ok("laatu: kolme osiota (myös lähdöttömät pysäkit) ja CSV-nappi") : fail(`laatu: ${JSON.stringify(laatuNakyma)}`));
+    : (laatuNakyma.secs === laatuNakyma.odotetut && laatuNakyma.csv ? ok("laatu: osiot (lähdöttömät, vain saapuvat, kaksikielisessä ruotsinkielinen nimi) ja CSV-nappi") : fail(`laatu: ${JSON.stringify(laatuNakyma)}`));
 
   // --- Palaute / vikailmoitus (lomake + tyhjän validointi, ei lähetetä verkkoon) ---
   await page.goto(BASE + "/#/palaute", { waitUntil: "networkidle2" });
