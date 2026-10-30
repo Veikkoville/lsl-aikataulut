@@ -5523,6 +5523,9 @@ const STRINGS = {
     laatuDepsProgress: "Tarkistetaan lähtöjä: {done} / {n} pysäkkiä.",
     laatuDepsFail: "Tarkistus jäi kesken ({done} / {n} pysäkkiä), lista on vajaa. Päivitä sivu yrittääksesi uudelleen.",
     laatuDepsCount: "Löydetty tähän mennessä: {n}.",
+    laatuArrOnly: "Pysäkit, joille vuorot vain saapuvat",
+    laatuArrOnlyDesc: "Lähdötön pysäkki, jolla on sama nimi kuin pysäkillä, jolta lähtö löytyy (esim. Kauppatori A). Matkustaja hakee helposti väärän laiturin.",
+    laatuNoSv: "Pysäkit, joiden ruotsinkielinen nimi on sama kuin suomenkielinen",
     cvH: "Kaupungin näkymä: {city}", cvSub: "Pysäkkijulisteiden tilanne muutosvahdin viikkoajosta. Viimeisin tarkistus {date}.",
     cvFiOnly: "Näkymän sisältö on toistaiseksi vain suomeksi.", cvStatesH: "Näin tilat luetaan",
     cvStValmis: "Valmis: pysäkin juliste on ajan tasalla.",
@@ -6469,6 +6472,9 @@ const STRINGS = {
     laatuDepsProgress: "Checking departures: {done} / {n} stops.",
     laatuDepsFail: "The check stopped early ({done} / {n} stops), so the list is incomplete. Reload the page to try again.",
     laatuDepsCount: "Found so far: {n}.",
+    laatuArrOnly: "Stops where trips only arrive",
+    laatuArrOnlyDesc: "A stop without departures that has the same name as a stop with departures (e.g. Kauppatori A). Passengers easily pick the wrong stop.",
+    laatuNoSv: "Stops whose Swedish name is the same as the Finnish name",
     cvH: "City view: {city}", cvSub: "Status of the stop posters from the weekly change watch run. Latest check {date}.",
     cvFiOnly: "The content of this view is currently in Finnish only.", cvStatesH: "How to read the statuses",
     cvStValmis: "Valmis (done): the stop poster is up to date.",
@@ -7398,6 +7404,9 @@ const STRINGS = {
     laatuDepsProgress: "Kontrollerar avgångar: {done} / {n} hållplatser.",
     laatuDepsFail: "Kontrollen avbröts ({done} / {n} hållplatser), så listan är ofullständig. Ladda om sidan för att försöka igen.",
     laatuDepsCount: "Hittade hittills: {n}.",
+    laatuArrOnly: "Hållplatser dit turerna bara anländer",
+    laatuArrOnlyDesc: "En hållplats utan avgångar som har samma namn som en hållplats med avgångar (t.ex. Kauppatori A). Resenärer väljer lätt fel hållplats.",
+    laatuNoSv: "Hållplatser vars svenska namn är samma som det finska",
     cvH: "Stadens vy: {city}", cvSub: "Läget för hållplatsaffischerna från ändringsvaktens veckokörning. Senaste kontroll {date}.",
     cvFiOnly: "Innehållet i vyn finns tills vidare bara på finska.", cvStatesH: "Så läser du statusarna",
     cvStValmis: "Valmis (klar): hållplatsens affisch är aktuell.",
@@ -12878,20 +12887,38 @@ function previewBarSync() {
 // pysäkillä ei ole pysäkkitunnusta (code), jota juliste ja tiski näyttävät. Vaihe 2: eiLahtoja = pysäkillä on linjoja,
 // mutta sieltä ei lähde yhtään vuoroa seuraavan 7 päivän aikana. lahdot on niiden pysäkkien gtfsId-joukko, joilta
 // lähtö löytyi; null = hakua ei ole (vielä) tehty, jolloin eiLahtoja jää tyhjäksi.
-function laatuRaportti(stops, lahdot) {
-  const rep = { eiLinjoja: [], eiTunnusta: [], eiLahtoja: [] };
+// Vaihe 3: vainSaapuvat = eiLahtoja-pysäkki, jolla on täsmälleen sama nimi kuin jollain pysäkillä, jolta lähtö löytyi
+// (esim. Kauppatori A, jonne vuorot vain saapuvat, ja Kauppatori A lähtölaiturina); päätepysäkin ja laiturin
+// tunnistus perustuu nimeen, koska pickupType suodatetaan jo haussa (omitNonPickups). eiSvNimea = ruotsinkielinen
+// nimi on sama kuin suomenkielinen; nimet on Map gtfsId -> { fi, sv } (null = ei haettu, kenttä jää tyhjäksi).
+function laatuRaportti(stops, lahdot, nimet) {
+  const rep = { eiLinjoja: [], eiTunnusta: [], eiLahtoja: [], vainSaapuvat: [], eiSvNimea: [] };
+  const norm = v => String(v || "").trim().toLowerCase();
+  const lahtoNimet = new Set();
+  if (lahdot) for (const s of stops || []) if (s && s.gtfsId && lahdot.has(s.gtfsId) && s.name) lahtoNimet.add(norm(s.name));
   for (const s of stops || []) {
     if (!s || !s.gtfsId) continue;
     const rivi = { id: s.gtfsId, name: s.name || "", code: s.code || "" };
     if (!(s.routes || []).length) rep.eiLinjoja.push(rivi);
-    else if (lahdot && !lahdot.has(s.gtfsId)) rep.eiLahtoja.push(rivi);
+    else if (lahdot && !lahdot.has(s.gtfsId)) {
+      rep.eiLahtoja.push(rivi);
+      if (rivi.name && lahtoNimet.has(norm(rivi.name))) rep.vainSaapuvat.push(rivi);
+    }
     if (!rivi.code) rep.eiTunnusta.push(rivi);
+    const n = nimet && nimet.get(s.gtfsId);
+    if (n && n.fi && n.sv && norm(n.fi) === norm(n.sv)) rep.eiSvNimea.push(rivi);
   }
   const cmp = (a, b) => a.name.localeCompare(b.name, "fi") || a.id.localeCompare(b.id);
   rep.eiLinjoja.sort(cmp);
   rep.eiTunnusta.sort(cmp);
   rep.eiLahtoja.sort(cmp);
+  rep.vainSaapuvat.sort(cmp);
+  rep.eiSvNimea.sort(cmp);
   return rep;
+}
+// Kaksikielinen kaupunki: ruotsinkielinen nimi on määritelty (cityNames.sv) tai feedin natiivikieli on ruotsi.
+function laatuKaksikielinen() {
+  return !!((CONFIG.cityNames && CONFIG.cityNames.sv) || CONFIG.feedLang === "sv");
 }
 function laatuCsv(rep) {
   const q = v => '"' + String(v).replace(/"/g, '""') + '"';
@@ -12899,6 +12926,8 @@ function laatuCsv(rep) {
   for (const r of rep.eiLinjoja) rows.push(["ei_linjoja", r.id, r.name, r.code]);
   for (const r of rep.eiTunnusta) rows.push(["ei_tunnusta", r.id, r.name, r.code]);
   for (const r of rep.eiLahtoja || []) rows.push(["ei_lahtoja", r.id, r.name, r.code]);
+  for (const r of rep.vainSaapuvat || []) rows.push(["vain_saapuva", r.id, r.name, r.code]);
+  for (const r of rep.eiSvNimea || []) rows.push(["ei_ruotsinkielista_nimea", r.id, r.name, r.code]);
   return rows.map(r => r.map(q).join(";")).join("\r\n");
 }
 async function viewQuality() {
@@ -12923,27 +12952,34 @@ async function viewQuality() {
   const section = (id, h, list) => `<section data-laatu="${id}"><h2>${h} (${list.length})</h2>${listHtml(list)}</section>`;
   const csvUrl = r => URL.createObjectURL(new Blob(["﻿" + laatuCsv(r)], { type: "text/csv;charset=utf-8" }));
   const withLines = stops.filter(s => s.gtfsId && (s.routes || []).length);
+  const bilingual = laatuKaksikielinen();
   document.getElementById("laatu").innerHTML = `
     <h1>${icon("warning")} ${t("laatuTitle")}</h1><p class="muted">${t("laatuIntro")}</p>
     ${section("ei-linjoja", t("laatuNoLines"), rep.eiLinjoja)}
     ${section("ei-tunnusta", t("laatuNoCode"), rep.eiTunnusta)}
     <section data-laatu="ei-lahtoja"><h2>${t("laatuNoDeps")}</h2><div id="laatuDeps"><p class="muted" role="status">${t("laatuDepsProgress", { done: 0, n: withLines.length })}</p></div></section>
+    <section data-laatu="vain-saapuvat"><h2>${t("laatuArrOnly")}</h2><p class="muted">${t("laatuArrOnlyDesc")}</p><div id="laatuArr"></div></section>
+    ${bilingual ? `<section data-laatu="ei-sv-nimea"><h2>${t("laatuNoSv")}</h2><div id="laatuSv"></div></section>` : ""}
     <p><a class="btnlink secondary" id="laatuCsv" href="${csvUrl(rep)}" download="pysakkien-laatu-${cityKey}.csv">${t("laatuCsv")}</a></p>
     <p class="muted">${t("laatuSource")}</p>`;
   // Vaihe 2: lähdöttömät pysäkit haetaan erissä; osio täydentyy etenemisen mukaan ja listaa vain jo tarkistetut pysäkit.
   const depsEl = document.getElementById("laatuDeps");
   const lahdot = new Set();
+  const nimet = bilingual ? new Map() : null;
   const paivita = (done, failed) => {
     if (navStale(nav) || !depsEl.isConnected) return;
-    const r = laatuRaportti(withLines.slice(0, done), lahdot);
+    const r = laatuRaportti(withLines.slice(0, done), lahdot, nimet);
     const kesken = failed || done < withLines.length;
-    if (!kesken) document.getElementById("laatuCsv").href = csvUrl(laatuRaportti(stops, lahdot));
+    if (!kesken) document.getElementById("laatuCsv").href = csvUrl(laatuRaportti(stops, lahdot, nimet));
+    document.getElementById("laatuArr").innerHTML = listHtml(r.vainSaapuvat);
+    const svEl = document.getElementById("laatuSv");
+    if (svEl) svEl.innerHTML = listHtml(r.eiSvNimea);
     const tila = failed ? t("laatuDepsFail", { done, n: withLines.length }) : kesken ? t("laatuDepsProgress", { done, n: withLines.length }) : "";
     depsEl.innerHTML = (tila ? `<p class="muted" role="status">${tila}</p>` : "") + `<p>${t("laatuDepsCount", { n: r.eiLahtoja.length })}</p>` + listHtml(r.eiLahtoja);
     depsEl.dataset.state = failed ? "fail" : kesken ? "partial" : "done";
   };
   try {
-    await laatuHaeLahdot(withLines.map(s => s.gtfsId), lahdot, done => { paivita(done, false); return !navStale(nav); });
+    await laatuHaeLahdot(withLines.map(s => s.gtfsId), lahdot, nimet, done => { paivita(done, false); return !navStale(nav); });
     paivita(withLines.length, false);
   } catch (e) {
     console.warn("laatu lähdöt", e);
@@ -12951,16 +12987,21 @@ async function viewQuality() {
   }
 }
 // Hakee pysäkit erissä (enintään 1 kysely sekunnissa) ja lisää joukkoon ne, joilta lähtee vuoro seuraavan 7 päivän aikana.
-async function laatuHaeLahdot(ids, lahdot, onProgress) {
+// nimet (Map tai null): kaksikielisessä kaupungissa samassa kyselyssä haetaan myös fi- ja sv-nimi (ei lisäkyselyjä).
+async function laatuHaeLahdot(ids, lahdot, nimet, onProgress) {
   const ERA = 50;
   const start = Math.floor(Date.now() / 1000);
   for (let i = 0; i < ids.length; i += ERA) {
     const t0 = Date.now();
     const data = await gql(
       `query ($ids: [String], $start: Long, $range: Int) {
-         stops(ids: $ids) { gtfsId stoptimesWithoutPatterns(numberOfDepartures: 1, startTime: $start, timeRange: $range, omitNonPickups: true) { scheduledDeparture } }
+         stops(ids: $ids) { gtfsId ${nimet ? 'nimiFi: name(language: "fi") nimiSv: name(language: "sv")' : ""} stoptimesWithoutPatterns(numberOfDepartures: 1, startTime: $start, timeRange: $range, omitNonPickups: true) { scheduledDeparture } }
        }`, { ids: ids.slice(i, i + ERA), start, range: 7 * 86400 });
-    for (const s of (data && data.stops) || []) if (s && (s.stoptimesWithoutPatterns || []).length) lahdot.add(s.gtfsId);
+    for (const s of (data && data.stops) || []) {
+      if (!s) continue;
+      if ((s.stoptimesWithoutPatterns || []).length) lahdot.add(s.gtfsId);
+      if (nimet) nimet.set(s.gtfsId, { fi: s.nimiFi, sv: s.nimiSv });
+    }
     lahdot._done = Math.min(i + ERA, ids.length);
     if (onProgress(lahdot._done) === false) return;
     const odota = 1000 - (Date.now() - t0);
