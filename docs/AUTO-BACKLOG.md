@@ -494,6 +494,38 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 · uutuus 0/2 = 5
       Mittari: datavahdin raportissa tarkistus 9 näkyy joka ajossa (OK tai WARN, ei puuttuvana); seuraava Digitransitin
       deprekointi näkyy WARNina vuorokauden sisällä · tarkistus 2027-01-15 (pisteet ja mittari: CoS 26.10.)
+- [ ] tests/muutosvahti.js + index.html: pysäkit, jotka putoavat pois kaupungin pysäkkijoukosta, omaksi listakseen.
+      Nyt pysäkkijoukko luetaan joka ajossa nykyisten linjapatternien pysäkeistä (rivi noin 392), rivit suodatetaan
+      `depsNear || depsFar` -ehdolla (rivi noin 453) ja `hashes` kirjoitetaan vain nykyisille pysäkeille (rivi noin 470).
+      Pysäkki, jonka ainoa linja tai linjaversio lakkaa, katoaa raportista ja historiasta ilman mainintaa, vaikka sen
+      katoksessa on yhä juliste. Mitattu repon omasta historiasta: viiden peräkkäisen viikkoajon vertailussa 15 pysäkkiä,
+      joilla oli edellisessä ajossa lähtöjä, katosi neljässä kaupungissa. Lisää puhdas funktio
+      `poistuneetPysakit(prev, rows, ajettu)`: edellisen raportin `pysakit`-rivit, joiden id ei ole uusissa riveissä,
+      muodossa `{ id, name, code, lines, poistui: ajettu }`, sekä edellisen raportin `poistuneet`-rivit, joiden `poistui`
+      on alle 28 päivää vanha ja jotka eivät ole palanneet riveihin. Kirjoita lista raporttiin kenttänä `poistuneet` (myös
+      tyhjänä) ja määrä `yhteenveto.poistuneet`. Muutosvahti-välilehdelle lohko "Pysäkit ilman lähtöjä: poista tai vaihda
+      juliste" (fi/sv/en), joka näkyy vain kun lista ei ole tyhjä. Todennus: tests/muutosvahti-luokittelu.test.js:
+      (1) pysäkki edellisessä, ei uudessa -> listalla; (2) palannut pysäkki -> ei listalla; (3) yli 28 päivää sitten
+      poistunut -> pois; (4) edellinen raportti puuttuu -> tyhjä lista; smoke: välilehti näyttää lohkon kiinteällä
+      raportilla eikä näytä sitä tyhjällä listalla; `node --check tests/muutosvahti.js`. (tutkimuskierros 2026-10-30,
+      lähde: docs/muutosvahti/*.json git-historia 2026-10-04...2026-10-25)
+      Pisteet: arvo 2/3 · kiire 1/3 · työ S · myynti 1/3 · uutuus 1/2 = 7
+      Mittari: sunnuntain ajon jälkeen jokaisen kaupungin raportissa on kenttä `poistuneet` · tarkistus 2026-12-06 (pisteet ja mittari: CoS 30.10.)
+- [ ] index.html: tulostekeskuksen Muutosvahti-välilehdelle lohko "Pysäkit poissa käytöstä tai siirretty" live-häiriöistä.
+      Julistekoodi (`stopPosterBlocks`, rivi noin 13611) ja muutosvahti eivät lue häiriöitä, joten kuukausiksi suljettu
+      pysäkki näyttää tulostekeskuksessa ajan tasalla olevalta, jos aikataulusyöte antaa sille yhä lähtöjä. Mitattu
+      Digitransitin häiriörajapinnasta: 59 häiriöstä 22 kohdistuu pysäkkeihin ja kestää vähintään 14 vrk, 9 syötteessä;
+      yksi pysäkki on suljettu viideksi kuukaudeksi ja syöte antaa sille silti 95 lähtöä arkipäivänä. Lisää puhdas funktio
+      `pitkatPysakkihairiot(raw, nytSek)`: käyttää olemassa olevaa `alertTargets(a)`-funktiota (rivi noin 11495), ottaa
+      häiriöt, joilla on vähintään yksi pysäkki kohteena ja joiden `effectiveEndDate - effectiveStartDate` on vähintään
+      14 vrk (tai loppu puuttuu ja alku on yli 14 vrk sitten), ja palauttaa `[{ stopId, otsikko, alku, loppu }]` loppupäivän
+      mukaan. Lähde on `loadAlerts()` (rivi noin 11190), ei uutta palvelinkutsua. Lohko näyttää pysäkin nimen ja linkin sen
+      julisteeseen, häiriön otsikon ja loppupäivän (fi/sv/en). Häiriöhaun virhe -> teksti "Häiriötietoja ei saatu", ei tyhjä
+      lista. Todennus: smoke `page.evaluate` syöttää kiinteän häiriölistan: 14 vrk pysäkkihäiriö -> listalla; 3 vrk -> ei;
+      linjahäiriö ilman pysäkkiä -> ei; loppu puuttuu ja alku 20 vrk sitten -> listalla; virhetila -> virheteksti, ei
+      onnistumista. (tutkimuskierros 2026-10-30, lähde: Digitransitin häiriörajapinta 2026-10-30 ja julistekoodi)
+      Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 2/3 · uutuus 1/2 = 7
+      Mittari: Muutosvahti-välilehdellä lohko näkyy tuotannossa vähintään kahdessa kaupungissa · tarkistus 2026-12-06 (pisteet ja mittari: CoS 30.10.)
 
 ## Tehdyt
 
