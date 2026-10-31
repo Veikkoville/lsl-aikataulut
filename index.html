@@ -1788,6 +1788,10 @@
   .dep-from { display: block; font-size: 0.88em; color: var(--muted); overflow-wrap: anywhere; }
   /* Lähtölistan päivämerkintä huomisen ja myöhempien päivien lähdöille ("ma 04:40"). */
   .dep-day { font-size: 0.85em; font-weight: var(--wmed); }
+  /* Peruttu vuoro (realtimeState CANCELED): rivi yliviivattuna, sana "Peruttu" näkyy ja luetaan tekstinä. Ei opacitya:
+     0.7 laskisi linjatunnuksen valkoisen tekstin kontrastin alle WCAG 1.4.3:n (esim. #007AC9: 4,5:1 -> 2,8:1). */
+  tr.dep-cancel td:not(.dep-cancel-cell) { text-decoration: line-through; }
+  .dep-cancel-word { font-weight: var(--wmed); text-decoration: none; display: inline-block; }
   /* Terminaalinäkymän laituri lähtörivillä (tiski, kaikki laiturit yhdessä): kehystetty tunnus, linkki laiturin korttiin. */
   a.dep-plat { display: inline-block; min-width: 1.7em; text-align: center; border: 2px solid currentColor; border-radius: 0.3rem;
     padding: 0 0.3rem; margin-right: 0.3rem; font-weight: var(--wmed); text-decoration: none; color: inherit; }
@@ -5820,6 +5824,7 @@ const STRINGS = {
     nearbyTitle: "Lähimmät lähdöt",
     rtLegend: "= reaaliaikainen arvio. Päivittyy 30 s välein.",
     rtMarkSr: "reaaliaikainen",
+    depCanceled: "Peruttu",
     rtLegendStop: "= reaaliaikainen arvio, muut aikataulun mukaan. Päivittyy 30 s välein.",
     planTitle: "Reittihaku",
     planLink: "Hae reitti osoitteesta osoitteeseen",
@@ -6762,6 +6767,7 @@ const STRINGS = {
     nearbyTitle: "Nearest departures",
     rtLegend: "= real-time estimate. Updates every 30 s.",
     rtMarkSr: "real-time",
+    depCanceled: "Cancelled",
     rtLegendStop: "= real-time estimate, others as scheduled. Updates every 30 s.",
     planTitle: "Journey planner",
     planLink: "Plan a journey from address to address",
@@ -7694,6 +7700,7 @@ const STRINGS = {
     nearbyTitle: "Närmaste avgångar",
     rtLegend: "= realtidsuppskattning. Uppdateras var 30:e sekund.",
     rtMarkSr: "realtid",
+    depCanceled: "Inställd",
     rtLegendStop: "= realtidsuppskattning, övriga enligt tidtabell. Uppdateras var 30:e sekund.",
     planTitle: "Reseplanerare",
     planLink: "Sök resa från adress till adress",
@@ -8786,7 +8793,7 @@ function depInfo(st) {
   const epoch = (st.serviceDay + dep) * 1000;
   const mins = Math.round((epoch - Date.now()) / 60000);
   const when = mins <= 0 ? t("depNow") : mins < 60 ? t("depMin", { n: mins }) : fmtSec(dep);
-  return { when, rt: !!st.realtime, day: mins < 60 ? "" : depDayLabel(epoch) };
+  return { when, rt: !!st.realtime, day: mins < 60 ? "" : depDayLabel(epoch), canceled: st.realtimeState === "CANCELED" };
 }
 function depDayLabel(epoch) {
   const d = new Date(epoch), now = new Date();
@@ -12174,6 +12181,12 @@ function depClockCell(st, d) {
 function rtMarkHtml() {
   return ` <span aria-hidden="true">●</span><span class="sr-only">${esc(t("rtMarkSr"))} </span>`;
 }
+// Peruttu lähtö (realtimeState CANCELED): sana "Peruttu" tekstinä (ei pelkkä yliviivaus) ja aikataulun mukainen aika
+// yliviivattuna. Tulosteisiin ei muutosta.
+function canceledCellHtml(st) {
+  return `<span class="dep-cancel-word">${esc(t("depCanceled"))}</span> ` +
+    `<s class="dep-cancel-time">${fmtSec(st.scheduledDeparture)}</s>`;
+}
 // Silmälle piilotetut sarakeotsikot otsikottomiin lähtötaulukoihin (R4), jotta ruudunlukija lukee solut otsikkoineen.
 function depTheadSr() {
   return `<thead class="sr-only"><tr><th scope="col">${t("thLine")}</th><th scope="col">${t("thDest")}</th>` +
@@ -12249,11 +12262,12 @@ function depTableRows(stoptimes, opts) {
     // _plat: tiskin terminaalinäkymän rivin laituri (kaikki laiturit yhdessä listassa). Linkki avaa laiturin oman
     // kortin, josta saa myös sen pysäkin tulosteen.
     const plat = st._plat ? platChipHtml(st._plat) + " " : "";
-    return `<tr data-depkey="${esc(depKey(st))}">
+    return `<tr data-depkey="${esc(depKey(st))}"${d.canceled ? ' class="dep-cancel"' : ""}>
       <td>${badge}</td>
       <td>${plat}${esc(st.headsign || "")}${acc}${occupancyHtml(st.trip)}${from}</td>
-      <td class="${d.rt ? "rt" : ""}${clock ? " dep-when" : ""}">${clock ? depClockCell(st, d)
-        : `${d.day ? `<span class="dep-day">${esc(d.day)}</span> ` : ""}${d.when}${d.rt ? rtMarkHtml() : ""}`}</td>
+      ${d.canceled ? `<td class="dep-cancel-cell${clock ? " dep-when" : ""}">${canceledCellHtml(st)}</td>` :
+      `<td class="${d.rt ? "rt" : ""}${clock ? " dep-when" : ""}">${clock ? depClockCell(st, d)
+        : `${d.day ? `<span class="dep-day">${esc(d.day)}</span> ` : ""}${d.when}${d.rt ? rtMarkHtml() : ""}`}</td>`}
     </tr>`;
   }).join("");
 }
@@ -14851,7 +14865,7 @@ async function viewStop(stopId, autoPrint) {
            name@L code lat lon wheelchairBoarding
            routes { gtfsId shortName color textColor }
            stoptimesWithoutPatterns(numberOfDepartures: 30, omitNonPickups: true) {
-             scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
+             scheduledDeparture realtimeDeparture realtime realtimeState serviceDay headsign@L
              trip { wheelchairAccessible occupancy { occupancyStatus } route { gtfsId shortName color textColor } ${TRIP_ENDS_FIELDS} }
            }
          }
@@ -15143,7 +15157,7 @@ async function viewMonitor(stopId) {
          stop(id: $id) {
            name@L code
            stoptimesWithoutPatterns(numberOfDepartures: 20, omitNonPickups: true) {
-             scheduledDeparture realtimeDeparture realtime serviceDay headsign@L
+             scheduledDeparture realtimeDeparture realtime realtimeState serviceDay headsign@L
              trip { route { shortName color textColor } ${TRIP_ENDS_FIELDS} }
            }
          }
@@ -15166,10 +15180,11 @@ async function viewMonitor(stopId) {
       const r = st.trip?.route || {};
       const d = depInfo(st);
       const style = r.color ? ` style="background:#${esc(r.color)};color:${badgeText(r.color, r.textColor)}"` : "";
-      return `<tr>
+      return `<tr${d.canceled ? ' class="dep-cancel"' : ""}>
         <td class="m-line"><span class="badge"${style}>${esc(r.shortName || "")}</span></td>
         <td class="m-dest">${esc(st.headsign || "")}</td>
-        <td class="m-when${d.rt ? " rt" : ""}">${d.day ? esc(d.day) + " " : ""}${esc(d.when)}${d.rt ? " ●" : ""}</td>
+        ${d.canceled ? `<td class="m-when dep-cancel-cell">${canceledCellHtml(st)}</td>` :
+        `<td class="m-when${d.rt ? " rt" : ""}">${d.day ? esc(d.day) + " " : ""}${esc(d.when)}${d.rt ? " ●" : ""}</td>`}
       </tr>`;
     }).join("");
   };
