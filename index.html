@@ -1788,8 +1788,9 @@
   .dep-from { display: block; font-size: 0.88em; color: var(--muted); overflow-wrap: anywhere; }
   /* Lähtölistan päivämerkintä huomisen ja myöhempien päivien lähdöille ("ma 04:40"). */
   .dep-day { font-size: 0.85em; font-weight: var(--wmed); }
-  /* Peruttu vuoro (realtimeState CANCELED): rivi yliviivattuna, sana "Peruttu" näkyy ja luetaan tekstinä. */
-  tr.dep-cancel td:not(.dep-cancel-cell) { text-decoration: line-through; opacity: 0.7; }
+  /* Peruttu vuoro (realtimeState CANCELED): rivi yliviivattuna, sana "Peruttu" näkyy ja luetaan tekstinä. Ei opacitya:
+     0.7 laskisi linjatunnuksen valkoisen tekstin kontrastin alle WCAG 1.4.3:n (esim. #007AC9: 4,5:1 -> 2,8:1). */
+  tr.dep-cancel td:not(.dep-cancel-cell) { text-decoration: line-through; }
   .dep-cancel-word { font-weight: var(--wmed); text-decoration: none; display: inline-block; }
   /* Terminaalinäkymän laituri lähtörivillä (tiski, kaikki laiturit yhdessä): kehystetty tunnus, linkki laiturin korttiin. */
   a.dep-plat { display: inline-block; min-width: 1.7em; text-align: center; border: 2px solid currentColor; border-radius: 0.3rem;
