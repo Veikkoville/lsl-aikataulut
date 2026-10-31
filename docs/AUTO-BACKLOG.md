@@ -161,14 +161,14 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Mittari: smoke-tarkistus (testikoukulla pakotettu jakso näkyy etusivulla ja monitorissa, ilman jaksoa ei) vihreä
       CI:ssä; tuotannossa rivi näkyy etusivulla ja monitorissa 14 päivää ennen joululomaa (käsin)
       · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-23)
-- [ ] index.html: perutut vuorot näkyviin. Lähtökyselyt eivät pyydä `realtimeState`a (auditointi: 0 osumaa lähtökyselyissä).
+- [x] index.html: perutut vuorot näkyviin. Lähtökyselyt eivät pyydä `realtimeState`a (auditointi: 0 osumaa lähtökyselyissä).
       Lisää kenttä pysäkin ja monitorin lähtökyselyihin, ja kun `realtimeState === "CANCELED"`, näytä lähtö yliviivattuna
       sanalla "Peruttu" (fi/sv/en, ruudunlukijalle tekstinä, ei pelkkä yliviivaus). Tulosteisiin ei muutosta. Todennus:
       smokessa `page.setRequestInterception` palauttaa yhden lähdön `realtimeState: "CANCELED"` -tilassa ja tarkistaa, että
       rivillä on peruttu-luokka ja sr-teksti; muut rivit ennallaan. Palauta interceptio lohkon lopussa. (tuotekehityksen kärki 2026-10-08, P1, lähde: auditointi)
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
       Mittari: smoke-tarkistus (CANCELED-lähdöllä peruttu-luokka ja sr-teksti, muut rivit ennallaan) vihreä CI:ssä
-      · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
+      · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-31)
 - [ ] index.html: muutosvahti näyttää, mitä muuttui. Nyt muutosvahti kertoo, mikä juliste vanhenee ja milloin, mutta ei
       eroa. Tarkista ensin, mitä muutosvahdin data (`changeWatchPromise`, `docs/muutosvahti/`) sisältää. Jos lähtöajat tai
       tiivisteen lähdeaineisto ovat datassa, näytä pysäkin muutosrivillä enintään 5 eroa ("linja 4 klo 7.34 -> 7.36",

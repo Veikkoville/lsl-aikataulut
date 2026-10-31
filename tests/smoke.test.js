@@ -5391,6 +5391,47 @@ async function minuuttiLinjaus(page, rootSel, media) {
   errPage.removeAllListeners("request");
   await errPage.close();
 
+  // Perutut vuorot: pysäkkisivun ja monitorin lähtökyselyt pyytävät realtimeState-kentän; CANCELED-lähtö
+  // näytetään yliviivattuna ja sanalla (sr-teksti), muut rivit ennallaan. Vastaus rakennetaan vakioaineistona.
+  const cancelPage = await browser.newPage();
+  await cancelPage.setRequestInterception(true);
+  let cancelQueries = 0;
+  cancelPage.on("request", req => {
+    const url = req.url();
+    if (req.method() === "OPTIONS" && !url.startsWith(BASE)) return req.respond({ status: 204, headers: cors });
+    const body = req.postData() || "";
+    if (req.method() === "POST" && !url.startsWith(BASE) && /"query"/.test(body) && /realtimeState/.test(body)
+        && /stoptimesWithoutPatterns/.test(body)) {
+      cancelQueries++;
+      const nowS = Math.floor(Date.now() / 1000);
+      const serviceDay = nowS - (nowS % 86400);
+      const dep = nowS - serviceDay + 1200;
+      const mk = (n, state, add) => ({ scheduledDeparture: dep + add, realtimeDeparture: dep + add, realtime: false,
+        realtimeState: state, serviceDay, headsign: "Testi " + n,
+        trip: { wheelchairAccessible: "NO_INFORMATION", route: { gtfsId: "Lahti:T" + n, shortName: "T" + n, color: "007AC9", textColor: "FFFFFF" } } });
+      const stop = { gtfsId: "Lahti:181342", name: "Testipysäkki", code: "X1", lat: 60.98, lon: 25.66, wheelchairBoarding: "NO_INFORMATION",
+        routes: [], stoptimesWithoutPatterns: [mk(1, "SCHEDULED", 0), mk(2, "CANCELED", 300), mk(3, "SCHEDULED", 600)] };
+      return req.respond({ status: 200, contentType: "application/json", headers: cors, body: JSON.stringify({ data: { stop } }) });
+    }
+    req.continue();
+  });
+  for (const [nimi, polku, rivit] of [["pysäkkisivu", "#/pysakki/Lahti:181342", "table.deps tbody tr"],
+                                      ["monitori", "#/monitori/Lahti:181342", "#mRows tr"]]) {
+    await cancelPage.goto(BASE + "/?city=lahti" + polku, { waitUntil: "domcontentloaded" });
+    await cancelPage.waitForSelector(rivit + ".dep-cancel", { timeout: 25000 }).catch(() => null);
+    const c = await cancelPage.evaluate(sel => {
+      const rows = [...document.querySelectorAll(sel)];
+      return { n: rows.length, cancel: rows.filter(r => r.classList.contains("dep-cancel")).length,
+        word: !!document.querySelector(sel.split(" ")[0] + " .dep-cancel .dep-cancel-word"),
+        sr: rows.filter(r => !r.classList.contains("dep-cancel") && r.querySelector(".dep-cancel-word")).length };
+    }, rivit);
+    (c.n === 3 && c.cancel === 1 && c.word && c.sr === 0)
+      ? ok("perutut vuorot: " + nimi + ": CANCELED-lähtö peruttu-luokalla ja sanalla, muut 2 riviä ennallaan")
+      : fail("perutut vuorot: " + nimi + ": " + JSON.stringify(c) + " kyselyjä " + cancelQueries);
+  }
+  cancelPage.removeAllListeners("request");
+  await cancelPage.close();
+
   // --- Päätepysäkin saapumiset eivät ole lähtöjä (Joensuun seutulinjat 24.9.2026) ---
   // Pysäkin JOENSUU julisteessa ja lähtölistassa näkyi saapuvia vuoroja lähtöinä: päätepysäkille
   // saapuvat ja kilvellä "Joensuu - PKKS" 5 min keskussairaalaan jatkavat. Sääntö testataan
