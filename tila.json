@@ -1,0 +1,147 @@
+{
+  "versio": 1,
+  "paivitetty": "2026-10-31T22:27:27.799Z",
+  "vanhenee_tuntia": 12,
+  "palvelut": [
+    {
+      "id": "reittari",
+      "nimi": "Reittari",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-31T22:27:27.799Z",
+      "lahde": "Saatavuustarkistus ja Tuotanto-smoke",
+      "kuvaus": "Esittelysivu demo.reittari.fi vastasi. Viimeisin tuotanto-smoke 29.10.2026 klo 20.23 meni läpi."
+    },
+    {
+      "id": "luvat-ja-kuulutukset",
+      "nimi": "Savikurki Luvat ja kuulutukset",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-31T22:27:27.799Z",
+      "lahde": "Saatavuustarkistus ja aineiston haun syke",
+      "kuvaus": "Esittelysivu demo.savikurki.fi/luvat vastasi. Aineisto haettu viimeksi 31.10.2026 klo 13.58."
+    },
+    {
+      "id": "jatehuollon-asiointi",
+      "nimi": "Savikurki Jätehuollon asiointi",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-31T22:27:27.799Z",
+      "lahde": "Saatavuustarkistus",
+      "kuvaus": "Esittelysivu jatehuolto-osoitteessa.pages.dev vastasi."
+    },
+    {
+      "id": "tyonantajatuet",
+      "nimi": "Savikurki Työnantajatuet",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-31T22:27:27.799Z",
+      "lahde": "Saatavuustarkistus ja datavahti",
+      "kuvaus": "Esittelysivu savikurki-tyonantajatuet.pages.dev vastasi. Datavahti 31.10.2026 klo 15.36: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "kesatyosetelit",
+      "nimi": "Savikurki Kesätyösetelit",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-31T22:27:27.799Z",
+      "lahde": "Saatavuustarkistus ja datavahti",
+      "kuvaus": "Esittelysivu savikurki-kesatyosetelit.pages.dev vastasi. Datavahti 31.10.2026 klo 15.36: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "avustukset",
+      "nimi": "Savikurki Avustukset",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-31T22:27:27.799Z",
+      "lahde": "Saatavuustarkistus",
+      "kuvaus": "Esittelysivu savikurki-avustukset.pages.dev vastasi."
+    },
+    {
+      "id": "de-minimis-rekisteri",
+      "nimi": "Savikurki De minimis -rekisteri",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-31T22:27:27.799Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 31.10.2026 klo 11.23: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "tapahtumaluvat",
+      "nimi": "Savikurki Tapahtumaluvat",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-31T22:27:27.799Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 31.10.2026 klo 12.23: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "uimavesitiedotus",
+      "nimi": "Savikurki Uimavesitiedotus",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-31T22:27:27.799Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 31.10.2026 klo 14.23: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "kulttuurivierailut",
+      "nimi": "Savikurki Kulttuurivierailut",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-31T22:27:27.799Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 31.10.2026 klo 15.23: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "elinvoimapaketti",
+      "nimi": "Savikurki Elinvoimapaketti",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-10-31T22:27:27.799Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 31.10.2026 klo 16.23: demo ja sen ulkoiset lähteet olivat kunnossa."
+    }
+  ],
+  "tapahtumat": [
+    {
+      "aika": "2026-10-31T13:37:34.090Z",
+      "palvelu": "tyonantajatuet",
+      "teksti": "Savikurki Työnantajatuet: toimii (aiemmin häiriö)."
+    },
+    {
+      "aika": "2026-10-31T00:44:56.482Z",
+      "palvelu": "tyonantajatuet",
+      "teksti": "Savikurki Työnantajatuet: häiriö (aiemmin toimii). Esittelysivu savikurki-tyonantajatuet.pages.dev vastasi. Datavahti 31.10.2026 klo 02.23 löysi vian: demo tai sen ulkoinen lähde on muuttunut, ja selvitys on kesken."
+    },
+    {
+      "aika": "2026-10-29T01:23:34.535Z",
+      "palvelu": "tyonantajatuet",
+      "teksti": "Savikurki Työnantajatuet: toimii (aiemmin häiriö)."
+    },
+    {
+      "aika": "2026-10-28T12:23:34.309Z",
+      "palvelu": "reittari",
+      "teksti": "Reittari: toimii (aiemmin häiriö)."
+    },
+    {
+      "aika": "2026-10-28T11:23:32.557Z",
+      "palvelu": "reittari",
+      "teksti": "Reittari: häiriö (aiemmin toimii). Esittelysivu demo.reittari.fi ei vastannut (aikakatkaisu)."
+    },
+    {
+      "aika": "2026-10-28T01:23:33.750Z",
+      "palvelu": "tyonantajatuet",
+      "teksti": "Savikurki Työnantajatuet: häiriö (aiemmin toimii). Esittelysivu savikurki-tyonantajatuet.pages.dev vastasi. Datavahti 28.10.2026 klo 02.23 löysi vian: demo tai sen ulkoinen lähde on muuttunut, ja selvitys on kesken."
+    },
+    {
+      "aika": "2026-10-27T07:47:43.159Z",
+      "palvelu": "reittari",
+      "teksti": "Reittari: toimii (aiemmin häiriö)."
+    },
+    {
+      "aika": "2026-10-26T05:23:33.145Z",
+      "palvelu": "reittari",
+      "teksti": "Reittari: häiriö (aiemmin toimii). Esittelysivu demo.reittari.fi vastasi. Viimeisin tuotanto-smoke 26.10.2026 klo 06.23 löysi vian, ja sen selvitys on kesken."
+    },
+    {
+      "aika": "2026-10-24T11:38:49.197Z",
+      "palvelu": "elinvoimapaketti",
+      "teksti": "Savikurki Elinvoimapaketti: toimii (aiemmin häiriö)."
+    },
+    {
+      "aika": "2026-10-22T17:23:36.374Z",
+      "palvelu": "de-minimis-rekisteri",
+      "teksti": "Savikurki De minimis -rekisteri: toimii (aiemmin ei tietoa)."
+    }
+  ]
+}
