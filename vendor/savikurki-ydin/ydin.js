@@ -228,8 +228,10 @@
   const summa = xs => xs.reduce((s, x) => s + x, 0);
 
   // Näytettävä tila tarkastelupäivänä T. Valmis voittaa, sitten määräaika, sitten adapterin antama perustila.
+  // Perustila säilyy kentässä perustila. Puutteellinen näkyy puutteellisena myös erääntyessään ja myöhässä (30.10.2026):
+  // tila on silloin eraantyy tai myohassa, tilaNimi esimerkiksi "Puutteellinen, erääntyy".
   function laskeTila(k, T, N) {
-    const l = { tila: k.tila, jaljellaTp: null, myohassaTp: null, kasittelyaikaTp: null, ajassa: null };
+    const l = { tila: k.tila, perustila: k.tila, jaljellaTp: null, myohassaTp: null, kasittelyaikaTp: null, ajassa: null };
     if (k.tila === 'valmis') {
       if (k.valmistui && k.saapui) l.kasittelyaikaTp = tyopaiviaValilla(k.saapui, k.valmistui);
       if (k.valmistui && k.maarapaiva) {
@@ -241,14 +243,26 @@
       else { l.jaljellaTp = tyopaiviaValilla(T, k.maarapaiva); if (l.jaljellaTp <= N) l.tila = 'eraantyy'; }
     }
     l.tilaNimi = TILA_NIMI[l.tila];
+    if (puutteellinenMyos(l)) l.tilaNimi = `${TILA_NIMI.puutteellinen}, ${l.tilaNimi.toLowerCase()}`;
     return l;
   }
+  // Puutteellinen, jonka määräpäivä lähestyy tai on ohi: mukana sekä Puutteelliset- että Erääntyy- tai Myöhässä-luvussa.
+  const puutteellinenMyos = l => l.perustila === 'puutteellinen' && (l.tila === 'eraantyy' || l.tila === 'myohassa');
+  // Työjonon tilasuodatin: puutteellinen perustilasta, muut näytettävästä tilasta.
+  const kuuluuTilaan = (l, t) => t === 'kaikki' || (t === 'avoimet' ? l.tila !== 'valmis' : t === 'puutteellinen' ? l.perustila === 'puutteellinen' && l.tila !== 'valmis' : l.tila === t);
   const rikasta = (kohteet, T, N, oletusKunta) => kohteet.map(k => ({ ...k, kunta: k.kunta || oletusKunta, laskettu: laskeTila(k, T, N) }));
 
+  // Laskurit tiloittain. Puutteellinen lasketaan perustilasta, joten erääntyvä tai myöhässä oleva puutteellinen on kahdessa
+  // luvussa (montako: puutteellinenEraantyy ja puutteellinenMyohassa). Avoimet laskee jokaisen kerran.
   function laskeLaskurit(rik) {
-    const c = { avoimet: 0 };
+    const c = { avoimet: 0, puutteellinenEraantyy: 0, puutteellinenMyohassa: 0 };
     TILAT.forEach(t => { c[t.id] = 0; });
-    for (const k of rik) { c[k.laskettu.tila]++; if (k.laskettu.tila !== 'valmis') c.avoimet++; }
+    for (const k of rik) {
+      const l = k.laskettu;
+      c[l.tila]++;
+      if (l.tila !== 'valmis') c.avoimet++;
+      if (puutteellinenMyos(l)) { c.puutteellinen++; if (l.tila === 'eraantyy') c.puutteellinenEraantyy++; else c.puutteellinenMyohassa++; }
+    }
     return c;
   }
   const jarjestys = (a, b) => (a.laskettu.tila === 'valmis') - (b.laskettu.tila === 'valmis')
@@ -417,6 +431,12 @@
     if (!juuri) throw new Error(`Savikurki-ydin: elementtiä ${a.juuri} ei löydy.`);
     const T = a.tanaan || paikallinenTanaan();
     const N = a.eraantyyTyopaivina ?? 5;
+    // Esittelytila (osa 6): kaavio, määrärahapalkki, kompakti roolivalinta ja palvelun nimi ilman toimittajan nimeä.
+    const ES = esitysPaalla();
+    const palveluNimi = ES ? a.palvelu.nimi.replace(/^Savikurki\s+/, '') : a.palvelu.nimi;
+    // Esittelytilassa adapteri voi nimetä kunta-ulottuvuuden (esim. setelilajit): a.kuntaSana = { yksi, kaikki, nakyma }.
+    const KS = { yksi: 'Kunta', kaikki: 'Kaikki kunnat', nakyma: NAKYMAT.seutu, ...(ES && a.kuntaSana ? a.kuntaSana : {}) };
+    const nakymaNimi = id => (id === 'seutu' ? KS.nakyma : NAKYMAT[id]);
     const taso = a.otsikkotaso || 1;
     const H = n => `h${Math.min(6, taso + n)}`;
     const AV = a.tallennusAvain || `sy-${a.palvelu.id}`;
@@ -451,6 +471,7 @@
       oletukset: { ...oletusArvot, ...Object.fromEntries(Object.entries(tallennetut).filter(([k, v]) => k in oletusArvot && Number.isFinite(v) && v >= 0)) },
       kuittaukset: Array.isArray(lue('kuittaukset')) ? lue('kuittaukset') : [],
       kuittaaja: lue('kuittaaja') || '', jonoRivit: [],
+      saantoSuodatin: { haku: '', tila: '' }, // Säännöt-näkymän haku ja tila ('' = kaikki); säilyy uudelleenpiirrossa
     };
     const kaikkiKuittaukset = () => [...(a.kuittaukset || []), ...S.kuittaukset];
     const $ = s => juuri.querySelector(s);
@@ -512,14 +533,22 @@
     // ---------- yhteiset palat ----------
     const merkki = (teksti, laji) => `<span class="sy-merkki${laji ? ' sy-merkki--' + laji : ''}">${esc(teksti)}</span>`;
     const tilaMerkki = t => `<span class="sy-tila sy-tila--${t}">${esc(TILA_NIMI[t])}</span>`;
+    // Puutteellinen, joka erääntyy tai on myöhässä: molemmat merkit (ruudunlukija: "Puutteellinen, Erääntyy").
+    const tilaMerkit = l => (puutteellinenMyos(l) ? `${tilaMerkki('puutteellinen')}<span class="sy-sr">,</span> ${tilaMerkki(l.tila)}` : tilaMerkki(l.tila));
+    // Selite, kun Puutteelliset-luku menee päällekkäin Erääntyy- tai Myöhässä-luvun kanssa; muuten tyhjä.
+    function paallekkain(L) {
+      const e = L.puutteellinenEraantyy || 0, m = L.puutteellinenMyohassa || 0;
+      if (!e && !m) return '';
+      return `Puutteellisista ${e ? `${lukuFi(e)} on myös Erääntyy-luvussa${m ? ` ja ${lukuFi(m)} Myöhässä-luvussa` : ''}` : `${lukuFi(m)} on myös Myöhässä-luvussa`}.`;
+    }
     function paa(id, johdanto) {
-      return `<header class="sy-nakymapaa"><p class="sy-ylaotsikko">Kaupungin näkymä: ${esc(a.palvelu.nimi)}</p>
-        <${H(0)} id="sy-otsikko" tabindex="-1">${esc(NAKYMAT[id])}</${H(0)}>${johdanto ? `<p class="sy-johdanto">${johdanto}</p>` : ''}</header>`;
+      return `<header class="sy-nakymapaa"><p class="sy-ylaotsikko">Kaupungin näkymä: ${esc(palveluNimi)}</p>
+        <${H(0)} id="sy-otsikko" tabindex="-1">${esc(nakymaNimi(id))}</${H(0)}>${johdanto ? `<p class="sy-johdanto">${johdanto}</p>` : ''}</header>`;
     }
     function tyokalut(kuntaValinta) {
       return `<div class="sy-tyokalut">
         <div class="sy-kentta"><label for="sy-jakso">Jakso</label><select id="sy-jakso">${kuukaudet.map(kk => `<option value="${kk}"${kk === S.jakso ? ' selected' : ''}>${esc(kuukaudenNimi(kk))}${jakso(kk, T).kesken ? ' (kesken)' : ''}</option>`).join('')}</select></div>
-        ${monta && kuntaValinta ? `<div class="sy-kentta"><label for="sy-kunta">Kunta</label><select id="sy-kunta"><option value="">Kaikki kunnat</option>${a.kunnat.map(k => `<option value="${esc(k.id)}"${k.id === S.kunta ? ' selected' : ''}>${esc(k.nimi)}</option>`).join('')}</select></div>` : ''}
+        ${monta && kuntaValinta ? `<div class="sy-kentta"><label for="sy-kunta">${esc(KS.yksi)}</label><select id="sy-kunta"><option value="">${esc(KS.kaikki)}</option>${a.kunnat.map(k => `<option value="${esc(k.id)}"${k.id === S.kunta ? ' selected' : ''}>${esc(k.nimi)}</option>`).join('')}</select></div>` : ''}
       </div>`;
     }
     const kaavaLohko = (otsikko, teksti) => `<details class="sy-kaava"><summary>${esc(otsikko)}</summary><p>${esc(teksti)}</p></details>`;
@@ -541,22 +570,37 @@
     function nakymaYleiskuva() {
       const c = konteksti(), L = c.laskurit;
       const nyt = [['uusi', 'Uudet'], ['puutteellinen', 'Puutteelliset'], ['eraantyy', 'Erääntyy'], ['myohassa', 'Myöhässä']];
+      const pk = paallekkain(L);
+      const kuvaus = t => (pk && t === 'puutteellinen' ? ' aria-describedby="sy-tilanne-selite"' : '');
       return `${paa('yleiskuva', `Tilanne ${esc(fiVk(T))}. Jono näyttää tämän päivän tilanteen, luvut valitun jakson.`)}
-        ${tyokalut(true)}
+        ${tyokalut(true)}${ES ? esitysKaaviot(c) : ''}
         <section class="sy-osio" aria-labelledby="sy-o-nyt"><${H(1)} id="sy-o-nyt">Jono nyt${c.kunta ? `: ${esc(kunnanNimi(c.kunta))}` : ''}</${H(1)}>
-          <ul class="sy-tilanne">${nyt.map(([t, n]) => `<li><a class="sy-tilanne__linkki sy-tilanne__linkki--${t}" href="${esc(etuliite)}tyojono" data-sy-tila="${t}" data-sy-maara="${L[t]}"><span class="sy-tilanne__luku">${lukuFi(L[t])}</span> <span class="sy-tilanne__nimi">${n}</span></a></li>`).join('')}
+          <ul class="sy-tilanne">${nyt.map(([t, n]) => `<li><a class="sy-tilanne__linkki sy-tilanne__linkki--${t}" href="${esc(etuliite)}tyojono" data-sy-tila="${t}" data-sy-maara="${L[t]}"${kuvaus(t)}><span class="sy-tilanne__luku">${lukuFi(L[t])}</span> <span class="sy-tilanne__nimi">${n}</span></a></li>`).join('')}
             <li><a class="sy-tilanne__linkki" href="${esc(etuliite)}tyojono" data-sy-tila="avoimet" data-sy-maara="${L.avoimet}"><span class="sy-tilanne__luku">${lukuFi(L.avoimet)}</span> <span class="sy-tilanne__nimi">Avoimet yhteensä</span></a></li></ul>
+          ${pk ? `<p class="sy-vihje" id="sy-tilanne-selite">${esc(pk)} Avoimet yhteensä -luvussa jokainen ${esc(sanat.yksi)} on mukana kerran.</p>` : ''}
         </section>
         <section class="sy-osio" aria-labelledby="sy-o-luvut"><${H(1)} id="sy-o-luvut">Jakson luvut: ${esc(c.jakso.nimi)}${c.jakso.kesken ? ' (kesken)' : ''}</${H(1)}>
           <div class="sy-kortit" id="sy-kortit">${kortit(c)}</div></section>
-        ${(a.vertailu || []).length ? `<section class="sy-osio" aria-labelledby="sy-o-vertailu"><${H(1)} id="sy-o-vertailu">Ennen ja jälkeen: arvio</${H(1)}>
+        ${(a.vertailu || []).length ? `<section class="sy-osio" aria-labelledby="sy-o-vertailu"><${H(1)} id="sy-o-vertailu">${ES ? 'Ennen ja jälkeen' : 'Ennen ja jälkeen: arvio'}</${H(1)}>
           <p class="sy-johdanto">Arvio lasketaan alla olevista oletuksista. Luvut eivät ole mitattua työaikaa. Vaihda oletukset kunnan omiin lukuihin, niin arvio päivittyy.</p>
-          <div id="sy-vertailu">${vertailuTaulu(c)}</div>${oletuslomake()}</section>` : ''}`;
+          <div id="sy-vertailu">${vertailuTaulu(c)}</div>${ES ? `<details class="sy-kaava sy-esitys-oletukset"><summary>Laskennan oletukset (voi muuttaa)</summary>${oletuslomake()}</details>` : oletuslomake()}</section>` : ''}`;
+    }
+    // Esittelytila: viikkotrendi ja määrärahan käyttö rinnakkain heti jakson valinnan alla (näkyvät Teams-jaossa ilman vieritystä).
+    function esitysKaaviot(c) {
+      const vk = viikkotrendi(c.kohteet, c.jakso);
+      const mr = typeof a.maararaha === 'function' ? a.maararaha(c) : null;
+      const nimi = `${iso(c.jakso.nimi)}${c.jakso.kesken ? ' (kesken)' : ''}`;
+      return `<div class="sy-esitys-kaaviot">
+        <section class="sy-osio sy-esitys-kaavio" aria-labelledby="sy-o-trendi"><${H(1)} id="sy-o-trendi">Saapuneet ja ratkaistut viikoittain</${H(1)}>
+          ${trendiKaavio(vk, { id: 'sy-trendi', otsikko: `Saapuneet ja ratkaistut ${sanat.monikko} viikoittain, ${c.jakso.nimi}${c.kunta ? `, ${kunnanNimi(c.kunta)}` : ''}`, jaksoNimi: nimi,
+            vihje: `${nimi}${c.kunta ? `, ${kunnanNimi(c.kunta)}` : ''}. Viikko alkaa maanantaista, ja jakson ulkopuoliset päivät eivät ole mukana.` })}</section>
+        ${mr ? `<section class="sy-osio sy-esitys-kaavio" aria-labelledby="sy-o-maararaha"><${H(1)} id="sy-o-maararaha">${esc(mr.otsikko || 'Määrärahan käyttö')}</${H(1)}>${maararahaPalkki(mr)}</section>` : ''}
+      </div>`;
     }
     function kortit(c) {
       return mittarit(c).map(m => `<article class="sy-kortti${m.arvio ? ' sy-kortti--arvio' : ''}" data-mittari="${esc(m.id)}" data-arvo="${m.arvo ?? ''}">
-        <${H(2)} class="sy-kortti__nimi">${esc(m.nimi)}${m.arvio ? ' ' + merkki('Arvio', 'arvio') : ''}</${H(2)}>
-        <p class="sy-kortti__arvo">${esc(m.naytto)}</p>${m.selite ? `<p class="sy-kortti__selite">${esc(m.selite)}</p>` : ''}
+        <${H(2)} class="sy-kortti__nimi">${esc(m.nimi)}${m.arvio && !ES ? ' ' + merkki('Arvio', 'arvio') : ''}</${H(2)}>
+        <p class="sy-kortti__arvo">${esc(m.naytto)}${ES && m.arvio && !/arvio/i.test(m.nimi) ? ' ' + merkki('arvio', 'arvio') : ''}</p>${m.selite ? `<p class="sy-kortti__selite">${esc(m.selite)}</p>` : ''}
         ${kaavaLohko('Näin luku lasketaan', m.kaava)}</article>`).join('');
     }
     function vertailuTaulu(c) {
@@ -589,9 +633,10 @@
       const f = S.suodatin;
       return `${paa('tyojono', `Tilanne ${esc(fiVk(T))}. Jono on järjestetty määräpäivän mukaan. Erääntyy tarkoittaa, että määräpäivään on enintään ${N} työpäivää.`)}
         <div class="sy-laskurit" role="group" aria-label="Tilat. Valitse tila suodattimeksi.">${TILAT.map(t => `<button type="button" class="sy-laskuri sy-laskuri--${t.id}" data-sy-tila="${t.id}" aria-pressed="false"><span class="sy-laskuri__luku" data-sy-laskuri="${t.id}">0</span> <span class="sy-laskuri__nimi">${t.nimi}</span></button>`).join('')}</div>
+        <p class="sy-vihje sy-laskurit__selite" id="sy-laskurit-selite" hidden></p>
         <form class="sy-suodattimet" id="sy-suodattimet" novalidate>
           <div class="sy-kentta"><label for="sy-s-tila">Tila</label><select id="sy-s-tila" data-sy-suodatin="tila">${vaihtoehdot([['avoimet', 'Avoimet'], ['kaikki', 'Kaikki'], ...TILAT.map(t => [t.id, t.nimi])], f.tila)}</select></div>
-          ${monta ? `<div class="sy-kentta"><label for="sy-s-kunta">Kunta</label><select id="sy-s-kunta" data-sy-suodatin="kunta">${vaihtoehdot([['', 'Kaikki kunnat'], ...a.kunnat.map(k => [k.id, k.nimi])], f.kunta)}</select></div>` : ''}
+          ${monta ? `<div class="sy-kentta"><label for="sy-s-kunta">${esc(KS.yksi)}</label><select id="sy-s-kunta" data-sy-suodatin="kunta">${vaihtoehdot([['', KS.kaikki], ...a.kunnat.map(k => [k.id, k.nimi])], f.kunta)}</select></div>` : ''}
           <div class="sy-kentta"><label for="sy-s-yksikko">Yksikkö</label><select id="sy-s-yksikko" data-sy-suodatin="yksikko">${vaihtoehdot([['', 'Kaikki yksiköt'], ...yksikot.map(y => [y.id, y.nimi])], f.yksikko)}</select></div>
           <div class="sy-kentta"><label for="sy-s-kasittelija">Käsittelijä</label><select id="sy-s-kasittelija" data-sy-suodatin="kasittelija">${vaihtoehdot([['', 'Kaikki käsittelijät'], ['-', 'Ei käsittelijää'], ...kasittelijat.map(k => [k, k])], f.kasittelija)}</select></div>
         </form>
@@ -625,17 +670,19 @@
       const c = laskeLaskurit(perus);
       juuri.querySelectorAll('[data-sy-laskuri]').forEach(el => { el.textContent = lukuFi(c[el.dataset.syLaskuri]); });
       juuri.querySelectorAll('.sy-laskuri').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.syTila === f.tila)));
+      const selite = $('#sy-laskurit-selite'), pk = paallekkain(c);
+      if (selite) { selite.textContent = pk ? `${pk} Avoimia on ${lukuFi(c.avoimet)}.` : ''; selite.hidden = !pk; }
       const tilaSel = $('#sy-s-tila'); if (tilaSel) tilaSel.value = f.tila;
-      const rivit = perus.filter(k => f.tila === 'kaikki' || (f.tila === 'avoimet' ? k.laskettu.tila !== 'valmis' : k.laskettu.tila === f.tila)).sort(jarjestys);
+      const rivit = perus.filter(k => kuuluuTilaan(k.laskettu, f.tila)).sort(jarjestys);
       S.jonoRivit = rivit;
       const maaraTeksti = `Näytetään ${kpl(rivit.length)}.`;
       $('#sy-jono-tulos').innerHTML = `<p class="sy-maara" id="sy-jono-maara" data-maara="${rivit.length}">${maaraTeksti}</p>` + (rivit.length ? `
         <table class="sy-taulu sy-taulu--pino sy-jono"><caption class="sy-sr">Työjono määräpäivän mukaan</caption>
-        <thead><tr><th scope="col">Määräpäivä</th><th scope="col">${esc(sanat.otsikko)}</th><th scope="col">Tila</th>${monta ? '<th scope="col">Kunta</th>' : ''}<th scope="col">Yksikkö</th><th scope="col">Käsittelijä</th><th scope="col">Saapui</th><th scope="col">Jäljellä</th></tr></thead>
-        <tbody>${rivit.map(k => `<tr data-sy-kohde="${esc(k.id)}" data-tila="${k.laskettu.tila}">
+        <thead><tr><th scope="col">Määräpäivä</th><th scope="col">${esc(sanat.otsikko)}</th><th scope="col">Tila</th>${monta ? `<th scope="col">${esc(KS.yksi)}</th>` : ''}<th scope="col">Yksikkö</th><th scope="col">Käsittelijä</th><th scope="col">Saapui</th><th scope="col">Jäljellä</th></tr></thead>
+        <tbody>${rivit.map(k => `<tr data-sy-kohde="${esc(k.id)}" data-tila="${k.laskettu.tila}" data-perustila="${esc(k.laskettu.perustila)}">
           ${td('Määräpäivä', k.maarapaiva ? esc(fiVk(k.maarapaiva)) + (k.keskeytetty ? ' (keskeytetty)' : '') : 'Ei määräpäivää')}
-          <th scope="row" data-otsikko="${esc(sanat.otsikko)}"><div class="sy-solu">${kohdeLinkki(k)}</div></th>${td('Tila', tilaMerkki(k.laskettu.tila))}
-          ${monta ? td('Kunta', esc(kunnanNimi(k.kunta))) : ''}${td('Yksikkö', esc(yksikonNimi(k.yksikko)))}${td('Käsittelijä', k.kasittelija ? esc(k.kasittelija) : '<i>Ei käsittelijää</i>')}
+          <th scope="row" data-otsikko="${esc(sanat.otsikko)}"><div class="sy-solu">${kohdeLinkki(k)}</div></th>${td('Tila', tilaMerkit(k.laskettu))}
+          ${monta ? td(KS.yksi, esc(kunnanNimi(k.kunta))) : ''}${td('Yksikkö', esc(yksikonNimi(k.yksikko)))}${td('Käsittelijä', k.kasittelija ? esc(k.kasittelija) : '<i>Ei käsittelijää</i>')}
           ${td('Saapui', esc(fi(k.saapui)))}${td('Jäljellä', jaljella(k))}</tr>`).join('')}</tbody></table>`
         : `<p class="sy-tyhja">Näillä valinnoilla ei ole yhtään ${esc(sanat.partitiivi)}.</p>`);
       lisaaRoolit($('#sy-jono-tulos'));
@@ -677,14 +724,14 @@
     function raporttiHtml(c) {
       const L = c.luvut, V = c.vertailu, E = c.estetyt, h = n => H(1 + n);
       const kunnat = c.kunta ? kunnanNimi(c.kunta) : a.kunnat.map(k => k.nimi + (k.isanta && monta ? ' (isäntäkunta)' : '')).join(', ');
-      const riskit = c.kohteet.filter(k => ['myohassa', 'eraantyy'].includes(k.laskettu.tila)).sort(jarjestys);
+      const riskit = c.kohteet.filter(k => ['myohassa', 'eraantyy'].includes(k.laskettu.tila)).sort(jarjestys); // tilan nimeksi määräaikatila, ei perustilaa
       const sj = monta && !c.kunta ? seutu() : null;
       const saannot = (a.saannot || []).map(s => saannonTila(s, kaikkiKuittaukset(), T, saantoAsetukset));
       const luku = (id, nimi, arvo, lisa) => `<div class="sy-r-luku" data-sy-r="${id}"><span class="sy-r-luku__arvo">${arvo}</span><span class="sy-r-luku__nimi">${nimi}</span>${lisa ? `<span class="sy-r-luku__lisa">${lisa}</span>` : ''}</div>`;
       const myoh = L.myohassaRatkaistut;
       return `<article class="sy-raportti" aria-labelledby="sy-r-otsikko">
         <header class="sy-r-paa"><div><p class="sy-r-yla">Kuukausiraportti lautakunnalle tai johtoryhmälle</p>
-          <${h(0)} class="sy-r-otsikko" id="sy-r-otsikko">${esc(a.palvelu.nimi)}: ${esc(c.jakso.nimi)}${c.jakso.kesken ? ' (kesken)' : ''}</${h(0)}>
+          <${h(0)} class="sy-r-otsikko" id="sy-r-otsikko">${esc(palveluNimi)}: ${esc(c.jakso.nimi)}${c.jakso.kesken ? ' (kesken)' : ''}</${h(0)}>
           <p>${esc(kunnat)}</p></div>
           <dl class="sy-r-meta"><div><dt>Jakso</dt><dd>${fi(c.jakso.alku)}-${fi(c.jakso.loppu)}</dd></div><div><dt>Tilanne</dt><dd>${esc(fiVk(T))}</dd></div>${a.demo ? '<div><dt>Aineisto</dt><dd>Demo, kuvitteellinen</dd></div>' : ''}</dl></header>
         <div class="sy-r-luvut">${luku('saapuneet', 'Saapuneet', lukuFi(L.saapuneet))}${luku('ratkaistut', 'Ratkaistu', lukuFi(L.ratkaistut))}
@@ -699,10 +746,10 @@
           <${h(1)}>Mitä palvelu esti</${h(1)}>
           ${E.ryhmat.length ? `<table class="sy-r-taulu"><tbody>${E.ryhmat.slice(0, 5).map(r => `<tr><th scope="row">${esc(r.nimi)}</th><td>${r.maara}</td></tr>`).join('')}${E.ryhmat.length > 5 ? `<tr><th scope="row">Muut syyt</th><td>${summa(E.ryhmat.slice(5).map(r => r.maara))}</td></tr>` : ''}</tbody></table>` : '<p>Ei estettyjä virheitä.</p>'}</section>
           <section><${h(1)}>Avoimet riskit ${esc(fi(T))}</${h(1)}>
-          ${riskit.length ? `<table class="sy-r-taulu"><thead><tr><th scope="col">Määräpäivä</th><th scope="col">${esc(sanat.otsikko)}</th>${monta && !c.kunta ? '<th scope="col">Kunta</th>' : ''}<th scope="col">Tila</th></tr></thead>
-            <tbody>${riskit.slice(0, 8).map(k => `<tr><td>${esc(fi(k.maarapaiva))}</td><th scope="row">${esc(k.id)}</th>${monta && !c.kunta ? `<td>${esc(kunnanNimi(k.kunta))}</td>` : ''}<td>${esc(k.laskettu.tilaNimi)}${k.laskettu.tila === 'myohassa' ? ` ${k.laskettu.myohassaTp} tp` : ''}</td></tr>`).join('')}</tbody></table>
+          ${riskit.length ? `<table class="sy-r-taulu"><thead><tr><th scope="col">Määräpäivä</th><th scope="col">${esc(sanat.otsikko)}</th>${monta && !c.kunta ? `<th scope="col">${esc(KS.yksi)}</th>` : ''}<th scope="col">Tila</th></tr></thead>
+            <tbody>${riskit.slice(0, 8).map(k => `<tr><td>${esc(fi(k.maarapaiva))}</td><th scope="row">${esc(k.id)}</th>${monta && !c.kunta ? `<td>${esc(kunnanNimi(k.kunta))}</td>` : ''}<td>${esc(TILA_NIMI[k.laskettu.tila])}${k.laskettu.tila === 'myohassa' ? ` ${k.laskettu.myohassaTp} tp` : ''}</td></tr>`).join('')}</tbody></table>
             ${riskit.length > 8 ? `<p>Lisäksi ${riskit.length - 8} muuta.</p>` : ''}` : '<p>Ei myöhässä olevia eikä erääntyviä.</p>'}</section></div>
-        ${sj ? `<section><${h(1)}>Kunnittain</${h(1)}><table class="sy-r-taulu sy-r-taulu--levea"><thead><tr><th scope="col">Kunta</th><th scope="col">Saapuneet</th><th scope="col">Ratkaistu</th><th scope="col">Määräajassa</th><th scope="col">Avoimet nyt</th><th scope="col">Myöhässä nyt</th><th scope="col">Estetyt</th>${(a.vertailu || []).length ? '<th scope="col">Säästöarvio</th>' : ''}</tr></thead>
+        ${sj ? `<section><${h(1)}>${esc(KS.nakyma)}</${h(1)}><table class="sy-r-taulu sy-r-taulu--levea"><thead><tr><th scope="col">${esc(KS.yksi)}</th><th scope="col">Saapuneet</th><th scope="col">Ratkaistu</th><th scope="col">Määräajassa</th><th scope="col">Avoimet nyt</th><th scope="col">Myöhässä nyt</th><th scope="col">Estetyt</th>${(a.vertailu || []).length ? '<th scope="col">Säästöarvio</th>' : ''}</tr></thead>
           <tbody>${[...sj.rivit, { kunta: { nimi: 'Yhteensä' }, ...sj.yhteensa, yht: true }].map(r => `<tr${r.yht ? ' class="sy-r-yht"' : ''}><th scope="row">${esc(r.kunta.nimi)}</th><td>${r.saapuneet}</td><td>${r.ratkaistut}</td><td>${pros(r.ajassaOsuus)}</td><td>${r.avoimet}</td><td>${r.myohassa}</td><td>${r.estetyt}</td>${(a.vertailu || []).length ? `<td>${tunnit(r.saastoMin)}</td>` : ''}</tr>`).join('')}</tbody></table></section>` : ''}
         ${(a.vertailu || []).length ? `<section><${h(1)}>Säästöarvio ja laskennan oletukset</${h(1)}>
           <table class="sy-r-taulu sy-r-taulu--levea"><thead><tr><th scope="col">Työvaihe</th><th scope="col">Määrä</th><th scope="col">Ilman palvelua</th><th scope="col">Palvelun kanssa</th><th scope="col">Erotus</th></tr></thead>
@@ -710,7 +757,7 @@
           <tr class="sy-r-yht"><th scope="row">Yhteensä</th><td></td><td>${tunnit(V.ennenMin)}</td><td>${tunnit(V.jalkeenMin)}</td><td>${tunnit(V.saastoMin)}${V.euroa != null ? `, noin ${lukuFi(V.euroa)} €` : ''}</td></tr></tbody></table>
           <p class="sy-r-pieni">Arvio, ei mitattu säästö. Oletukset: ${(a.oletukset || []).map(o => `${esc(o.nimi)} ${lukuFi(S.oletukset[o.id], S.oletukset[o.id] % 1 ? 1 : 0)} ${esc(o.yksikko || '')}${S.oletukset[o.id] !== Number(o.arvo) ? ' (muutettu)' : ''}`).join('; ')}.</p></section>` : ''}
         <footer class="sy-r-ala"><p>Laskentatapa: määräajat lain 150/1930 mukaan. Työpäiviä ovat ma-pe paitsi arkipyhät sekä joulu- ja juhannusaatto. Käsittelyaika lasketaan saapumista seuraavasta työpäivästä valmistumispäivään.${saannot.length ? ` Sääntökirjasto: ${saannot.length} sääntöä, kuitattu ${saannot.filter(s => s.tila === 'kuitattu').length}, tarkistettavana ${saannot.filter(s => s.tila === 'tarkistettava').length}, kuittaamatta ${saannot.filter(s => s.tila === 'kuittaamatta').length}.` : ''}</p>
-          <p>${esc(a.palvelu.nimi)}, laadittu ${esc(fi(T))}. Savikurki-ydin ${VERSIO}.</p></footer></article>`;
+          <p>${esc(palveluNimi)}, laadittu ${esc(fi(T))}.${ES ? ' Palvelun tarjoaa Savikurki Digital Oy.' : ''} Savikurki-ydin ${VERSIO}.</p></footer></article>`;
     }
     function nakymaRaportti() {
       return `${paa('raportti', 'Yhden sivun kuukausiraportti lautakunnalle tai johtoryhmälle. Tulostuu yhdelle A4-sivulle.')}
@@ -732,12 +779,12 @@
       const sj = seutu(), isanta = a.kunnat.find(k => k.isanta);
       const sar = [['saapuneet', 'Saapuneet'], ['ratkaistut', 'Ratkaistu'], ['ajassaOsuus', 'Määräajassa'], ['avoimet', 'Avoimet nyt'], ['eraantyy', 'Erääntyy nyt'], ['myohassa', 'Myöhässä nyt'], ['estetyt', 'Estetyt virheet'], ...((a.vertailu || []).length ? [['saastoMin', 'Säästöarvio']] : [])];
       const arvo = (f, v) => (f === 'ajassaOsuus' ? pros(v) : f === 'saastoMin' ? tunnit(v) : lukuFi(v));
-      return `${paa('seutu', isanta ? `Isäntäkunta ${esc(isanta.nimi)} käsittelee myös näiden kuntien ${esc(sanat.monikko)}: ${esc(a.kunnat.filter(k => !k.isanta).map(k => k.nimi).join(', '))}. Luvut kunnittain ja yhteensä.` : 'Luvut kunnittain ja yhteensä.')}
+      return `${paa('seutu', isanta ? `Isäntäkunta ${esc(isanta.nimi)} käsittelee myös näiden kuntien ${esc(sanat.monikko)}: ${esc(a.kunnat.filter(k => !k.isanta).map(k => k.nimi).join(', '))}. Luvut kunnittain ja yhteensä.` : (ES && a.kuntaSana ? `Luvut ${KS.nakyma.toLowerCase()} ja yhteensä.` : 'Luvut kunnittain ja yhteensä.'))}
         ${tyokalut(false)}
         <table class="sy-taulu sy-taulu--pino sy-seutu"><caption class="sy-sr">Luvut kunnittain, ${esc(kuukaudenNimi(S.jakso))}</caption>
-        <thead><tr><th scope="col">Kunta</th>${sar.map(([, n]) => `<th scope="col">${n}</th>`).join('')}</tr></thead>
-        <tbody>${sj.rivit.map(r => `<tr data-sy-kunta="${esc(r.kunta.id)}"><th scope="row" data-otsikko="Kunta"><div class="sy-solu">${esc(r.kunta.nimi)}${r.kunta.isanta ? ' ' + merkki('Isäntä') : ''}</div></th>${sar.map(([f, n]) => td(n, arvo(f, r[f]), ` data-sar="${f}" data-arvo="${r[f] ?? ''}"`)).join('')}</tr>`).join('')}</tbody>
-        <tfoot><tr data-sy-kunta="yhteensa"><th scope="row" data-otsikko="Kunta"><div class="sy-solu">Yhteensä</div></th>${sar.map(([f, n]) => td(n, `<b>${arvo(f, sj.yhteensa[f])}</b>`, ` data-sar="${f}" data-arvo="${sj.yhteensa[f] ?? ''}"`)).join('')}</tr></tfoot></table>
+        <thead><tr><th scope="col">${esc(KS.yksi)}</th>${sar.map(([, n]) => `<th scope="col">${n}</th>`).join('')}</tr></thead>
+        <tbody>${sj.rivit.map(r => `<tr data-sy-kunta="${esc(r.kunta.id)}"><th scope="row" data-otsikko="${esc(KS.yksi)}"><div class="sy-solu">${esc(r.kunta.nimi)}${r.kunta.isanta ? ' ' + merkki('Isäntä') : ''}</div></th>${sar.map(([f, n]) => td(n, arvo(f, r[f]), ` data-sar="${f}" data-arvo="${r[f] ?? ''}"`)).join('')}</tr>`).join('')}</tbody>
+        <tfoot><tr data-sy-kunta="yhteensa"><th scope="row" data-otsikko="${esc(KS.yksi)}"><div class="sy-solu">Yhteensä</div></th>${sar.map(([f, n]) => td(n, `<b>${arvo(f, sj.yhteensa[f])}</b>`, ` data-sar="${f}" data-arvo="${sj.yhteensa[f] ?? ''}"`)).join('')}</tr></tfoot></table>
         ${kaavaLohko('Näin yhteensä-rivi lasketaan', 'Määrät ja säästöarvio ovat kuntien summia. Määräajassa-osuus lasketaan summista (määräajassa ratkaistut yhteensä / ratkaistut, joilla on määräpäivä, yhteensä), ei kuntien prosenttien keskiarvona. Avoimet, erääntyvät ja myöhässä olevat ovat tämän päivän tilanne, muut valitun jakson luvut.')}`;
     }
 
@@ -747,12 +794,21 @@
       const lkm = t => lista.filter(x => x.t.tila === t).length;
       const historia = [...(a.saantoHistoria || []).map((h, i) => ({ ...h, jarj: i })), ...kaikkiKuittaukset().map((k, i) => ({ pvm: k.pvm, tunnus: k.tunnus, teksti: `Kuitattu: ${k.nimi}`, jarj: 1000 + i }))]
         .sort((x, y) => y.pvm.localeCompare(x.pvm) || y.jarj - x.jarj);
+      const f = S.saantoSuodatin;
+      // Laskurit ovat tilasuodattimen pikavalintoja (button, aria-pressed). Suodatus piilottaa rivit eikä piirrä näkymää uudelleen.
       return `${paa('saannot', `Palvelun säännöt lähteineen. Kunnan viranhaltija kuittaa säännöt kerran vuodessa. Kuittaus tarkoittaa, että hän on lukenut säännön lähteestä ja todennut sen ajantasaiseksi. Seuraava tarkistus on ${a.kuittausKk || 12} kuukauden päästä.`)}
-        <ul class="sy-saantolaskurit">${Object.entries(SAANTOTILAT).map(([id, n]) => `<li class="sy-saantolaskuri sy-saantolaskuri--${id}"><span data-sy-saantolaskuri="${id}">${lkm(id)}</span> ${n}</li>`).join('')}</ul>
+        <div class="sy-saantolaskurit" role="group" aria-label="Sääntöjen tilat. Valitse tila suodattimeksi.">${Object.entries(SAANTOTILAT).map(([id, n]) => `<button type="button" class="sy-saantolaskuri sy-saantolaskuri--${id}" data-sy-saantotila="${id}" aria-pressed="${f.tila === id}"><span data-sy-saantolaskuri="${id}">${lkm(id)}</span> ${n}</button>`).join('')}</div>
         <div class="sy-kentta sy-kuittaaja"><label for="sy-kuittaaja">Kuittaajan nimi ja nimike</label>
           <input type="text" id="sy-kuittaaja" autocomplete="name" value="${esc(S.kuittaaja)}" aria-describedby="sy-kuittaaja-v">
           <p class="sy-vihje" id="sy-kuittaaja-v">Demossa nimi ja päivä tallentuvat vain tähän selainvälilehteen, ja kuittauspäivä on tarkastelupäivä ${esc(fi(T))}. Tuotannossa nimi tulee kirjautumisesta.</p>
           <p class="sy-virhe" id="sy-kuittaaja-virhe" hidden>Kirjoita kuittaajan nimi ennen kuittausta.</p></div>
+        <form class="sy-suodattimet sy-saantosuodatin" id="sy-saantosuodatin" role="search" aria-label="Suodata sääntöjä" novalidate>
+          <div class="sy-kentta sy-kentta--haku"><label for="sy-saanto-haku">Hae säännöistä</label>
+            <input type="search" id="sy-saanto-haku" value="${esc(f.haku)}" placeholder="tunnus, sana tai päivämäärä" autocomplete="off" spellcheck="false"></div>
+          <div class="sy-kentta"><label for="sy-saanto-tila">Tila</label><select id="sy-saanto-tila">${[['', 'Kaikki'], ...Object.entries(SAANTOTILAT)].map(([v, n]) => `<option value="${v}"${v === f.tila ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+        </form>
+        <p class="sy-maara" id="sy-saanto-maara" aria-live="polite" tabindex="-1">Näytetään ${lista.length} / ${lista.length} sääntöä.</p>
+        <p class="sy-tyhja" id="sy-saanto-tyhja" hidden>Ei osumia. Tyhjennä haku tai valitse tila Kaikki.</p>
         <table class="sy-taulu sy-taulu--pino sy-saannot"><caption class="sy-sr">Säännöt ja niiden kuittaustila</caption>
         <thead><tr><th scope="col">Tunnus</th><th scope="col">Sääntö</th><th scope="col">Lähde</th><th scope="col">Voimassa alkaen</th><th scope="col">Tila</th><th scope="col">Kuittaus</th></tr></thead>
         <tbody>${lista.map(({ s, t }) => `<tr data-sy-saanto="${esc(s.tunnus)}" data-tila="${t.tila}">
@@ -766,6 +822,35 @@
           <thead><tr><th scope="col">Päivä</th><th scope="col">Sääntö</th><th scope="col">Tapahtuma</th></tr></thead>
           <tbody>${historia.map(h => `<tr>${td('Päivä', esc(fi(h.pvm)))}<th scope="row" data-otsikko="Sääntö"><div class="sy-solu">${esc(h.tunnus)}</div></th>${td('Tapahtuma', esc(h.teksti))}</tr>`).join('')}</tbody></table>` : '<p class="sy-tyhja">Ei merkintöjä.</p>'}</section>`;
     }
+    // Suodattaa sääntörivit hakusanan (tunnus, sääntö ja lähde, kirjainkoosta riippumatta) ja tilan mukaan. Rivit
+    // piilotetaan (hidden), joten näkymää ei piirretä uudelleen eikä fokus siirry pois hakukentästä.
+    const normalisoi = s => String(s || '').toLocaleLowerCase('fi').replace(/\s+/g, ' ').trim();
+    let saantoAjastin = null;
+    function suodataSaannot(viivetta) {
+      const f = S.saantoSuodatin, haku = normalisoi(f.haku);
+      const rivit = [...juuri.querySelectorAll('tr[data-sy-saanto]')];
+      let n = 0;
+      for (const tr of rivit) {
+        const teksti = normalisoi([...tr.children].slice(0, 3).map(c => c.textContent).join(' '));
+        const nakyy = (!f.tila || tr.dataset.tila === f.tila) && (!haku || teksti.includes(haku));
+        tr.hidden = !nakyy;
+        if (nakyy) n++;
+      }
+      juuri.querySelectorAll('[data-sy-saantotila]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sySaantotila === f.tila)));
+      const sel = $('#sy-saanto-tila'); if (sel && sel.value !== f.tila) sel.value = f.tila;
+      const taulu = $('table.sy-saannot'), tyhja = $('#sy-saanto-tyhja'), maara = $('#sy-saanto-maara');
+      if (taulu) taulu.hidden = n === 0;
+      if (tyhja) tyhja.hidden = n !== 0;
+      if (maara) {
+        maara.dataset.maara = n; maara.dataset.yhteensa = rivit.length;
+        const teksti = `Näytetään ${lukuFi(n)} / ${lukuFi(rivit.length)} sääntöä.`;
+        // Kirjoitettaessa ruudunlukijalle luetaan vasta tauon jälkeen, ei jokaisella näppäimellä.
+        const aseta = () => { if (maara.textContent !== teksti) maara.textContent = teksti; };
+        clearTimeout(saantoAjastin);
+        if (viivetta) saantoAjastin = setTimeout(aseta, 300); else aseta();
+      }
+      return n;
+    }
     function kuittaa(tunnus) {
       const nimiEl = $('#sy-kuittaaja'), nimi = (nimiEl ? nimiEl.value : S.kuittaaja).trim();
       if (!nimi) {
@@ -778,8 +863,10 @@
       tallenna('kuittaukset', S.kuittaukset); tallenna('kuittaaja', nimi);
       if (a.kuittausTallennettu) a.kuittausTallennettu(k);
       renderoi({ fokus: false });
-      const rivi = $(`#sy-s-${CSS.escape(tunnus)}`); if (rivi) rivi.focus();
-      ilmoita(`Sääntö ${tunnus} kuitattu ${fi(T)}.`);
+      // Jos kuitattu sääntö ei enää näy valitulla suodattimella, fokus siirtyy määrätekstiin.
+      const rivi = $(`#sy-s-${CSS.escape(tunnus)}`), nakyy = !!rivi && !rivi.closest('tr').hidden;
+      if (nakyy) rivi.focus(); else if ($('#sy-saanto-maara')) $('#sy-saanto-maara').focus();
+      ilmoita(`Sääntö ${tunnus} kuitattu ${fi(T)}.${nakyy ? '' : ' Se ei näy valituilla suodattimilla.'}`);
     }
 
     // ---------- Määräaikalaskuri (käsittelijä) ----------
@@ -828,11 +915,12 @@
     function renderoiRoolit() {
       $('#sy-roolit').innerHTML = S.ulkoinenRooli
         ? `<p class="sy-roolihuomio">Kirjautunut roolissa <b>${esc(ROOLIT[S.rooli].nimi)}</b>. Rooli tulee kunnan käyttäjähallinnasta (Entra ID).</p>`
+        : ES ? `<div class="sy-roolivalinta sy-roolivalinta--kompakti"><label for="sy-rooli-valinta">Näkymä</label><select id="sy-rooli-valinta" name="sy-rooli">${Object.entries(ROOLIT).map(([id, r]) => `<option value="${id}"${id === S.rooli ? ' selected' : ''}>${r.nimi}</option>`).join('')}</select></div>`
         : `<fieldset class="sy-roolivalinta"><legend>Näkymä roolille</legend>${Object.entries(ROOLIT).map(([id, r]) => `<label class="sy-valinta"><input type="radio" name="sy-rooli" value="${id}"${id === S.rooli ? ' checked' : ''}> ${r.nimi}</label>`).join('')}</fieldset>
           <p class="sy-roolihuomio">${merkki('Demo')} Rooli valitaan tässä käsin. Tuotannossa käyttäjä kirjautuu kunnan Microsoft-tunnuksilla (Entra ID), ja rooli tulee hänen käyttäjäryhmästään.</p>`;
     }
     function renderoiValilehdet() {
-      $('#sy-valilehdet').innerHTML = sallitut().map(id => `<li><a href="${esc(etuliite + id)}" data-sy-nakyma="${id}"${id === S.nakyma ? ' aria-current="page"' : ''}>${esc(NAKYMAT[id])}</a></li>`).join('');
+      $('#sy-valilehdet').innerHTML = sallitut().map(id => `<li><a href="${esc(etuliite + id)}" data-sy-nakyma="${id}"${id === S.nakyma ? ' aria-current="page"' : ''}>${esc(nakymaNimi(id))}</a></li>`).join('');
     }
     const RENDEROIJAT = { yleiskuva: nakymaYleiskuva, tyojono: nakymaTyojono, estetyt: nakymaEstetyt, raportti: nakymaRaportti, seutu: nakymaSeutu, saannot: nakymaSaannot, laskuri: nakymaLaskuri };
     function renderoi(o) {
@@ -843,6 +931,7 @@
       el.dataset.nakyma = S.nakyma;
       lisaaRoolit(el);
       if (S.nakyma === 'tyojono') paivitaJono(false);
+      if (S.nakyma === 'saannot') suodataSaannot(false);
       if (o && o.fokus) { const h = $('#sy-otsikko'); if (h) h.focus(); }
       else if (fokusId && $(`#${CSS.escape(fokusId)}`)) $(`#${CSS.escape(fokusId)}`).focus();
       juuri.dispatchEvent(new CustomEvent('sy:nakyma', { detail: { nakyma: S.nakyma, rooli: S.rooli } }));
@@ -871,10 +960,11 @@
 
     // ---------- tapahtumat (delegointi) ----------
     juuri.addEventListener('click', e => {
-      const t = e.target.closest('[data-sy-tila], [data-sy-vie], [data-sy-kuittaa], [data-sy-tulosta], [data-sy-avaa], [data-sy-palauta-oletukset], [data-sy-esim], [data-sy-vie-laskuri]');
+      const t = e.target.closest('[data-sy-tila], [data-sy-saantotila], [data-sy-vie], [data-sy-kuittaa], [data-sy-tulosta], [data-sy-avaa], [data-sy-palauta-oletukset], [data-sy-esim], [data-sy-vie-laskuri]');
       if (!t || !juuri.contains(t)) return;
       const d = t.dataset;
-      if (d.syTila) {
+      if (d.sySaantotila) { S.saantoSuodatin.tila = S.saantoSuodatin.tila === d.sySaantotila ? '' : d.sySaantotila; suodataSaannot(false); }
+      else if (d.syTila) {
         if (S.nakyma === 'tyojono') { S.suodatin.tila = S.suodatin.tila === d.syTila ? 'avoimet' : d.syTila; paivitaJono(true); return; }
         S.suodatin = { tila: d.syTila, kunta: S.kunta, yksikko: '', kasittelija: '' }; // linkki vie työjonoon
       } else if (d.syVie) vie(d.syVie);
@@ -894,8 +984,9 @@
     });
     juuri.addEventListener('change', e => {
       const t = e.target;
-      if (t.name === 'sy-rooli') { asetaRooli(t.value); const r = juuri.querySelector(`input[name="sy-rooli"][value="${t.value}"]`); if (r) r.focus(); }
+      if (t.name === 'sy-rooli') { asetaRooli(t.value); const r = juuri.querySelector(`input[name="sy-rooli"][value="${t.value}"]`) || (ES && $('#sy-rooli-valinta')); if (r) r.focus(); }
       else if (t.dataset.sySuodatin) { S.suodatin[t.dataset.sySuodatin] = t.value; paivitaJono(true); }
+      else if (t.id === 'sy-saanto-tila') { S.saantoSuodatin.tila = t.value; suodataSaannot(false); }
       else if (t.id === 'sy-jakso') { S.jakso = t.value; renderoi({ fokus: false }); }
       else if (t.id === 'sy-kunta') { S.kunta = t.value; renderoi({ fokus: false }); }
     });
@@ -909,6 +1000,8 @@
         tallenna('oletukset', Object.fromEntries(Object.entries(S.oletukset).filter(([k, x]) => x !== oletusArvot[k])));
         const c = konteksti();
         $('#sy-kortit').innerHTML = kortit(c); $('#sy-vertailu').innerHTML = vertailuTaulu(c); lisaaRoolit($('#sy-vertailu'));
+      } else if (t.id === 'sy-saanto-haku') {
+        S.saantoSuodatin.haku = t.value; suodataSaannot(true);
       } else if (t.id === 'sy-kuittaaja') {
         S.kuittaaja = t.value; tallenna('kuittaaja', t.value);
         if (t.value.trim()) { t.removeAttribute('aria-invalid'); t.setAttribute('aria-describedby', 'sy-kuittaaja-v'); $('#sy-kuittaaja-virhe').hidden = true; }
@@ -921,7 +1014,11 @@
     // ---------- käynnistys ----------
     juuri.classList.add('sy');
     if (a.teema === 'vaalea') juuri.classList.add('sy--vaalea');
-    juuri.innerHTML = `<div class="sy-kehys"><div class="sy-roolit" id="sy-roolit"></div>
+    if (ES) juuri.classList.add('sy--vaalea', 'sy--esitys');
+    juuri.innerHTML = ES ? `<div class="sy-kehys"><div class="sy-esitys-ylarivi">
+      <nav class="sy-valilehdet" aria-label="${esc(a.navOtsikko || 'Kaupungin näkymä')}"><ul id="sy-valilehdet"></ul></nav><div class="sy-roolit" id="sy-roolit"></div></div>
+      <div class="sy-nakyma" id="sy-nakyma"></div><p class="sy-sr" aria-live="polite" id="sy-ilmoitus"></p></div>`
+      : `<div class="sy-kehys"><div class="sy-roolit" id="sy-roolit"></div>
       <nav class="sy-valilehdet" aria-label="${esc(a.navOtsikko || 'Kaupungin näkymä')}"><ul id="sy-valilehdet"></ul></nav>
       <div class="sy-nakyma" id="sy-nakyma"></div><p class="sy-sr" aria-live="polite" id="sy-ilmoitus"></p></div>`;
     if (a.rooli && typeof a.rooli.lahde === 'function') {
@@ -942,11 +1039,311 @@
     };
   }
 
+  /* ================= 6. Esittelytila =================
+     Esittelytila: kaavio, määrärahapalkki, Omat hakemukset, Tietoturva, lomakkeen vaiheet, puhelinkorjaukset, aina vaalea
+     ilme eikä demon kehittäjävihjeitä. Sivu, jolla on <meta name="savikurki-esitys" content="oletus">, näyttää sen
+     oletuksena Savikurjen omalla ylä- ja alatunnisteella (29.10.2026: Työnantajatuet ja Kesätyösetelit, jotta
+     savikurki.fi:n linkit avaavat demon esittelytilassa). Ilman merkintää esittelytila on pois, kuten ennen.
+     Kytkimet säilyvät välilehdessä (sessionStorage), joten sisäiset linkit pitävät ne:
+     - ?esitys=1: esittelytila kunnan ilmeellä (teema: nimi, väri, fontti), "Esittelyversio"-merkki ja kunnan alarivi.
+       ?esitys=0 poistaa kunnan ilmeen. Savikurki näkyy silloin toimittajana alarivillä ja Tietoa palvelusta -sivulla.
+     - ?kehitys=1: demon kehittäjänäkymä (?pvm-ohje, TODENTAMATTA-merkit, ei tämän osan muutoksia), voittaa muut.
+       ?kehitys=0 poistaa sen. Demojen tarkista.cjs ja tarkista-saavutettavuus.cjs ajavat kehittäjänäkymässä. */
+  const ESITYS_AVAIN = 'savikurki-esitys', KEHITYS_AVAIN = 'savikurki-kehitys';
+  const kytkimet = {};
+  function kytkin(nimi, avain) {
+    if (nimi in kytkimet) return kytkimet[nimi];
+    if (!root.location || !root.document) return (kytkimet[nimi] = false);
+    let p = null;
+    try { p = new URLSearchParams(root.location.search).get(nimi); } catch (e) { p = null; }
+    try {
+      if (p === '1') root.sessionStorage.setItem(avain, '1');
+      else if (p === '0') root.sessionStorage.removeItem(avain);
+      kytkimet[nimi] = p === '1' || (p !== '0' && root.sessionStorage.getItem(avain) === '1');
+    } catch (e) { kytkimet[nimi] = p === '1'; }
+    return kytkimet[nimi];
+  }
+  const esitysOletuksena = () => !!root.document.querySelector('meta[name="savikurki-esitys"][content="oletus"]');
+  // Esittelytila: ?esitys=1 tai sivun merkintä, ei kehittäjänäkymässä eikä Nodessa.
+  function esitysPaalla() {
+    if (!root.location || !root.document || kytkin('kehitys', KEHITYS_AVAIN)) return false;
+    return kytkin('esitys', ESITYS_AVAIN) || esitysOletuksena();
+  }
+  // Kunnan ilme: vain ?esitys=1.
+  function ilmePaalla() { return esitysPaalla() && kytkin('esitys', ESITYS_AVAIN); }
+  // Kuntien teemat. Lahti: brändikirjan Vesijärven sininen #004F71 ja varafontti Franklin Gothic (vain koneen omat fontit,
+  // ei ladattavia). Ei logoa eikä vaakunaa. Uusi kunta lisätään tähän.
+  const TEEMAT = {
+    lahti: { kunta: 'Lahden kaupunki', vari: '#004F71', fontti: '"Franklin Gothic Medium", "Franklin Gothic", system-ui, sans-serif',
+      lahde: 'Lahden kaupungin brändikirja: pääväri Vesijärven sininen #004F71, varafontti Franklin Gothic' },
+  };
+  const hexRgb = h => { const s = h.replace('#', ''); return [0, 2, 4].map(i => parseInt(s.slice(i, i + 2), 16)); };
+  const rgbHex = c => '#' + c.map(x => Math.round(Math.max(0, Math.min(255, x))).toString(16).padStart(2, '0')).join('').toUpperCase();
+  // Sekoitus: osuus = toisen värin osuus (0-1).
+  const sekoita = (a, b, osuus) => { const x = hexRgb(a), y = hexRgb(b); return rgbHex(x.map((v, i) => v + (y[i] - v) * osuus)); };
+  function luminanssi(h) {
+    const l = hexRgb(h).map(v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+    return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
+  }
+  // WCAG 2.1 -kontrastisuhde.
+  const kontrasti = (a, b) => { const x = luminanssi(a), y = luminanssi(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  // Pääväristä johdetut sävyt: vahva (hover), pehmeä (valittu tila, taustat), reuna ja keski (määrärahapalkin myönnetty-osa).
+  function savyt(vari) {
+    return { vari, vahva: sekoita(vari, '#000000', 0.25), pehmea: sekoita(vari, '#FFFFFF', 0.9), reuna: sekoita(vari, '#FFFFFF', 0.72),
+      keski: sekoita(vari, '#FFFFFF', 0.55), teksti: '#16191D', hento: '#4F5961', tausta: '#F4F6F7', pinta: '#FFFFFF' };
+  }
+  // Teeman kontrastit: teksti, painikkeet ja tilat. Testit vaativat jokaiselta vähintään 4,5:1 (WCAG 2.1 AA, teksti).
+  function teemanKontrastit(vari) {
+    const s = savyt(vari);
+    return [
+      { nimi: 'pääväri tekstinä valkoisella', a: s.vari, b: '#FFFFFF' },
+      { nimi: 'valkoinen teksti painikkeessa', a: '#FFFFFF', b: s.vari },
+      { nimi: 'valkoinen teksti painikkeessa, hover', a: '#FFFFFF', b: s.vahva },
+      { nimi: 'pääväri pehmeällä taustalla (valittu tila)', a: s.vari, b: s.pehmea },
+      { nimi: 'pääväri sivun taustalla', a: s.vari, b: s.tausta },
+      { nimi: 'leipäteksti sivun taustalla', a: s.teksti, b: s.tausta },
+      { nimi: 'hento teksti valkoisella', a: s.hento, b: '#FFFFFF' },
+      { nimi: 'hento teksti sivun taustalla', a: s.hento, b: s.tausta },
+      { nimi: 'valkoinen teksti alatunnisteessa', a: '#FFFFFF', b: s.vari },
+    ].map(r => ({ ...r, suhde: kontrasti(r.a, r.b) }));
+  }
+
+  // Viikkotrendi: saapuneet ja ratkaistut maanantaista sunnuntaihin alkavina viikkoina valitulla jaksolla. Jakson ulkopuoliset
+  // päivät rajataan pois, joten viikkojen summa on sama kuin jakson luku.
+  const isoViikko = s => { const to = lisaaPaivia(s, 4 - viikonpaiva(s)); return Math.floor(erotusPaivina(`${to.slice(0, 4)}-01-01`, to) / 7) + 1; };
+  function viikkotrendi(rik, j) {
+    const out = [];
+    for (let ma = lisaaPaivia(j.alku, 1 - viikonpaiva(j.alku)); ma <= j.loppu; ma = lisaaPaivia(ma, 7)) {
+      const alku = ma < j.alku ? j.alku : ma, su = lisaaPaivia(ma, 6), loppu = su > j.loppu ? j.loppu : su;
+      const sis = p => !!p && p >= alku && p <= loppu;
+      out.push({ viikko: isoViikko(ma), alku, loppu, saapuneet: rik.filter(k => sis(k.saapui)).length,
+        ratkaistut: rik.filter(k => k.tila === 'valmis' && sis(k.valmistui)).length });
+    }
+    return out;
+  }
+
+  // Kaavio: inline-SVG, sarakkeet kasvavat yhdestä perusviivasta, arvot sarakkeen päällä, selite, title ja desc sekä
+  // sama tieto taulukkona. Leveys mukautuu (x prosentteina), joten teksti ei pienene kapealla näytöllä.
+  function trendiKaavio(vk, o) {
+    const id = o.id || 'sy-trendi', K = 206, pohja = 156, ylin = 24, suurin = Math.max(1, ...vk.map(v => Math.max(v.saapuneet, v.ratkaistut)));
+    // Kokonaislukuaskel: neljä ruudukkoväliä, askel 1, 2, 5, 10, 20, 25, 50 ...
+    const askel = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find(x => x * 4 >= suurin) || Math.ceil(suurin / 4), max = askel * 4;
+    const y = v => pohja - (v / max) * (pohja - ylin), lev = 18, rako = 2;
+    const pylvas = (x, v, luokka, nimi, w) => {
+      if (!v) return `<text class="sy-trendi__arvo" x="${x + lev / 2}" y="${pohja - 6}" text-anchor="middle">0</text>`;
+      const yt = y(v), r = Math.min(4, (pohja - yt) / 2);
+      return `<path class="${luokka}" d="M${x} ${pohja}V${(yt + r).toFixed(1)}Q${x} ${yt.toFixed(1)} ${x + r} ${yt.toFixed(1)}H${x + lev - r}Q${x + lev} ${yt.toFixed(1)} ${x + lev} ${(yt + r).toFixed(1)}V${pohja}Z"><title>${esc(w)}: ${esc(nimi)} ${v}</title></path>`
+        + `<text class="sy-trendi__arvo" x="${x + lev / 2}" y="${(yt - 6).toFixed(1)}" text-anchor="middle">${v}</text>`;
+    };
+    const viivat = [0, 1, 2, 3, 4].map(i => i * askel);
+    const n = vk.length, vasen = 9, kaista = (100 - vasen) / n;
+    const nimiVk = v => `vk ${v.viikko}`, valit = v => `${fiLyhyt(v.alku)}-${fiLyhyt(v.loppu)}`;
+    const yhtS = summa(vk.map(v => v.saapuneet)), yhtR = summa(vk.map(v => v.ratkaistut));
+    const kuvaus = `${o.jaksoNimi}: saapui ${yhtS} ja ratkaistiin ${yhtR}. ${vk.map(v => `Viikko ${v.viikko} (${valit(v)}): saapui ${v.saapuneet}, ratkaistiin ${v.ratkaistut}`).join('. ')}.`;
+    return `<figure class="sy-trendi" id="${id}">
+      <ul class="sy-selite" aria-hidden="true"><li><span class="sy-selite__merkki sy-sarja-1"></span>Saapuneet</li><li><span class="sy-selite__merkki sy-sarja-2"></span>Ratkaistut</li></ul>
+      <svg class="sy-trendi__svg" width="100%" height="${K}" role="img" aria-labelledby="${id}-t ${id}-d" focusable="false">
+        <title id="${id}-t">${esc(o.otsikko)}</title><desc id="${id}-d">${esc(kuvaus)}</desc>
+        <g class="sy-trendi__ruudukko">${viivat.map(v => `<line x1="0" x2="100%" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"></line><text x="0" y="${(y(v) - 4).toFixed(1)}">${lukuFi(v, v % 1 ? 1 : 0)}</text>`).join('')}</g>
+        ${vk.map((v, i) => `<svg x="${(vasen + kaista * (i + 0.5)).toFixed(2)}%" y="0" width="1" height="${K}" overflow="visible">
+          ${pylvas(-lev - rako / 2, v.saapuneet, 'sy-sarja-1', 'saapuneet', nimiVk(v))}${pylvas(rako / 2, v.ratkaistut, 'sy-sarja-2', 'ratkaistut', nimiVk(v))}
+          <text class="sy-trendi__x" x="0" y="${pohja + 20}" text-anchor="middle">${nimiVk(v)}</text>
+          <text class="sy-trendi__x sy-trendi__x--pvm" x="0" y="${pohja + 38}" text-anchor="middle">${valit(v)}</text></svg>`).join('')}
+        <line class="sy-trendi__pohja" x1="0" x2="100%" y1="${pohja}" y2="${pohja}"></line>
+      </svg>
+      <figcaption class="sy-vihje">${esc(o.vihje)}</figcaption>
+      <details class="sy-kaava"><summary>Näytä luvut taulukkona</summary>
+        <table class="sy-taulu sy-trendi__taulu"><caption class="sy-sr">${esc(o.otsikko)}</caption><thead><tr><th scope="col">Viikko</th><th scope="col">Päivät</th><th scope="col">Saapuneet</th><th scope="col">Ratkaistut</th></tr></thead>
+        <tbody>${vk.map(v => `<tr data-sy-viikko="${v.viikko}"><th scope="row">${v.viikko}</th><td>${valit(v)}</td><td>${v.saapuneet}</td><td>${v.ratkaistut}</td></tr>`).join('')}</tbody>
+        <tfoot><tr><th scope="row">Yhteensä</th><td></td><td>${yhtS}</td><td>${yhtR}</td></tr></tfoot></table></details>
+    </figure>`;
+  }
+  // Määrärahan käyttöpalkki: maksettu, myönnetty mutta maksamatta ja jäljellä. Adapterin maararaha(c) antaa luvut;
+  // esimerkki: true merkitsee määrärahan esimerkkiluvuksi.
+  function maararahaPalkki(m) {
+    const yht = Math.max(0, Number(m.maararaha) || 0), maks = Math.max(0, Number(m.maksettu) || 0), myon = Math.max(maks, Number(m.myonnetty) || 0);
+    const jaljella = yht - myon, p = x => (yht ? Math.min(100, x / yht * 100) : 0);
+    const e = n => `${lukuFi(Math.round(n))} €`;
+    // Osien nimet: oletus maksettu / myönnetty, maksamatta. Tuote voi nimetä ne (m.nimet), esim. Avustuksissa päätetty ja
+    // esitetty, kun kierroksen päätökset ovat vasta tulossa. data-attribuutit pysyvät samoina (myonnetty = osat 1 + 2).
+    const N = { kaytetty: 'myönnetty', osa1: 'Maksettu', osa2: 'Myönnetty, maksamatta', ...(m.nimet || {}) };
+    return `<div class="sy-maararaha" id="sy-maararaha" data-maararaha="${yht}" data-myonnetty="${myon}" data-maksettu="${maks}">
+      <p class="sy-maararaha__paa"><span class="sy-maararaha__luku">${e(myon)}</span> <span class="sy-maararaha__lisa">${esc(N.kaytetty)}, ${yht ? `${lukuFi(p(myon), 0)} % määrärahasta` : 'määräraha puuttuu'}</span>${m.esimerkki ? ' ' + `<span class="sy-merkki sy-merkki--arvio">esimerkki</span>` : ''}</p>
+      <div class="sy-maararaha__palkki" aria-hidden="true"><span class="sy-maararaha__osa sy-maararaha__osa--maksettu" style="width:${p(maks).toFixed(1)}%"></span><span class="sy-maararaha__osa sy-maararaha__osa--myonnetty" style="width:${p(myon - maks).toFixed(1)}%"></span></div>
+      <dl class="sy-maararaha__luvut">
+        <div><dt><span class="sy-selite__merkki sy-maararaha__merkki--maksettu"></span>${esc(N.osa1)}</dt><dd>${e(maks)}</dd></div>
+        <div><dt><span class="sy-selite__merkki sy-maararaha__merkki--myonnetty"></span>${esc(N.osa2)}</dt><dd>${e(myon - maks)}</dd></div>
+        <div><dt><span class="sy-selite__merkki sy-maararaha__merkki--jaljella"></span>Jäljellä</dt><dd${jaljella < 0 ? ' class="sy-maararaha__yli"' : ''}>${e(jaljella)}</dd></div>
+        <div><dt>Määräraha${m.esimerkki ? ' (esimerkki)' : ''}</dt><dd>${e(yht)}</dd></div></dl>
+      ${m.selite ? `<p class="sy-vihje">${esc(m.selite)}</p>` : ''}
+    </div>`;
+  }
+
+  // Tietoturva ja tietosuoja: vastaukset hankinnan kysymyksiin. Vain savikurki.fi:n luottamussivujen (luettu 28.10.2026)
+  // ja demon oman Tietoa palvelusta -sivun tiedot, jokaisessa laatikossa linkki lähteeseen.
+  const LUOTTAMUS = 'https://savikurki.fi/luottamus/';
+  function tietoturvaHtml(o) {
+    const h = n => `h${Math.min(6, (o.otsikkotaso || 1) + n)}`, luettu = '28.10.2026';
+    const linkki = (url, teksti) => `<a href="${esc(url)}">${esc(teksti)}</a>`;
+    const lahde = (...l) => `<div class="sy-tt__lahde"><p>${l.length > 1 ? 'Lähteet' : 'Lähde'}</p><ul>${l.map(([u, t, oma]) => `<li>${linkki(u, t)}${oma ? '' : ` <span>(luettu ${luettu})</span>`}</li>`).join('')}</ul></div>`;
+    const laatikko = (id, otsikko, teksti, lahteet) => `<section class="sy-tt__laatikko" data-sy-tt="${id}" aria-labelledby="sy-tt-${id}">
+      <${h(1)} id="sy-tt-${id}">${esc(otsikko)}</${h(1)}>${teksti}${lahteet}</section>`;
+    const tieto = [o.tietoaHref || 'tietoa.html', 'Tietoa palvelusta', true];
+    return `<div class="sy-tt">
+      <header class="sy-tt__paa"><${h(0)} id="sy-tt-otsikko" tabindex="-1">Tietoturva ja tietosuoja</${h(0)}>
+        <p class="sy-johdanto">Vastaukset hankinnan tavallisimpiin kysymyksiin palvelusta ${esc(o.tuote)}. Tiedot ovat palvelun toimittajan Savikurki Digital Oy:n luottamussivuilta ja tämän palvelun Tietoa palvelusta -sivulta, ja jokaisen kohdan lähde on linkkinä.</p></header>
+      <div class="sy-tt__ruudukko">
+      ${laatikko('sijainti', 'Missä tiedot ovat', `<p>${esc(o.demoTallennus)}</p>
+        <p>Kuntakäytössä hakemuksia käsittelevät palvelut otetaan käyttöön vasta, kun pysyvä tallennus EU-jurisdiktioon rajattuun tietokantaan, salaus, säilytysajat, tapahtumaloki, varmuuskopiot, tietosuojan vaikutustenarviointi ja käsittelysopimus ovat valmiina.</p>
+        <p>Alustatoimittaja Cloudflare on yhdysvaltalainen yhtiö: EU-jurisdiktio rajaa tallennuspaikan, mutta Yhdysvaltain viranomainen voi lain mukaan vaatia tietoja yhtiöltä palvelimen sijainnista riippumatta.</p>`,
+        lahde(tieto, [LUOTTAMUS + 'tietosuoja/', 'savikurki.fi/luottamus/tietosuoja'], [LUOTTAMUS + 'tietoturva/', 'savikurki.fi/luottamus/tietoturva']))}
+      ${laatikko('kasittelysopimus', 'Käsittelijäsopimus', `<p>Kunta on rekisterinpitäjä ja Savikurki henkilötietojen käsittelijä. Käsittelystä sovitaan tietosuoja-asetuksen 28 artiklan mukaisesti valtiovarainministeriön JYSE/JIT - Henkilötiedot 2025 -ehdoilla, ja käsittelytoimien kuvaus täytetään sopimuksessa.</p>
+        <p>Alikäsittelijöiden muutoksista ilmoitetaan asiakkaalle 30 päivää etukäteen.</p>`,
+        lahde([LUOTTAMUS + 'tietosuoja/', 'savikurki.fi/luottamus/tietosuoja']))}
+      ${laatikko('tunnistus', 'Kirjautuminen ja tunnistus', `<p>Kunnan henkilöstö kirjautuu Savikurki-työtilaan Microsoft Entra ID:llä tai sähköpostikoodilla.</p>
+        <p>Kaksivaiheinen tunnistus on käytössä kaikilla ylläpitotileillä (Cloudflare, GitHub, Zoner ja Resend, tarkistettu 18.10.2026).</p>${o.tunnistusLisa ? `<p>${esc(o.tunnistusLisa)}</p>` : ''}`,
+        lahde([LUOTTAMUS + 'tietoturva/', 'savikurki.fi/luottamus/tietoturva'], ...(o.tunnistusLisa ? [tieto] : [])))}
+      ${laatikko('saavutettavuus', 'Saavutettavuus ja valvoja', `<p>Tavoitetaso on WCAG 2.1 AA.${/^(Työnantajatuet|Kesätyösetelit)$/.test(o.tuote) ? ' Työnantajatuissa ja Kesätyöseteleissä axe-core-tarkistus ajetaan jokaisessa muutoksessa: 240 näkymää ilman rikkeitä (21.10.2026).' : ''} Ruudunlukijoilla ja muilla apuvälineillä ei ole vielä testattu järjestelmällisesti.</p>
+        <p>Kunta vastaa saavutettavuusselosteesta, kun se ottaa palvelun käyttöön omana digipalvelunaan. Toimittaja antaa selosteen pohjan, arvioinnin tuloksen ja korjaukset.</p>
+        <p>Valvontaviranomainen on Liikenne- ja viestintävirasto Traficom (laki digitaalisten palvelujen tarjoamisesta 306/2019, 12 §, muutos 606/2024, voimassa 1.1.2025 alkaen).</p>`,
+        lahde([LUOTTAMUS + 'saavutettavuus/', 'savikurki.fi/luottamus/saavutettavuus'], ['https://www.finlex.fi/fi/lainsaadanto/2019/306', 'Finlex: laki 306/2019']))}
+      ${laatikko('jatkuvuus', 'Varmuuskopiot ja jatkuvuus', `<p>Varmuuskopiot kuuluvat edellytyksiin, joiden on oltava valmiina ennen kuntakäyttöä.</p>
+        <p>Palvelusopimuksessa on jatkuvuusehto: kunnalle talletetaan palvelun lähdekoodi, asennusohje ja kuvaus kunnan tiedoista sopimuksen alussa ja vähintään puolen vuoden välein. Jos yhtiö lopettaa eikä kukaan jatka sopimusta, kunnalla on pysyvä ja maksuton oikeus käyttää talletettua versiota itse tai toisen toimittajan avulla.</p>
+        <p>Asiakkaan tiedot viedään pyynnöstä avoimissa muodoissa (esimerkiksi JSON-tiedostoina) 30 päivän kuluessa, ja ne säilytetään 60 päivää sopimuksen päättymisestä.</p>`,
+        lahde([LUOTTAMUS + 'jatkuvuus/', 'savikurki.fi/luottamus/jatkuvuus'], [LUOTTAMUS + 'tietosuoja/', 'savikurki.fi/luottamus/tietosuoja']))}
+      ${laatikko('tekoaly', 'Tekoäly', `<p>Palvelut eivät kutsu pilvipohjaista tekoälymallia ajon aikana (koodi tarkistettu 5.10.2026). Tekoäly ei tee päätöksiä kuntalaisesta, hakijasta tai työntekijästä: palvelu näyttää, laskee ja muistuttaa, ja ihminen päättää.</p>
+        <p>Koodia kirjoitetaan Anthropicin Claude-mallilla. Se on työkalu, ei osa palvelua, ja muutos tulee tuotantoon vain ihmisen erillisellä hyväksynnällä.</p>`,
+        lahde([LUOTTAMUS + 'tekoaly/', 'savikurki.fi/luottamus/tekoaly']))}
+      ${laatikko('dokumentaatio', 'Dokumentaatio hankintaa varten', `<p>Tarjousta varten on tietoturva- ja tietosuojaselvitys, jossa on kysymykset ja vastaukset kunnan tavallisimpiin kysymyksiin.</p>
+        <p>Yhtiöllä ei ole omaa sertifikaattia (esimerkiksi ISO 27001) eikä ulkopuolista tietoturva-auditointia. Alustatoimittaja Cloudflare ilmoittaa ylläpitävänsä ISO 27001-, ISO 27701-, ISO 27018- ja SOC 2 Type II -validoinnit.</p>
+        <p>Poikkeamasta ilmoitetaan asiakkaalle viipymättä ja henkilötietojen tietoturvaloukkauksesta rekisterinpitäjälle viimeistään 48 tunnin kuluessa havainnosta.</p>`,
+        lahde([LUOTTAMUS, 'savikurki.fi/luottamus'], [LUOTTAMUS + 'tietoturva/', 'savikurki.fi/luottamus/tietoturva']))}
+      </div>
+    </div>`;
+  }
+
+  // Esittelytilan kehys. Toimii demojen yhteisellä rungolla (.topbar, .brand, .area, .topnav, .footer). Tietoturva-linkki
+  // tulee valikkoon ja alatunnisteeseen aina; kunnan ilmeessä (?esitys=1) lisäksi teema, ylätunniste, merkki ja alarivi.
+  // Alkuperäisiä elementtejä ei poisteta (demon koodi voi päivittää niitä), vaan kunnan ilmeessä ne piilotetaan.
+  function esitysKayta(o) {
+    if (!esitysPaalla()) return null;
+    const d = root.document, html = d.documentElement, ilme = ilmePaalla(), t = ilme ? TEEMAT[o.kunta] || null : null;
+    const kuntaNimi = (t && t.kunta) || o.kuntaNimi || '';
+    html.classList.add('sy-esitys');
+    html.dataset.syTeema = t ? o.kunta : 'oletus';
+    const nav = d.querySelector('.topbar .topnav');
+    if (nav && o.tietoturvaHref && !nav.querySelector('[data-nav="tietoturva"]')) {
+      const a = d.createElement('a'); a.href = o.tietoturvaHref; a.dataset.nav = 'tietoturva'; a.textContent = 'Tietoturva';
+      const tietoa = [...nav.querySelectorAll('a')].find(x => /^tietoa/.test(x.getAttribute('href') || ''));
+      nav.insertBefore(a, tietoa || null);
+    }
+    if (!ilme) {
+      // Savikurjen oma alatunniste: Tietoturva-linkki lisätään, ja Todentamatta-linkki (kehittäjävihje) piilotetaan.
+      const linkit = d.querySelector('.footer .footer__links');
+      if (linkit && o.tietoturvaHref && !linkit.querySelector('[data-sy-tietoturva]')) {
+        const a = d.createElement('a'); a.href = o.tietoturvaHref; a.dataset.syTietoturva = ''; a.textContent = 'Tietoturva ja tietosuoja';
+        const tietoa = [...linkit.querySelectorAll('a')].find(x => /^tietoa/.test(x.getAttribute('href') || ''));
+        linkit.insertBefore(a, tietoa ? tietoa.nextSibling : null);
+      }
+      if (linkit) linkit.querySelectorAll('a[href*="#todentamatta"]').forEach(a => { a.hidden = true; });
+      return { kunta: o.kunta, kuntaNimi, teema: null, ilme: false };
+    }
+    html.classList.add('sy-ilme');
+    if (t) {
+      const s = savyt(t.vari);
+      const v = { '--accent': s.vari, '--accent-strong': s.vahva, '--accent-soft': s.pehmea, '--accent-contrast': '#FFFFFF', '--btn-bg': s.vari,
+        '--sy-otsikko-fontti': t.fontti, '--sy-esitys-vari': s.vari, '--sy-esitys-vahva': s.vahva, '--sy-esitys-pehmea': s.pehmea,
+        '--sy-esitys-reuna': s.reuna, '--sy-esitys-keski': s.keski };
+      for (const [k, x] of Object.entries(v)) html.style.setProperty(k, x);
+      const meta = d.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', s.vari);
+    }
+    const brand = d.querySelector('.topbar .brand');
+    if (brand) {
+      brand.setAttribute('aria-label', `${kuntaNimi}, ${o.yksikko ? o.yksikko + ', ' : ''}${o.tuote}: etusivu`);
+      brand.insertAdjacentHTML('beforeend', `<span class="sy-esitys-brand"><span class="sy-esitys-brand__kunta">${esc(kuntaNimi)}</span><span class="sy-esitys-brand__ala">${o.yksikko ? `<span class="sy-esitys-brand__yksikko">${esc(o.yksikko)}</span>` : ''}<span class="sy-esitys-brand__tuote">${esc(o.tuote)}</span></span></span>`);
+    }
+    const area = d.querySelector('.topbar .area');
+    const merkki = `<span class="sy-esitys-merkki" title="Esittelyversio. Tiedot ovat kuvitteellisia, eikä palvelu ole kaupungin käytössä.">Esittelyversio</span>`;
+    if (area) area.insertAdjacentHTML('beforeend', merkki); else if (brand) brand.insertAdjacentHTML('afterend', merkki);
+    const ft = d.querySelector('.footer .footer__in') || d.querySelector('.footer');
+    if (ft) ft.insertAdjacentHTML('beforeend', `<div class="sy-esitys-ala"><div class="sy-esitys-ala__teksti"><p class="sy-esitys-ala__kunta">${esc(kuntaNimi)}${o.yksikko ? `, ${esc(o.yksikko)}` : ''}</p>
+      <p>Palvelun tarjoaa Savikurki Digital Oy</p><p>Esittelyversio: tiedot ovat kuvitteellisia</p></div>
+      <nav class="sy-esitys-ala__linkit" aria-label="Palvelusta"><a href="${esc(o.tietoaHref || 'tietoa.html')}">Tietoa palvelusta</a>${o.tietoturvaHref ? `<a href="${esc(o.tietoturvaHref)}">Tietoturva ja tietosuoja</a>` : ''}</nav></div>`);
+    // Välilehden otsikko: demon nimi korvataan kunnan palvelun nimellä (myös näkymän vaihtuessa).
+    if (o.vanhaNimi) {
+      const uusi = `${o.tuote}, ${kuntaNimi} (esittelyversio)`;
+      const korjaa = () => { if (d.title.includes(o.vanhaNimi)) d.title = d.title.split(o.vanhaNimi).join(uusi).replace(/ \(demo\)/g, ''); };
+      korjaa();
+      const el = d.querySelector('title');
+      if (el && root.MutationObserver) new root.MutationObserver(korjaa).observe(el, { childList: true, characterData: true, subtree: true });
+    }
+    return { kunta: o.kunta, kuntaNimi, teema: t, ilme: true };
+  }
+
+  // Lomakkeen vaiheistus esittelytilassa. Kaikki kentät pysyvät lomakkeessa (demon tarkistukset ennallaan); vaihe vain
+  // piilottaa muut osat. Seuraava-painike tarkistaa vaiheen kentät demon omalla tarkistuksella (tarkista(i) palauttaa
+  // [{ kohde: kentän id, teksti }]), virheet näkyvät yhteenvetona ja kohdistus siirtyy vaiheen otsikkoon.
+  function esitysVaiheet(o) {
+    const f = o.lomake, d = root.document, V = o.vaiheet, n = V.length;
+    let nyt = Math.max(0, Math.min(n - 1, o.alku || 0));
+    const otsikkoId = `${f.id}-vaihe`;
+    const ilmaisin = d.createElement('div');
+    ilmaisin.className = 'sy-vaiheet';
+    f.insertBefore(ilmaisin, o.ilmaisinEnnen || f.firstChild);
+    f.classList.add('sy-vaiheistettu');
+    const napit = d.createElement('div');
+    napit.className = 'sy-vaiheet__napit';
+    (o.napitEnnen || null) ? f.insertBefore(napit, o.napitEnnen) : f.appendChild(napit);
+    const vaiheOn = el => V.findIndex(v => v.osat.some(x => x && (x === el || x.contains(el))));
+    function piirra(fokus) {
+      V.forEach((v, i) => v.osat.forEach(x => { if (x) x.classList.toggle('sy-vaihe-piilossa', i !== nyt); }));
+      (o.vainLopussa || []).forEach(x => { if (x) x.classList.toggle('sy-vaihe-piilossa', nyt !== n - 1); });
+      ilmaisin.innerHTML = `<p class="sy-vaiheet__tila" id="${otsikkoId}" tabindex="-1"><span class="sy-vaiheet__nro">Vaihe ${nyt + 1}/${n}</span> ${esc(V[nyt].otsikko)}</p>
+        <ol class="sy-vaiheet__lista" aria-label="Lomakkeen vaiheet">${V.map((v, i) => `<li class="${i < nyt ? 'on-tehty' : i === nyt ? 'on-nyt' : ''}"${i === nyt ? ' aria-current="step"' : ''}><span class="sy-vaiheet__pallo" aria-hidden="true">${i + 1}</span><span class="sy-vaiheet__nimi">${esc(v.otsikko)}</span><span class="sy-sr">${i < nyt ? ', tehty' : i === nyt ? ', nykyinen vaihe' : ''}</span></li>`).join('')}</ol>
+        <div class="sy-vaiheet__edistys" aria-hidden="true"><span style="width:${((nyt + 1) / n * 100).toFixed(1)}%"></span></div>`;
+      napit.innerHTML = `${nyt > 0 ? `<button type="button" class="btn btn--ghost sy-vaiheet__edellinen" data-sy-vaihe="edellinen">Edellinen</button>` : ''}${nyt < n - 1 ? `<button type="button" class="btn sy-vaiheet__seuraava" data-sy-vaihe="seuraava">Seuraava: ${esc(V[nyt + 1].otsikko)}</button>` : ''}`;
+      napit.hidden = n < 2;
+      if (o.vaihdettu) o.vaihdettu(nyt);
+      if (fokus) { const h = d.getElementById(otsikkoId); if (h) { h.focus({ preventScroll: true }); h.scrollIntoView({ block: 'start' }); } }
+    }
+    function mene(i, fokus) { nyt = Math.max(0, Math.min(n - 1, i)); piirra(fokus !== false); }
+    function seuraava() {
+      const virheet = (o.tarkista ? o.tarkista(nyt) : []) || [];
+      if (virheet.length) { if (o.naytaVirheet) o.naytaVirheet(virheet); return false; }
+      if (o.piilotaVirheet) o.piilotaVirheet();
+      mene(nyt + 1, true);
+      return true;
+    }
+    napit.addEventListener('click', e => {
+      const b = e.target.closest('[data-sy-vaihe]'); if (!b) return;
+      if (b.dataset.syVaihe === 'edellinen') mene(nyt - 1, true); else seuraava();
+    });
+    // Enter kesken lomakkeen ei lähetä, vaan toimii kuten Seuraava. Kuuntelija on lomakkeen isännässä (capture), joten se
+    // ehtii ennen demon omaa lähetyskäsittelijää.
+    const isanta = f.parentNode;
+    const lahetys = e => { if (e.target === f && nyt < n - 1) { e.preventDefault(); e.stopPropagation(); seuraava(); } };
+    isanta.addEventListener('submit', lahetys, true);
+    // Virheyhteenvedon linkki kenttään toisessa vaiheessa: vaihe vaihtuu ensin, sitten kohdistus kenttään.
+    const linkit = e => {
+      const a = e.target.closest('a[href^="#"]'); if (!a || !f.contains(a) || !a.closest(o.yhteenveto || '.errsum')) return;
+      const id = a.dataset.kohde || decodeURIComponent(a.getAttribute('href').slice(1));
+      const el = d.getElementById(id) || f.querySelector(`[name="${CSS.escape(id)}"]`); if (!el) return;
+      const i = vaiheOn(el);
+      if (i >= 0 && i !== nyt) mene(i, false);
+      e.preventDefault(); el.focus(); el.scrollIntoView({ block: 'center' });
+    };
+    isanta.addEventListener('click', linkit, true);
+    piirra(false);
+    return { mene, seuraava, nyt: () => nyt, vaiheOn, poista() { isanta.removeEventListener('submit', lahetys, true); isanta.removeEventListener('click', linkit, true); } };
+  }
+
   const api = {
     VERSIO, kaynnista, tarkistaAdapteri,
+    esitys: { paalla: esitysPaalla, ilme: ilmePaalla, TEEMAT, savyt, kontrasti, sekoita, teemanKontrastit, kayta: esitysKayta, tietoturvaHtml, vaiheet: esitysVaiheet,
+      trendiKaavio, maararahaPalkki },
     pvm: { onPvm, lisaaPaivia, lisaaKuukausia, viikonpaiva, erotusPaivina, fi, fiLyhyt, fiVk, kuukaudenNimi, jakso },
     maaraaika: { TUETUT_VUODET, YKSIKOT, paasiainen, pyhat, pyhapaiva, vapaanSyy, onTyopaiva, tyopaiviaValilla, lisaaTyopaivia, siirra, laske, ics },
-    laskenta: { TILAT, laskeTila, rikasta, laskeLaskurit, laskeJaksonLuvut, ryhmitaEstetyt, laskeVertailu, saannonTila, jarjestys },
+    laskenta: { TILAT, laskeTila, rikasta, laskeLaskurit, laskeJaksonLuvut, ryhmitaEstetyt, laskeVertailu, saannonTila, jarjestys, viikkotrendi, isoViikko },
     vienti: { csv, csvArvo, xlsxRivit, lataa, OLETUSSARAKKEET },
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
