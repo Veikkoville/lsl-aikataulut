@@ -141,7 +141,7 @@ export const ADMIN_HTML = `<!doctype html>
 
   /* Tietopankki: yli 6 kk sitten tarkistettu kortti saa merkinnän Tarkista ja reunaviivan (ei pelkkä väri). */
   .b-check { background:var(--warn-soft); color:var(--warn); }
-  .kb-item.stale { border-left:4px solid #c07a12; }
+  .kb-item.stale { border-color:#c07a12; background:#fdf6ea; }
   .count.warn { background:var(--warn-soft); color:var(--warn); }
 
   /* Yleiskatsaus */
