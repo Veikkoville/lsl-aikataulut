@@ -786,11 +786,11 @@
     font-size: 0.74rem;
     white-space: nowrap;
   }
-  details.alertsum { border-left: 4px solid var(--sev-warning); }
+  details.alertsum { border-color: var(--sev-warning); border-color: color-mix(in srgb, var(--sev-warning) 45%, var(--card)); }
   details.alertsum summary { cursor: pointer; padding: 0.1rem 0; }
   details.alertsum[open] summary { margin-bottom: 0.3rem; }
   /* Informatiiviset tiedotteet: vaimennettu (harmaa reunus + himmeä otsikko), oletus kiinni */
-  details.infosum { border-left: 4px solid var(--border); margin-top: 0.6rem; }
+  details.infosum { margin-top: 0.6rem; }
   details.infosum summary { cursor: pointer; padding: 0.1rem 0; color: var(--muted); }
   details.infosum summary strong { font-weight: var(--wmed); }
   details.infosum[open] summary { margin-bottom: 0.3rem; }
@@ -905,8 +905,8 @@
   .redirect-note { display: flex; align-items: center; gap: 0.4rem; background: var(--chip);
     border-radius: var(--radius-sm); padding: 0.5rem 0.7rem; margin: 0 0 0.6rem; }
   /* Linjasivun häiriöt: auki ja korostettuna (ei pelkän ▶ takana) */
-  #routeAlerts .alert { border-left: 4px solid var(--sev-warning); margin-bottom: 0.5rem; }
-  #routeAlerts .alert.sev-SEVERE { border-left-color: var(--sev-severe); }
+  #routeAlerts .alert { border-color: var(--sev-warning); border-color: color-mix(in srgb, var(--sev-warning) 45%, var(--card)); margin-bottom: 0.5rem; }
+  #routeAlerts .alert.sev-SEVERE { border-color: var(--sev-severe); border-color: color-mix(in srgb, var(--sev-severe) 45%, var(--card)); }
   /* Koko aikataulu pysäkeittäin -matriisi: pysäkit riveinä, vuorot sarakkeina.
      Ruudulla vieritettävä laatikko, tulostuksessa koko taulukko näkyviin. */
   .matrix-wrap { overflow: auto; max-height: 65vh; margin: 0.5rem 0; border: 1px solid var(--border); border-radius: 6px; }
@@ -1069,7 +1069,7 @@
   table.corridor th:first-child, table.corridor td:first-child { font-weight: 600; }
   table.corridor td.corr-dest, table.corridor th:nth-child(3) { text-align: left; }
   /* Presetin tai pysäkin linja, jota ei voi käyttää (10.10.2026): näkyvä huomautus eikä hiljainen tyhjä tulos */
-  .corr-missing, .desk-unlisted { border-left: 4px solid var(--error-border); padding: 0.3rem 0.6rem; margin: 0.4rem 0; }
+  .corr-missing, .desk-unlisted { border: 1px solid var(--error-border); background: var(--error-bg); border-radius: var(--radius-sm); padding: 0.3rem 0.6rem; margin: 0.4rem 0; }
   .line-resume { font-size: 0.88em; white-space: nowrap; }
   /* QR-koodit (näyttö + juliste) */
   .embedbox { margin: 0.5rem 0; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1223,7 +1223,8 @@
   }
   .error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); padding: 0.6rem 0.8rem; border-radius: var(--radius-control); }
   details.alert {
-    border-left: 4px solid var(--blue);
+    border: 1px solid var(--blue);
+    border-color: color-mix(in srgb, var(--blue) 45%, var(--card));
     background: var(--card);
     border-radius: var(--radius-sm);
     padding: 0.5rem 0.7rem;
@@ -1232,8 +1233,8 @@
   details.alert summary { cursor: pointer; font-weight: var(--wmed); }
   .alert-src { font-weight: 400; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
   details.alert p { margin: 0.4rem 0 0.2rem; white-space: pre-line; font-size: 0.9rem; }
-  details.alert.sev-SEVERE { border-left-color: var(--sev-severe); }
-  details.alert.sev-WARNING { border-left-color: var(--sev-warning); }
+  details.alert.sev-SEVERE { border-color: var(--sev-severe); border-color: color-mix(in srgb, var(--sev-severe) 45%, var(--card)); }
+  details.alert.sev-WARNING { border-color: var(--sev-warning); border-color: color-mix(in srgb, var(--sev-warning) 45%, var(--card)); }
   ul.ex-list { list-style: none; padding: 0; margin: 0.6rem 0 0; }
   li.ex-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0; border-top: 1px solid var(--border); }
   li.ex-row:first-child { border-top: none; }
@@ -1278,7 +1279,7 @@
   .plat-lines { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
   .plat-tabs { flex-wrap: wrap; }
   /* Liput ja hinnat */
-  .notice { background: var(--rt-bg); border-left: 4px solid var(--green); border-radius: var(--radius-control);
+  .notice { background: var(--rt-bg); border: 1px solid var(--green); border-color: color-mix(in srgb, var(--green) 45%, var(--rt-bg)); border-radius: var(--radius-control);
     padding: 0.7rem 0.9rem; margin: 0.4rem 0 0.9rem; }
   .notice p { margin: 0.3rem 0 0; }
   .fare-wrap { overflow-x: auto; margin: 0.3rem 0 0.5rem; }
@@ -1517,7 +1518,7 @@
   .desk .dcard-tab[aria-pressed="true"], .desk .dseg[aria-pressed="true"] { background: var(--blue); color: #fff; }
   /* Tietopankki (D6): välilehti piilossa, kunnes worker kertoo tuesta (/published kb). Kortti ja selattava lista. */
   .desk .dcard-tab[hidden] { display: none; }
-  .desk-kb-art { border-left: 5px solid var(--blue); padding: 0.1rem 0 0.1rem 0.9rem; margin: 0 0 0.6rem; }
+  .desk-kb-art { border-bottom: 1px solid var(--border); padding: 0.1rem 0 0.6rem; margin: 0 0 0.6rem; }
   .desk-kb-h { margin: 0 0 0.4rem; font-size: clamp(1.1rem, 1.7vw, 1.35rem); }
   .desk-kb-body p { margin: 0 0 0.6rem; max-width: 70ch; overflow-wrap: anywhere; }
   .desk-kb-src, .desk-kb-checked { margin: 0.2rem 0; font-size: 0.92em; overflow-wrap: anywhere; }
@@ -1556,8 +1557,8 @@
   .desk-when-used { margin: 0 0 0.4rem; }
   /* Huomautukset, jotka muuttavat vastauksen tulkintaa (haku siirtyi huomiseen, kohde alueen ulkopuolella,
      päivitys epäonnistui): reunaviiva ja ikoni, ei pelkkä väri. Sama tyyli tiskillä ja kuntalaisen haussa. */
-  .plan-outside, .plan-when-note, .desk-when-note, .desk-upd-fail { border-left: 4px solid var(--accent);
-    background: var(--chip); color: var(--text); padding: 0.45rem 0.7rem; border-radius: var(--radius-sm); margin: 0.4rem 0; }
+  .plan-outside, .plan-when-note, .desk-when-note, .desk-upd-fail { border: 1px solid var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--chip)); background: var(--chip); color: var(--text); padding: 0.45rem 0.7rem; border-radius: var(--radius-sm); margin: 0.4rem 0; }
   .desk-upd-fail .linkish, .desk-err .desk-retry, .error .nl-retry { margin-left: 0.4rem; }
   /* Uusi haku käynnissä: edellinen vastaus himmenee, ettei se näytä ajantasaiselta. */
   #deskResults.desk-busy { opacity: 0.35; }
@@ -1585,9 +1586,9 @@
     letter-spacing: 0.08em; color: var(--blue); }
   .desk-tell-body { font-size: clamp(1.2rem, 2vw, 1.7rem); line-height: 1.4; margin: 0.35rem 0 0; }
   /* "Seuraava bussi" -kortti: kun kävely on nopein mutta asiakas kysyi bussia (rauhallinen korostus) */
-  .desk-next-bus { border: 2px solid var(--blue); border-left-width: 6px; border-radius: var(--radius);
+  .desk-next-bus { border: 2px solid var(--blue); border-radius: var(--radius);
     padding: 0.85rem 1.1rem; margin: 0.2rem 0 0.7rem; background: var(--card); }
-  .desk-next-bus--none { border-color: var(--border); border-left-color: var(--muted); }
+  .desk-next-bus--none { border-color: var(--border); }
   .desk-next-bus-h { font-size: 0.8em; font-weight: var(--wmed); text-transform: uppercase;
     letter-spacing: 0.08em; color: var(--blue); display: flex; align-items: center; gap: 0.35rem; }
   .desk-next-bus-h .ic { width: 1.2em; height: 1.2em; }
@@ -1618,7 +1619,7 @@
   p.desk-copy-out { margin: 0.4rem 0 0; font-size: 0.85em; white-space: pre-wrap; overflow-wrap: anywhere; }
   textarea.desk-copy-out { width: 100%; margin: 0.4rem 0 0; font: inherit; font-size: 0.9em; box-sizing: border-box; }
   /* Häiriöt korttien yläosassa (B3): reunaviiva ja ikoni, ei pelkkä väri. */
-  .desk-card-alerts { border-left: 5px solid var(--sev-warning, #b35900); background: #fff7e6; padding: 0.5rem 0.7rem;
+  .desk-card-alerts { border: 1px solid var(--sev-warning, #b35900); border-color: color-mix(in srgb, var(--sev-warning, #b35900) 45%, #fff7e6); background: #fff7e6; padding: 0.5rem 0.7rem;
     border-radius: var(--radius-sm); margin: 0 0 0.7rem; }
   .desk-card-alerts .alert { margin: 0.3rem 0; background: #fff; }
   .desk-card-alerts-h { margin: 0 0 0.2rem; font-weight: var(--wmed); }
