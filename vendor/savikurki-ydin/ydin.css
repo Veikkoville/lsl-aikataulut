@@ -63,6 +63,7 @@
 .sy :focus-visible { outline: 3px solid var(--sy-korostus); outline-offset: 2px; }
 .sy [tabindex="-1"]:focus { outline: none; }
 .sy p { margin: 0 0 .75rem; }
+.sy [hidden] { display: none !important; } /* myös pinottu taulukko (display: block) piilottaa suodatetut rivit */
 .sy-sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: -1px; padding: 0; border: 0; }
 .sy-vihje { display: block; color: var(--sy-teksti-hento); font-size: .875rem; margin: .25rem 0 0; }
 .sy-virhe { color: var(--sy-vaara); font-weight: 600; margin: .5rem 0; }
@@ -93,7 +94,7 @@
 .sy-kentta { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
 .sy-kentta > label, .sy-kentta > legend { font-weight: 600; font-size: .92rem; }
 .sy fieldset.sy-kentta { border: 0; padding: 0; margin: 0; }
-.sy :is(select, input[type="text"], input[type="number"], input[type="date"]) {
+.sy :is(select, input[type="text"], input[type="search"], input[type="number"], input[type="date"]) {
   font: inherit; color: var(--sy-teksti); background: var(--sy-pinta); border: 1px solid var(--sy-reuna-vahva);
   border-radius: var(--sy-sade); padding: .5rem .6rem; min-height: 2.75rem; max-width: 100%; }
 .sy select { padding-right: 2rem; }
@@ -118,20 +119,23 @@
 .sy-tila--eraantyy { color: var(--sy-varoitus); background: var(--sy-varoitus-pehmea); }
 .sy-tila--myohassa { color: var(--sy-vaara); background: var(--sy-vaara-pehmea); }
 .sy-tila--valmis { color: var(--sy-ok); background: var(--sy-ok-pehmea); }
+.sy-tila ~ .sy-tila { margin-top: .2rem; } /* Puutteellinen ja Erääntyy tai Myöhässä samassa solussa (30.10.2026) */
 .sy-stila--kuitattu { color: var(--sy-ok); background: var(--sy-ok-pehmea); }
 .sy-stila--kuittaamatta { color: var(--sy-teksti); background: var(--sy-pinta-2); border-style: dashed; }
 .sy-stila--tarkistettava { color: var(--sy-vaara); background: var(--sy-vaara-pehmea); }
 
 /* ---------- yleiskuva: tilanne ja kortit ---------- */
 .sy-tilanne { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); gap: .5rem; }
-.sy-tilanne__linkki { display: flex; align-items: baseline; gap: .5rem; padding: .7rem .9rem; border: 1px solid var(--sy-reuna); border-left: 5px solid var(--sy-reuna-vahva);
+.sy-tilanne__linkki { display: flex; align-items: baseline; gap: .5rem; padding: .7rem .9rem; border: 1px solid var(--sy-reuna);
   border-radius: var(--sy-sade); background: var(--sy-pinta); color: var(--sy-teksti) !important; text-decoration: none; }
 .sy-tilanne__linkki:hover { border-color: var(--sy-korostus); }
-.sy-tilanne__linkki--uusi { border-left-color: var(--sy-korostus); }
-.sy-tilanne__linkki--puutteellinen, .sy-tilanne__linkki--eraantyy { border-left-color: var(--sy-varoitus); }
-.sy-tilanne__linkki--myohassa { border-left-color: var(--sy-vaara); }
+/* Tila näkyy koko reunan värinä ja sävytaustana, ei paksuna sivureunana (1.11.2026). */
+.sy-tilanne__linkki--uusi { border-color: var(--sy-korostus); background: var(--sy-korostus-pehmea); }
+.sy-tilanne__linkki--puutteellinen, .sy-tilanne__linkki--eraantyy { border-color: var(--sy-varoitus); background: var(--sy-varoitus-pehmea); }
+.sy-tilanne__linkki--myohassa { border-color: var(--sy-vaara); background: var(--sy-vaara-pehmea); }
 .sy-tilanne__luku { font-size: 1.6rem; font-weight: 800; line-height: 1; }
 .sy-tilanne__nimi { text-decoration: underline; text-underline-offset: 2px; }
+.sy-tilanne + .sy-vihje { margin-top: .5rem; }
 .sy-kortit { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14.5rem), 1fr)); gap: .75rem; }
 .sy-kortti { background: var(--sy-pinta); border: 1px solid var(--sy-reuna); border-radius: var(--sy-sade); padding: .9rem 1rem; box-shadow: var(--sy-varjo); display: flex; flex-direction: column; }
 .sy-kortti--arvio { border-style: dashed; border-color: var(--sy-varoitus); }
@@ -150,13 +154,13 @@
 /* ---------- työjono ---------- */
 .sy-laskurit { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr)); gap: .5rem; margin: 0 0 1rem; }
 .sy-laskuri { font: inherit; text-align: left; display: flex; flex-direction: column; gap: .15rem; padding: .6rem .8rem; min-height: 3.5rem; cursor: pointer;
-  background: var(--sy-pinta); color: var(--sy-teksti); border: 1px solid var(--sy-reuna); border-top: 5px solid var(--sy-reuna-vahva); border-radius: var(--sy-sade); }
+  background: var(--sy-pinta); color: var(--sy-teksti); border: 1px solid var(--sy-reuna); border-radius: var(--sy-sade); }
 .sy-laskuri:hover { border-color: var(--sy-korostus); }
 .sy-laskuri[aria-pressed="true"] { background: var(--sy-korostus-pehmea); border-color: var(--sy-korostus); box-shadow: inset 0 0 0 1px var(--sy-korostus); }
-.sy-laskuri--uusi { border-top-color: var(--sy-korostus); }
-.sy-laskuri--puutteellinen, .sy-laskuri--eraantyy { border-top-color: var(--sy-varoitus); }
-.sy-laskuri--myohassa { border-top-color: var(--sy-vaara); }
-.sy-laskuri--valmis { border-top-color: var(--sy-ok); }
+.sy-laskuri--uusi { border-color: var(--sy-korostus); }
+.sy-laskuri--puutteellinen, .sy-laskuri--eraantyy { border-color: var(--sy-varoitus); }
+.sy-laskuri--myohassa { border-color: var(--sy-vaara); }
+.sy-laskuri--valmis { border-color: var(--sy-ok); }
 .sy-laskuri__luku { font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
 .sy-laskuri__nimi { font-weight: 600; font-size: .92rem; }
 .sy-maara { font-weight: 600; margin: .25rem 0 .5rem; }
@@ -199,17 +203,22 @@
 .sy-esto__selite { margin: 0 !important; color: var(--sy-teksti-hento); }
 
 /* ---------- säännöt ---------- */
-.sy-saantolaskurit { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
-.sy-saantolaskuri { padding: .45rem .8rem; border-radius: var(--sy-sade); border: 1px solid var(--sy-reuna); background: var(--sy-pinta); font-weight: 600; }
+.sy-saantolaskurit { margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: .5rem; }
+.sy-saantolaskuri { font: inherit; color: var(--sy-teksti); cursor: pointer; min-height: 2.75rem; padding: .45rem .8rem; border-radius: var(--sy-sade); border: 1px solid var(--sy-reuna-vahva); background: var(--sy-pinta); font-weight: 600; }
 .sy-saantolaskuri span { font-size: 1.2rem; font-weight: 800; margin-right: .2rem; }
+.sy-saantolaskuri:hover { border-color: var(--sy-korostus); }
 .sy-saantolaskuri--tarkistettava { border-color: var(--sy-vaara); }
 .sy-saantolaskuri--kuitattu { border-color: var(--sy-ok); }
+.sy-saantolaskuri[aria-pressed="true"] { background: var(--sy-korostus-pehmea); border-color: var(--sy-korostus); box-shadow: inset 0 0 0 1px var(--sy-korostus); }
+.sy-saantosuodatin { margin-bottom: .5rem; }
+.sy-kentta--haku { flex: 1 1 16rem; max-width: 28rem; }
+.sy-kentta--haku input { width: 100%; }
 .sy-kuittaaja { max-width: 32rem; margin-bottom: 1rem; }
 .sy-saannot td .sy-nappi { margin-top: .35rem; }
 
 /* ---------- laskuri ---------- */
 .sy-lomake { background: var(--sy-pinta); border: 1px solid var(--sy-reuna); border-radius: var(--sy-sade); padding: 1rem; max-width: 60rem; }
-.sy-tulos { margin-top: 1rem; background: var(--sy-pinta); border: 1px solid var(--sy-korostus); border-left-width: 6px; border-radius: var(--sy-sade); padding: 1rem; max-width: 60rem; }
+.sy-tulos { margin-top: 1rem; background: var(--sy-pinta); border: 1px solid var(--sy-korostus); border-radius: var(--sy-sade); padding: 1rem; max-width: 60rem; }
 .sy-tulos__paiva { font-size: 1.3rem; }
 .sy-vaiheet { margin: 0 0 1rem; padding-left: 1.3rem; }
 .sy-vaiheet li { margin-bottom: .3rem; }
@@ -245,6 +254,215 @@
 
 /* ---------- tulostus: vain raportti, yksi A4 ---------- */
 .sy-tuloste { display: none; }
+/* ================= Esittelytila (ydin.js osa 6) =================
+   html.sy-esitys: esittelytila (?esitys=1 tai sivun meta savikurki-esitys=oletus, ei ?kehitys=1). Aina vaalea: kunnan
+   ilme on vaalea, tumma teema vaatisi kunnalta oman väripaletin, ja esittelytilan uudet osat on tarkistettu vaaleina.
+   html.sy-ilme: kunnan ilme (?esitys=1). Kunnan teema (väri, fontti) tulee ydin.js:stä html-elementin muuttujina, ja
+   ylä- ja alatunnisteen säännöt koskevat demojen yhteistä runkoa (.topbar, .brand, .area, .topnav, .footer).
+   Ilman kunnan ilmettä demo näkyy Savikurjen omalla ylä- ja alatunnisteella ja demojen yhteisellä korostusvärillä. */
+html.sy-esitys {
+  --bg: #F4F6F7; --surface: #FFFFFF; --surface-2: #EEF2F4; --border: #D3DCE1; --border-strong: #6B7780;
+  --text: #16191D; --text-muted: #4F5961;
+  --warn: #8A5300; --warn-soft: #FCF1DA; --ok: #1D6B3A; --ok-soft: #E4F2E8; --danger: #B3261E; --danger-soft: #FBE9E7; --bad: #B3261E; --bad-soft: #FBE9E7;
+  --done: #4D5A52; --done-soft: #E9ECEA;
+  --sy-sarja-1: #2A7AB0; --sy-sarja-2: #C2701E;
+  color-scheme: light;
+}
+html.sy-esitys body { background: var(--bg); color: var(--text); }
+/* Savikurjen oma ilme: demojen vaalea korostusväri myös tumman teeman selaimessa (demojen :root vaihtaa sen muuten vaaleaksi). */
+html.sy-esitys[data-sy-teema="oletus"] { --accent: #034B63; --accent-strong: #00364D; --accent-soft: #E3EDF0; --accent-contrast: #FFFFFF; --btn-bg: #034B63; }
+html.sy-ilme :is(h1, h2, h3) { font-weight: 400; letter-spacing: 0; font-family: var(--sy-otsikko-fontti, var(--font-sans)); }
+html.sy-ilme :is(.btn, .chip, .sy-nappi, select, input, textarea, button) { font-family: var(--font-sans); }
+@media (prefers-color-scheme: dark) {
+  html.sy-esitys .btn:hover, html.sy-esitys #kaupungin-nakyma .sy-nappi:not(.sy-nappi--toissijainen):hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+  html.sy-esitys .btn--ghost:hover { background: var(--accent-soft); color: var(--accent-strong); }
+}
+
+/* Ylätunniste: valkoinen, kunnan värinen yläraita, kunnan nimi kunnan värillä. Ei logoa. */
+html.sy-ilme .topbar { background: #FFFFFF; border-top: 6px solid var(--sy-esitys-vari, var(--accent)); border-bottom: 1px solid var(--border); }
+html.sy-ilme .topbar__in { min-height: 76px; }
+html.sy-ilme .brand > :not(.sy-esitys-brand) { display: none; }
+html.sy-ilme .brand { color: var(--sy-esitys-vari, var(--accent)); }
+html.sy-ilme .brand:hover { color: var(--sy-esitys-vahva, var(--accent-strong)); }
+.sy-esitys-brand { display: grid; line-height: 1.15; }
+.sy-esitys-brand__kunta { font-family: var(--sy-otsikko-fontti, var(--font-sans)); font-size: 1.6rem; letter-spacing: 0; }
+.sy-esitys-brand__ala { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 .6rem; color: var(--text); font-size: .95rem; margin-top: .15rem; }
+.sy-esitys-brand__yksikko { font-family: var(--sy-otsikko-fontti, var(--font-sans)); }
+.sy-esitys-brand__tuote { color: var(--text-muted); font-size: .9rem; }
+.sy-esitys-brand__yksikko + .sy-esitys-brand__tuote::before { content: ""; display: inline-block; width: 1px; height: .85em; background: var(--border-strong); margin-right: .6rem; vertical-align: -.05em; }
+html.sy-ilme .area { border-left: 0; padding-left: 0; }
+html.sy-ilme .area > :not(.sy-esitys-merkki) { display: none; }
+.sy-esitys-merkki { display: inline-flex; align-items: center; min-height: 28px; padding: 0 .7rem; border: 1.5px solid var(--warn); color: var(--warn);
+  background: var(--warn-soft); border-radius: 999px; font-size: .8rem; font-weight: 700; letter-spacing: .02em; white-space: nowrap; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+html.sy-ilme .topnav { order: 9; flex-basis: 100%; margin-left: 0; flex-wrap: wrap; overflow-x: visible; gap: 0 1.5rem; border-top: 1px solid var(--border); }
+html.sy-ilme .topnav a { color: var(--text); font-weight: 400; font-size: 1rem; border-bottom-width: 3px; }
+html.sy-ilme .topnav a:hover { color: var(--accent); border-bottom-color: var(--sy-esitys-reuna, var(--border)); }
+html.sy-ilme .topnav [aria-current="page"], html.sy-ilme .topnav [aria-current="page"]:hover { color: var(--accent); border-bottom-color: var(--accent); }
+@media (max-width: 600px) {
+  .sy-esitys-brand__kunta { font-size: 1.3rem; }
+  html.sy-ilme .topnav { gap: 0 1rem; }
+}
+
+/* Alatunniste: kunnan värinen, toimittaja vain alarivillä. */
+html.sy-ilme .footer { background: var(--sy-esitys-vari, var(--accent)); color: #FFFFFF; border-top: 0; }
+html.sy-ilme .footer__in > :not(.sy-esitys-ala) { display: none; }
+html.sy-ilme .footer__in { display: block; }
+.sy-esitys-ala { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem 2rem; }
+.sy-esitys-ala p { margin: 0 0 .25rem; }
+.sy-esitys-ala__kunta { font-family: var(--font-sans); font-size: 1.15rem; }
+.sy-esitys-ala__linkit { display: flex; flex-direction: column; gap: .25rem; }
+.sy-esitys-ala a { color: #FFFFFF; min-height: 44px; display: inline-flex; align-items: center; font-weight: 600; }
+.sy-esitys-ala a:hover { color: #FFFFFF; text-decoration-thickness: 2px; }
+html.sy-ilme .footer :focus-visible { outline-color: #FFFFFF; }
+
+/* Tiiviimpi sivun alku: kaavio, määrärahapalkki ja lomakkeen ensimmäinen vaihe näkyvät Teams-jaossa ilman vieritystä. */
+html.sy-esitys :is(.view, .page) { padding-block: 1.25rem 3rem; }
+html.sy-esitys :is(.view__head, .page__head) { margin-bottom: 1rem; gap: .25rem; }
+html.sy-esitys :is(.view__head, .page__head) h1 { font-size: clamp(1.75rem, 1.45rem + 1vw, 2.25rem); margin-bottom: .25rem; }
+html.sy-esitys :is(.view__head, .page__head) .lead { font-size: 1.05rem; max-width: 46rem; margin-bottom: .5rem; }
+html.sy-esitys .tt-valilehdet { margin-bottom: .75rem; }
+html.sy-esitys .form__head { padding-block: 1rem; }
+html.sy-esitys .form__head h2 { font-size: 1.35rem; }
+.sy--esitys .sy-ylaotsikko { display: none; }
+.sy--esitys .sy-nakymapaa :is(h1, h2) { font-size: clamp(1.75rem, 1.45rem + 1vw, 2.25rem); }
+.sy--esitys .sy-nakymapaa { margin-bottom: .5rem; }
+.sy--esitys .sy-osio > :is(h2, h3) { font-size: 1.25rem; }
+.sy--esitys .sy-tyokalut { margin-bottom: .5rem; }
+
+/* Kosketuskohteet vähintään 44 px esittelytilassa (puhelin 360-390 px). */
+html.sy-esitys :is(.btn, .btn--small, .chip, .sy-nappi, .sy-nappi--pieni, .sy-laskuri, .sy-saantolaskuri, select, input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], input[type="search"], .sy-kaava summary, details > summary) { min-height: 44px; }
+html.sy-esitys .sy-valilehdet a, html.sy-esitys .linkbtn { min-height: 44px; display: inline-flex; align-items: center; }
+html.sy-esitys label.choice { min-height: 44px; }
+/* Savikurjen oma alatunniste esittelytilassa: linkit 44 px, piilotettu Todentamatta-linkki pois näkyvistä. */
+html.sy-esitys .footer__links a { min-height: 44px; }
+html.sy-esitys .footer__links a[hidden] { display: none; }
+
+/* Kaupungin näkymä: välilehdet ja kompakti roolivalinta samalla rivillä. */
+.sy--esitys .sy-esitys-ylarivi { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .5rem 1rem; border-bottom: 2px solid var(--sy-reuna); margin-bottom: 1.25rem; }
+.sy--esitys .sy-esitys-ylarivi .sy-valilehdet ul { border-bottom: 0; margin-bottom: 0; }
+.sy--esitys .sy-roolit { background: none; border: 0; padding: 0 0 .4rem; margin: 0; }
+.sy-roolivalinta--kompakti { display: flex; align-items: center; gap: .5rem; }
+.sy-roolivalinta--kompakti label { font-weight: 600; font-size: .92rem; color: var(--sy-teksti-hento); }
+.sy-roolivalinta--kompakti select { font: inherit; min-height: 44px; padding: 0 .6rem; border: 1px solid var(--sy-reuna-vahva); border-radius: var(--sy-sade); background: var(--sy-pinta); color: var(--sy-teksti); }
+.sy--esitys .sy-osio { margin: 1.25rem 0; }
+
+/* Viikkotrendi ja määrärahan käyttö. */
+.sy-esitys-kaaviot { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1rem; margin: 1.25rem 0; }
+@media (max-width: 860px) { .sy-esitys-kaaviot { grid-template-columns: minmax(0, 1fr); } }
+.sy-esitys-kaavio { margin: 0; background: var(--sy-pinta); border: 1px solid var(--sy-reuna); border-radius: var(--sy-sade); padding: .9rem 1rem; box-shadow: var(--sy-varjo); min-width: 0; }
+.sy-esitys-kaavio > :is(h2, h3, h4) { font-size: 1.1rem; }
+.sy-trendi { margin: 0; }
+.sy-selite { list-style: none; display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; margin: 0 0 .25rem; padding: 0; font-size: .9rem; }
+.sy-selite li { display: inline-flex; align-items: center; gap: .4rem; }
+.sy-selite__merkki { display: inline-block; width: .8rem; height: .8rem; border-radius: 2px; flex: none; }
+.sy-sarja-1 { background: var(--sy-sarja-1); fill: var(--sy-sarja-1); }
+.sy-sarja-2 { background: var(--sy-sarja-2); fill: var(--sy-sarja-2); }
+.sy-trendi__svg { display: block; overflow: visible; font-family: var(--sy-fontti); }
+.sy-trendi__ruudukko line { stroke: var(--sy-reuna); stroke-width: 1; }
+.sy-trendi__ruudukko text { fill: var(--sy-teksti-hento); font-size: 11px; }
+.sy-trendi__pohja { stroke: var(--sy-reuna-vahva); stroke-width: 1; }
+.sy-trendi__arvo { fill: var(--sy-teksti); font-size: 12px; font-weight: 700; }
+.sy-trendi__x { fill: var(--sy-teksti); font-size: 12px; }
+.sy-trendi__x--pvm { fill: var(--sy-teksti-hento); font-size: 11px; }
+@media (max-width: 520px) { .sy-trendi__x--pvm { display: none; } }
+.sy-trendi__taulu { width: 100%; }
+.sy-maararaha__paa { margin: 0 0 .5rem; display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .5rem; }
+.sy-maararaha__luku { font-size: 1.6rem; font-weight: 700; color: var(--sy-teksti); }
+.sy-maararaha__lisa { color: var(--sy-teksti-hento); }
+.sy-maararaha__palkki { display: flex; height: 1.25rem; background: var(--sy-esitys-pehmea, var(--sy-korostus-pehmea)); border-radius: 4px; overflow: hidden; gap: 2px; }
+.sy-maararaha__osa { display: block; height: 100%; }
+.sy-maararaha__osa[style="width:0.0%"] { display: none; }
+.sy-maararaha__osa--maksettu, .sy-maararaha__merkki--maksettu { background: var(--sy-esitys-vari, var(--sy-korostus)); }
+.sy-maararaha__osa--myonnetty, .sy-maararaha__merkki--myonnetty { background: var(--sy-esitys-keski, #8CB0BF); }
+.sy-maararaha__merkki--jaljella { background: var(--sy-esitys-pehmea, var(--sy-korostus-pehmea)); outline: 1px solid var(--sy-reuna-vahva); outline-offset: -1px; }
+.sy-maararaha__luvut { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: .5rem 1rem; margin: .75rem 0 0; }
+.sy-maararaha__luvut div { min-width: 0; }
+.sy-maararaha__luvut dt { display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--sy-teksti-hento); }
+.sy-maararaha__luvut dd { margin: 0; font-weight: 700; }
+.sy-maararaha__yli { color: var(--sy-vaara); }
+.sy-esitys-oletukset { margin-top: .75rem; }
+
+/* Tietoturva ja tietosuoja: lyhyet laatikot, jokaisessa lähde. */
+.sy-tt__paa { margin-bottom: 1.25rem; }
+.sy-tt__ruudukko { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); gap: 1rem; }
+.sy-tt__laatikko { background: var(--surface, #fff); border: 1px solid var(--border, #d3dce1); border-radius: var(--radius, 4px); padding: 1rem 1.1rem; display: flex; flex-direction: column; }
+.sy-tt__laatikko > :is(h2, h3) { font-size: 1.2rem; margin: 0 0 .5rem; }
+.sy-tt__laatikko p { margin: 0 0 .6rem; max-width: 62ch; }
+.sy-tt__lahde { margin-top: auto; padding-top: .5rem; border-top: 1px solid var(--border, #d3dce1); font-size: .9rem; color: var(--text-muted); }
+.sy-tt__lahde p { margin: 0; font-weight: 700; }
+.sy-tt__lahde ul { list-style: none; margin: 0; padding: 0; }
+.sy-tt__lahde li { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .35rem; min-height: 44px; }
+
+/* Lomakkeen vaiheet. */
+.sy-vaiheet { padding: var(--s-4, 1rem) var(--s-6, 1.5rem) 0; }
+.sy-vaiheet__tila { font-family: var(--font-sans); font-size: 1.25rem; margin: 0 0 .6rem; }
+.sy-vaiheet__nro { color: var(--text-muted); font-size: .95rem; margin-right: .35rem; }
+.sy-vaiheet__lista { list-style: none; margin: 0 0 .5rem; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .5rem; counter-reset: v; }
+.sy-vaiheet__lista li { display: flex; align-items: center; gap: .4rem; font-size: .88rem; color: var(--text-muted); min-width: 0; }
+.sy-vaiheet__nimi { overflow: hidden; text-overflow: ellipsis; }
+.sy-vaiheet__pallo { flex: none; display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 1.5px solid var(--border-strong, #6b7780); font-weight: 700; font-size: .85rem; background: var(--surface, #fff); }
+.sy-vaiheet__lista li.on-nyt { color: var(--text); font-weight: 700; }
+.sy-vaiheet__lista li.on-nyt .sy-vaiheet__pallo { background: var(--accent); border-color: var(--accent); color: #FFFFFF; }
+.sy-vaiheet__lista li.on-tehty .sy-vaiheet__pallo { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.sy-vaiheet__edistys { height: 4px; background: var(--surface-2, #eef2f4); border-radius: 2px; overflow: hidden; }
+.sy-vaiheet__edistys span { display: block; height: 100%; background: var(--accent); }
+.sy-vaiheet__napit { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: space-between; padding: var(--s-4, 1rem) var(--s-6, 1.5rem); border-top: 1px solid var(--border, #d3dce1); }
+.sy-vaiheet__napit .sy-vaiheet__seuraava { margin-left: auto; }
+.sy-vaihe-piilossa { display: none !important; }
+@media (max-width: 640px) {
+  .sy-vaiheet__lista { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(auto-fit, minmax(2rem, 1fr)); }
+  .sy-vaiheet__lista .sy-vaiheet__nimi { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* Työnantajan sivut: välilehdet, Omat hakemukset -kortit ja käsittelyn aikajana. */
+.tt-valilehdet { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; }
+.tt-valilehdet a { text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
+.tt-valilehdet a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: #FFFFFF; }
+.tt-ylarivi { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; margin-bottom: .75rem; }
+.tt-ylarivi > * { margin: 0 !important; }
+.sy-tunnistus { max-width: none; margin: var(--s-3, .75rem) var(--s-6, 1.5rem); font-size: .92rem; padding: .5rem .75rem; }
+/* Vaiheistetussa lomakkeessa osion otsikko on vaiheen otsikossa: legend jää ruudunlukijalle (fieldsetin nimi). */
+.sy-vaiheistettu legend.section__title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; padding: 0; }
+.sy-omat-valinta { margin-bottom: 1rem; }
+.sy-omat-valinta select { max-width: 100%; }
+.sy-omat-maara { font-size: 1.2rem; margin: 1.25rem 0 .75rem; }
+.sy-omat-lista { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: 1rem; }
+.sy-omat-kortti { background: var(--surface, #fff); border: 1px solid var(--border, #d3dce1); border-radius: var(--radius, 4px); padding: 1rem 1.1rem; min-width: 0; }
+.sy-omat-kortti__paa { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: .5rem 1rem; }
+.sy-omat-kortti__otsikko { font-size: 1.15rem; margin: 0; display: grid; gap: .15rem; overflow-wrap: anywhere; }
+.sy-omat-kortti__ala { font-size: .9rem; color: var(--text-muted); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.sy-omat-kortti__viesti { margin: .75rem 0 .5rem; }
+.sy-omat-kortti__puutteet { margin: 0 0 .75rem; padding-left: 1.2rem; color: var(--danger); }
+.sy-omat-kortti__tiedot { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: .5rem 1rem; margin: .75rem 0 0; padding-top: .75rem; border-top: 1px solid var(--border, #d3dce1); }
+.sy-omat-kortti__tiedot dt { font-size: .85rem; color: var(--text-muted); }
+.sy-omat-kortti__tiedot dd { margin: 0; overflow-wrap: anywhere; }
+.sy-omat-erat__otsikko { font-size: 1.05rem; margin: 1rem 0 .5rem; }
+.sy-omat-erat { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.sy-omat-era { display: grid; gap: .3rem; padding: .6rem .75rem; border: 1px solid var(--border, #d3dce1); border-radius: var(--radius, 4px); min-width: 0; }
+.sy-omat-era__nimi { font-weight: 700; }
+.sy-omat-era .actions, .sy-omat-kortti .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: .25rem 0 0; }
+.sy-aikajana { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); gap: .5rem; }
+.sy-aikajana li { position: relative; padding: .5rem .6rem .5rem 1.9rem; border-radius: var(--radius, 4px); background: var(--surface-2, #eef2f4); min-width: 0; }
+.sy-aikajana li::before { content: ""; position: absolute; left: .6rem; top: .8rem; width: .75rem; height: .75rem; border-radius: 50%; border: 2px solid var(--border-strong, #6b7780); background: var(--surface, #fff); }
+.sy-aikajana li.on-tehty::before { background: var(--accent); border-color: var(--accent); }
+.sy-aikajana li.on-nyt { background: var(--accent-soft); }
+.sy-aikajana li.on-nyt::before { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--surface, #fff); background: var(--accent); }
+.sy-aikajana__nimi { display: block; font-weight: 700; font-size: .9rem; }
+.sy-aikajana__tieto { display: block; font-size: .85rem; color: var(--text-muted); }
+
+/* Puhelin: ei vaakavieritystä esittelytilan näkymissä. */
+html.sy-esitys :is(.two, .form-layout, .twocol, .cols2) > * { min-width: 0; }
+@media (max-width: 520px) {
+  html.sy-esitys .shell { padding-inline: .9rem; }
+  html.sy-esitys .card { max-width: 100%; }
+  html.sy-esitys .tbl--pino :is(td, th) { overflow-wrap: anywhere; }
+  .sy-esitys-ala { flex-direction: column; }
+}
+@media print {
+  html.sy-esitys .topbar, html.sy-esitys .footer { display: none; }
+  .sy-esitys-kaaviot, .sy-vaiheet, .sy-vaiheet__napit { display: none; }
+}
+
 @media print {
   @page { size: A4; margin: 11mm 12mm; }
   html.sy-tulostaa body > *:not(.sy-tuloste) { display: none !important; }
