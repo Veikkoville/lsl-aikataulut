@@ -188,6 +188,14 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
       Mittari: smoke-tarkistus print-mediassa (sivun 1 alussa ei jatkuu-otsaketta, minuutit vähintään 10,67 px, ei
       tyhjiä sivuja) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
+  - ⚠️ EHDOTUS/KYSYMYS (agentti 2026-11-03): "jatkuu"-merkintä lisätään funktiossa `markPosterContinuations`
+    (index.html noin rivi 12741) jokaiselle rivilukuun alkavalle päivälohkolle, jonka alareuna ylittää arkin
+    (`row.bottom - pageStart > POSTER_SHEET_PX`); vain `data-large="1"` ohittaa ensimmäisen rivin. Ensimmäinen
+    lohko saa siis "jatkuu" silloin, kun se ei mahdu sivulle 1 ja `break-inside: avoid` siirtää sen sivulle 2, jolloin
+    sivu 1 jää pelkäksi otsikoksi (kohta 3, tyhjä sivu). Ilman selainta en voi mitata, kumpaa auditointi tarkoitti:
+    (a) ensimmäinen lohko jää sivulle 1 ja saa silti "jatkuu"-rivin, vai (b) lohko siirtyy sivulle 2. Korjaus on
+    eri: (a) ohita ensimmäinen rivi aina, (b) pienennä tai jaa ensimmäinen lohko, ettei sivu 1 jää tyhjäksi. Kerro
+    pysäkki ja tuloste (sivumäärä ja mikä sivu alkaa "jatkuu"-rivillä), niin rivi voidaan jakaa kahdeksi tehtäväksi.
 - [x] (vaihe 1 tehty: reitti, pysäkit ilman linjoja ja ilman tunnusta, CSV; loput vaiheet alla) index.html: datan laaturaportti kunnalle henkilöstönäkymään (uusi reitti `#/laatu`, lisää `STAFF_ROUTES`iin).
       Listaa feedistä: (1) pysäkit, joilta ei lähde yhtään vuoroa seuraavan 7 päivän aikana, (2) pysäkit, joiden kaikki
       vuorot vain saapuvat (pickupType NONE) mutta nimi on sama kuin lähtöpysäkillä (esim. Kauppatori A), (3) kaksikielisessä
