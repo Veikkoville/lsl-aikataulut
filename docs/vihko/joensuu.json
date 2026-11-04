@@ -1,0 +1,3506 @@
+{
+ "lahde": "JOJO:n talviaikataulut 19.10.2026–6.6.2027 (digiversio 26.10.2026), joensuun seudun joukkoliikenne",
+ "linjat": {
+  "1": {
+   "nimi": "UTRA–RANTAKYLÄ (RANTA-MUTALANTIE)–KESKUSTA–NIINIVAARA–KARHUNMÄKI–REIJOLA",
+   "toc": [
+    "1",
+    "Utra–Rantakylä (Ranta-Mutalantie)–keskusta–Niinivaara–Karhunmäki–Reijola"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Koillispuiston kenttä–Koillisväylä–Lasinpuhaltajantie–Utrantie–Latolankatu–Ranta-Mutalantie–Puronsuunkatu–Utrantie–Rantakatu–Rauhankatu–Torikatu–Yläsatamakatu–Kirkkokatu–Koskikatu–Siltakatu–Itäranta–Vanharaitti–Tikkamäentie–Suvikatu–Niinivaarantie–Vanha valtatie–Karhunkaari–Vanha valtatie",
+    "Huom: Matalalattia-auto"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Utra–keskusta",
+     "pysakit": [
+      "Koillispuiston kenttä",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Utra",
+     "pysakit": [
+      "Koskikatu",
+      "Koillispuiston kenttä"
+     ]
+    },
+    {
+     "otsikko": "Reijola–keskusta",
+     "pysakit": [
+      "Reijola",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Reijola",
+     "pysakit": [
+      "Koskikatu",
+      "Reijola"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "P",
+     "paivat": [
+      4
+     ],
+     "selite": "perjantain ja lauantain välisenä yönä"
+    }
+   ]
+  },
+  "2": {
+   "nimi": "UTRA/KUPLUSKYLÄ–RANTAKYLÄ (RUUHITIE)–KESKUSTA–NOLJAKKA–MARJALA",
+   "toc": [
+    "2",
+    "Utra/Kupluskylä–Rantakylä (Ruuhitie)–keskusta–Noljakka–Marjala"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Jynkäntie–Utrantie–Mustosenkatu–Koillisväylä–Lasinpuhaltajantie–Utrantie–Ruuhitie–Riihisärkänkatu–Utrantie–Rantakatu–(Rauhankatu–Torikatu–Yläsatamakatu–Kirkkokatu)–Koskikatu–Yliopistokatu–Noljakantie–Nuottaniementie–Ritvakoivuntie–Noljakankaari–Erkinpellontie–Marjalantie–Lintuaidantie–Aurinkokatu",
+    "Huom: Matalalattia-auto"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Utra/Kupluskylä–keskusta",
+     "pysakit": [
+      "Kupluskylä",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Utra/Kupluskylä",
+     "pysakit": [
+      "Koskikatu",
+      "Kupluskylä"
+     ]
+    },
+    {
+     "otsikko": "Marjala–keskusta",
+     "pysakit": [
+      "Sateenkaari",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Marjala",
+     "pysakit": [
+      "Koskikatu",
+      "Sateenkaari"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "P",
+     "paivat": [
+      4
+     ],
+     "selite": "perjantain ja lauantain välisenä yönä"
+    },
+    {
+     "m": "Y",
+     "jalkeen": [
+      "Linnunlahti"
+     ],
+     "selite": "Keskusta–Marjala Linnunlahden kautta: Länsikatu–Linnunlahdentie–Heinäpurontie"
+    },
+    {
+     "m": "*",
+     "lahdot": [
+      "23:25"
+     ],
+     "taulukot": [
+      "Keskusta–Utra/Kupluskylä",
+      "Keskusta–Marjala"
+     ],
+     "selite": "odottaa enintään 5 min linjaa 202 Nepenmäeltä"
+    }
+   ]
+  },
+  "3": {
+   "nimi": "MEHTIMÄKI–KESKUSTA–PETÄIKKÖLÄ–VEHKALAHTI–PENTTILÄ–KESKUSTA–RAATEKANGAS",
+   "toc": [
+    "3",
+    "Mehtimäki–Keskusta–Niinivaara–Petäikkölä–Vehkalahti–Penttilä–keskusta–Raatekangas"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Koskikatu–Siltakatu–Itäranta–Vanharaitti–Tikkamäentie–Suvikatu–Niinivaarantie–Petäikkölänkatu–Hukantaival–Hukanhaudantie–Kuhasalontie–Vehkataival–Kuhasalontie–Pyhäselänkatu–Peltolankatu–Penttilänkatu–Itäranta–Siltakatu–Koskikatu–Kirkkokatu–Yläsatamakatu–Torikatu–Rauhankatu–Rantakatu–Nurmeksentie–Teollisuuskatu–Kauppakaari–Voimatie–Kajaanintie–Kuurnankatu–Wahlforssinkatu–Raatekankaantie–Lankkutie–Hirsitie",
+    "Huom: Matalalattia-auto"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Mehtimäki–keskusta",
+     "pysakit": [
+      "Joensuun pääkirjasto",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Petäikkölä–Vehkalahti",
+     "pysakit": [
+      "Koskikatu",
+      "Niinivaara",
+      "Petäikkölänkatu"
+     ],
+     "huom": [
+      "Auto jatkaa Petäikkölästä Vehkalahden–Penttilän kautta keskustaan ja Raatekankaalle."
+     ]
+    },
+    {
+     "otsikko": "Petäikkölä–Vehkalahti–keskusta",
+     "pysakit": [
+      "Petäikkölänkatu",
+      "Vehkalahti",
+      [
+       "Keskuspuisto",
+       "Koskikatu"
+      ]
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Raatekangas",
+     "pysakit": [
+      "Keskuspuisto",
+      "Hirsitie"
+     ]
+    },
+    {
+     "otsikko": "Raatekangas–keskusta",
+     "pysakit": [
+      "Hirsitie",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Vehkalahti–Petäikkölä",
+     "pysakit": [
+      "Koskikatu",
+      "Penttilänkatu",
+      "Petäikkölänkatu"
+     ],
+     "huom": [
+      "Auto jatkaa Petäikkölästä Niinivaaran kautta keskustaan ja Mehtimäelle."
+     ]
+    },
+    {
+     "otsikko": "Petäikkölä–keskusta",
+     "pysakit": [
+      "Petäikkölänkatu",
+      "Niinivaara",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Mehtimäki",
+     "pysakit": [
+      "Koskikatu",
+      "Joensuun pääkirjasto"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "Z",
+     "paate": [
+      "Koskikatu"
+     ],
+     "taulukot": [
+      "Petäikkölä–Vehkalahti–keskusta"
+     ],
+     "selite": "ei jatka keskustasta Raatekankaalle"
+    }
+   ]
+  },
+  "4": {
+   "nimi": "KULHO–KARSIKKO–KESKUSTA–NOLJAKKA–ONTTOLA–LENTOASEMA",
+   "toc": [
+    "4",
+    "Kulho–Karsikko–keskusta–Noljakka–Onttola"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Kulhontie–Haravakatu–Kettuvaarantie–Oksojantie–Nyyrikinkatu–Pohjolankatu–Kettuvaarantie–Itäranta–Siltakatu–Koskikatu–Yliopistokatu–Noljakantie–Onttolantie–Ojalankaarto–Onttolantie–Lentoasemantie–Lentoasema",
+    "Huom: Matalalattia-auto.",
+    "Linja 102 Koskikatu I-pysäkiltä kello 7.47 koulupäivisin Karsikkoon Pappilantien pysäkille."
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Kulho–keskusta",
+     "pysakit": [
+      "Kulho",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Kulho",
+     "pysakit": [
+      "Koskikatu",
+      "Kulho"
+     ]
+    },
+    {
+     "otsikko": "Lentoasema–Onttola–Noljakka–keskusta",
+     "pysakit": [
+      [
+       "Joensuu Lentoasema",
+       "Kurjentie"
+      ],
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Noljakka–Onttola–Lentoasema",
+     "pysakit": [
+      "Koskikatu",
+      "Kurjentie"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "K",
+     "koulu": "koul",
+     "selite": "ajetaan vain Joensuun peruskoulujen koulupäivinä"
+    },
+    {
+     "m": "Z",
+     "paate": [
+      "Koskikatu"
+     ],
+     "selite": "vuoro päättyy keskustaan"
+    },
+    {
+     "m": "P",
+     "paivat": [
+      4
+     ],
+     "selite": "perjantaisin"
+    },
+    {
+     "m": "Y",
+     "lahto": [
+      "Kurjentie"
+     ],
+     "taulukot": [
+      "Lentoasema–Onttola–Noljakka–keskusta",
+      "Keskusta–Noljakka–Onttola–Lentoasema"
+     ],
+     "selite": "vuoro alkaa Onttolasta / päättyy Onttolaan"
+    },
+    {
+     "m": "Y",
+     "paate": [
+      "Kurjentie"
+     ],
+     "taulukot": [
+      "Lentoasema–Onttola–Noljakka–keskusta",
+      "Keskusta–Noljakka–Onttola–Lentoasema"
+     ],
+     "selite": "vuoro alkaa Onttolasta / päättyy Onttolaan"
+    }
+   ]
+  },
+  "6": {
+   "nimi": "JOENSUU–LENTOASEMA",
+   "toc": [
+    "6",
+    "Joensuu–keskusta–Noljakka–Lentoasema"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Koskikatu–Yliopistokatu–Noljakantie–Marjalantie–Lentoväylä–Lentoasemantie–Lentoasema (pysähtyy vain aikatauluun merkityillä pysäkeillä).",
+    "Linjaa 6 Joensuun keskusta–lentoasema liikennöidään vain lennoille AY349 ja AY350. Muut vuorot lentoasemalle ovat linjalla 4. Lennon peruuntuesssa lähtöä ei ajeta.",
+    "Hinta: 2 vyöhykkeen (AB) lippu",
+    "Maksutavat: käteinen, pankkikortti, Waltti-kortti, mobiililippu.",
+    "Linja 6 pysähtyy vain näillä pysäkeillä: Joensuun keskusta (Koskikatu L), Yliopistokatu, Kuusamatie (Yliopistokatu), Siilaisen terveysasema (Noljakantie), Siilaisentie (Noljakantie), Louhosaukio (Noljakantie), Noljakantori (Noljakantie), Noljakka (Marjalantie, S-market), Kuusela (Marjalantie), Marjala (Marjalantie), Lentoasema",
+    "Vuoro lähtee 70 minuuttia ennen lennon lähtöä Joensuun keskustasta. Matka-aika on noin 20 minuuttia.",
+    "Lentoasemalta bussi lähtee noin 15 minuutin päästä lennon laskeutumisesta. Linja-auto odottaa lentoasemalla myöhässä olevaa lentoa enintään 45 minuuttia. Lennon peruuntuessa ei lähtöä ajeta.",
+    "Lisätietoja aikatauluista: jojo.joensuu.fi"
+   ],
+   "taulukot": [],
+   "merkit": []
+  },
+  "9": {
+   "nimi": "OTSOLA–KESKUSTA–KARSIKKO–IIKSENVAARA–KARSIKKO–KESKUSTA",
+   "toc": [
+    "9",
+    "Otsola–keskusta–Karsikko–Iiksenvaara"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Tulliportinkatu–Länsikatu–Siltakatu–Kalevankatu–Koskikatu–Siltakatu–Itäranta–Kettuvaarantie–Iiksenportti–Iiksenvaarantie–Ketunpesäntie–Iiksenvaarantie–Iiksenportti–Kettuvaarantie–Itäranta–Siltakatu–Rantakatu–Koskikatu–Länsikatu–Siltakatu–Kaislakatu–Tulliportinkatu",
+    "Huom: Ketunpesäntie ajetaan aamupäivällä vastapäivään ja iltapäivällä myötäpäivään."
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Otsola–keskusta",
+     "pysakit": [
+      "Tulliportinkatu",
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      "koulup"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Karsikko–Iiksenvaara",
+     "pysakit": [
+      "Koskikatu",
+      "Iiksenvaarantie"
+     ],
+     "sarakkeet": [
+      "koulup"
+     ]
+    },
+    {
+     "otsikko": "Iiksenvaara–Karsikko–keskusta",
+     "pysakit": [
+      "Ketunpesät",
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      "koulup"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Otsola",
+     "pysakit": [
+      "Koskikatu",
+      "Kaislakatu"
+     ],
+     "sarakkeet": [
+      "koulup"
+     ]
+    }
+   ],
+   "merkit": []
+  },
+  "11": {
+   "nimi": "UTRA–RANTAKYLÄ (RANTA-MUTALANTIE)–KESKUSTA–MEHTIMÄKI–URHEILUPUISTO",
+   "toc": [
+    "11",
+    "Utra–Rantakylä (Ranta-Mutalantie)–keskusta–Mehtimäki–Urheilupuisto"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Koillispuiston kenttä–Koillisväylä–Lasinpuhaltajantie–Utrantie–Latolankatu–Ranta-Mutalantie–Puronsuunkatu–Utrantie–Rantakatu–Rauhankatu–Torikatu–(Yläsatamakatu–Kirkkokatu)–Koskikatu–Länsikatu–Linnunlahdentie–Hallitie",
+    "Huom: Matalalattia-auto"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Utra–keskusta",
+     "pysakit": [
+      "Koillispuiston kenttä",
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      "koulup"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Urheilupuisto",
+     "pysakit": [
+      "Koskikatu",
+      "Urheilupuisto"
+     ],
+     "sarakkeet": [
+      "koulup"
+     ]
+    }
+   ],
+   "merkit": []
+  },
+  "12": {
+   "nimi": "UTRA/KOILLISPORTTI–RANTAKYLÄ–KESKUSTA–NOLJAKKA–MARJALA",
+   "toc": [
+    "12",
+    "Utra–Rantakylä–keskusta–Noljakka–Marjala"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Koillisväylä–Lasinpuhaltajantie–Utrantie–Rantakatu–Rauhankatu–Torikatu–(Yläsatamakatu–Kirkkokatu)–Koskikatu–Yliopistokatu–Noljakantie–Marjalantie–Lintuaidantie–Aurinkokatu",
+    "Huom: Matalalattia-auto"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Utra–keskusta",
+     "pysakit": [
+      "Laulupuuntie",
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      "koulupäivisin"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Utra",
+     "pysakit": [
+      "Koskikatu",
+      "Koillisportti"
+     ],
+     "sarakkeet": [
+      "koulupäivisin"
+     ]
+    },
+    {
+     "otsikko": "Marjala–keskusta",
+     "pysakit": [
+      "Sateenkaari",
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      "koulupäivisin"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Marjala",
+     "pysakit": [
+      "Koskikatu",
+      "Sateenkaari"
+     ],
+     "sarakkeet": [
+      "koulupäivisin"
+     ]
+    }
+   ],
+   "merkit": []
+  },
+  "101": {
+   "nimi": "JYRINKYLÄ–YLÄMYLLY–JOENSUU–NIITTYLAHTI",
+   "toc": [
+    "101",
+    "Jyrinkylä/Honkalampi–Ylämylly–Joensuu–Niittylahti"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Patteristontie–Ylämyllyntie–Marjalantie–Kuopiontie–Siltakatu–Kalevankatu/Länsikatu–Koskikatu–Siltakatu–Itäranta–Vanharaitti–Tikkamäentie–Suvikatu–Niinivaarantie–Vanha valtatie–Louhelantie–Niittylahdentie",
+    "Huom: Matalalattia-auto"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Jyrinkylä–Ylämylly–Joensuun keskusta",
+     "pysakit": [
+      "Jyrinlenkki",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Ylämylly–Jyrinkylä",
+     "pysakit": [
+      "Koskikatu",
+      "Jyrinlenkki"
+     ]
+    },
+    {
+     "otsikko": "Niittylahti–Joensuun keskusta",
+     "pysakit": [
+      "Kurkihirrentie",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Niittylahti",
+     "pysakit": [
+      "Koskikatu",
+      "Kurkihirrentie"
+     ]
+    },
+    {
+     "otsikko": "Honkalampi–Ylämylly–Joensuun keskusta",
+     "pysakit": [
+      "Lampitie",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Ylämylly–Honkalampi",
+     "pysakit": [
+      "Koskikatu",
+      "Lampitie"
+     ]
+    },
+    {
+     "otsikko": "Honkalampi–Jyrinkylä",
+     "pysakit": [
+      "Lampitie",
+      "Jyrinlenkki"
+     ]
+    },
+    {
+     "otsikko": "Jyrinkylä–Honkalampi",
+     "pysakit": [
+      "Jyrinlenkki",
+      "Lampitie"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "H",
+     "kautta": [
+      "Lampitie"
+     ],
+     "selite": "Honkalammen kautta"
+    },
+    {
+     "m": "J",
+     "kautta": [
+      "Jyrinlenkki"
+     ],
+     "selite": "Jyrinkylän kautta"
+    },
+    {
+     "m": "P",
+     "paivat": [
+      4
+     ],
+     "selite": "Perjantaisin"
+    },
+    {
+     "m": "K",
+     "koulu": "koul",
+     "selite": "koulupäivisin"
+    }
+   ]
+  },
+  "102": {
+   "nimi": "LIPERI– YLÄMYLLY–JOENSUU–NEPENMÄKI",
+   "toc": [
+    "102",
+    "Liperi–Honkalampi–Ylämylly–Joensuu–Nepenmäki"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Käsämäntie–Liperintie–Koivutie/linja-autoasema–Liperintie–Honkatie–Liperintie–Ylämyllyntie–Marjalantie–Kuopiontie–Siltakatu–Kalevankatu/Länsikatu–Koskikatu–Siltakatu–Itäranta–Vanharaitti–Tikkamäentie–Tikkarinne–Nepenmäenkatu",
+    "Huom: Matalalattia-auto"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Liperi–Ylämylly Joensuun keskusta",
+     "pysakit": [
+      "Liperin terveyskeskus",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Honkalampi–Ylämylly–Joensuun keskusta",
+     "pysakit": [
+      "Lampitie",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Ylämylly–Liperi",
+     "pysakit": [
+      "Koskikatu",
+      "Liperin terveyskeskus"
+     ]
+    },
+    {
+     "otsikko": "Nepenmäki–Joensuun keskusta",
+     "pysakit": [
+      "Nepenmäki",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Nepenmäki",
+     "pysakit": [
+      "Koskikatu",
+      "Nepenmäki"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "K",
+     "koulu": "koul",
+     "selite": "ajetaan vain koulupäivinä, vuoro ei käy Honkalammella, jatkaa klo 7.47 keskustasta Karsikkoon Luoviin Pappilantien pysäkille"
+    }
+   ]
+  },
+  "103": {
+   "nimi": "HAMMASLAHTI–HAAVANPÄÄ–REIJOLA–JOENSUU–URHEILUPUISTO",
+   "toc": [
+    "103",
+    "Hammaslahti–Haavanpää–Joensuu–Urheilupuisto"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Hammaslahdentie–Haavanpääntie–Mulonväylä–Niittylahdentie–Louhelantie–Vanha valtatie–Niinivaarantie–Suvikatu–Tikkamäentie–Vanharaitti–Itäranta–Siltakatu–Koskikatu–Länsikatu–Linnunlahdentie–Hallitie",
+    "Huom: Matalalattia-auto",
+    "Hammaslahden vuoroja myös linjalla 104, s. 34–35"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Hammaslahti–Joensuun keskusta",
+     "pysakit": [
+      "Hammaslahti",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Hammaslahti",
+     "pysakit": [
+      "Koskikatu",
+      "Hammaslahti"
+     ]
+    },
+    {
+     "otsikko": "Urheilupuisto–Joensuun keskusta",
+     "pysakit": [
+      "Urheilupuisto",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Urheilupuisto",
+     "pysakit": [
+      "Koskikatu",
+      "Urheilupuisto"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "Z",
+     "paate": [
+      "Koskikatu"
+     ],
+     "selite": "päättyy keskustaan"
+    }
+   ]
+  },
+  "104": {
+   "nimi": "HAMMASLAHTI–SUHMURA–REIJOLA–JOENSUU–OTSOLA/URHEILUPUISTO",
+   "toc": [
+    "104",
+    "Hammaslahti–Suhmura–Joensuu–Otsola/Urheilupuisto"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Hammaslahdentie–Haavanpääntie–Suhmurantie –Vehkapurontie–Niittylahdentie–Louhelantie–Vanha valtatie–Niinivaarantie–Suvikatu–Tikkamäentie–Vanharaitti–Itäranta–Siltakatu–Koskikatu",
+    "Huom: Matalalattia-auto",
+    "Hammaslahden vuoroja myös linjalla 103, s. 32–33"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Hammaslahti–Joensuun keskusta",
+     "pysakit": [
+      "Hammaslahti",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Hammaslahti",
+     "pysakit": [
+      "Koskikatu",
+      "Hammaslahti"
+     ]
+    },
+    {
+     "otsikko": "Otsola/Urheilupuisto–Joensuun keskusta",
+     "pysakit": [
+      [
+       "Tulliportinkatu",
+       "Urheilupuisto"
+      ],
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Otsola/Urheilupuisto",
+     "pysakit": [
+      "Koskikatu",
+      [
+       "Tulliportinkatu",
+       "Urheilupuisto"
+      ]
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "Z",
+     "paate": [
+      "Koskikatu"
+     ],
+     "selite": "päättyy keskustaan"
+    },
+    {
+     "m": "O",
+     "paate": [
+      "Tulliportinkatu"
+     ],
+     "taulukot": [
+      "Hammaslahti–Joensuun keskusta",
+      "Joensuun keskusta–Otsola/Urheilupuisto"
+     ],
+     "selite": "Otsolaan/Otsolasta, Koskikatu–Länsikatu–Siltakatu–Kaislakatu–Tulliportinkatu–Länsikatu–Siltakatu–Kalevankatu–Koskikatu"
+    },
+    {
+     "m": "O",
+     "lahto": [
+      "Tulliportinkatu"
+     ],
+     "taulukot": [
+      "Otsola/Urheilupuisto–Joensuun keskusta"
+     ],
+     "selite": "Otsolaan/Otsolasta, Koskikatu–Länsikatu–Siltakatu–Kaislakatu–Tulliportinkatu–Länsikatu–Siltakatu–Kalevankatu–Koskikatu"
+    },
+    {
+     "m": "U",
+     "paate": [
+      "Urheilupuisto"
+     ],
+     "taulukot": [
+      "Hammaslahti–Joensuun keskusta",
+      "Joensuun keskusta–Otsola/Urheilupuisto"
+     ],
+     "selite": "Urheilupuistoon/Urheilupuistosta, Koskikatu–Länsikatu–Linnunlahdentie–Hallitie"
+    },
+    {
+     "m": "U",
+     "lahto": [
+      "Urheilupuisto"
+     ],
+     "taulukot": [
+      "Otsola/Urheilupuisto–Joensuun keskusta"
+     ],
+     "selite": "Urheilupuistoon/Urheilupuistosta, Koskikatu–Länsikatu–Linnunlahdentie–Hallitie"
+    }
+   ]
+  },
+  "201": {
+   "nimi": "HUKANHAUTA–JOENSUU–MUTALA–LEHMOLA–KYLMÄOJA",
+   "toc": [
+    "201",
+    "Kylmäoja–Lehmola–Joensuu–Hukanhauta"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti Hukanhaudalle: Koskikatu–Siltakatu–Itäranta–Vanharaitti–Tikkamäentie–Suvikatu–Niinivaarantie–Ilomantsintie–Lonikintie–Karjamäentie–Lonikintie–Niinivaarantie",
+    "Reitti Mutalaan: Koskikatu–Kirkkokatu–Yläsatamakatu–Torikatu–Rauhankatu–Rantakatu–Nurmeksentie–Jukolankatu–Utrantie–Rantakatu–Rauhankatu–Torikatu–Yläsatamakatu–Kirkkokatu–Koskikatu",
+    "Reitti Kylmäojalle: Koskikatu–Kirkkokatu–Yläsatamakatu–Torikatu–Rauhankatu–Rantakatu–Nurmeksentie–Vanha Nurmeksentie–Kylmäojantie–Ruuttisenahonkatu–Sammalkatu–Kangastie–Kruununtie–Kylmäojantie–Voudintie–Pohjatuulentie",
+    "Huom: Matalalattia-auto."
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Keskusta–Hukanhauta",
+     "pysakit": [
+      "Koskikatu",
+      "Laiduntie"
+     ]
+    },
+    {
+     "otsikko": "Hukanhauta–keskusta",
+     "pysakit": [
+      "Laiduntie",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Mutala",
+     "pysakit": [
+      "Koskikatu",
+      "Raivaajantie"
+     ]
+    },
+    {
+     "otsikko": "Mutala–keskusta",
+     "pysakit": [
+      "Raivaajantie",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Kylmäoja–Joensuu",
+     "pysakit": [
+      "Pohjatuulentie pää",
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    },
+    {
+     "otsikko": "Joensuu–Kylmäoja",
+     "pysakit": [
+      "Koskikatu",
+      "Pohjatuulentie pää"
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "K",
+     "koulu": "koul",
+     "selite": "Koulupäivinä",
+     "eiReitilla": [
+      "Kupluskylä"
+     ]
+    },
+    {
+     "m": "U",
+     "reitilla": [
+      "Kupluskylä"
+     ],
+     "taulukot": [
+      "Kylmäoja–Joensuu",
+      "Joensuu–Kylmäoja"
+     ],
+     "selite": "Koulupäivinä Rantakylän–Utran–Kupluskylän–Jokirannantien kautta"
+    },
+    {
+     "m": "A",
+     "koulu": "loma",
+     "selite": "Koulujen lomapäivinä"
+    }
+   ]
+  },
+  "202": {
+   "nimi": "KONTIOLAHTI–KYLMÄOJA–LEHMOLA–MUTALA–JOENSUU–NEPENMÄKI",
+   "toc": [
+    "202",
+    "Kontiolahti–Lehmola–Mutala–Joensuu–Nepenmäki"
+   ],
+   "teksti": [
+    "Voimassa 19.10.2026–6.6.2027",
+    "Reitti: Karpalokaari–Keskuskatu–Asemantie–Kontioniementie–Vanha Nurmeksentie–Kylmäojantie–Kruununtie–Kangastie–Sammalkatu–Ruottisenahonkatu–Kylmäojantie–Vanha Nurmeksentie–Nurmeksentie–Rantakatu–Rauhankatu–Torikatu–Yläsatamakatu–Kirkkokatu–Koskikatu–Siltakatu–Itäranta–Vanharaitti–Tikkamäentie–Suvikatu–Tikkarinne–Nepenmäenkatu",
+    "Huom: Matalalattia-auto",
+    "Joensuu–Kontiolahti–Juuka–Nurmes -vuorot s. 56"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Kontiolahti–Joensuun keskusta",
+     "pysakit": [
+      "Kontiolahden yläkoulun ja lukion pysäkki",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Kontiolahti",
+     "pysakit": [
+      "Koskikatu",
+      "Kontiolahden yläkoulun ja lukion pysäkki"
+     ]
+    },
+    {
+     "otsikko": "Nepenmäki–Joensuun keskusta",
+     "pysakit": [
+      "Nepenmäki",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Nepenmäki",
+     "pysakit": [
+      "Koskikatu",
+      "Nepenmäki"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "K",
+     "koulu": "koul",
+     "selite": "Koulupäivinä"
+    },
+    {
+     "m": "P",
+     "paivat": [
+      4
+     ],
+     "selite": "Perjantain ja lauantain välisenä yönä"
+    }
+   ]
+  },
+  "203": {
+   "nimi": "PELTOLA–JOENSUU–KYLMÄOJA–KONTIOLAHTI–KONTIONIEMI (VANHA NURMEKSENTIE)",
+   "toc": [
+    "203",
+    "Kontioniemi–Kontiolahti–Joensuu–Peltola"
+   ],
+   "teksti": [
+    "Voimassa 19.10.2026–6.6.2027",
+    "Reitti: Kontioniementie–Asemantie–Keskuskatu Yhdystie–Kajaanintie–Vanha Nurmeksentie–Nurmeksentie–Rantakatu–Rauhankatu–Torikatu–Yläsatamakatu–Kirkkokatu–Koskikatu–Siltakatu–Itäranta–Vanharaitti–Penttilänkatu–Peltolankatu",
+    "Huom: Matalalattia-auto",
+    "Linja 204 käy lauantaina Kontioniemessä"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Peltola–Joensuun keskusta",
+     "pysakit": [
+      "Peltola",
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Kontiolahti–Kontioniemi",
+     "pysakit": [
+      "Koskikatu",
+      [
+       "Kontioniemi",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ]
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    },
+    {
+     "otsikko": "Kontiolahti–Kontioniemi",
+     "pysakit": [
+      [
+       "Vierevänniementie",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ],
+      "Kontioniemi"
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    },
+    {
+     "otsikko": "Kontioniemi–Kontiolahti–Joensuu",
+     "pysakit": [
+      "Kontioniemi",
+      [
+       "Koskikatu",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ]
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    },
+    {
+     "otsikko": "Kontiolahti–Joensuu",
+     "pysakit": [
+      [
+       "Vierevänniementie",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ],
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Peltola",
+     "pysakit": [
+      "Koskikatu",
+      "Peltola"
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "A",
+     "koulu": "loma",
+     "selite": "Koulujen lomapäivinä"
+    },
+    {
+     "m": "K",
+     "koulu": "koul",
+     "selite": "Koulupäivinä",
+     "eiReitilla": [
+      "Kontiolahden yläkoulun ja lukion pysäkki"
+     ]
+    },
+    {
+     "m": "K",
+     "koulu": "koul",
+     "selite": "Koulupäivinä",
+     "palvelu": "Kontiolahti"
+    },
+    {
+     "m": "*",
+     "paate": [
+      "Kontiolahden yläkoulun ja lukion pysäkki"
+     ],
+     "taulukot": [
+      "Joensuun keskusta–Kontiolahti–Kontioniemi",
+      "Kontioniemi–Kontiolahti–Joensuu"
+     ],
+     "selite": "Kontiolahdella päätepysäkki Kontiolahden yläkoulu ja lukio Karpalokaarella"
+    },
+    {
+     "m": "*",
+     "lahto": [
+      "Kontiolahden yläkoulun ja lukion pysäkki"
+     ],
+     "taulukot": [
+      "Kontiolahti–Joensuu",
+      "Kontiolahti–Kontioniemi"
+     ],
+     "selite": "Kontiolahdella päätepysäkki Kontiolahden yläkoulu ja lukio Karpalokaarella"
+    }
+   ]
+  },
+  "204": {
+   "nimi": "PAIHOLA–KYLMÄOJA–LEHMO–RANTAKYLÄ–JOENSUU–PETÄIKKÖLÄ",
+   "toc": [
+    "204",
+    "Paihola–Kylmäoja–Rantakylä–Joensuu–Petäikkölä"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Sairaalatie–Paiholantie–Lieksantie–Vanha Nurmeksentie–Kylmäojantie–Vanha Nurmeksentie–Nurmeksentie–Jukolankatu–Utrantie–Rantakatu–Rauhankatu–Torikatu–Yläsatamakatu–Kirkkokatu–Koskikatu–Siltakatu–Itäranta–Vanharaitti–Tikkamäentie–Suvikatu–Niinivaarantie–Petäikkölänkatu–Hukantaival",
+    "Huom: Matalalattia-auto."
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Paihola–Joensuun keskusta",
+     "pysakit": [
+      "Paiholan sairaala",
+      "Koskikatu"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Paihola",
+     "pysakit": [
+      "Koskikatu",
+      "Paiholan sairaala"
+     ]
+    },
+    {
+     "otsikko": "Petäikkölä–Joensuun keskusta",
+     "pysakit": [
+      "Petäikkölänkatu",
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Petäikkölä",
+     "pysakit": [
+      "Koskikatu",
+      "Petäikkölänkatu"
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    },
+    {
+     "otsikko": "Joensuun keskusta–Kontioniemi",
+     "pysakit": [
+      "Koskikatu",
+      "Kontioniemi"
+     ],
+     "sarakkeet": [
+      "la"
+     ]
+    },
+    {
+     "otsikko": "Kontioniemi–Joensuun keskusta",
+     "pysakit": [
+      "Kontioniemi",
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      "la"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "A",
+     "koulu": "loma",
+     "selite": "Koulujen lomapäivinä"
+    },
+    {
+     "m": "N",
+     "kautta": [
+      "Kontioniemi"
+     ],
+     "selite": "Kontioniemen kautta"
+    },
+    {
+     "m": "Z",
+     "paate": [
+      "Koskikatu"
+     ],
+     "taulukot": [
+      "Paihola–Joensuun keskusta"
+     ],
+     "selite": "päättyy Joensuun keskustaan, ei jatka Petäikkölään"
+    },
+    {
+     "m": "Y",
+     "kautta": [
+      "Paiholan sairaala"
+     ],
+     "selite": "Paiholan kautta"
+    }
+   ]
+  },
+  "112": {
+   "nimi": "JOENSUU–SÄRKIVAARA–KUMPU–REIJOLA–JOENSUU",
+   "toc": [
+    "112",
+    "Joensuu–Särkivaara–Kumpu–Reijola–Joensuu"
+   ],
+   "teksti": [
+    "Huom: x = pysähtyy reittipisteen kohdalla tarvittaessa"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "",
+     "pysakit": [
+      "Koskikatu",
+      "Särkivaara",
+      "Kumpu"
+     ],
+     "rivit": [
+      [
+       "Joensuu keskusta (Koskikatu I)",
+       "Koskikatu"
+      ],
+      [
+       "Niinivaara",
+       "Niinivaara"
+      ],
+      [
+       "Särkivaara",
+       "Särkivaara"
+      ],
+      [
+       "Kumpu",
+       "Kumpu"
+      ],
+      [
+       "Niittylahden koulu th",
+       [
+        "Niittylahti th",
+        "Kumpu th"
+       ]
+      ],
+      [
+       "Louhelantie",
+       "Louhelantie"
+      ],
+      [
+       "Reijola",
+       "Reijola"
+      ],
+      [
+       "Niinivaara",
+       "Niinivaara"
+      ],
+      [
+       "Joensuu keskusta",
+       "Koskikatu"
+      ]
+     ]
+    },
+    {
+     "otsikko": "",
+     "pysakit": [
+      "Koskikatu",
+      "Kumpu",
+      "Särkivaara"
+     ],
+     "rivit": [
+      [
+       "Joensuu keskusta (Koskikatu I)",
+       "Koskikatu"
+      ],
+      [
+       "Niinivaara",
+       "Niinivaara"
+      ],
+      [
+       "Reijola",
+       "Reijola"
+      ],
+      [
+       "Louhelantie",
+       "Louhelantie"
+      ],
+      [
+       "Niittylahden koulu th",
+       [
+        "Niittylahti th",
+        "Kumpu th"
+       ]
+      ],
+      [
+       "Kumpu",
+       "Kumpu"
+      ],
+      [
+       "Särkivaara",
+       "Särkivaara"
+      ],
+      [
+       "Niinivaara",
+       "Niinivaara"
+      ],
+      [
+       "Joensuu keskusta",
+       "Koskikatu"
+      ]
+     ]
+    }
+   ]
+  },
+  "114": {
+   "nimi": "JOENSUU–REIJOLA–NIITTYLAHDEN KOULU–NIITTYLAHTI",
+   "toc": [
+    "114",
+    "Joensuu–Niittylahti"
+   ],
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Koskikatu–Siltakatu–Itäranta–Vanharaitti–Tikkamäentie–Suvikatu–Niinivaarantie–Vanha valtatie–Louhelantie–Niittylahdentie–Mulonväylä–Kummuntie–Niittylahden koulu–Kummuntie–Mulonväylä–Niittylahdentie",
+    "Huom: x = pysähtyy reittipisteen kohdalla tarvittaessa"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "",
+     "pysakit": [
+      "Niittylahden koulu",
+      "Koskikatu"
+     ],
+     "rivit": [
+      [
+       "Niittylahti",
+       "Kurkihirrentie"
+      ],
+      [
+       "Niittylahden koulu",
+       "Niittylahden koulu"
+      ],
+      [
+       "Louhelantie",
+       "Louhelantie"
+      ],
+      [
+       "Reijola",
+       "Reijola"
+      ],
+      [
+       "Joensuu keskusta",
+       "Koskikatu"
+      ]
+     ]
+    },
+    {
+     "otsikko": "",
+     "pysakit": [
+      "Koskikatu",
+      "Niittylahden koulu"
+     ],
+     "rivit": [
+      [
+       "Joensuu keskusta",
+       "Koskikatu"
+      ],
+      [
+       "Reijola",
+       "Reijola"
+      ],
+      [
+       "Louhelantie",
+       "Louhelantie"
+      ],
+      [
+       "Niittylahden koulu",
+       "Niittylahden koulu"
+      ],
+      [
+       "Niittylahti",
+       "Kurkihirrentie"
+      ]
+     ]
+    }
+   ]
+  },
+  "122": {
+   "nimi": "Liperin koululaisliikenne",
+   "toc": [
+    "122–131",
+    "Liperin koululaisliikenteet"
+   ],
+   "teksti": [
+    "LINJAT 122–131",
+    "Voimassa 12.8.2026–6.6.2027",
+    "Ajetaan Liperin kunnan ma–pe koulupäivinä",
+    "Huom: T = tarvittaessa, x = pysähtyy reittipisteessä tarvittaessa, | = auto ei aja paikan kautta"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "LINJA 122 Jyrinkylä–Ylämylly–Mattisenlahti–Liperi, LINJA 124 Jyrinkylä–Ylämylly–Liperi",
+     "pysakit": [
+      "Liperin terveyskeskus",
+      "Jyrinlenkki"
+     ],
+     "rivit": [
+      [
+       "Terveyskeskus",
+       "Liperin terveyskeskus"
+      ],
+      [
+       "Liperi",
+       "Liperi Linja-autoasema"
+      ],
+      [
+       "Mattisenlahti",
+       "Mattisenlahti"
+      ],
+      [
+       "Ylämylly",
+       [
+        "Ylämylly",
+        "Alamylly"
+       ]
+      ],
+      [
+       "Ylämyllyn yläkoulu",
+       "Koulukeskus"
+      ],
+      [
+       "Jyrin koulu",
+       "Paloaukea koulu"
+      ],
+      [
+       "Jyrinkylä",
+       "Jyrinlenkki"
+      ]
+     ]
+    },
+    {
+     "otsikko": "",
+     "pysakit": [
+      "Jyrinlenkki",
+      "Liperin terveyskeskus"
+     ],
+     "rivit": [
+      [
+       "Jyrinkylä",
+       "Jyrinlenkki"
+      ],
+      [
+       "Jyrin koulu",
+       "Paloaukea koulu"
+      ],
+      [
+       "Ylämyllyn yläkoulu",
+       "Koulukeskus"
+      ],
+      [
+       "Ylämylly",
+       "Ylämylly"
+      ],
+      [
+       "Mattisenlahti",
+       "Mattisenlahti"
+      ],
+      [
+       "Liperi",
+       "Liperi Linja-autoasema"
+      ],
+      [
+       "Terveyskeskus",
+       "Liperin terveyskeskus"
+      ]
+     ]
+    }
+   ]
+  },
+  "127": {
+   "nimi": "Liperin koululaisliikenne",
+   "toc": false,
+   "teksti": [
+    "LINJAT 122–131",
+    "Voimassa 12.8.2026–6.6.2027",
+    "Ajetaan Liperin kunnan ma–pe koulupäivinä",
+    "Huom: T = tarvittaessa, x = pysähtyy reittipisteessä tarvittaessa, | = auto ei aja paikan kautta"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "LINJA 127 Ylämylly–Viinijärvi",
+     "pysakit": [
+      [
+       "Viinijärvi koulunpysäkki",
+       "Viinijärvi Joensuuntie"
+      ],
+      "Ylämylly"
+     ],
+     "rivit": [
+      [
+       "Viinijärvi",
+       [
+        "Viinijärvi koulunpysäkki",
+        "Viinijärvi Joensuuntie"
+       ]
+      ],
+      [
+       "Käsämä",
+       [
+        "Käsämä kauppa",
+        "Käsämä Vaiviontie"
+       ]
+      ],
+      [
+       "Veljestie",
+       "Veljestie"
+      ],
+      [
+       "Kuoringantie",
+       "Kuoringantie"
+      ],
+      [
+       "Ylämyllyntie",
+       "Ylämyllyntie"
+      ],
+      [
+       "Ylämylly",
+       "Ylämylly"
+      ],
+      [
+       "Ylämyllyn yläkoulu",
+       "Koulukeskus"
+      ]
+     ]
+    },
+    {
+     "otsikko": "",
+     "pysakit": [
+      "Koulukeskus",
+      "Viinijärvi koulunpysäkki"
+     ],
+     "rivit": [
+      [
+       "Ylämyllyn yläkoulu",
+       "Koulukeskus"
+      ],
+      [
+       "Ylämylly",
+       "Ylämylly"
+      ],
+      [
+       "Ylämyllyntie",
+       "Ylämyllyntie"
+      ],
+      [
+       "Kuoringantie",
+       "Kuoringantie"
+      ],
+      [
+       "Veljestie",
+       "Veljestie"
+      ],
+      [
+       "Käsämä",
+       [
+        "Käsämä Vaiviontie",
+        "Käsämä kauppa"
+       ]
+      ],
+      [
+       "Viinijärvi",
+       "Viinijärvi koulunpysäkki"
+      ]
+     ]
+    }
+   ]
+  },
+  "131": {
+   "nimi": "Liperin koululaisliikenne",
+   "toc": false,
+   "teksti": [
+    "LINJAT 122–131",
+    "Voimassa 12.8.2026–6.6.2027",
+    "Ajetaan Liperin kunnan ma–pe koulupäivinä",
+    "Huom: T = tarvittaessa, x = pysähtyy reittipisteessä tarvittaessa, | = auto ei aja paikan kautta"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "LINJA 131 Ylämylly–Vaivio",
+     "pysakit": [
+      "Vaivio th",
+      "Vaivio"
+     ],
+     "rivit": [
+      [
+       "Jyrin koulu",
+       "Paloaukea koulu"
+      ],
+      [
+       "Ylämyllyn yläkoulu",
+       "Koulukeskus"
+      ],
+      [
+       "Rykmentintie",
+       "Rykmentintie"
+      ],
+      [
+       "Välikangas",
+       [
+        "Välikangas",
+        "Pärnävaarantie-Välikangas"
+       ]
+      ],
+      [
+       "Vaivio th",
+       "Vaivio th"
+      ],
+      [
+       "Valkeisenmäki",
+       "Valkeisenmäki"
+      ],
+      [
+       "Vaivio th",
+       "Vaivio th"
+      ],
+      [
+       "Vaivio",
+       "Vaivio"
+      ],
+      [
+       "Kuusijärvi th",
+       "Kuusijärvi th"
+      ],
+      [
+       "Pärnävaarantie",
+       "Pärnävaarantie"
+      ],
+      [
+       "Välikangas",
+       [
+        "Pärnävaarantie-Välikangas",
+        "Välikangas"
+       ]
+      ],
+      [
+       "Rykmentintie",
+       "Rykmentintie"
+      ],
+      [
+       "Jyrin koulu",
+       "Paloaukea koulu"
+      ],
+      [
+       "Ylämyllyn yläkoulu",
+       "Koulukeskus"
+      ]
+     ]
+    }
+   ]
+  },
+  "206": {
+   "nimi": "Kontiolahden koululaisliikenne",
+   "toc": [
+    "206–215",
+    "Kontiolahden koululaisliikenteet"
+   ],
+   "teksti": [
+    "LINJAT 206–215",
+    "Voimassa 19.10.2026–6.6.2027",
+    "Ajetaan Kontiolahden kunnan ma–pe koulupäivinä"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "LINJA 206 Joensuu–Mönni–Jakokoski–Kontiolahti",
+     "pysakit": [
+      "Kauppatori",
+      "Kontiolahden yläkoulun ja lukion pysäkki"
+     ],
+     "rivit": [
+      [
+       "Joensuu (Kauppatori I)",
+       "Kauppatori"
+      ],
+      [
+       "Niinivaara",
+       "Niinivaara"
+      ],
+      [
+       "Alavi",
+       "Alavi"
+      ],
+      [
+       "Lehtoi",
+       "Lehtoi"
+      ],
+      [
+       "Mönni",
+       "Mönni"
+      ],
+      [
+       "Jakokoski",
+       "Jakokoski"
+      ],
+      [
+       "Uuro th",
+       [
+        "Uuro ramppi",
+        "Paihola th"
+       ]
+      ],
+      [
+       "Kontiolahden koulu",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ]
+     ]
+    },
+    {
+     "otsikko": "",
+     "pysakit": [
+      "Kontiolahden yläkoulun ja lukion pysäkki",
+      "Kauppatori"
+     ],
+     "rivit": [
+      [
+       "Kontiolahden koulu",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ],
+      [
+       "Uuro th",
+       [
+        "Uuro ramppi",
+        "Uuro Lieksantie"
+       ]
+      ],
+      [
+       "Jakokoski",
+       "Jakokoski"
+      ],
+      [
+       "Mönni",
+       "Mönni"
+      ],
+      [
+       "Lehtoi",
+       "Lehtoi"
+      ],
+      [
+       "Alavi",
+       "Alavi"
+      ],
+      [
+       "Niinivaara",
+       "Niinivaara"
+      ],
+      [
+       "Joensuu keskusta",
+       "Kauppatori"
+      ]
+     ]
+    }
+   ]
+  },
+  "207": {
+   "nimi": "Kontiolahden koululaisliikenne",
+   "toc": false,
+   "teksti": [
+    "LINJAT 206–215",
+    "Voimassa 19.10.2026–6.6.2027",
+    "Ajetaan Kontiolahden kunnan ma–pe koulupäivinä"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "LINJA 207 Joensuu–Kulho–Kuurna–Kontiolahti",
+     "pysakit": [
+      "Kauppatori",
+      "Kontiolahden yläkoulun ja lukion pysäkki"
+     ],
+     "rivit": [
+      [
+       "Joensuu (Kauppatori I)",
+       "Kauppatori"
+      ],
+      [
+       "Karsikko",
+       "Kettuvaara"
+      ],
+      [
+       "Iiksenniitty",
+       "Iiksenniitty"
+      ],
+      [
+       "Kulho",
+       "Kulho"
+      ],
+      [
+       "Kuurna",
+       [
+        "Kuurnantie",
+        "Kuurna th"
+       ]
+      ],
+      [
+       "Uuro th",
+       "Uuro ramppi"
+      ],
+      [
+       "Kontiolahden koulu",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ]
+     ]
+    },
+    {
+     "otsikko": "",
+     "pysakit": [
+      "Kontiolahden yläkoulun ja lukion pysäkki",
+      "Kauppatori"
+     ],
+     "rivit": [
+      [
+       "Kontiolahden koulu",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ],
+      [
+       "Uuro th",
+       [
+        "Uuro ramppi",
+        "Uuro Lieksantie"
+       ]
+      ],
+      [
+       "Kuurna",
+       [
+        "Kuurnantie",
+        "Kuurna th"
+       ]
+      ],
+      [
+       "Kulho",
+       "Kulho"
+      ],
+      [
+       "Iiksenniitty",
+       "Iiksenniitty"
+      ],
+      [
+       "Karsikko",
+       "Kettuvaara"
+      ],
+      [
+       "Joensuu keskusta",
+       "Kauppatori"
+      ]
+     ]
+    }
+   ]
+  },
+  "211": {
+   "nimi": "Kontiolahden koululaisliikenne",
+   "toc": false,
+   "teksti": [
+    "LINJAT 206–215",
+    "Voimassa 19.10.2026–6.6.2027",
+    "Ajetaan Kontiolahden kunnan ma–pe koulupäivinä"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "LINJA 211 Kunnasniemi–Onttola–Kontiolahti, LINJA 215 Onttola–Kontiolahti",
+     "pysakit": [
+      [
+       "Lahdenperä",
+       "Lonkapellon th"
+      ],
+      "Kontiolahden yläkoulun ja lukion pysäkki"
+     ],
+     "rivit": [
+      [
+       "Lonkapellon th",
+       "Lonkapellon th"
+      ],
+      [
+       "Marjosärkkä",
+       "Marjosärkäntie"
+      ],
+      [
+       "Kunnasniemi",
+       [
+        "Lahdenperä",
+        "Kunnasniementie"
+       ]
+      ],
+      [
+       "Puntarikoski",
+       [
+        "Puntarikoski th",
+        "Puntarikosken silta"
+       ]
+      ],
+      [
+       "Onttola",
+       "Onttola"
+      ],
+      [
+       "Kyyrönsuontie",
+       "Kyyrönsuontie th"
+      ],
+      [
+       "Jaamankankaantie",
+       "Jaaman teollisuusalue"
+      ],
+      [
+       "Lehmola th",
+       "Lehmola th"
+      ],
+      [
+       "Kylmäoja",
+       "Kylmäojan koulu"
+      ],
+      [
+       "Kontiolahden koulu",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ]
+     ]
+    },
+    {
+     "otsikko": "",
+     "pysakit": [
+      "Kontiolahden yläkoulun ja lukion pysäkki",
+      [
+       "Lahdenperä",
+       "Lonkapellon th"
+      ]
+     ],
+     "rivit": [
+      [
+       "Kontiolahden koulu",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ],
+      [
+       "Kylmäoja",
+       "Kylmäojan koulu"
+      ],
+      [
+       "Lehmola th",
+       "Lehmola th"
+      ],
+      [
+       "Jaamankankaantie",
+       "Jaaman teollisuusalue"
+      ],
+      [
+       "Kyyrönsuontie",
+       "Kyyrönsuontie th"
+      ],
+      [
+       "Onttola",
+       "Onttola"
+      ],
+      [
+       "Puntarikoski",
+       [
+        "Puntarikoski th",
+        "Puntarikosken vanhatie"
+       ]
+      ],
+      [
+       "Kunnasniemi",
+       [
+        "Lahdenperä",
+        "Kunnasniementie"
+       ]
+      ],
+      [
+       "Marjosärkkä",
+       "Marjosärkäntie"
+      ],
+      [
+       "Lonkapellon th",
+       "Lonkapellon th"
+      ]
+     ]
+    }
+   ],
+   "linjatSarakkeissa": true
+  },
+  "212": {
+   "nimi": "Kontiolahden koululaisliikenne",
+   "toc": false,
+   "teksti": [
+    "LINJAT 206–215",
+    "Voimassa 19.10.2026–6.6.2027",
+    "Ajetaan Kontiolahden kunnan ma–pe koulupäivinä"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "LINJA 212 Joensuu–Rantakylä–Lehmo–Kontiolahti",
+     "pysakit": [
+      "Koskikatu",
+      "Kontiolahden yläkoulun ja lukion pysäkki"
+     ],
+     "rivit": [
+      [
+       "Joensuu (Koskikatu L)",
+       "Koskikatu"
+      ],
+      [
+       "Rantakylä",
+       "Jukolankatu"
+      ],
+      [
+       "Lehmola",
+       "Lehmola"
+      ],
+      [
+       "Pohjatuulentie",
+       "Pohjatuulentie pää"
+      ],
+      [
+       "Kylmäoja",
+       "Kylmäojan koulu"
+      ],
+      [
+       "Kontiolahden koulu",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ]
+     ]
+    },
+    {
+     "otsikko": "",
+     "pysakit": [
+      "Kontiolahden yläkoulun ja lukion pysäkki",
+      "Koskikatu"
+     ],
+     "rivit": [
+      [
+       "Kontiolahden koulu",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ],
+      [
+       "Kylmäoja",
+       "Kylmäojan koulu"
+      ],
+      [
+       "Pohjatuulentie",
+       "Pohjatuulentie pää"
+      ],
+      [
+       "Lehmola",
+       "Lehmola"
+      ],
+      [
+       "Rantakylä",
+       "Jukolankatu"
+      ],
+      [
+       "Joensuu keskusta",
+       "Koskikatu"
+      ]
+     ]
+    }
+   ]
+  },
+  "214": {
+   "nimi": "Kontiolahden koululaisliikenne",
+   "toc": false,
+   "teksti": [
+    "LINJAT 206–215",
+    "Voimassa 19.10.2026–6.6.2027",
+    "Ajetaan Kontiolahden kunnan ma–pe koulupäivinä"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "LINJA 214 Kuurna–Paihola–Kontiolahti",
+     "pysakit": [
+      "Kuurnantie",
+      "Kontiolahden yläkoulun ja lukion pysäkki"
+     ],
+     "rivit": [
+      [
+       "Kuurnan rantatie",
+       "Kuurnantie"
+      ],
+      [
+       "Paihola",
+       [
+        "Paiholan sairaala",
+        "Paihola ranta"
+       ]
+      ],
+      [
+       "Uuro th",
+       [
+        "Uuro ramppi",
+        "Paihola th"
+       ]
+      ],
+      [
+       "Kontiolahden koulu",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ]
+     ]
+    },
+    {
+     "otsikko": "",
+     "pysakit": [
+      "Kontiolahden yläkoulun ja lukion pysäkki",
+      "Kuurnantie"
+     ],
+     "rivit": [
+      [
+       "Kontiolahden koulu",
+       "Kontiolahden yläkoulun ja lukion pysäkki"
+      ],
+      [
+       "Uuro th",
+       [
+        "Uuro ramppi",
+        "Uuro Lieksantie"
+       ]
+      ],
+      [
+       "Paihola",
+       [
+        "Paiholan sairaala",
+        "Paihola ranta"
+       ]
+      ],
+      [
+       "Kuurnan rantatie",
+       "Kuurnantie"
+      ]
+     ]
+    }
+   ]
+  },
+  "400": {
+   "nimi": "JOENSUU–OUTOKUMPU",
+   "toc": [
+    "400, 401",
+    "Joensuu–Outokumpu"
+   ],
+   "teksti": [
+    "Huom: 1) = Outokummussa reittiä Lammenkatu – Polvijärventie – Kuusjärventie – tarvittaessa Karjalankatu – Linja-autoasema, +++ = koulujen lomapäivinä, + = kouluvuoden aikana, * = Linjan 401 vuoroissa kelpaavat Waltti kausi- ja arvoliput. Waltti-sovelluksen mobiilikertaliput eivät kelpaa matkalippuina. Kertaliput ovat liikennöitsijän hinnoittelemat.",
+    "Aikataulu voimassa 3.8.2026–6.6.2027. * Aikataulu voimassa 12.8.2026–6.6.2027",
+    "Liikennöitsijä Savonlinja Oy."
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "Joensuu–Outokumpu",
+     "pysakit": [
+      [
+       "Sairaala PKKS",
+       "JOENSUU"
+      ],
+      [
+       "Viinijärvi th",
+       "Viinijärvi Joensuuntie"
+      ]
+     ],
+     "rivit": [
+      [
+       "PKKS",
+       "Sairaala PKKS"
+      ],
+      [
+       "Joensuu",
+       "JOENSUU"
+      ],
+      [
+       "Marjalantie",
+       "Marjalantie"
+      ],
+      [
+       "Ylämylly",
+       "Ylämylly"
+      ],
+      [
+       "Käsämä",
+       [
+        "Käsämä th",
+        "Käsämä Kaprakka th"
+       ]
+      ],
+      [
+       "Viinijärventie",
+       "Viinijärventie"
+      ],
+      [
+       "Viinijärvi",
+       [
+        "Viinijärvi th",
+        "Viinijärvi Joensuuntie"
+       ]
+      ],
+      [
+       "Viiniranta",
+       "Viiniranta th"
+      ],
+      [
+       "Ahonkylä",
+       "Ahonkylä"
+      ],
+      [
+       "Lammenkatu",
+       "Lammenkatu"
+      ],
+      [
+       "Outokumpu las",
+       "Outokumpu linja-autoasema"
+      ],
+      [
+       "Outokumpu kaup.talo",
+       "Outokumpu kaupungintalo"
+      ],
+      [
+       "Ulla th",
+       [
+        "Ulla th",
+        "Ulla"
+       ]
+      ],
+      [
+       "Kuusjärvi",
+       "Kuusjärvi"
+      ]
+     ]
+    },
+    {
+     "otsikko": "Outokumpu–Joensuu",
+     "pysakit": [
+      [
+       "Viinijärvi th",
+       "Viinijärvi Joensuuntie"
+      ],
+      "JOENSUU"
+     ],
+     "rivit": [
+      [
+       "Kuusjärvi",
+       "Kuusjärvi"
+      ],
+      [
+       "Ulla th",
+       [
+        "Ulla th",
+        "Ulla"
+       ]
+      ],
+      [
+       "Outokumpu kaup.talo",
+       "Outokumpu kaupungintalo"
+      ],
+      [
+       "Outokumpu las",
+       "Outokumpu linja-autoasema"
+      ],
+      [
+       "Lammenkatu",
+       "Lammenkatu"
+      ],
+      [
+       "Ahonkylä",
+       "Ahonkylä"
+      ],
+      [
+       "Viiniranta",
+       "Viiniranta th"
+      ],
+      [
+       "Viinijärvi",
+       [
+        "Viinijärvi th",
+        "Viinijärvi Joensuuntie"
+       ]
+      ],
+      [
+       "Viinijärventie",
+       "Viinijärventie"
+      ],
+      [
+       "Käsämä",
+       [
+        "Käsämä th",
+        "Käsämä Kaprakka th"
+       ]
+      ],
+      [
+       "Ylämylly",
+       "Ylämylly"
+      ],
+      [
+       "Marjalantie",
+       "Marjalantie"
+      ],
+      [
+       "Joensuu",
+       "JOENSUU"
+      ],
+      [
+       "PKKS",
+       "Sairaala PKKS"
+      ]
+     ]
+    }
+   ],
+   "linjatSarakkeissa": true
+  },
+  "460": {
+   "nimi": "JOENSUU–ENO–UIMAHARJU–LIEKSA",
+   "toc": [
+    "460, 465",
+    "Joensuu–Eno–Lieksa"
+   ],
+   "teksti": [
+    "Aikataulu voimassa 3.8.2026–6.6.2027. Liikennöitsijä Savo-Karjalan Linja Oy."
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "Joensuu–Eno–Uimaharju–Lieksa",
+     "pysakit": [
+      "JOENSUU",
+      "Eno"
+     ],
+     "rivit": [
+      [
+       "Keskussairaala",
+       "Sairaala PKKS"
+      ],
+      [
+       "Joensuu",
+       "JOENSUU"
+      ],
+      [
+       "Uuro",
+       [
+        "Uuro ramppi",
+        "Uuro Lieksantie"
+       ]
+      ],
+      [
+       "Louhioja",
+       "Louhioja"
+      ],
+      [
+       "Eno",
+       "Eno"
+      ],
+      [
+       "Uimaharju",
+       [
+        "Uimaharju",
+        "Uimaharju Asemankaari"
+       ]
+      ],
+      [
+       "Ukkola",
+       "Ukkola"
+      ],
+      [
+       "Majalampi",
+       "Majalampi"
+      ],
+      [
+       "Lieksa",
+       "Lieksa linja-autoasema"
+      ],
+      [
+       "Brahea-kampus",
+       "Brahea-kampus"
+      ]
+     ]
+    },
+    {
+     "otsikko": "Lieksa–Uimaharju–Eno–Joensuu",
+     "pysakit": [
+      "Eno",
+      "JOENSUU"
+     ],
+     "taiPysakit": [
+      [
+       "Uimaharju Asemankaari",
+       "Louhiojan koulu"
+      ]
+     ],
+     "rivit": [
+      [
+       "Brahea-kampus",
+       "Brahea-kampus"
+      ],
+      [
+       "Lieksa",
+       "Lieksa linja-autoasema"
+      ],
+      [
+       "Majalampi",
+       "Majalampi"
+      ],
+      [
+       "Ukkola",
+       "Ukkola"
+      ],
+      [
+       "Uimaharju",
+       [
+        "Uimaharju",
+        "Uimaharju Asemankaari"
+       ]
+      ],
+      [
+       "Eno",
+       "Eno"
+      ],
+      [
+       "Louhioja",
+       "Louhioja"
+      ],
+      [
+       "Uuro",
+       [
+        "Uuro ramppi",
+        "Uuro Lieksantie"
+       ]
+      ],
+      [
+       "Joensuu",
+       "JOENSUU"
+      ],
+      [
+       "Keskussairaala",
+       "Sairaala PKKS"
+      ]
+     ]
+    }
+   ],
+   "linjatSarakkeissa": true
+  },
+  "420": {
+   "nimi": "JOENSUU–POLVIJÄRVI",
+   "toc": [
+    "420, 425",
+    "Joensuu–Polvijärvi"
+   ],
+   "teksti": [
+    "Huom: T = tarvittaessa, += ajetaan kouluvuoden aikana 3.8.2026-6.6.2027, +++= ajetaan koulujen loma-aikana",
+    "Aikataulu voimassa 3.8.2026–6.6.2027.",
+    "Liikennöitsijä Savo-Karjalan Linja Oy."
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "Joensuu–Polvijärvi",
+     "pysakit": [
+      "JOENSUU",
+      "Polvijärvi linja-autoasema"
+     ],
+     "rivit": [
+      [
+       "Joensuu",
+       "JOENSUU"
+      ],
+      [
+       "Marjalantie",
+       "Marjalantie"
+      ],
+      [
+       "Härkinvaara",
+       "Härkinvaara"
+      ],
+      [
+       "Käsämä",
+       [
+        "Käsämä kauppa",
+        "Käsämä th"
+       ]
+      ],
+      [
+       "Sotkuma",
+       [
+        "Sotkuma kauppa",
+        "Sotkuma th"
+       ]
+      ],
+      [
+       "Kunnasniementie th",
+       "Kunnasniementie th"
+      ],
+      [
+       "Kuorevaara",
+       "Kuorevaara"
+      ],
+      [
+       "Sola",
+       "Sola"
+      ],
+      [
+       "Polvijärvi",
+       "Polvijärvi linja-autoasema"
+      ]
+     ]
+    },
+    {
+     "otsikko": "Polvijärvi–Joensuu",
+     "pysakit": [
+      "Polvijärvi linja-autoasema",
+      "JOENSUU"
+     ],
+     "rivit": [
+      [
+       "Polvijärvi",
+       "Polvijärvi linja-autoasema"
+      ],
+      [
+       "Sola",
+       "Sola"
+      ],
+      [
+       "Kuorevaara",
+       "Kuorevaara"
+      ],
+      [
+       "Kunnasniementie th",
+       "Kunnasniementie th"
+      ],
+      [
+       "Sotkuma",
+       [
+        "Sotkuma kauppa",
+        "Sotkuma th"
+       ]
+      ],
+      [
+       "Käsämä",
+       [
+        "Käsämä kauppa",
+        "Käsämä th"
+       ]
+      ],
+      [
+       "Härkinvaara",
+       "Härkinvaara"
+      ],
+      [
+       "Marjalantie",
+       "Marjalantie"
+      ],
+      [
+       "Joensuu",
+       "JOENSUU"
+      ],
+      [
+       "Keskussairaala",
+       "Sairaala PKKS"
+      ]
+     ]
+    }
+   ],
+   "linjatSarakkeissa": true
+  },
+  "440": {
+   "nimi": "JOENSUU–JUUKA–NURMES–VALTIMO",
+   "toc": [
+    "440",
+    "Joensuu–Juuka–Nurmes–Valtimo"
+   ],
+   "teksti": [
+    "Aikataulu voimassa 3.8.2026–6.6.2027.",
+    "Liikennöitsijä Savo-Karjalan Linja Oy.",
+    "Waltti-liput ovat käytössä vain Joensuun ja Kontiolahden alueella."
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "Joensuu–Juuka–Nurmes–Valtimo",
+     "pysakit": [
+      "JOENSUU",
+      "Harivaara"
+     ],
+     "rivit": [
+      [
+       "Keskussairaala",
+       "Sairaala PKKS"
+      ],
+      [
+       "Joensuu",
+       "JOENSUU"
+      ],
+      [
+       "Uuro",
+       "Uuro ramppi"
+      ],
+      [
+       "Kontiolahti",
+       [
+        "Kontiolahti kunnantalo",
+        "Vierevänniementie"
+       ]
+      ],
+      [
+       "Harivaara",
+       "Harivaara"
+      ],
+      [
+       "Kolinportti",
+       "Kolinportti"
+      ],
+      [
+       "Nunnanlahti",
+       "Nunnanlahti"
+      ],
+      [
+       "Juuka",
+       "Juuka"
+      ],
+      [
+       "Vihtasuo",
+       "Vihtasuo"
+      ],
+      [
+       "Vuokko",
+       "Vuokko"
+      ],
+      [
+       "Kalliosärkkä",
+       "Kalliosärkkä"
+      ],
+      [
+       "Vanhakylä",
+       "Vanhakylä"
+      ],
+      [
+       "Porokylä",
+       "Porokylä"
+      ],
+      [
+       "Nurmes",
+       "Nurmes"
+      ],
+      [
+       "Jokikylä",
+       "Jokikylä"
+      ],
+      [
+       "Valtimo",
+       "Valtimo"
+      ]
+     ]
+    },
+    {
+     "otsikko": "Valtimo–Nurmes–Juuka–Joensuu",
+     "pysakit": [
+      "Harivaara",
+      "JOENSUU"
+     ],
+     "rivit": [
+      [
+       "Valtimo",
+       "Valtimo"
+      ],
+      [
+       "Jokikylä",
+       "Jokikylä"
+      ],
+      [
+       "Nurmes",
+       "Nurmes"
+      ],
+      [
+       "Porokylä",
+       "Porokylä"
+      ],
+      [
+       "Vanhakylä",
+       "Vanhakylä"
+      ],
+      [
+       "Kalliosärkkä",
+       "Kalliosärkkä"
+      ],
+      [
+       "Vuokko",
+       "Vuokko"
+      ],
+      [
+       "Vihtasuo",
+       "Vihtasuo"
+      ],
+      [
+       "Juuka",
+       "Juuka"
+      ],
+      [
+       "Joensuunkylä",
+       "Joensuunkylä"
+      ],
+      [
+       "Nunnanlahti",
+       "Nunnanlahti"
+      ],
+      [
+       "Kolinportti",
+       "Kolinportti"
+      ],
+      [
+       "Harivaara",
+       "Harivaara"
+      ],
+      [
+       "Kontiolahti",
+       [
+        "Kontiolahti kunnantalo",
+        "Vierevänniementie"
+       ]
+      ],
+      [
+       "Uuro",
+       "Uuro ramppi"
+      ],
+      [
+       "Joensuu",
+       "JOENSUU"
+      ],
+      [
+       "Keskussairaala",
+       "Sairaala PKKS"
+      ]
+     ]
+    }
+   ]
+  },
+  "480": {
+   "nimi": "JOENSUU–HEINÄVAARA–TUUPOVAARA–ILOMANTSI",
+   "toc": [
+    "480",
+    "Joensuu–Heinävaara–Tuupovaara–Ilomantsi"
+   ],
+   "teksti": [
+    "Aikataulu voimassa 3.8.2026–6.6.2027.",
+    "Liikennöitsijä Savonlinja Oy"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "Joensuu–Heinävaara–Tuupovaara–Ilomantsi",
+     "pysakit": [
+      [
+       "JOENSUU",
+       "Kauppatori"
+      ],
+      "Heinävaara"
+     ],
+     "taiPysakit": [
+      [
+       "Kovero huoltoasema",
+       "Tuupovaara"
+      ]
+     ],
+     "rivit": [
+      [
+       "Joensuu",
+       [
+        "JOENSUU",
+        "Kauppatori"
+       ]
+      ],
+      [
+       "Keskussairaala",
+       "Sairaala PKKS"
+      ],
+      [
+       "Heinävaarantie",
+       "Heinävaarantie th"
+      ],
+      [
+       "Heinävaara",
+       "Heinävaara"
+      ],
+      [
+       "Heinävaaran koulu",
+       "Heinävaaran koulu"
+      ],
+      [
+       "Kovero has",
+       "Kovero huoltoasema"
+      ],
+      [
+       "Koveron kylä",
+       "Koveron kylä"
+      ],
+      [
+       "Tuupovaara",
+       "Tuupovaara"
+      ],
+      [
+       "Koveron kylä",
+       "Koveron kylä"
+      ],
+      [
+       "Kovero th",
+       "Kovero th"
+      ],
+      [
+       "Haukivaara",
+       "Haukivaara"
+      ],
+      [
+       "Ilomantsi",
+       "Ilomantsi linja-autoasema"
+      ]
+     ]
+    },
+    {
+     "otsikko": "Ilomantsi–Tuupovaara–Heinävaara–Joensuu",
+     "pysakit": [
+      "Heinävaara",
+      [
+       "JOENSUU",
+       "Kauppatori"
+      ]
+     ],
+     "taiPysakit": [
+      [
+       "Tuupovaara",
+       "Kovero huoltoasema"
+      ]
+     ],
+     "rivit": [
+      [
+       "Ilomantsi",
+       "Ilomantsi linja-autoasema"
+      ],
+      [
+       "Haukivaara",
+       "Haukivaara"
+      ],
+      [
+       "Kovero th",
+       "Kovero th"
+      ],
+      [
+       "Koveron kylä",
+       "Koveron kylä"
+      ],
+      [
+       "Tuupovaara",
+       "Tuupovaara"
+      ],
+      [
+       "Koveron kylä",
+       "Koveron kylä"
+      ],
+      [
+       "Kovero has",
+       "Kovero huoltoasema"
+      ],
+      [
+       "Heinävaaran koulu",
+       "Heinävaaran koulu"
+      ],
+      [
+       "Heinävaara",
+       "Heinävaara"
+      ],
+      [
+       "Heinävaarantie",
+       "Heinävaarantie th"
+      ],
+      [
+       "Keskussairaala",
+       "Sairaala PKKS"
+      ],
+      [
+       "Joensuu",
+       "JOENSUU"
+      ]
+     ]
+    }
+   ]
+  },
+  "490": {
+   "nimi": "JOENSUU–HEINÄVAARA–KIIHTELYSVAARA",
+   "toc": [
+    "490",
+    "Joensuu–Heinävaara–Kiihtelysvaara"
+   ],
+   "teksti": [
+    "Aikataulu voimassa 3.8.2026–6.6.2027.",
+    "Liikennöitsijä Savonlinja Oy"
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "Joensuu–Heinävaara–Kiihtelysvaara",
+     "pysakit": [
+      [
+       "JOENSUU",
+       "Kauppatori",
+       "Heinävaara"
+      ],
+      "Kiihtelysvaara"
+     ],
+     "rivit": [
+      [
+       "Joensuu",
+       [
+        "JOENSUU",
+        "Kauppatori"
+       ]
+      ],
+      [
+       "Keskussairaala",
+       "Sairaala PKKS"
+      ],
+      [
+       "Särkivaara",
+       [
+        "Särkivaara",
+        "Särkivaara th"
+       ]
+      ],
+      [
+       "Heinävaarantie",
+       "Heinävaarantie th"
+      ],
+      [
+       "Heinävaara",
+       "Heinävaara"
+      ],
+      [
+       "Heinävaaran koulu",
+       "Heinävaaran koulu"
+      ],
+      [
+       "Kiihtelysvaara",
+       "Kiihtelysvaara"
+      ],
+      [
+       "Kiihtelysvaaran koulu",
+       "Kiihtelysvaara koulu"
+      ]
+     ]
+    },
+    {
+     "otsikko": "Kiihtelysvaara–Heinävaara–Joensuu",
+     "pysakit": [
+      "Kiihtelysvaara koulu",
+      [
+       "Heinävaara",
+       "JOENSUU"
+      ]
+     ],
+     "rivit": [
+      [
+       "Kiihtelysvaaran koulu",
+       "Kiihtelysvaara koulu"
+      ],
+      [
+       "Kiihtelysvaara",
+       "Kiihtelysvaara"
+      ],
+      [
+       "Heinävaaran koulu",
+       "Heinävaaran koulu"
+      ],
+      [
+       "Heinävaara",
+       "Heinävaara"
+      ],
+      [
+       "Heinävaarantie",
+       "Heinävaarantie th"
+      ],
+      [
+       "Särkivaara",
+       [
+        "Särkivaara",
+        "Särkivaara th"
+       ]
+      ],
+      [
+       "Keskussairaala",
+       "Sairaala PKKS"
+      ],
+      [
+       "Joensuu",
+       "JOENSUU"
+      ]
+     ]
+    }
+   ]
+  },
+  "500": {
+   "nimi": "JOENSUU–TOHMAJÄRVI–KITEE–KESÄLAHTI/SAVONLINNA",
+   "toc": [
+    "500",
+    "Joensuu–Tohmajärvi–Kitee–Kesälahti/Savonlinna"
+   ],
+   "teksti": [
+    "Huom: + = ajetaan kouluvuoden aikana 3.8.2026–6.6.2027",
+    "Aikataulu voimassa 3.8.2026–6.6.2027.",
+    "Liikennöitsijä Savonlinja Oy",
+    "Waltti-liput ovat käytössä vain Joensuun ja Kiteen keskustan (linja-autoaseman) välillä."
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "Joensuu–Tohmajärvi–Kitee–Kesälahti/Savonlinna",
+     "pysakit": [
+      "JOENSUU",
+      "Tohmajärvi MH"
+     ],
+     "rivit": [
+      [
+       "Joensuu",
+       "JOENSUU"
+      ],
+      [
+       "Keskussairaala",
+       "Sairaala PKKS"
+      ],
+      [
+       "Reijola",
+       "Reijola"
+      ],
+      [
+       "Honkavaara",
+       "Honkavaara"
+      ],
+      [
+       "Tikkala",
+       "Tikkala"
+      ],
+      [
+       "Onkamo",
+       "Onkamo"
+      ],
+      [
+       "Tohmajärvi",
+       [
+        "Tohmajärvi MH",
+        "Tohmajärvi kunnanvirasto"
+       ]
+      ],
+      [
+       "Akkala th",
+       "Akkala th"
+      ],
+      [
+       "Kitee",
+       "Kitee linja-autoasema"
+      ],
+      [
+       "Kitee ras",
+       "Kitee rautatieasema"
+      ],
+      [
+       "Puhos",
+       "Puhos"
+      ],
+      [
+       "Tasapää",
+       "Tasapää"
+      ],
+      [
+       "Kesälahti",
+       "Kesälahti"
+      ],
+      [
+       "Mustanlahdentie",
+       "Mustanlahdentie"
+      ],
+      [
+       "Väärämäki",
+       "Väärämäki"
+      ],
+      [
+       "Villala",
+       "Villala"
+      ],
+      [
+       "Kerimäki",
+       "Kerimäki"
+      ],
+      [
+       "Anttola",
+       "Anttola"
+      ],
+      [
+       "Savonlinna",
+       "Savonlinna"
+      ]
+     ]
+    },
+    {
+     "otsikko": "Savonlinna/Kesälahti–Kitee–Tohmajärvi–Joensuu",
+     "pysakit": [
+      "Tohmajärvi MH",
+      "JOENSUU"
+     ],
+     "rivit": [
+      [
+       "Savonlinna",
+       "Savonlinna"
+      ],
+      [
+       "Anttola",
+       "Anttola"
+      ],
+      [
+       "Kerimäki",
+       "Kerimäki"
+      ],
+      [
+       "Villala",
+       "Villala"
+      ],
+      [
+       "Väärämäki",
+       "Väärämäki"
+      ],
+      [
+       "Mustanlahdentie",
+       "Mustanlahdentie"
+      ],
+      [
+       "Kesälahti",
+       "Kesälahti"
+      ],
+      [
+       "Tasapää",
+       "Tasapää"
+      ],
+      [
+       "Puhos",
+       "Puhos"
+      ],
+      [
+       "Kitee ras",
+       "Kitee rautatieasema"
+      ],
+      [
+       "Kitee",
+       "Kitee linja-autoasema"
+      ],
+      [
+       "Akkala th",
+       "Akkala th"
+      ],
+      [
+       "Tohmajärvi",
+       [
+        "Tohmajärvi MH",
+        "Tohmajärvi kunnanvirasto"
+       ]
+      ],
+      [
+       "Onkamo",
+       "Onkamo"
+      ],
+      [
+       "Tikkala",
+       "Tikkala"
+      ],
+      [
+       "Honkavaara",
+       "Honkavaara"
+      ],
+      [
+       "Reijola",
+       "Reijola"
+      ],
+      [
+       "Keskussairaala",
+       "Sairaala PKKS"
+      ],
+      [
+       "Joensuu",
+       "JOENSUU"
+      ]
+     ]
+    }
+   ]
+  },
+  "540": {
+   "nimi": "HAMMASLAHTI–RÄÄKKYLÄ, JOENSUU–LIPERI–RÄÄKKYLÄ",
+   "toc": [
+    "540",
+    "Hammaslahti–Rääkkylä, Joensuu–Liperi–Rääkkylä"
+   ],
+   "teksti": [
+    "Huom: Koulupäivävuorot ajetaan Rääkkylän koulupäivinä.",
+    "Aikataulu voimassa 3.8.2026–6.6.2027.",
+    "Liikennöitsijä Savo-Karjalan Linja Oy",
+    "Waltti-liput ovat käytössä vain Joensuun ja Liperin alueella."
+   ],
+   "pysakkitaulukot": [
+    {
+     "otsikko": "Hammaslahti–Rääkkylä",
+     "pysakit": [
+      "Hammaslahti",
+      "Sammallahti"
+     ],
+     "rivit": [
+      [
+       "Hammaslahti",
+       "Hammaslahti"
+      ],
+      [
+       "Sammallahti",
+       "Sammallahti"
+      ],
+      [
+       "Sintsi",
+       "Sintsi"
+      ],
+      [
+       "Nieminen",
+       "Nieminen"
+      ],
+      [
+       "Kompakka",
+       "Kompakka"
+      ],
+      [
+       "Rasivaara",
+       "Rasivaara"
+      ],
+      [
+       "Oravisalo",
+       "Oravisalo"
+      ],
+      [
+       "Rääkkylä",
+       "Rääkkylä"
+      ]
+     ]
+    },
+    {
+     "otsikko": "Rääkkylä–Hammaslahti",
+     "pysakit": [
+      "Sammallahti",
+      "Hammaslahti"
+     ],
+     "rivit": [
+      [
+       "Rääkkylä",
+       "Rääkkylä"
+      ],
+      [
+       "Oravisalo",
+       "Oravisalo"
+      ],
+      [
+       "Rasivaara",
+       "Rasivaara"
+      ],
+      [
+       "Kompakka",
+       "Kompakka"
+      ],
+      [
+       "Nieminen",
+       "Nieminen"
+      ],
+      [
+       "Sintsi",
+       "Sintsi"
+      ],
+      [
+       "Sammallahti",
+       "Sammallahti"
+      ],
+      [
+       "Hammaslahti",
+       "Hammaslahti"
+      ]
+     ]
+    },
+    {
+     "otsikko": "Joensuu–Liperi–Rääkkylä",
+     "pysakit": [
+      [
+       "JOENSUU",
+       "Kauppatori"
+      ],
+      "Liperi Linja-autoasema"
+     ],
+     "rivit": [
+      [
+       "Joensuu",
+       [
+        "JOENSUU",
+        "Kauppatori"
+       ]
+      ],
+      [
+       "Ylämyllyn koulukeskus",
+       "Koulukeskus"
+      ],
+      [
+       "Ylämylly",
+       "Ylämylly"
+      ],
+      [
+       "Liperi",
+       "Liperi Linja-autoasema"
+      ],
+      [
+       "Liperi koulukeskus",
+       "Liperi koulukeskus"
+      ],
+      [
+       "Roukalahti",
+       "Roukalahti"
+      ],
+      [
+       "Tutjunniemi",
+       "Tutjunniemi"
+      ],
+      [
+       "Arvinsalmi",
+       "Arvinsalmi"
+      ],
+      [
+       "Oravisalo",
+       "Oravisalo"
+      ],
+      [
+       "Rääkkylä",
+       "Rääkkylä"
+      ]
+     ]
+    },
+    {
+     "otsikko": "Rääkkylä–Liperi–Joensuu",
+     "pysakit": [
+      "Liperi Linja-autoasema",
+      [
+       "JOENSUU",
+       "Kauppatori"
+      ]
+     ],
+     "rivit": [
+      [
+       "Rääkkylä",
+       "Rääkkylä"
+      ],
+      [
+       "Oravisalo",
+       "Oravisalo"
+      ],
+      [
+       "Arvinsalmi",
+       "Arvinsalmi"
+      ],
+      [
+       "Tutjunniemi",
+       "Tutjunniemi"
+      ],
+      [
+       "Roukalahti",
+       "Roukalahti"
+      ],
+      [
+       "Liperi koulukeskus",
+       "Liperi koulukeskus"
+      ],
+      [
+       "Liperi",
+       "Liperi Linja-autoasema"
+      ],
+      [
+       "Ylämylly",
+       "Ylämylly"
+      ],
+      [
+       "Ylämyllyn koulukeskus",
+       "Koulukeskus"
+      ],
+      [
+       "Joensuu",
+       "JOENSUU"
+      ]
+     ]
+    }
+   ]
+  }
+ },
+ "sivut": {
+  "peltola": {
+   "toc": [
+    "203",
+    "Peltola–keskusta"
+   ],
+   "nimi": "PELTOLA–KESKUSTA",
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Peltolankatu–Penttilänkatu–Itäranta–Siltakatu–Koskikatu",
+    "Huom: Matalalattia-auto"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Peltola–keskusta",
+     "pysakit": [
+      "Peltola",
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Peltola",
+     "pysakit": [
+      "Koskikatu",
+      "Peltola"
+     ],
+     "sarakkeet": [
+      "ma–pe"
+     ]
+    }
+   ],
+   "merkit": [
+    {
+     "m": "K",
+     "koulu": "koul",
+     "selite": "koulupäivinä",
+     "eiReitilla": [
+      "Kontiolahden yläkoulun ja lukion pysäkki"
+     ]
+    },
+    {
+     "m": "K",
+     "koulu": "koul",
+     "selite": "koulupäivinä",
+     "palvelu": "Kontiolahti"
+    },
+    {
+     "m": "A",
+     "koulu": "loma",
+     "selite": "koulujen lomapäivinä"
+    }
+   ]
+  },
+  "urheilupuisto": {
+   "toc": [
+    "11,103,104",
+    "Urheilupuisto–keskusta"
+   ],
+   "nimi": "KESKUSTA–URHEILUPUISTO",
+   "teksti": [
+    "Voimassa 12.8.2026–6.6.2027",
+    "Reitti: Hallitie–Linnunlahdentie–Länsikatu–Koskikatu",
+    "Huom: Matalalattia-auto"
+   ],
+   "taulukot": [
+    {
+     "otsikko": "Urheilupuisto–keskusta",
+     "pysakit": [
+      "Urheilupuisto",
+      "Koskikatu"
+     ],
+     "sarakkeet": [
+      {
+       "nimi": "ma–pe",
+       "linjat": [
+        "103",
+        "104"
+       ]
+      },
+      {
+       "nimi": "la",
+       "linjat": [
+        "103",
+        "104"
+       ]
+      },
+      {
+       "nimi": "su",
+       "linjat": [
+        "103",
+        "104"
+       ]
+      }
+     ]
+    },
+    {
+     "otsikko": "Keskusta–Urheilupuisto",
+     "pysakit": [
+      "Koskikatu",
+      "Urheilupuisto"
+     ],
+     "sarakkeet": [
+      {
+       "nimi": "koulup",
+       "linjat": [
+        "11"
+       ]
+      },
+      {
+       "nimi": "ma–pe",
+       "linjat": [
+        "103",
+        "104"
+       ]
+      },
+      {
+       "nimi": "la",
+       "linjat": [
+        "103",
+        "104"
+       ]
+      },
+      {
+       "nimi": "su",
+       "linjat": [
+        "103",
+        "104"
+       ]
+      }
+     ]
+    }
+   ],
+   "merkit": []
+  }
+ },
+ "paivat": {
+  "koul": "koulp",
+  "loma": "M–P+++",
+  "0,1,2,3,4": "M–P",
+  "4": "P",
+  "5": "L",
+  "6": "S",
+  "5,6": "LS",
+  "0,1,2,3": "M–To"
+ },
+ "lomat": {
+  "lahde": "joensuu.fi/koulujen-tyo-ja-loma-ajat (luettu 4.11.2026): syysloma viikko 42, 12.–16.10.; syyslukukausi päättyy ti 22.12., koulu alkaa to 7.1.; talviloma viikko 10, 8.–12.3.",
+  "jaksot": [
+   {
+    "nimi": "Syysloma",
+    "alku": "2026-10-12",
+    "loppu": "2026-10-16"
+   },
+   {
+    "nimi": "Joululoma",
+    "alku": "2026-12-23",
+    "loppu": "2027-01-06"
+   },
+   {
+    "nimi": "Talviloma",
+    "alku": "2027-03-08",
+    "loppu": "2027-03-12"
+   }
+  ],
+  "erikoispaivat": [
+   "2026-12-24",
+   "2026-12-25",
+   "2026-12-26",
+   "2027-01-01",
+   "2027-01-06"
+  ]
+ }
+}
