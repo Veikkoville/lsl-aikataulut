@@ -1578,6 +1578,7 @@
   .desk input[type="text"] { font-size: 1.15em; min-height: 60px; border: 2px solid var(--border); }
   .desk .suggest-list { border: 2px solid var(--border); }
   .desk .suggest-list .item { padding: 0.7rem 0.5rem; min-height: 52px; font-size: 1.02em; }
+  .desk .suggest-list .desk-term { display: block; margin-top: 0.2rem; }
   .desk-h3 { font-size: clamp(1.1rem, 1.7vw, 1.4rem); margin: 1.1rem 0 0.4rem; font-weight: var(--wmed); }
   /* "Kerro asiakkaalle": korostettu, iso, ääneen luettava suositus */
   .desk-tell { border: 3px solid var(--blue); border-radius: var(--radius); padding: 1rem 1.2rem;
@@ -5661,7 +5662,7 @@ const STRINGS = {
     deskStopAlerts: "Häiriöt tällä pysäkillä", deskAlertLines: "Häiriöitä linjoilla:", deskLineAlerts: "Häiriöt tällä linjalla",
     deskTerminalPrintHint: "Yhden pysäkin aikataulun saa tulostettua valitsemalla pysäkin tunnuksen lähtölistasta.",
     deskDepsLines: "Linjat:",
-    deskTermHint: "Päätepysäkki: lähdöt pysäkiltä", deskTermOpen: "Avaa lähtöpysäkki {name}",
+    deskTermHint: "Päätepysäkki, ei lähtöjä.", deskTermFrom: "Lähdöt:",
     deskUpdated: "Päivitetty klo {time}",
     deskRefreshFail: "Päivitys epäonnistui klo {time}.",
     deskDepsErr: "Lähtöjä ei saatu haettua.",
@@ -6610,7 +6611,7 @@ const STRINGS = {
     deskStopAlerts: "Disruptions at this stop", deskAlertLines: "Disruptions on lines:", deskLineAlerts: "Disruptions on this line",
     deskTerminalPrintHint: "To print one stop's timetable, choose the stop code in the departure list.",
     deskDepsLines: "Lines:",
-    deskTermHint: "Terminus: departures from stop", deskTermOpen: "Open departure stop {name}",
+    deskTermHint: "Terminus, no departures.", deskTermFrom: "Departures:",
     deskUpdated: "Updated {time}",
     deskRefreshFail: "Update failed at {time}.",
     deskDepsErr: "Could not load departures.",
@@ -7544,7 +7545,7 @@ const STRINGS = {
     deskStopAlerts: "Störningar vid hållplatsen", deskAlertLines: "Störningar på linjerna:", deskLineAlerts: "Störningar på linjen",
     deskTerminalPrintHint: "Välj hållplatsens beteckning i avgångslistan för att skriva ut dess tidtabell.",
     deskDepsLines: "Linjer:",
-    deskTermHint: "Ändhållplats: avgångar från hållplatsen", deskTermOpen: "Öppna avgångshållplatsen {name}",
+    deskTermHint: "Ändhållplats, inga avgångar.", deskTermFrom: "Avgångar:",
     deskUpdated: "Uppdaterad {time}",
     deskRefreshFail: "Uppdateringen misslyckades kl. {time}.",
     deskDepsErr: "Det gick inte att hämta avgångarna.",
@@ -18083,16 +18084,34 @@ const DESK_STOP_QUERY = `query ($name: String!) {
   stops(name: $name) { gtfsId name@L code lat lon routes { gtfsId shortName longName@L } parentStation { gtfsId name@L lat lon } }
 }`;
 // Tiskin pysäkkihaun järjestys: pysäkit, joilta lähtee vuoro (lahdot = gtfsId-joukko), ensin; haun sisäinen järjestys
-// säilyy ryhmien sisällä. Pysäkille, jolta ei lähde vuoroja, paate = lähtöpysäkki hakutuloksista (sama nimi ensin,
-// muuten ensimmäinen lähtöpysäkki) tai null. lahdot null = tietoa ei saatu: järjestys ennallaan, ei merkintöjä.
+// säilyy ryhmien sisällä. Pysäkille, jolta ei lähde vuoroja, lahdotMuualta = hakutulosten lähtöpysäkit, joilta sen
+// linjat (lyhyttunnuksella) lähtevät: ahne kattavuus, eli joka kierroksella pysäkki, joka kattaa eniten vielä
+// kattamattomia linjoja (tasapelissä sama nimi, sitten vähemmän linjoja eli oma laituri, sitten hakujärjestys), kunnes
+// linjat on katettu. Linjaa ei ohjata pysäkille, jolta se ei lähde; ilman yhteistä linjaa lista on tyhjä.
+// lahdot null = tietoa ei saatu: järjestys ennallaan, ei merkintöjä.
 function jarjestaHakuPysakit(stops, lahdot) {
   const list = (stops || []).filter(s => s && s.gtfsId);
-  if (!lahdot) return list.map(s => ({ stop: s, paate: null }));
+  if (!lahdot) return list.map(s => ({ stop: s, lahdotMuualta: [] }));
   const norm = v => String(v || "").trim().toLowerCase();
+  const lyhyet = s => [...new Set((s.routes || []).map(r => r && r.shortName).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "fi", { numeric: true }));
   const dep = list.filter(s => lahdot.has(s.gtfsId));
   const eiDep = list.filter(s => !lahdot.has(s.gtfsId));
-  return [...dep.map(s => ({ stop: s, paate: null })),
-    ...eiDep.map(s => ({ stop: s, vainSaapuva: true, paate: dep.find(d => norm(d.name) === norm(s.name)) || dep[0] || null }))];
+  return [...dep.map(s => ({ stop: s, lahdotMuualta: [] })),
+    ...eiDep.map(s => {
+      let jaljella = lyhyet(s);
+      const ehdokkaat = dep.map((d, i) => ({ stop: d, i, sama: norm(d.name) === norm(s.name), linjat: new Set(lyhyet(d)) }));
+      const muualta = [];
+      while (jaljella.length) {
+        const paras = ehdokkaat.map(o => ({ o, kattaa: jaljella.filter(x => o.linjat.has(x)) }))
+          .filter(x => x.kattaa.length)
+          .sort((a, b) => b.kattaa.length - a.kattaa.length || b.o.sama - a.o.sama || a.o.linjat.size - b.o.linjat.size || a.o.i - b.o.i)[0];
+        if (!paras) break;
+        muualta.push({ stop: paras.o.stop, linjat: paras.kattaa });
+        jaljella = jaljella.filter(x => !paras.kattaa.includes(x));
+      }
+      return { stop: s, vainSaapuva: true, lahdotMuualta: muualta };
+    })];
 }
 // Yksi kysely hakutuloksen pysäkeille: joukko pysäkeistä, joilta lähtee vuoro seuraavan 3 vrk aikana (omitNonPickups
 // jättää saapuvat pois). Virhe -> null, jolloin haku näkyy entisessä järjestyksessä.
@@ -21046,8 +21065,14 @@ async function viewServiceDesk() {
       inner = `${icon("book")}<span><span lang="${L.titleLang}">${esc(L.title)}</span> <span class="muted" lang="${L.bodyLang}">${esc(kbSnippet(L.body))}</span></span>`;
     } else if (it.kind === "stop") {
       const ln = dedupeRoutesByShort(it.stop.routes || []).map(r => r.shortName).slice(0, 8).join(", ");
+      // Saapuvien pysäkki (ei lähtöjä): vihje option sisällä eikä omana painikkeena (listboxissa saa olla vain optioita).
+      // Lähtöpysäkit, joilta saman pysäkin linjat lähtevät, ovat samassa listassa ylempänä.
+      const muualta = (it.lahdotMuualta || []).slice(0, 3)
+        .map(o => esc(o.stop.name) + (o.stop.code ? " (" + esc(o.stop.code) + ")" : "") + ": " + esc(o.linjat.join(", "))).join("; ");
+      const term = it.vainSaapuva ? `<span class="muted desk-term">${esc(t("deskTermHint"))}${
+        muualta ? " " + esc(t("deskTermFrom")) + " " + muualta : ""}</span>` : "";
       inner = `${icon("pin")}<span>${esc(it.stop.name)}${it.stop.code ? " (" + esc(it.stop.code) + ")" : ""}${
-        ln ? ` <span class="muted">${t("deskDepsLines")} ${esc(ln)}</span>` : ""}</span>`;
+        ln ? ` <span class="muted">${t("deskDepsLines")} ${esc(ln)}</span>` : ""}${term}</span>`;
     } else if (it.kind === "line") {
       inner = `${badgeHtml(it.route) || icon("bus")}<span>${esc(it.route.longName || "")}</span>`;
     } else if (it.kind === "place") {
@@ -21058,10 +21083,7 @@ async function viewServiceDesk() {
       const txt = `${nl.from || "…"} → ${nl.to || "…"}${nl.dayText ? ", " + nl.dayText : ""}${tm ? ", " + tm : ""}`;
       inner = `${icon("route")}<span>${t("deskOptRoute", { q: esc(txt) })}</span>`;
     }
-    // Saapuvien pysäkki (ei lähtöjä) + lähtöpysäkki hakutuloksissa: vihje ja linkki lähtöpysäkille (oma painike, ei sisäkkäin).
-    const term = it.kind === "stop" && it.vainSaapuva && it.paate
-      ? `<p class="muted desk-term" data-term="1">${t("deskTermHint")} <button type="button" class="link desk-term-go" tabindex="-1" data-sib="${esc(it.paate.gtfsId)}" aria-label="${esc(t("deskTermOpen", { name: it.paate.name }))}">${esc(it.paate.name)}${it.paate.code ? " (" + esc(it.paate.code) + ")" : ""}</button></p>` : "";
-    return `<li role="presentation"><button type="button" role="option" id="${id}" class="item" tabindex="-1" aria-selected="false" ${attr}="1"${it.vainSaapuva ? ` data-arrival-only="1"` : ""}>${inner}</button>${term}</li>`;
+    return `<li role="presentation"><button type="button" role="option" id="${id}" class="item" tabindex="-1" aria-selected="false" ${attr}="1"${it.vainSaapuva ? ` data-arrival-only="1"` : ""}>${inner}</button></li>`;
   };
   const groupHtml = (key, items) => items.length
     ? `<li class="search-cat" role="presentation">${t(key)}</li>` + items.map(optHtml).join("") : "";
@@ -21118,7 +21140,7 @@ async function viewServiceDesk() {
     const kb = await kbP;
     if (my !== US.seq || !live()) return;
     if (kb) setKbState(kb);
-    const stopIts = jarjestaHakuPysakit(stops, depSet).map(o => ({ kind: "stop", stop: o.stop, vainSaapuva: !!o.vainSaapuva, paate: o.paate }));
+    const stopIts = jarjestaHakuPysakit(stops, depSet).map(o => ({ kind: "stop", stop: o.stop, vainSaapuva: !!o.vainSaapuva, lahdotMuualta: o.lahdotMuualta }));
     // Tietopankin osumat: vahva osuma (otsikko tai avainsana alkaa haulla) ylimmäksi, ellei haku ole linjatunnus.
     const kbHits = kb && kb.on && !kb.err ? kbMatch(kb.items, q) : [];
     const kbHtml = groupHtml("deskCatKb", kbHits.map(h => ({ kind: "kb", card: h.c })));
@@ -21185,15 +21207,7 @@ async function viewServiceDesk() {
   });
   // mousedown ei vie fokusta kentästä, joten lista ei sulkeudu ennen klikkausta.
   qList.addEventListener("mousedown", e => { if (e.target.closest('[role="option"]')) e.preventDefault(); });
-  qList.addEventListener("click", e => {
-    const g = e.target.closest(".desk-term-go");
-    if (g) {
-      const sib = [...US.byId.values()].find(x => x.kind === "stop" && x.stop.gtfsId === g.dataset.sib);
-      if (sib) { US.seq++; clearTimeout(US.timer); US.pendingQ = ""; qEl.value = ""; closeList(); openStop(sib.stop); deskRecentAdd({ kind: "stop", stop: sib.stop }); }
-      return;
-    }
-    const o = e.target.closest('[role="option"]'); if (o) choose(o.id);
-  });
+  qList.addEventListener("click", e => { const o = e.target.closest('[role="option"]'); if (o) choose(o.id); });
   const sw = qEl.closest(".suggest");
   sw.addEventListener("focusout", e => {
     if (sw.contains(e.relatedTarget)) return;
