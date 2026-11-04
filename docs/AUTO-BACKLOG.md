@@ -219,14 +219,14 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       aineistolla; osiot ovat sivulla. (laaturaportin vaihe 1, 2026-10-22; edellyttää vaihetta 2)
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 · uutuus 2/2 = 7
       Mittari: smoke-tarkistus (osioiden luokittelu kiinteällä aineistolla) vihreä CI:ssä · tarkistus 2026-12-10 (PR, 2026-10-30; kärkivuoro)
-- [ ] index.html: tiskin pysäkkihaku järjestää lähtöjä tarjoavat pysäkit ensin. Auditointi: Kauppatori-haun ensimmäinen osuma
+- [x] index.html: tiskin pysäkkihaku järjestää lähtöjä tarjoavat pysäkit ensin. Auditointi: Kauppatori-haun ensimmäinen osuma
       on pelkkien saapuvien pysäkki, ja Enterin jälkeen näkyy "Ei tulevia lähtöjä". Järjestä osumat niin, että pysäkit,
       joilta lähtee vuoroja, tulevat ensin; saapuvien pysäkin kohdalla kerro "Päätepysäkki: lähdöt pysäkiltä X" ja linkki.
       Todennus: smoke tiskillä Lahden "Kauppatori"-haulla: ensimmäinen osuma ei ole saapuvien pysäkki (tarkista
       rakenteesta, ei tekstistä). (tuotekehityksen kärki 2026-10-08, P3, lähde: auditointi)
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
       Mittari: smoke-tarkistus (tiskin Kauppatori-haun ensimmäinen osuma on lähtöpysäkki, rakenteesta) vihreä CI:ssä
-      · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
+      · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-11-04)
 - [ ] index.html: julisteiden jakelutieto tulostekeskukseen. Weaselin generaattori antaa jakelutiedon (koko pysäkeittäin,
       määrät ja painojärjestys); Reittarissa on vain uusintapainatuslista. Lisää tulostekeskuksen julisteosioon CSV-vienti:
       pysäkin tunnus, nimi, ehdotettu koko (A4, A3 tai A2 sivumäärän ja linjojen määrän mukaan, säännöt koodin
