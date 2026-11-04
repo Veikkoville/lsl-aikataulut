@@ -1003,6 +1003,15 @@
   .vihko-page-content .vk-tbl.vk-tr td { text-align: center; }
   .vihko-page-content .vk-tbl.vk-tr tr:nth-child(odd) th, .vihko-page-content .vk-tbl.vk-tr tr:nth-child(odd) td { background: #eef1f4; }
   .vihko-page-content.vk-narrow table.cb-grid { font-size: 8pt; }
+  /* Kaupungin vihkon taulukot aineistosta (vkSpecGridHtml, Joensuu 4.11.2026): JOJO:n tapaan neljä taulukkoa sivulle,
+     kaksi rinnakkain, joten rivit tiiviimmin kuin linjan omissa ruudukoissa. */
+  .vihko-page-content.vk-narrow table.cb-grid.vk-spec { font-size: 7.4pt; line-height: 1.05; }
+  .vihko-page-content.vk-narrow table.cb-grid.vk-spec tbody th { font-size: 7.4pt; }
+  .vihko-page-content.vk-narrow table.cb-grid.vk-spec th, .vihko-page-content.vk-narrow table.cb-grid.vk-spec td { padding: 0.2mm 0.6mm; }
+  .vihko-page-content.vk-narrow .cb-grids.vk-pair .cb-dir h3 { font-size: 7.8pt; margin: 0 0 0.6mm; }
+  .vihko-page-content.vk-narrow .cb-grids.vk-pair .cb-legend, .vihko-page-content.vk-narrow .cb-grids.vk-pair .cb-route { font-size: 6.3pt; }
+  .vihko-page-content.vk-narrow table.vk-toc.vk-toc3 td, .vihko-page-content.vk-narrow table.vk-toc.vk-toc3 th { font-size: 6.6pt; padding: 0.35mm 0.5mm; }
+  .vihko-page-content.vk-narrow table.vk-toc.vk-toc3 th { text-align: left; font-weight: 600; color: #555; }
   .vihko-page-content.vk-narrow .cb-mapwrap .print-map svg { max-height: 118mm !important; }
   .vihko-page-content.vk-narrow .vk-netmap .print-map svg { max-height: 172mm !important; }
   .vihko-page-content.vk-narrow .vk-fh { font-size: 8pt; font-weight: 700; margin: 2.5mm 0 0.6mm; color: var(--header-bg, #0a3d7a); }
@@ -4134,6 +4143,57 @@ const CONFIGS = {
           en: "Official price list (jojo.joensuu.fi)" },
       },
     },
+    // Kaupungin vihkon malli: JOJO:n talvivihko 2026-2027 samassa koossa, järjestyksessä ja osioissa.
+    // JOJO:n talviaikataulut 19.10.2026-6.6.2027 (digiversio 26.10.2026) on 105 x 190 mm (mitattu PDF:stä), 84 sivua:
+    // kansi, merkkien selitykset ja poikkeukset, sisällysluettelo, linjat 1-204 aukeamina, koululaisliikenne,
+    // Traficomin sopimusliikenne, Waltti-sivut, Noutopoika ja keskustan pysäkkikartta. Läpiajolinjat on jaettu
+    // keskustan kohdalta ("Utra–keskusta", "Keskusta–Reijola"): taulukot ajantasauspisteineen, JOJO:n kirjaimet ja
+    // tekstit ovat aineistossa (vkSpecGridHtml). Ei osioiden väliotsikko- eikä osiokohtaisia sisällysluettelosivuja,
+    // vaan yksi sisällysluettelo kuten JOJO:lla. Kaupungin omien sivujen paikalla on nimetty paikkamerkki.
+    vihko: {
+      size: { w: 105, h: 190 },
+      cover: { kicker: "jojo.joensuu.fi", title: "Joensuun seudun joukkoliikenne", season: "Talviaikataulut", seasonPt: 27,
+        years: "19.10.2026–6.6.2027" },
+      backUrl: "jojo.joensuu.fi",
+      dataUrl: "docs/vihko/joensuu.json",
+      dividers: false, footTitles: false,
+      // Yhteiset taulukot kuten JOJO:lla: 122 ja 124, 211 ja 215, Traficomin 400 ja 401 (401 = "*"), 460 ja 465, 420 ja 425.
+      merge: { "122": { "124": "" }, "211": { "215": "" }, "400": { "401": "*" }, "460": { "465": "" }, "420": { "425": "" } },
+      // Linjan 203 Peltolan osuus (vihko s. 24) ja linjojen 11, 103 ja 104 yhteinen Keskusta–Urheilupuisto (s. 25).
+      combos: [{ key: "peltola", lines: ["203"], after: "12", data: true },
+        { key: "urheilupuisto", lines: ["11", "103", "104"], after: "12", data: true }],
+      // Linjat JOJO:n sisällysluettelon järjestyksessä. Osiot vaihtuvat taulukon muodon mukaan: tuntiruudukko (compact)
+      // tai pysäkit riveinä (full, transpose) kuten JOJO:n 112, 114, koululais- ja Traficomin liikenteessä.
+      sections: [
+        { key: "jojo", title: "JOJO", layout: "compact", network: false,
+          lines: ["1", "2", "3", "4", "6", "9", "11", "12", "101", "102", "103", "104"] },
+        { key: "jojo-112", title: "JOJO", layout: "full", network: false, transpose: true, rows: 14, lines: ["112", "114"] },
+        { key: "jojo-201", title: "JOJO", layout: "compact", network: false, lines: ["201", "202", "203", "204"] },
+        { key: "koulu", title: "JOJO", layout: "full", network: false, transpose: true, rows: 14,
+          lines: ["122", "124", "127", "131", "206", "207", "211", "212", "214", "215"] },
+        { key: "traficom", title: "Traficomin sopimusliikenne", tocTitle: "Traficomin sopimusliikenne", layout: "full",
+          network: false, transpose: true, rows: 14, lines: ["400", "401", "460", "465", "420", "425", "440"] },
+        { key: "traficom-2", title: "Traficomin sopimusliikenne", layout: "full", network: false, transpose: true, rows: 14,
+          lines: ["480", "490", "500", "540"] },
+      ],
+      pages: [
+        "cover",
+        { city: "merkit", title: "Merkkien selitykset ja poikkeukset ajopäivissä" },
+        "toc",
+        { section: "jojo" }, { section: "jojo-112" }, { section: "jojo-201" }, { section: "koulu" },
+        { section: "traficom" },
+        { city: "koli", title: "Kolin kutsuliikenne" },
+        { section: "traficom-2" },
+        { city: "waltti", title: "Waltti lippu- ja maksujärjestelmä", n: 4, toc: true },
+        { city: "vyohykkeet", title: "JOJO Waltti -vyöhykerajat", n: 4, toc: true },
+        { city: "lipputuotteet", title: "Waltti-kortit, Waltti Mobiili ja lipputuotteet", n: 5, toc: true },
+        { city: "matkaohjeita", title: "Matkaohjeita", n: 3, toc: true },
+        { city: "noutopoika", title: "Noutopoika", n: 4, toc: true },
+        { city: "tietoa", title: "Tietoa verkossa" },
+        { city: "pysakkikartta", title: "Keskustan pysäkkikartta" },
+        "back",
+      ],
+    },
     proxyUrl: "https://lsl-aikataulut-proxy.veikkoville.workers.dev/",
     area: {
       // focus = Koskikatu; rect kattaa linjapysäkit (7.8.2026: lat 62.095–63.326,
@@ -5763,6 +5823,7 @@ const STRINGS = {
     vkNetInsetAria: "{sec}: linjastokartan keskustan suurennos",
     vkToc: "Sisällysluettelo",
     vkTocMap: "Linjastokartta",
+    vkTocLine: "Linja", vkTocRoute: "Reitti", vkTocPage: "Sivu",
     vkPageShort: "s.",
     vkOtherLines: "Muut linjat",
     vkMergedLine: "linja {line} ({name})",
@@ -6711,6 +6772,7 @@ const STRINGS = {
     vkNetInsetAria: "{sec}: network map, city centre enlarged",
     vkToc: "Contents",
     vkTocMap: "Network map",
+    vkTocLine: "Line", vkTocRoute: "Route", vkTocPage: "Page",
     vkPageShort: "p.",
     vkOtherLines: "Other lines",
     vkMergedLine: "line {line} ({name})",
@@ -7645,6 +7707,7 @@ const STRINGS = {
     vkNetInsetAria: "{sec}: linjekarta, centrum förstorat",
     vkToc: "Innehåll",
     vkTocMap: "Linjekarta",
+    vkTocLine: "Linje", vkTocRoute: "Rutt", vkTocPage: "Sida",
     vkPageShort: "s.",
     vkOtherLines: "Övriga linjer",
     vkMergedLine: "linje {line} ({name})",
@@ -23475,6 +23538,7 @@ function vkPaginate(atoms, geom, meta) {
       const a = atoms[ai];
       if (a.page !== undefined) {
         flush();
+        mark({ lineKey: a.lineKey });   // kaupungin sivu koko vihkon sisällysluetteloon (V.pages toc), muuten ei avainta
         push(a.page, a.sec === undefined ? curSec : a.sec, a.kind || "page");
       } else if (a.table && a.atomic && fits(tableHtml(a, a.rows, false))) {
         // Kylätaulukko kokonaisena: jos ei mahdu nykyiselle sivulle, uudelle jatko-otsikon kanssa (linja · suunta · päivät).
@@ -23675,7 +23739,7 @@ function vkCoverHtml(V) {
   return `<div class="vk-cover-n">
       <p class="vk-cv-kicker">${esc(c.kicker || seasonText())}</p>
       <p class="vk-cv-title">${esc(c.title || operatorName())}</p>
-      ${c.season ? `<p class="vk-cv-season">${esc(c.season)}</p>` : ""}
+      ${c.season ? `<p class="vk-cv-season"${c.seasonPt ? ` style="font-size:${+c.seasonPt}pt"` : ""}>${esc(c.season)}</p>` : ""}
       ${c.years ? `<p class="vk-cv-years">${esc(c.years)}</p>` : ""}
       <p class="vk-cv-op">${esc(operatorName())}${CONFIG.operatorShort ? `<b>${esc(CONFIG.operatorShort)}</b>` : ""}</p>
     </div>`;
@@ -23875,6 +23939,30 @@ function vkTocHtml(sec, meta, lineLabels, mapIdx, order) {
     ${(V.notice || []).length ? `<div class="vk-notice">${V.notice.map((p, i) => i ? `<p>${esc(p)}</p>` : `<p><b>${esc(p)}</b></p>`).join("")}</div>` : ""}
     ${(sec.note || []).length ? `<div class="vk-notice">${sec.note.map((p, i) => i ? `<p>${esc(p)}</p>` : `<p><b>${esc(p)}</b></p>`).join("")}</div>` : ""}`;
 }
+// Koko vihkon sisällysluettelo yhdellä sivulla (V.pages "toc", JOJO:n vihkon s. 3): linja, reitti ja alkusivu osioittain,
+// osion tocTitle väliotsikkona, lopuksi kaupungin omat sivut (V.pages city, toc: true). Linja ja reitti aineistosta
+// (linjat[linja].toc tai sivut[avain].toc = [linja, reitti]), muuten linjan otsikosta.
+function vkTocAllHtml(V, secs, meta, lineLabels, order, data) {
+  const ent = key => {
+    const e = data?.linjat?.[key]?.toc || data?.sivut?.[String(key).replace(/^combo:/, "")]?.toc;
+    if (Array.isArray(e)) return e;
+    const l = String(lineLabels.get(key) || key), m = l.match(/^(\S+)\s+(.*)$/);
+    return m ? [m[1], m[2]] : ["", l];
+  };
+  const row = (a, b, n) => `<tr><td><b>${esc(a)}</b></td><td>${esc(b)}</td><td class="num">${n + 1}</td></tr>`;
+  let rows = "";
+  for (const s of secs) {
+    const keys = (order[s.key] || []).filter(k => meta.lineStart[k] != null && data?.linjat?.[k]?.toc !== false);
+    if (!keys.length) continue;
+    if (s.tocTitle) rows += `<tr><td colspan="3"><b>${esc(s.tocTitle)}</b></td></tr>`;
+    rows += keys.map(k => { const [a, b] = ent(k); return row(a, b, meta.lineStart[k]); }).join("");
+  }
+  const city = (V.pages || []).filter(p => p && p.city && p.toc && meta.lineStart["city:" + p.city] != null)
+    .map(p => row("", p.title || p.city, meta.lineStart["city:" + p.city])).join("");
+  return `<div class="vk-h2">${t("vkToc")}</div>
+    <table class="vk-toc vk-toc3"><thead><tr><th>${t("vkTocLine")}</th><th>${t("vkTocRoute")}</th><th class="num">${t("vkTocPage")}</th></tr></thead>
+    <tbody>${rows}${city ? `<tr><td colspan="3">&nbsp;</td></tr>${city}` : ""}</tbody></table>`;
+}
 function vkIntroHtml(V, meta) {
   const it = V.intro || {};
   const span = (a, b) => `${t("vkPageShort")} ${a + 1}${b > a ? `–${b + 1}` : ""}`;
@@ -23980,8 +24068,12 @@ function printVihkoNarrow(mode = "pages") {
       const els = lines.map(s => byShort.get(s)).filter(Boolean);
       if (!els.length) return;
       order[key] = [];
-      pageAtom(vkDividerHtml(title), "divider", key);
-      pageAtom(`<!--vk:toc:${key}-->`, "toc", key);
+      // V.dividers false (JOJO 4.11.2026): ei osion väliotsikko- eikä sisällysluettelosivua, vaan koko vihkon
+      // sisällysluettelo yhdellä sivulla (V.pages "toc") kuten kaupungin vihkossa.
+      if (V.dividers !== false) {
+        pageAtom(vkDividerHtml(title), "divider", key);
+        pageAtom(`<!--vk:toc:${key}-->`, "toc", key);
+      }
       const nm = network ? vkNetworkPage({ key, title, lines, netLines, netInset: sec.netInset, netLanes: sec.netLanes }, net, G, lanesLib) : "";
       if (nm) pageAtom(nm, "map", key);
       const placed = new Set();
@@ -24012,6 +24104,9 @@ function printVihkoNarrow(mode = "pages") {
       else if (p === "fares") atoms.push(...vkFaresAtoms(vkZoneMapHtml(zoneStops)));
       else if (p === "exceptions") atoms.push(...vkExceptionsAtoms(V));
       else if (p === "back") pageAtom(vkBackHtml(V), "back");
+      else if (p === "toc") pageAtom("<!--vk:tocall-->", "tocall");
+      else if (p && p.city && p.toc) for (let i = 0; i < (p.n || 1); i++)
+        atoms.push({ page: vkCityPageHtml(p, i, p.n || 1, G), kind: "city", sec: null, ...(i ? {} : { lineKey: "city:" + p.city }) });
       else if (p && p.city) for (let i = 0; i < (p.n || 1); i++) pageAtom(vkCityPageHtml(p, i, p.n || 1, G), "city");
       else if (p && p.section) {
         const s = secs.find(x => x.key === p.section);
@@ -24041,6 +24136,7 @@ function printVihkoNarrow(mode = "pages") {
         const s = secs.find(x => x.key === key) || { key, title: titles.get(key), lines: others.map(l => l.dataset.short) };
         return vkTocHtml(s, meta, lineLabels, meta.kinds.findIndex((kk, j) => kk === "map" && meta.secs[j] === key), order[key] || s.lines);
       }
+      if (kind === "tocall") return vkTocAllHtml(V, secs, meta, lineLabels, order, out.vkData);
       return kind === "intro" ? vkIntroHtml(V, meta) : h;
     });
     // Yksi sivu (pw x ph + leikkuuvara b joka reunalla). Täysiväriset sivut (kansi, väliotsikko, takakansi, kaupungin
@@ -24048,7 +24144,7 @@ function printVihkoNarrow(mode = "pages") {
     const pageDiv = i => {
       const kind = meta.kinds[i], sec = meta.secs[i], n = i + 1;
       const full = ["cover", "divider", "city", "back", "blank"].includes(kind);
-      const secTitle = sec ? titles.get(sec) || "" : "";
+      const secTitle = sec && V.footTitles !== false ? titles.get(sec) || "" : "";   // JOJO: alareunassa vain sivunumero
       const foot = ["cover", "divider", "city", "back"].includes(kind) ? ""
         : `<div class="vk-foot ${n % 2 ? "r" : "l"}" style="bottom:${5 + b}mm;${n % 2 ? `right:${7 + b}mm` : `left:${7 + b}mm`}">${n % 2 ? `${esc(secTitle)} <b>${n}</b>` : `<b>${n}</b> ${esc(secTitle)}`}</div>`;
       const fullBody = b ? bodies[i].replace(/^<div class="(vk-cover-n|vk-divider|vk-back|vk-citypage)"/, (m0, c) =>
@@ -24775,7 +24871,9 @@ function stripStops(ks, max) {
 }
 
 // Tiiviin vihkon linja-aukeama. dirs = [{ label, stops, groups, trips }], mapHtml valmiina.
-function compactLineHtml(route, dirs, mapHtml, merged = [], extras = [], perDirLegend = false) {
+// spec (kaupungin vihkon taulukot aineistosta, vkSpecLineOpts): { grids, name, info } korvaa ruudukot, linjan nimen ja
+// lisää tekstit reittijanan alle. Ilman sitä ennallaan.
+function compactLineHtml(route, dirs, mapHtml, merged = [], extras = [], perDirLegend = false, spec = null) {
   const codes = new Map();
   // forced: rinnakkaislinjan kirjain (X, H). Muut saavat ensimmäisen vapaan pienaakkosen.
   const codeFor = (key, text, forced) => {
@@ -24788,10 +24886,11 @@ function compactLineHtml(route, dirs, mapHtml, merged = [], extras = [], perDirL
   // Suunta ja sen keskustan ohitusajat peräkkäin (vihkon järjestys).
   // Kaupungin vihkon malli (perDirLegend): pysäkit näyttöniminä (vkStopName). Muut vihkot ennallaan.
   const nameOf = perDirLegend ? vkStopName : cbStopBase;
-  let grids = dirs.flatMap((d, i) => [cbGridHtml(d, codeFor, nameOf), extras[i] ? cbGridHtml(extras[i], codeFor, nameOf) : ""]).filter(Boolean);
+  let grids = spec ? spec.grids
+    : dirs.flatMap((d, i) => [cbGridHtml(d, codeFor, nameOf), extras[i] ? cbGridHtml(extras[i], codeFor, nameOf) : ""]).filter(Boolean);
   // Kaupungin vihkon malli: jokaisen ruudukon alle sen omien kirjainten selite (kapeassa vihkossa ruudukot ovat eri
   // sivuilla kuin linjan kartta ja koko linjan selite).
-  if (perDirLegend) {
+  if (perDirLegend && !spec) {
     const byLetter = new Map([...codes.values()].map(c => [c.letter, c.text]));
     grids = grids.map(g => {
       const used = [...new Set([...g.matchAll(/<sup>([^<]*)<\/sup>/g)].flatMap(m => [...m[1]]))].filter(l => byLetter.has(l));
@@ -24803,13 +24902,16 @@ function compactLineHtml(route, dirs, mapHtml, merged = [], extras = [], perDirL
   }
   const notes = [...codes.values()].map(c => `<span><b>${c.letter}</b> = ${esc(c.text)}</span>`).join(" · ");
   return `<section class="card booklet-line compact" data-short="${esc(route.shortName || "")}">
-      <h2>${badgeHtml(route)}${merged.map(m => " " + badgeHtml(m)).join("")} ${esc(route.longName)}</h2>
+      <h2>${badgeHtml(route)}${merged.map(m => " " + badgeHtml(m)).join("")} ${esc(spec?.name || route.longName)}</h2>
       ${mapHtml}
-      ${cbStripSvg(dirs, nameOf)}
+      ${cbStripSvg(dirs, nameOf)}${spec?.info || ""}
       ${notes ? `<p class="cb-notes">${notes}</p>` : ""}
-      <div class="cb-grids">${grids.join("")}</div>
+      ${spec ? vkPairs(grids).map(p => `<div class="cb-grids vk-pair">${p.join("")}</div>`).join("") : `<div class="cb-grids">${grids.join("")}</div>`}
     </section>`;
 }
+// Aineistotaulukot pareittain (JOJO: suunta ja sen vastasuunta rinnakkain, kaksi paria sivulla). Pari on sivutuksessa
+// yksi ruudukkoatomi: rinnakkain, jos mahtuu leveyteen, muuten allekkain (vkPaginate).
+const vkPairs = a => a.reduce((acc, x, i) => (i % 2 ? acc[acc.length - 1].push(x) : acc.push([x]), acc), []);
 
 /* ---------- Yhdistetty suunta-aikataulu (käytävä): usean linjan lähdöt yhteen ----------
    Yleinen mekanismi: käytävä johdetaan DATASTA — linjojen patternien järjestyksessä säilyvä
@@ -26520,7 +26622,294 @@ function vkComboMatrixHtml(label, picked, buckets) {
   }).join("");
   return groups ? `<h3>${esc(label)}</h3>${groups}` : "";
 }
-async function vkComboSection(c, routes, date, bucketMatch) {
+/* ---------- Kaupungin vihkon taulukot aineistosta (Joensuu 4.11.2026, JOJO:n talvivihkon malli) ----------
+   Aineiston (CONFIG.vihko.dataUrl) linjat[linja].taulukot kuvaa kaupungin oman vihkon taulukot: otsikko sanatarkasti,
+   pysäkkijono perusniminä (ensimmäinen = ajantasauspiste, jonka lähtöajat taulukko näyttää, muut = pysäkit, joilla
+   vuoro käy sen jälkeen tässä järjestyksessä) ja päivätyyppisarakkeet. Näin läpiajolinja jaetaan keskustan kohdalta
+   kuten JOJO:n vihkossa ("Utra–keskusta", "Keskusta–Reijola"), linjan 3 kahdesti keskustan kautta kulkeva lenkki
+   neljäksi taulukoksi ja 102:n Honkalampi omaksi ajantasauspisteekseen. Kirjaimet ovat kaupungin omia (P, K, Z ...)
+   ja selitteet vihkosta. Ne johdetaan vuorosta säännöillä (ajopäivät sarakkeessa, koulupäivä tai loma, lähtö- ja
+   päätepysäkki, pysäkki reitillä), koska syötteessä ei ole kirjaimia. Aineiston sivut[avain] on yhdistelmäsivu
+   (CONFIG.vihko.combos, data: true), jonka taulukoissa on usean linjan vuoroja (Linjat 11, 103 ja 104).
+   Ilman aineiston taulukoita linja kootaan kuten ennen (Lappeenranta). */
+const vkArr = x => (Array.isArray(x) ? x : x == null ? [] : [x]);
+// Vuoron käynnit pysäkkijonossa: { i = ajantasauspisteen indeksi, j = jonon viimeisen pysäkin indeksi, b = perusnimet }.
+// Jonon alkio on perusnimi tai lista vaihtoehtoja (linja 4: lähtö lentoasemalta tai Onttolasta).
+function vkSpecMatch(sts, seq) {
+  const b = sts.map(x => cbStopBase(x.stop?.name));
+  const has = (k, el) => vkArr(el).includes(b[k]);
+  const dep = k => k < b.length - 1 && sts[k].pickupType !== "NONE";
+  const i0 = b.findIndex((_, k) => dep(k) && has(k, seq[0]));
+  if (i0 < 0) return null;
+  let p = i0;
+  for (const el of seq.slice(1)) {
+    const q = b.findIndex((_, k) => k > p && has(k, el));
+    if (q < 0) return null;
+    p = q;
+  }
+  // Saman pysäkin viimeinen käynti ennen jonon toista pysäkkiä: linjan 3 vuoro kulkee keskustan kautta kahdesti, ja
+  // taulukko "Keskusta–Mehtimäki" alkaa jälkimmäiseltä käynniltä.
+  const nxt = seq.length > 1 ? b.findIndex((_, k) => k > i0 && has(k, seq[1])) : b.length;
+  let i = i0;
+  for (let k = i0 + 1; k < nxt; k++) if (b[k] === b[i0] && dep(k)) i = k;
+  return { i, j: p, b };
+}
+// Sarakkeet: nimi ("ma–pe", "la", "su", "koulup") tai { nimi, paivat, koulu, linjat }. Koulupäiväsarake (nimessä "koulu")
+// ei merkitse koulupäivävuoroja kirjaimella. linjat: yhdistelmätaulukon sarake vain näille linjoille (otsikossa linjat).
+function vkSpecCols(spec) {
+  return vkArr(spec.sarakkeet || ["ma–pe", "la", "su"]).map(c => {
+    const o = typeof c === "string" ? { nimi: c } : c;
+    const n = String(o.nimi || "");
+    return { label: n, lines: o.linjat || null, school: o.koulu ?? /koulu/i.test(n),
+      dows: new Set(o.paivat || (/^la/i.test(n) ? [5] : /^su/i.test(n) ? [6] : [0, 1, 2, 3, 4])) };
+  });
+}
+// Vuoron kirjaimet säännöistä { m, selite, paivat, koulu, lahto, paate, kautta, jalkeen, ennen, reitilla, eiReitilla,
+// lahdot, palvelu, taulukot, linjat }. Säännön kaikki ehdot täyttyvät. paivat = vuoron ajopäivät sarakkeessa, kun ne ovat vain
+// osa sarakkeen päivistä (P = perjantaisin), koulu = "koul" tai "loma" (ei koulupäiväsarakkeessa), lahto/paate =
+// vuoron ensimmäinen tai viimeinen pysäkki (jatkovuoro mukaan lukien), kautta = pysäkki taulukon pysäkkijonon välissä,
+// jalkeen/ennen = pysäkki ajantasauspisteen jälkeen tai ennen sitä, reitilla/eiReitilla = pysäkki vuoron reitillä tai
+// ei, lahdot = lähtöaika ajantasauspisteeltä ("23:25", vihkon käsin lisätty merkintä, kuten "* = odottaa linjaa 202"),
+// palvelu = vuoron palvelutunnisteen säännöllinen lauseke (tripServiceId, esim. Kontiolahden koulupäivät),
+// taulukot/linjat = sääntö vain näissä taulukoissa tai näiden linjojen vuoroille.
+function vkSpecMarks(rules, x) {
+  const out = [];
+  const hit = (names, list) => names.some(n => list.includes(n));
+  const hm = s => `${String(Math.floor(s / 3600) % 24).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}`;
+  for (const r of rules || []) {
+    if (!r.m || (r.taulukot && !r.taulukot.includes(x.title)) || (r.linjat && !r.linjat.includes(x.line))) continue;
+    const ok = [];
+    if (r.paivat) ok.push(x.days.size < x.col.dows.size && [...x.days].every(d => r.paivat.includes(d)));
+    if (r.koulu) ok.push(x.school === r.koulu && !x.col.school);
+    if (r.lahto) ok.push(r.lahto.includes(x.b[0]));
+    if (r.paate) ok.push(r.paate.includes(x.b[x.b.length - 1]));
+    if (r.kautta) ok.push(hit(x.b.slice(x.i + 1, x.j), r.kautta));
+    if (r.jalkeen) ok.push(hit(x.b.slice(x.i + 1), r.jalkeen));
+    if (r.ennen) ok.push(hit(x.b.slice(0, x.i), r.ennen));
+    if (r.reitilla) ok.push(hit(x.b, r.reitilla));
+    if (r.eiReitilla) ok.push(!hit(x.b, r.eiReitilla));
+    if (r.lahdot) ok.push(r.lahdot.includes(hm(x.sec)));
+    if (r.palvelu) ok.push(new RegExp(r.palvelu, "i").test(x.svc || ""));
+    if (ok.length && ok.every(Boolean) && !out.includes(r.m)) out.push(r.m);
+  }
+  return out;
+}
+// Koululomien vuorot (aineiston lomat: jaksot ja erikoispäivät, Joensuu 4.11.2026). Vihko kootaan 42 vrk:n ikkunasta
+// tulostuspäivästä, joten loma-ajan vuorot (JOJO:n "A = koulujen lomapäivinä") puuttuivat, vaikka ne ovat syötteessä:
+// Joensuun Joululoma-palvelu ajaa vain 23.12.-5.1. Loma-ajan vuoro = kaikki sen ajopäivät ovat lomajaksoilla, arkipäivinä,
+// ei erikoispäivinä (jouluaatto, joulupäivä, tapaninpäivä, uudenvuodenpäivä, loppiainen), vähintään kaksi päivää, eikä
+// yksikään ikkunassa (ikkunan vuorot ryhmittelee groupTripsByDays kuten ennen). Ajopäivät tulevat syötteestä (noin
+// +84 vrk), joten lomajakso, jota syöte ei vielä kata, ei näy. -> ryhmät { dows, school: "loma", trips, holiday }.
+function vkHolidayGroups(trips, lomat, date) {
+  if (!lomat?.jaksot?.length) return [];
+  const num = x => +String(x).replace(/-/g, "");
+  const per = lomat.jaksot.map(j => [num(j.alku), num(j.loppu)]);
+  const special = new Set(vkArr(lomat.erikoispaivat).map(num));
+  const d0 = new Date((date || todayISO()) + "T12:00:00"), d1 = new Date(d0);
+  d1.setDate(d0.getDate() + PRINT_HORIZON_DAYS);
+  const w0 = num(isoOf(d0)), w1 = num(isoOf(d1));
+  const byKey = new Map();
+  for (const tr of trips || []) {
+    const ds = (tr.activeDates || []).map(Number);
+    if (ds.length < 2 || ds.some(d => (d >= w0 && d <= w1) || special.has(d) || !per.some(([a, b]) => d >= a && d <= b))) continue;
+    const dows = [...new Set(ds.map(d => dowOfCompact(String(d))))].sort((a, b) => a - b);
+    if (dows.some(w => w > 4)) continue;
+    const key = dows.join(",");
+    if (!byKey.has(key)) byKey.set(key, { dows: new Set(dows), school: "loma", trips: [], holiday: true });
+    byKey.get(key).trips.push(tr);
+  }
+  return [...byKey.values()];
+}
+// Yksi kaupungin vihkon taulukko: lähdöt ajantasauspisteeltä tunneittain, päivätyypit sarakkeina (rakenne kuten
+// cbGridHtml, joten kapean vihkon sivutus ja päivätyyppijako toimivat sellaisenaan). trips = linjan (yhdistelmäsivulla
+// linjojen, tr._line) vuorot ajopäivineen, o = { date, bucketMatch, rules, line }.
+function vkSpecGridHtml(spec, trips, o) {
+  const cols = vkSpecCols(spec);
+  const seq = vkArr(spec.pysakit);
+  const next = o.next || new Map();
+  const cut = [];
+  for (const tr of trips || []) {
+    const sts = tr.stoptimes || [];
+    let m = seq.length && sts.length > 1 ? vkSpecMatch(sts, seq) : null, all = sts, use = tr;
+    // Vuoro, joka ei yksin käy taulukon pysäkeillä, mutta jatkaa samalla autolla seuraavana vuorona (vkBlockNext):
+    // mukaan, jos ajantasauspiste on vuoron omalla osuudella ja jatkovuoro on taulukon määränpäässä 20 min kuluessa
+    // (Honkalampi-Jyrinkylä, ei koko linjan kierrosta keskustan kautta takaisin). Ajopäivät = molempien yhteiset.
+    const n = !m && next.get(tr);
+    if (n) {
+      const both = sts.concat((n.stoptimes || []).slice(1));
+      const m2 = vkSpecMatch(both, seq);
+      if (m2 && m2.i < sts.length - 1 && both[m2.j].scheduledDeparture - sts[sts.length - 1].scheduledDeparture <= 1200) {
+        const nd = new Set(n.activeDates || []);
+        m = m2; all = both; use = { ...tr, activeDates: (tr.activeDates || []).filter(d => nd.has(d)) };
+      }
+    }
+    if (m) cut.push({ ...use, stoptimes: all.slice(m.i), _vk: { ...m, line: tr._line || o.line, sec: all[m.i].scheduledDeparture, svc: tr.serviceId || "" } });
+  }
+  const groups = groupTripsByDays(cut, o.date).filter(g => o.bucketMatch(g.dows))
+    .concat(vkHolidayGroups(cut, o.lomat, o.date).filter(g => o.bucketMatch(g.dows)));
+  const entries = cols.map(() => []);
+  for (const g of groups) cols.forEach((c, ci) => {
+    const days = new Set([...g.dows].filter(d => c.dows.has(d)));
+    if (!days.size || (c.school && g.school === "loma")) return;
+    for (const tr of g.trips) {
+      const v = tr._vk;
+      if (c.lines && !c.lines.includes(v.line)) continue;
+      const marks = vkSpecMarks(o.rules, { ...v, days, col: c, title: spec.otsikko, school: g.school });
+      const sec = tr.stoptimes[0].scheduledDeparture, mk = marks.join("");
+      // Loma-ajan vuoro, jonka lähtöhetki on jo sarakkeessa (koulupäivän vuoro samaan aikaan), ei saa omaa merkintää:
+      // JOJO näyttää lähdön kerran (201 Keskusta-Hukanhauta 16.10, 203 Peltola 14.00).
+      if (g.holiday && entries[ci].some(e => e.sec === sec)) continue;
+      if (!entries[ci].some(e => e.sec === sec && e.mk === mk)) entries[ci].push({ sec, marks, mk });
+    }
+  });
+  const hourOf = e => Math.floor(e.sec / 3600);
+  const hours = [...new Set(entries.flat().map(hourOf))].sort((a, b) => a - b);
+  const tens = entries.map(es => minuteTens(es.map(e => e.sec)));
+  const fmt = e => String(Math.floor((e.sec % 3600) / 60)).padStart(2, "0") + (e.marks.length ? `<sup>${esc(e.marks.join(""))}</sup>` : "");
+  const head = cols.map((c, ci) => `<th scope="col"${tens[ci].length > 1 ? ` colspan="${tens[ci].length}"` : ""}>`
+    + `${c.lines ? `${esc(c.lines.join(", "))}<br>` : ""}${esc(c.label)}</th>`).join("");
+  const body = hours.map(h => `<tr><th scope="row">${String(h % 24).padStart(2, "0")}</th>`
+    + cols.map((c, ci) => minuteTensCells(tens[ci], entries[ci].filter(e => hourOf(e) === h).sort((a, b) => a.sec - b.sec), fmt, e => e.sec)).join("")
+    + `</tr>`).join("");
+  const used = new Set(entries.flat().flatMap(e => e.marks));
+  const legend = (o.rules || []).filter((r, k, a) => used.has(r.m) && r.selite && a.findIndex(x => x.m === r.m) === k);
+  return `<div class="cb-dir"><h3>${esc(spec.otsikko || "")}</h3>`
+    + (hours.length ? `<table class="cb-grid vk-spec"><thead><tr><th scope="col" class="cb-hcol">${t("compactHour")}</th>${head}</tr></thead><tbody>${body}</tbody></table>`
+      : `<p class="muted">${t("bookletNoData")}</p>`)
+    + (legend.length ? `<p class="cb-notes cb-legend">${legend.map(r => `<b>${esc(r.m)}</b> = ${esc(r.selite)}`).join(" · ")}</p>` : "")
+    + vkArr(spec.huom).map(x => `<p class="cb-route">${esc(x)}</p>`).join("") + `</div>`;
+}
+// Pysäkkitaulukko aineistosta (linjat[linja].pysakkitaulukot, JOJO:n 112, 114, koululais- ja Traficomin liikenne):
+// rivit = kaupungin vihkon pysäkit ([näyttönimi sanatarkasti, perusnimi tai lista]), sarakkeet = vuorot, jotka käyvät
+// spec.pysakit-jonon pysäkeillä tässä järjestyksessä (suunta). Solu = aika riviltä (vuoron käynnit kohdistetaan rivien
+// järjestykseen) tai "|", jos vuoro ei aja paikan kautta. Sarakkeen otsikko = päivät (spec.paivat-lyhenteet aineistosta,
+// esim. "koulp", "M–P"), yhdistetyssä taulukossa (linjatSarakkeissa) linja ja rinnakkaislinjan kirjain
+// (CONFIG.vihko.merge, esim. 401 = "*" linjan 400 taulukossa). Liian monta
+// vuoroa jaetaan peräkkäisiin taulukoihin, jotka kapean vihkon sivutus pitää kokonaisina (vk-tr).
+// taiPysakit = muut pysäkkijonot samaan taulukkoon (480: lyhyt vuoro Kovero-Tuupovaara ei käy Joensuussa).
+function vkStopTableHtml(spec, trips, o) {
+  const seqs = [vkArr(spec.pysakit), ...vkArr(spec.taiPysakit)].filter(x => x.length), rows = vkArr(spec.rivit);
+  const ab = o.abbr || {};
+  const cut = [];
+  for (const tr of trips || []) {
+    const sts = tr.stoptimes || [];
+    let m = null;
+    for (const seq of seqs) if (!m && sts.length > 1) m = vkSpecMatch(sts, seq);
+    if (m) cut.push({ ...tr, _vk: { ...m, line: tr._line || o.line } });
+  }
+  const groups = groupTripsByDays(cut, o.date).filter(g => o.bucketMatch(g.dows))
+    .concat(vkHolidayGroups(cut, o.lomat, o.date).filter(g => o.bucketMatch(g.dows)));
+  const day = (dows, school) => ab[school === "loma" && ab.loma ? "loma" : school ? "koul" : [...dows].sort((a, b) => a - b).join(",")] || dowLabel(dows);
+  const cols = [];
+  for (const g of groups) for (const tr of g.trips) {
+    // Rivit kohdistetaan vuoron käynteihin pisimmällä yhteisellä alijonolla (kuten bookletAlign): ahne haku vei
+    // lenkkivuoron ensimmäisen rivin (131: Jyrin koulu) vuoron loppuun, ja muut rivit jäivät tyhjiksi. Vuoron lähtö- ja
+    // päätepysäkki painavat enemmän, kun rivit ja käynnit ovat eri järjestyksessä (420: Keskussairaala ja Joensuu,
+    // 480: lyhyt vuoro lähtee Tuupovaarasta eikä Kovero th:lta).
+    const sts = tr.stoptimes, b = tr._vk.b, nR = rows.length, nS = b.length;
+    const hit = (i, j) => vkArr(rows[i][1]).includes(b[j]);
+    const w = j => (j === 0 || j === nS - 1 ? 3 : 2);
+    const dp = Array.from({ length: nR + 1 }, () => new Int16Array(nS + 1));
+    for (let i = nR - 1; i >= 0; i--) for (let j = nS - 1; j >= 0; j--)
+      dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1], hit(i, j) ? w(j) + dp[i + 1][j + 1] : 0);
+    const cells = new Array(nR).fill(null);
+    for (let i = 0, j = 0; i < nR && j < nS;) {
+      if (hit(i, j) && dp[i][j] === w(j) + dp[i + 1][j + 1]) { cells[i] = sts[j].scheduledDeparture; i++; j++; }
+      else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+      else j++;
+    }
+    const first = cells.find(v => v != null);
+    if (first == null) continue;
+    const pre = [tr._vk.line !== o.line || o.lineHead ? tr._vk.line : "", tr._mark || ""].filter(Boolean).join(" ");
+    // Sama vuoro eri päivinä yhteen sarakkeeseen, kun yhdistelmälle on aineistossa lyhenne (JOJO "LS" = la ja su).
+    // Muuten omina sarakkeinaan kuten JOJO:lla (M–P ja L erikseen), koulupäivät omanaan.
+    const union = d => [...new Set([...d, ...g.dows])].sort((a, b) => a - b).join(",");
+    const same = !g.school && cols.find(c => c.pre === pre && !c.school && c.cells.join() === cells.join() && ab[union(c.dows)]);
+    if (same) { g.dows.forEach(d => same.dows.add(d)); continue; }
+    if (g.holiday && cols.some(c => c.cells.join() === cells.join())) continue;   // loma-ajan vuoro samoin ajoin jo taulukossa
+    cols.push({ first, pre, school: g.school, dows: new Set(g.dows), cells });
+  }
+  cols.forEach(c => { c.head = [c.pre, day(c.dows, c.school)].filter(Boolean).join(" "); });
+  cols.sort((a, b) => a.first - b.first);
+  const fmt = s => `${Math.floor(s / 3600) % 24}.${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}`;
+  const K = Math.max(3, o.tripCols || 7), parts = Math.ceil(cols.length / K) || 1, per = Math.ceil(cols.length / parts);
+  let html = `<h3>${esc(spec.otsikko || "")}</h3>`;
+  if (!cols.length) return html + `<p class="muted">${t("bookletNoData")}</p>`;
+  // Rivi, jonka pysäkki ei ole yhdenkään vuoron reitillä syötteessä (JOJO:n Lammenkatu, Viinijärventie), jää tyhjäksi:
+  // "|" väittäisi, ettei auto aja paikan kautta, vaikka syöte ei vain tunne paikkaa.
+  const known = rows.map((_, i) => cols.some(c => c.cells[i] != null));
+  for (let c = 0; c < cols.length; c += per) {
+    const part = cols.slice(c, c + per);
+    html += `<div class="matrix-wrap"><table class="stoptable booklet vk-tr"><thead><tr><th></th>${part.map(x => `<th scope="col">${esc(x.head)}</th>`).join("")}</tr></thead><tbody>`
+      + rows.map(([name], i) => `<tr><th scope="row">${esc(name)}</th>${part.map(x => `<td>${x.cells[i] == null ? (known[i] ? "|" : "") : fmt(x.cells[i])}</td>`).join("")}</tr>`).join("")
+      + `</tbody></table></div>`;
+  }
+  return html + vkArr(spec.huom).map(x => `<p class="vk-route">${esc(x)}</p>`).join("");
+}
+// Saman auton jatkovuoro (GTFS block_id): JOJO:n taulukossa vuoro jatkuu päätepysäkiltään seuraavana vuorona, esim.
+// linjan 101 "35H" keskustasta Honkalammen kautta Jyrinkylään, vaikka syötteessä vuoro päättyy Honkalammelle ja auto
+// jatkaa sieltä uutena vuorona. Jatko = saman lohkon vuoro, joka lähtee päätepysäkiltä (perusnimi) 0-15 min päätösajan
+// jälkeen ja ajaa ainakin yhtenä samana päivänä. trips = vuorot, joilla blockId (vkBlockIds). -> Map vuoro -> jatko.
+function vkBlockNext(trips) {
+  const byBlock = new Map(), next = new Map();
+  for (const tr of trips || []) if (tr.blockId && (tr.stoptimes || []).length) {
+    if (!byBlock.has(tr.blockId)) byBlock.set(tr.blockId, []);
+    byBlock.get(tr.blockId).push(tr);
+  }
+  for (const list of byBlock.values()) for (const a of list) {
+    const sa = a.stoptimes, end = sa[sa.length - 1], ad = new Set(a.activeDates || []);
+    let best = null;
+    for (const b of list) {
+      const s0 = b.stoptimes[0], gap = s0.scheduledDeparture - end.scheduledDeparture;
+      if (b === a || gap < 0 || gap > 900 || cbStopBase(s0.stop?.name) !== cbStopBase(end.stop?.name)) continue;
+      if (!(b.activeDates || []).some(d => ad.has(d))) continue;
+      if (!best || s0.scheduledDeparture < best.stoptimes[0].scheduledDeparture) best = b;
+    }
+    if (best) next.set(a, best);
+  }
+  return next;
+}
+// Vuorojen lohkotunnukset (block_id) linjan reiteille yhdellä kyselyllä: vain kaupungin vihkon aineistotaulukoille,
+// joten muiden tulosteiden vuorohaku pysyy ennallaan. -> Map vuoron gtfsId -> blockId.
+async function vkBlockIds(routeIds) {
+  try {
+    const { data } = await cachedGql("vkblock:" + routeIds.join(","),
+      `query ($ids: [String]) { routes(ids: $ids) { patterns { trips { gtfsId blockId } } } }`, { ids: routeIds });
+    return new Map((data.routes || []).filter(Boolean).flatMap(r => (r.patterns || []).flatMap(p => (p.trips || []).map(t => [t.gtfsId, t.blockId]))));
+  } catch (e) { return new Map(); }
+}
+// Linjan tai yhdistelmäsivun osat aineistosta: tuntiruudukot (taulukot), pysäkkitaulukot, näyttönimi (vihkon
+// alaotsikko) ja tekstit (voimassaolo, reitti, huomautukset) sellaisinaan. blocks = vkBlockIds (jatkovuorot) ja
+// data = aineisto (paivat = päivälyhenteet, lomat = koululomat, vkHolidayGroups), valinnaiset. Rinnakkaislinjan vuoro
+// (CONFIG.vihko.merge) omalla linjallaan.
+function vkSpecLineOpts(L, trips, line, date, bucketMatch, blocks, data) {
+  const abbr = data?.paivat, lomat = data?.lomat;
+  trips = trips.map(tr => ({ ...tr, ...(tr._markLine && !tr._line ? { _line: tr._markLine } : {}),
+    ...(blocks?.size ? { blockId: blocks.get(tr.gtfsId) || null } : {}) }));
+  const o = { date, bucketMatch, rules: L.merkit || [], line, next: vkBlockNext(trips), abbr, lomat, lineHead: !!L.linjatSarakkeissa,
+    tripCols: Math.max(3, Math.floor((vkNarrowGeom().w - 32) / (cbTextWidth("00.00") * 7.2 / 9.75 * 0.3528 + 2.7))) };
+  return { grids: vkArr(L.taulukot).map(s => vkSpecGridHtml(s, trips, o)), name: L.nimi || "",
+    tables: vkArr(L.pysakkitaulukot).map(s => vkStopTableHtml(s, trips, o)),
+    info: vkArr(L.teksti).map(x => `<p class="vk-route">${esc(x)}</p>`).join("") };
+}
+// Yhdistelmäsivu aineistosta (CONFIG.vihko.combos, data: true): sivut[avain] taulukoineen usean linjan vuoroista.
+async function vkComboSpecSection(c, routes, date, bucketMatch, data) {
+  const P = data?.sivut?.[c.key];
+  if (!P) return null;
+  const per = await vkComboTrips(c, routes);
+  if (!per.length) return null;
+  const trips = per.flatMap(x => (x.trips || []).map(tr => ({ ...tr, _line: x.route.shortName || "" })));
+  const blocks = new Map((await Promise.all(per.map(async x => [...(await vkBlockIds(await lineIds(x.route.gtfsId)))]))).flat());
+  const opts = vkSpecLineOpts(P, trips, per[0].route.shortName || "", date, bucketMatch, blocks, data);
+  const toc = vkArr(P.toc).join(" ") || c.key;
+  const h2 = `<h2>${per.map(x => badgeHtml(x.route)).join(" ")} ${esc(opts.name)}</h2>`;
+  return { label: toc, net: null,
+    html: opts.tables.length   // pysäkkitaulukot (koululaisliikenne): ei tuntiruudukkoa
+      ? `<section class="card booklet-line booklet-combo" data-short="combo:${esc(c.key)}" data-toc="${esc(toc)}">${h2}${opts.info}${opts.tables.join("")}</section>`
+      : `<section class="card booklet-line compact booklet-combo" data-short="combo:${esc(c.key)}" data-toc="${esc(toc)}">${h2}${opts.info}${vkPairs(opts.grids).map(p => `<div class="cb-grids vk-pair">${p.join("")}</div>`).join("")}</section>` };
+}
+async function vkComboSection(c, routes, date, bucketMatch, data) {
+  if (c.data) return vkComboSpecSection(c, routes, date, bucketMatch, data);
   const per = await vkComboTrips(c, routes);
   if (per.length < 2) return null;
   const shorts = c.lines.filter(s => per.some(x => x.route.shortName === s));
@@ -26830,6 +27219,16 @@ function bindBookletTab(routes, today) {
           { basemap: true, routeColor: "var(--header-bg, #333)", ...(layoutSel === "city" ? { arrowDirs: 2, labelName: vkStopName } : {}) }) : "";
         const label = `${route.shortName || ""} ${route.longName}`.trim();
         const net = { shortName: route.shortName || "", longName: route.longName || "", dirs: mapDirs };   // kapean vihkon linjastokartta
+        // Kaupungin vihkon taulukot aineistosta (vkData.linjat[linja], Joensuu 4.11.2026): kaupungin omat taulukot
+        // ajantasauspisteineen ja kirjaimineen suuntien ruudukkojen sijaan, ks. vkSpecGridHtml.
+        const vkLine = layoutSel === "city" ? vkData?.linjat?.[route.shortName || ""] : null;
+        const spec = vkLine ? vkSpecLineOpts(vkLine, dirs.flatMap(d => (d.trips || []).concat(d.midMembers || [])), route.shortName || "",
+          date, bucketMatch, await vkBlockIds(ids), vkData) : null;
+        if (spec && compactFor(route.shortName || "")) return { label, net, html: compactLineHtml(route, dirs, mapHtml, merged, extras, true, spec) };
+        // Pysäkkitaulukot (JOJO:n 112, 114, koululais- ja Traficomin liikenne): kaupungin vihkon rivit ja otsikot.
+        if (spec) return { label, net, html: `<section class="card booklet-line" data-short="${esc(route.shortName || "")}">
+            <h2>${badgeHtml(route)}${merged.map(m => " " + badgeHtml(m)).join("")} ${esc(spec.name || route.longName)}</h2>
+            ${mapHtml}${spec.info}${spec.tables.join("")}</section>` };
         if (compactFor(route.shortName || "")) return { label, net, html: compactLineHtml(route, dirs, mapHtml, merged, extras, layoutSel === "city") };
         // Kaupungin vihkon malli: sarakkeet kapean sivun mukaan (vkPickCols), rivikirjaimet ja näyttönimet.
         // Osion transpose (lähiliikenne): kylätaulukko, pysäkit riveinä kuten Joukon vihkossa.
@@ -26861,7 +27260,7 @@ function bindBookletTab(routes, today) {
     if (layoutSel === "city" && (CONFIG.vihko?.combos || []).length) {
       for (const c of CONFIG.vihko.combos) {
         if (!ok.some(x => x.net?.shortName === c.after)) continue;   // vain jos yhdistelmän paikkalinja on vihkossa
-        try { const sec = await vkComboSection(c, routes, date, bucketMatch); if (sec) ok.push(sec); else comboFail.push(c.key); }
+        try { const sec = await vkComboSection(c, routes, date, bucketMatch, vkData); if (sec) ok.push(sec); else comboFail.push(c.key); }
         catch (e) { comboFail.push(c.key); }
       }
     }
