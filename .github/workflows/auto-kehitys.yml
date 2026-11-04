@@ -144,6 +144,7 @@ jobs:
           claude_args: >-
             --max-turns 80
             --add-dir /tmp
+            --disallowedTools "Monitor"
             --allowedTools "Bash(git:*),Bash(gh pr create:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(node:*),Bash(npm test:*),Bash(npm run:*),Bash(cd:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(grep:*),Bash(wc:*),Bash(sort:*),Bash(cut:*),Bash(diff:*),Bash(sed -n:*),Bash(echo:*),Bash(mkdir:*),Bash(cp:*),Bash(test:*),Read,Edit,Write,Glob,Grep"
           prompt: |
             Olet Reittarin (lsl-aikataulut) auto-kehitysagentti. Teet YHDEN rajatun tehtävän ja avaat PR:n.
