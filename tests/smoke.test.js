@@ -203,6 +203,23 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (sig.join("|") === "[numero]|kauppatori|22k|[sposti]|[pitka]")
     ? ok("analytiikka: searchSignal korvaa henkilön tunnistavat hakutekstit luokalla")
     : fail("analytiikka: searchSignal palautti " + JSON.stringify(sig));
+  // Tiskin pysäkkihaku: lähtöpysäkit ensin, saapuvien pysäkki viimeiseksi ja viittaa vain pysäkkeihin, joilta sen
+  // linjat lähtevät (ahne kattavuus, tasapelissä sama nimi ensin); ei yhteistä linjaa -> ei viittausta (kiinteä aineisto)
+  const jarj = await page.evaluate(() => {
+    const r = (...l) => l.map(shortName => ({ shortName }));
+    const st = [{ gtfsId: "X:1", name: "Kauppatori A", routes: r("12", "34") }, { gtfsId: "X:2", name: "Kauppatori B", routes: r("60") },
+      { gtfsId: "X:3", name: "Kauppatori E", routes: r("3", "12") }, { gtfsId: "X:4", name: "Kauppatori A", routes: r("34") },
+      { gtfsId: "X:5", name: "Kauppatori G", routes: r("99") }];
+    const a = jarjestaHakuPysakit(st, new Set(["X:2", "X:3", "X:4"]));
+    const b = jarjestaHakuPysakit(st, null);
+    const m = o => o.lahdotMuualta.map(x => x.stop.gtfsId + "=" + x.linjat.join("+")).join();
+    return { ids: a.map(o => o.stop.gtfsId), saap: a.map(o => !!o.vainSaapuva), x1: m(a[3]), x5: m(a[4]),
+      ennallaan: b.map(o => o.stop.gtfsId).join() === "X:1,X:2,X:3,X:4,X:5" && b.every(o => !o.vainSaapuva && !o.lahdotMuualta.length) };
+  });
+  (jarj.ids.join() === "X:2,X:3,X:4,X:1,X:5" && jarj.saap.join() === "false,false,false,true,true"
+    && jarj.x1 === "X:4=34,X:3=12" && jarj.x5 === "" && jarj.ennallaan)
+    ? ok("tiski: pysäkkihaku järjestää lähtöpysäkit ensin ja saapuvien pysäkki viittaa vain samojen linjojen lähtöpysäkkeihin")
+    : fail("tiski: jarjestaHakuPysakit palautti " + JSON.stringify(jarj));
   // Journey-hero greenfield-kaupungilla (Salo): ei layer-osiota, A->B ensisijaisena
   await page.goto(BASE + "/?city=salo#/", { waitUntil: "networkidle2" });
   const journey = await page.evaluate(() => ({
