@@ -287,6 +287,13 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Mittari: monitorin avaukset (view-tapahtuma monitori, admin-tilasto Analytics Enginestä) ja smoke 1920x1080
       (viimeinen rivi ja alatunniste näkyvissä, ?eink=1 ilman animaatioita) vihreä CI:ssä
       · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
+- [x] index.html: monitori valmiiksi infonäytölle, vaihe 1: `?eink=1` e-paper-näytöille (kärkivuoro, vaihe 1 yllä olevasta
+      monitoririvistä; sen kohdat 1-3 jäävät sen avoimiksi vaiheiksi). `#/monitori/<id>?eink=1` lisää body-luokan
+      `monitor-eink`: harmaasävy, animaatiot ja siirtymät pois, kello ilman sekunteja, linjamerkille reunus. Todennus: smoke
+      (ilman parametria luokkaa ei ole; parametrilla luokka, `getAnimations().length === 0`, kello HH:MM, grayscale).
+      (tuotekehityksen kärki 2026-11-05, teema 9: näytöt, lähde: HILMA-signaali infonäytöistä)
+      Pisteet: arvo 2/3 · kiire 1/3 · työ S · myynti 2/3 · uutuus 2/2 = 8
+      Mittari: smoke-tarkistus (?eink=1: luokka, ei animaatioita, kello HH:MM) vihreä CI:ssä · tarkistus 2026-12-10 (PR, 2026-11-05; kärkivuoro, vaihe 1)
 - [ ] index.html: kuntalaisen etusivu aloittaa vastauksesta. Mobiilissa (360 px) pysäkkihaku ja lähimmät lähdöt
       ensimmäiseen ruutuun (nyt 980 ja 907 px), A->B toiseksi; yläpalkki enintään 12 % ruudun korkeudesta (nyt 20 %):
       kieli, tekstikoko ja kontrasti yhden valikkonapin taakse, yksinäinen "Etusivu"-välilehti pois kuntalaistilassa.
