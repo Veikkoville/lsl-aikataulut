@@ -1914,7 +1914,7 @@ async function minuuttiLinjaus(page, rootSel, media) {
   await page.evaluate(() => history.back());
   const b9d = await termHead();
   const b9s = await page.evaluate(() => ({ hash: location.hash, desk: document.body.classList.contains("desk-mode") }));
-  (b9a && b9Btn === "← Trio, kaikki pysäkit" && b9b && b9c && b9d && b9s.hash === "#/palvelutiski" && b9s.desk)
+  (b9a && b9Btn === "Trio, kaikki pysäkit" && b9b && b9c && b9d && b9s.hash === "#/palvelutiski" && b9s.desk)
     ? ok("palvelutiski B9: pysäkin kortista paluunapilla ja selaimen Takaisin-napilla takaisin Trion terminaaliin, tiski pysyy auki")
     : fail("palvelutiski B9: paluu terminaaliin: " + JSON.stringify({ b9a, b9Btn, b9b, b9c, b9d, ...b9s }));
 

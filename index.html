@@ -481,7 +481,7 @@
   }
   a.brand { color: inherit; text-decoration: none; }
   a.brand:hover h1 { text-decoration: underline; }
-  header h1 { margin: 0; font-size: 1.25rem; font-weight: var(--wmed); letter-spacing: 0.01em; }
+  header h1 { margin: 0; font-size: 1.25rem; font-weight: var(--wmed); }
   header p { margin: 0.1rem 0 0; font-size: 0.78rem; opacity: 0.88; }
   /* Globaalit kontrollit ylätunnisteessa (kieli / tekstikoko / kontrasti) */
   .hdr-tools {
@@ -549,7 +549,7 @@
     padding: var(--pad-card);
     margin-bottom: 1rem;
   }
-  h2 { font-size: 1.2rem; font-weight: 600; margin: 0 0 0.7rem; letter-spacing: 0.01em; }
+  h2 { font-size: 1.2rem; font-weight: 600; margin: 0 0 0.7rem; }
   /* "Kaikki linjat": värillisten linjabadgejen ruudukko (joukkoliikennemäinen) */
   ul.route-grid {
     list-style: none; margin: 0.3rem 0 0; padding: 0;
@@ -570,7 +570,7 @@
     flex: 0 0 auto; box-sizing: border-box;
     min-width: 44px; height: 44px; padding: 0 0.55rem;
     display: inline-flex; align-items: center; justify-content: center;
-    border-radius: 999px; text-align: center; font-weight: 700; font-size: 1.02rem; letter-spacing: 0.01em;
+    border-radius: 999px; text-align: center; font-weight: 700; font-size: 1.02rem;
     background: var(--card); border: 2px solid var(--text); color: var(--blue);
   }
   /* Erikoisreitit (esim. 81B punainen, 81C amber, Kotkan vihreät P-linjat) säilyttävät
@@ -607,8 +607,7 @@
   .foot-brand strong { color: var(--text); }
   /* Sarakeotsikot ovat h2 (ennen h4, otsikkotaso hyppäsi h2 -> h4; saavutettavuuspuu 24.10.2026, R11). Paino 700 = h4:n
      oletus, joten ulkoasu ei muutu. */
-  .foot-col h2 { margin: 0 0 0.4rem; font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.06em; color: var(--text); }
+  .foot-col h2 { margin: 0 0 0.4rem; font-size: 0.78rem; font-weight: 700; color: var(--text); }
   .foot-col a { display: block; padding: 0.22rem 0; color: var(--blue); text-decoration: none; }
   .foot-col a:hover { text-decoration: underline; }
   .foot-note { max-width: var(--page-max); margin: 1.2rem auto 0; padding-top: 1rem;
@@ -707,7 +706,7 @@
     font-variant-numeric: tabular-nums; color: var(--blue); }
   .m-table { width: 100%; border-collapse: collapse; }
   .m-table thead th { text-align: left; font-size: clamp(0.75rem, 1.8vw, 1.1rem);
-    color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0 0.4rem 0.3rem; }
+    color: var(--muted); padding: 0 0.4rem 0.3rem; }
   .m-table td { font-size: clamp(1.2rem, 3.6vw, 2.6rem); font-weight: var(--wmed);
     padding: clamp(0.3rem, 1.2vw, 0.7rem) 0.4rem; border-bottom: 1px solid var(--border); }
   .m-line { width: 1%; white-space: nowrap; }
@@ -726,8 +725,8 @@
   ul.plain { list-style: none; margin: 0; padding: 0; }
   ul.plain li { border-top: 1px solid var(--border); }
   ul.plain li:first-child { border-top: none; }
-  li.search-cat { padding: 0.5rem 0.75rem 0.2rem; font-size: 0.72rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  li.search-cat { padding: 0.5rem 0.75rem 0.2rem; font-size: 0.8rem; font-weight: 700;
+    color: var(--muted); }
   a.item, button.item {
     display: flex;
     gap: 0.75rem;
@@ -1462,14 +1461,12 @@
   .desk-prints .dp-layout { display: grid; grid-template-columns: minmax(15rem, 21rem) 1fr;
     gap: 1.2rem; align-items: start; }
   @media (max-width: 900px) { .desk-prints .dp-layout { grid-template-columns: 1fr; } }
-  .desk-prints h3 { font-size: 0.95rem; margin: 0 0 0.4rem; text-transform: uppercase;
-    letter-spacing: 0.03em; color: var(--muted); }
+  .desk-prints h3 { font-size: 0.95rem; margin: 0 0 0.4rem; color: var(--muted); }
   .dp-pick input[type="search"] { width: 100%; min-height: 2.7rem; border: 2px solid var(--border);
     font-size: 1em; }
   ul#deskLineList { max-height: min(19rem, 34vh); overflow-y: auto; border: 2px solid var(--border);
     border-radius: 0.4rem; margin: 0.45rem 0 0.45rem; padding: 0.2rem; background: #fff; }
-  ul#deskLineList li.dp-head { font-size: 0.82em; font-weight: var(--wmed); text-transform: uppercase;
-    letter-spacing: 0.03em; color: var(--muted); padding: 0.5rem 0.4rem 0.2rem; }
+  ul#deskLineList li.dp-head { font-size: 0.82em; font-weight: var(--wmed); color: var(--muted); padding: 0.5rem 0.4rem 0.2rem; }
   ul#deskLineList li label { display: flex; align-items: center; gap: 0.5rem; padding: 0.32rem 0.4rem;
     cursor: pointer; border-radius: 0.3rem; }
   ul#deskLineList li label:hover { background: var(--hover); }
@@ -1596,15 +1593,13 @@
   /* "Kerro asiakkaalle": korostettu, iso, ääneen luettava suositus */
   .desk-tell { border: 3px solid var(--blue); border-radius: var(--radius); padding: 1rem 1.2rem;
     margin: 0.4rem 0 0.7rem; background: #eef4ff; }
-  .desk-tell-h { font-size: 0.8em; font-weight: var(--wmed); text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--blue); }
+  .desk-tell-h { font-size: 0.9em; font-weight: var(--wmed); color: var(--blue); }
   .desk-tell-body { font-size: clamp(1.2rem, 2vw, 1.7rem); line-height: 1.4; margin: 0.35rem 0 0; }
   /* "Seuraava bussi" -kortti: kun kävely on nopein mutta asiakas kysyi bussia (rauhallinen korostus) */
   .desk-next-bus { border: 2px solid var(--blue); border-radius: var(--radius);
     padding: 0.85rem 1.1rem; margin: 0.2rem 0 0.7rem; background: var(--card); }
   .desk-next-bus--none { border-color: var(--border); }
-  .desk-next-bus-h { font-size: 0.8em; font-weight: var(--wmed); text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--blue); display: flex; align-items: center; gap: 0.35rem; }
+  .desk-next-bus-h { font-size: 0.9em; font-weight: var(--wmed); color: var(--blue); display: flex; align-items: center; gap: 0.35rem; }
   .desk-next-bus-h .ic { width: 1.2em; height: 1.2em; }
   .desk-next-bus-body { font-size: clamp(1.1rem, 1.8vw, 1.5rem); line-height: 1.4; margin: 0.35rem 0 0;
     display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
@@ -1914,7 +1909,7 @@
   /* Ryhmitellyt pikavalinnat: otsikoitu ryhmä; tyhjä ryhmä ei renderöidy lainkaan */
   .tool-group { margin: 0 0 1.1rem; }
   .tool-group-h { font-size: 0.95rem; font-weight: var(--wmed); margin: 0 0 0.5rem;
-    color: var(--muted); letter-spacing: 0.01em; }
+    color: var(--muted); }
   .tool-group .tool-grid { margin: 0; }
   .tool { display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem 0.8rem;
     border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);
@@ -2026,8 +2021,8 @@
   @media (max-width: 560px) { .searchcard.sc-hero { margin-top: -1.6rem; } }
   .searchcard .sc-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
   .sc-field { flex: 1 1 200px; min-width: 170px; }
-  .sc-label { display: block; font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase;
-    letter-spacing: .6px; color: var(--ink-muted); margin: 0 0 6px 4px; }
+  .sc-label { display: block; font-size: var(--fs-xs); font-weight: 700;
+    color: var(--ink-muted); margin: 0 0 6px 4px; }
   .sc-box { position: relative; display: flex; align-items: center; gap: 8px;
     background: var(--field-bg); border: 1px solid var(--line); border-radius: var(--radius-control);
     padding: 0 12px; min-height: 52px; }
@@ -2655,33 +2650,32 @@
   .reila-hero.hero-paper { background: transparent; padding: 1.25rem 0 0.5rem; border-radius: 0; }
   .hp-grid { display: grid; gap: 1.5rem; align-items: center; }
   @media (min-width: 860px) { .hp-grid { grid-template-columns: 1.05fr 0.95fr; gap: 2rem; } }
-  .hp-eyebrow { margin: 0 0 0.6rem; font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0.06em;
-    text-transform: uppercase; color: var(--blue); }
+  .hp-eyebrow { margin: 0 0 0.6rem; font-size: var(--fs-sm, 0.9rem); font-weight: 700; color: var(--blue); }
   .hero-paper .reila-hero-h1 { font-size: clamp(2rem, 1.4rem + 2.2vw, 2.9rem); letter-spacing: -0.02em; line-height: 1.06; }
   .hero-paper .reila-hero-sub { font-size: 1.08rem; max-width: 34rem; }
   .hp-cta { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.4rem; }
   .hp-cta .btnlink { min-height: 48px; font-weight: 700; padding: 0.6rem 1.1rem; }
-  .hp-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem 1.5rem; margin-top: 1.6rem;
-    padding-top: 1.1rem; border-top: 1px solid var(--line); }
+  /* Luvut tavallisina lauseina (ei suurta numeroa ja selitettä rivissä). */
+  .hp-facts { list-style: none; margin: 1.4rem 0 0; padding: 0; color: var(--ink-muted); font-size: 0.95rem; }
+  .hp-fact { margin: 0.2rem 0; }
   .hp-fact[hidden] { display: none; }
-  .hp-fact b { display: block; font-size: 1.6rem; font-weight: 800; line-height: 1.1; color: var(--ink); }
-  .hp-fact span { display: block; font-size: 0.84rem; color: var(--ink-muted); margin-top: 2px; }
-  .hp-papers { position: relative; margin: 0; height: 450px; }
+  .hp-fact b { font-weight: 600; color: var(--ink); }
+  /* Juliste ja vihko vierekkäin, ei päällekkäin; kuvatekstit kuvien alla. */
+  .hp-papers { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; align-items: start; }
   .hp-papers[hidden] { display: none; }
-  .hp-papers img { position: absolute; background: #fff; border-radius: 3px;
-    box-shadow: 0 1px 2px rgba(20, 20, 20, 0.08), 0 14px 32px -14px rgba(20, 20, 20, 0.32); }
-  .hp-poster { left: 0; top: 0; width: 55%; height: auto; }
-  .hp-booklet { right: 0; top: 24%; width: 56%; height: auto; }
-  .hp-tag { position: absolute; font-size: 0.8rem; color: var(--ink-muted); background: var(--surface);
-    border: 1px solid var(--line); border-radius: 999px; padding: 0.3rem 0.7rem; white-space: nowrap; }
+  .hp-papers img { display: block; width: 100%; height: auto; background: #fff; border-radius: 3px;
+    box-shadow: 0 1px 2px rgba(20, 20, 20, 0.08), 0 6px 14px -8px rgba(20, 20, 20, 0.3); }
+  .hp-tag { font-size: 0.85rem; color: var(--ink-muted); margin: 0; }
   .hp-tag:empty { display: none; }
-  .hp-tag-poster { left: 0.5rem; bottom: 0.2rem; }
-  .hp-tag-booklet { right: 0.5rem; top: calc(24% - 2.3rem); }
-  /* Kapeana kuvat skaalautuvat laatikon leveyden mukaan, joten korkeus seuraa leveyttä (kiinteä 270/360 px päästi
-     vihon otsikon päälle 360-859 px:llä). Juliste vie 0,78 leveydestä ja korkein vihko (Rovaniemi, 1,23) 0,24 H + 0,69,
-     joten H = 0,92 leveys. */
-  @media (max-width: 859px) { .hp-papers { height: auto; aspect-ratio: 25 / 23; max-width: 520px; } }
+  @media (max-width: 859px) { .hp-papers { max-width: 520px; } }
   .hp-h2 { margin: 2.2rem 0 0.2rem; font-size: 1.35rem; font-weight: 800; }
+  /* Toiminnot tavallisena luettelona: otsikko ja kuvaus riveittäin, ei ikoniruudukkoa. */
+  .hero-paper .hero-highlights { grid-template-columns: 1fr; gap: 0; margin-bottom: 0; }
+  .hero-paper .hero-highlights .hl { border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent;
+    padding: 0.7rem 0.25rem; }
+  .hero-paper .hero-highlights .hl .ic { display: none; }
+  .hero-paper .hero-highlights .hl-t { font-size: 1.05rem; }
+  .hero-paper .hero-secondary .hl { flex-direction: column; align-items: flex-start; gap: 0.15rem; }
   /* Nostot listana eikä kortteina: yläviiva ja oma ikoni jokaiselle toiminnolle (ennen 3/5 samaa tulostinta). */
   .hero-paper .hero-primary .hl { border: 0; border-top: 2px solid var(--ink); border-radius: 0; background: transparent;
     padding: 0.9rem 0.25rem 0.6rem; }
@@ -5450,7 +5444,7 @@ const STRINGS = {
     hubMapAria: "Kartta: {hub}-keskuksen pysäkit",
     hubLines: "Linjat:",
     hubNoLines: "Ei säännöllisiä linjoja.",
-    hubDepartures: "Live-lähdöt →",
+    hubDepartures: "Live-lähdöt",
     hubOfficialMap: "LSL:n virallinen pysäkkikartta (PDF)",
     hubOfficialNote: "Pysäkkitiedot on koottu avoimesta datasta. Virallinen, kuvitettu pysäkkikartta on LSL:n sivuilla.",
     // Kaupungit joilla ei ole varmennettua virallista pysäkkikarttaa: kerrotaan lähde
@@ -5585,7 +5579,7 @@ const STRINGS = {
     staffSeasonAutoDesc: "Tulosteet syntyvät aina tulostuspäivän aikataulusta.",
     staffPrintsH: "Tulosta", staffPrintsSub: "Tulosteet syntyvät tulostuspäivän aikataulusta.", staffDeskH: "Asiakaspalvelu",
     staffDeskDesc: "Seuraavat lähdöt, junat ja tulosteet asiakkaalle mukaan.", staffScreensDesc: "Pysäkkinäytöt ja kioskiosoitteet seinänäytöille.",
-    staffCorridorDesc: "Saman suunnan linjat yhdessä taulukossa.", staffOpen: "Avaa",
+    staffCorridorDesc: "Saman suunnan linjat yhdessä taulukossa.", staffOpen: "Avaa", extNewTab: "(avautuu uuteen välilehteen)",
     cvTitle: "Kaupungin näkymä", cvDesc: "Tilannekuva, uusintapainatuslista ja johtoraportti muutosvahdista.",
     laatuTitle: "Datan laaturaportti", laatuRowDesc: "Pysäkit, joilla ei ole linjoja tai pysäkkitunnusta.",
     laatuIntro: "Raportti on laskettu kaupungin omasta aikataulusyötteestä. Korjaus tehdään syötteeseen, ei Reittariin.",
@@ -5612,11 +5606,11 @@ const STRINGS = {
     cvNoData: "Muutosvahtia ei ole ajettu tälle kaupungille, joten kaupungin näkymässä ei ole vielä tietoja.",
     cvDataError: "Muutosvahdin tulosta ei voitu lukea. Kaupungin näkymässä ei ole tietoja ennen seuraavaa ajoa.",
     cvLoading: "Ladataan kaupungin näkymää…", cvLoadError: "Kaupungin näkymää ei voitu ladata. Tarkista verkkoyhteys ja yritä uudelleen.",
-    deskExit: "← Poistu palvelutiskistä",
+    deskExit: "Poistu palvelutiskistä",
     deskRouteTitle: "Reittihaku (A→B)",
     deskNlAlts: "Viestissä kysyttiin myös:",
     deskEditRoute: "Muokkaa hakua", deskSumDep: "lähtö {when}", deskSumArr: "perillä viimeistään {when}",
-    deskEarlier: "← Aiemmat vuorot", deskLater: "Myöhemmät vuorot →",
+    deskEarlier: "Aiemmat vuorot", deskLater: "Myöhemmät vuorot",
     deskEarlierShown: "Näytetään aiemmat vuorot.", deskLaterShown: "Näytetään myöhemmät vuorot.",
     deskKbdHint: "Tai täytä lähtö ja määränpää erikseen ja valitse ehdotus.",
     deskNeedBoth: "Valitse sekä lähtö että määränpää (Enter hyväksyy ehdotuksen).",
@@ -5722,7 +5716,7 @@ const STRINGS = {
     deskDepsHint: "Kirjoita pysäkki ja valitse listalta. Näet lähdöt reaaliajassa.",
     deskDepsNone: "Ei tulevia lähtöjä tältä pysäkiltä.",
     deskTerminalAll: "kaikki pysäkit ({n})", deskTerminalStops: "Pysäkit:",
-    deskBackToTerminal: "← {name}, kaikki pysäkit",
+    deskBackToTerminal: "{name}, kaikki pysäkit",
     deskStopAlerts: "Häiriöt tällä pysäkillä", deskAlertLines: "Häiriöitä linjoilla:", deskLineAlerts: "Häiriöt tällä linjalla",
     deskTerminalPrintHint: "Yhden pysäkin aikataulun saa tulostettua valitsemalla pysäkin tunnuksen lähtölistasta.",
     deskDepsLines: "Linjat:",
@@ -5985,7 +5979,7 @@ const STRINGS = {
     mapNorth: "P",
     bookletDir: "Suunta",
     bookletNoData: "Ei lähtöjä valittuna päivänä.",
-    backToSelection: "← Muokkaa valintaa",
+    backToSelection: "Muokkaa valintaa",
     centerLines: "Keskustan linjat",
     loadingCenter: "Haetaan keskustan linjoja…",
     directionsLabel: "Suunnat",
@@ -6411,7 +6405,7 @@ const STRINGS = {
     hubMapAria: "Map: stops at {hub}",
     hubLines: "Lines:",
     hubNoLines: "No regular lines.",
-    hubDepartures: "Live departures →",
+    hubDepartures: "Live departures",
     hubOfficialMap: "Official LSL stop map (PDF)",
     hubOfficialNote: "Stop data is compiled from open data. The official illustrated stop map is on the LSL website.",
     hubOpenDataNote: "Stop and platform data is compiled from open public transport data.",
@@ -6537,7 +6531,7 @@ const STRINGS = {
     staffSeasonAutoDesc: "Prints always use the timetable of the print date.",
     staffPrintsH: "Print", staffPrintsSub: "Prints use the timetable of the print date.", staffDeskH: "Customer service",
     staffDeskDesc: "Next departures, trains and prints for the customer.", staffScreensDesc: "Stop displays and kiosk addresses for wall screens.",
-    staffCorridorDesc: "Lines in the same direction in one table.", staffOpen: "Open",
+    staffCorridorDesc: "Lines in the same direction in one table.", staffOpen: "Open", extNewTab: "(opens in a new tab)",
     cvTitle: "City view", cvDesc: "Status, reprint list and management report from the change watch.",
     laatuTitle: "Data quality report", laatuRowDesc: "Stops with no lines or no stop code.",
     laatuIntro: "The report is computed from the city's own timetable feed. Fixes are made in the feed, not in Reittari.",
@@ -6564,11 +6558,11 @@ const STRINGS = {
     cvNoData: "The change watch has not run for this city, so the city view has no data yet.",
     cvDataError: "The change watch result could not be read. The city view has no data until the next run.",
     cvLoading: "Loading the city view…", cvLoadError: "The city view could not be loaded. Check the network connection and try again.",
-    deskExit: "← Exit service desk",
+    deskExit: "Exit service desk",
     deskRouteTitle: "Journey search (A→B)",
     deskNlAlts: "The message also asked about:",
     deskEditRoute: "Edit search", deskSumDep: "departure {when}", deskSumArr: "arrive by {when}",
-    deskEarlier: "← Earlier trips", deskLater: "Later trips →",
+    deskEarlier: "Earlier trips", deskLater: "Later trips",
     deskEarlierShown: "Showing earlier trips.", deskLaterShown: "Showing later trips.",
     deskKbdHint: "Or fill in origin and destination separately and pick a suggestion.",
     deskNeedBoth: "Choose both origin and destination (Enter accepts the suggestion).",
@@ -6672,7 +6666,7 @@ const STRINGS = {
     deskDepsHint: "Type a stop and pick it. Departures are shown in real time.",
     deskDepsNone: "No upcoming departures from this stop.",
     deskTerminalAll: "all stops ({n})", deskTerminalStops: "Stops:",
-    deskBackToTerminal: "← {name}, all stops",
+    deskBackToTerminal: "{name}, all stops",
     deskStopAlerts: "Disruptions at this stop", deskAlertLines: "Disruptions on lines:", deskLineAlerts: "Disruptions on this line",
     deskTerminalPrintHint: "To print one stop's timetable, choose the stop code in the departure list.",
     deskDepsLines: "Lines:",
@@ -6927,7 +6921,7 @@ const STRINGS = {
     mapNorth: "N",
     bookletDir: "Direction",
     bookletNoData: "No departures on the selected day.",
-    backToSelection: "← Edit selection",
+    backToSelection: "Edit selection",
     centerLines: "City centre routes",
     loadingCenter: "Loading city centre routes…",
     directionsLabel: "Directions",
@@ -7344,7 +7338,7 @@ const STRINGS = {
     hubMapAria: "Karta: hållplatser vid {hub}",
     hubLines: "Linjer:",
     hubNoLines: "Inga regelbundna linjer.",
-    hubDepartures: "Avgångar i realtid →",
+    hubDepartures: "Avgångar i realtid",
     hubOfficialMap: "LSL:s officiella hållplatskarta (PDF)",
     hubOfficialNote: "Hållplatsuppgifterna är sammanställda från öppna data. Den officiella illustrerade hållplatskartan finns på LSL:s webbplats.",
     hubOpenDataNote: "Hållplats- och plattformsuppgifterna är sammanställda från öppna kollektivtrafikdata.",
@@ -7472,7 +7466,7 @@ const STRINGS = {
     staffSeasonAutoDesc: "Utskrifterna följer alltid utskriftsdagens tidtabell.",
     staffPrintsH: "Skriv ut", staffPrintsSub: "Utskrifterna följer utskriftsdagens tidtabell.", staffDeskH: "Kundservice",
     staffDeskDesc: "Nästa avgångar, tåg och utskrifter åt kunden.", staffScreensDesc: "Hållplatsskärmar och kioskadresser för väggskärmar.",
-    staffCorridorDesc: "Linjer i samma riktning i en tabell.", staffOpen: "Öppna",
+    staffCorridorDesc: "Linjer i samma riktning i en tabell.", staffOpen: "Öppna", extNewTab: "(öppnas i en ny flik)",
     cvTitle: "Stadens vy", cvDesc: "Lägesbild, nytryckslista och ledningsrapport från ändringsvakten.",
     laatuTitle: "Datakvalitetsrapport", laatuRowDesc: "Hållplatser utan linjer eller hållplatsnummer.",
     laatuIntro: "Rapporten räknas från stadens egen tidtabellsfeed. Rättelser görs i feeden, inte i Reittari.",
@@ -7499,11 +7493,11 @@ const STRINGS = {
     cvNoData: "Ändringsvakten har inte körts för den här staden, så stadens vy har inga uppgifter ännu.",
     cvDataError: "Ändringsvaktens resultat kunde inte läsas. Stadens vy har inga uppgifter före nästa körning.",
     cvLoading: "Stadens vy laddas…", cvLoadError: "Stadens vy kunde inte laddas. Kontrollera nätverksanslutningen och försök igen.",
-    deskExit: "← Avsluta servicedisk",
+    deskExit: "Avsluta servicedisk",
     deskRouteTitle: "Resesökning (A→B)",
     deskNlAlts: "Meddelandet frågade också om:",
     deskEditRoute: "Ändra sökningen", deskSumDep: "avgång {when}", deskSumArr: "framme senast {when}",
-    deskEarlier: "← Tidigare turer", deskLater: "Senare turer →",
+    deskEarlier: "Tidigare turer", deskLater: "Senare turer",
     deskEarlierShown: "Tidigare turer visas.", deskLaterShown: "Senare turer visas.",
     deskKbdHint: "Eller fyll i startplats och destination var för sig och välj ett förslag.",
     deskNeedBoth: "Välj både startplats och destination (Enter väljer förslaget).",
@@ -7607,7 +7601,7 @@ const STRINGS = {
     deskDepsHint: "Skriv en hållplats och välj den. Avgångarna visas i realtid.",
     deskDepsNone: "Inga kommande avgångar från denna hållplats.",
     deskTerminalAll: "alla hållplatser ({n})", deskTerminalStops: "Hållplatser:",
-    deskBackToTerminal: "← {name}, alla hållplatser",
+    deskBackToTerminal: "{name}, alla hållplatser",
     deskStopAlerts: "Störningar vid hållplatsen", deskAlertLines: "Störningar på linjerna:", deskLineAlerts: "Störningar på linjen",
     deskTerminalPrintHint: "Välj hållplatsens beteckning i avgångslistan för att skriva ut dess tidtabell.",
     deskDepsLines: "Linjer:",
@@ -7862,7 +7856,7 @@ const STRINGS = {
     mapNorth: "N",
     bookletDir: "Riktning",
     bookletNoData: "Inga avgångar den valda dagen.",
-    backToSelection: "← Ändra val",
+    backToSelection: "Ändra val",
     centerLines: "Centrumlinjer",
     loadingCenter: "Hämtar centrumlinjer…",
     directionsLabel: "Riktningar",
@@ -8332,7 +8326,7 @@ function updateChrome() {
     : [["", "#/", t("navHome")], ["tulosteet", "#/tulosteet/vihko", t("navPrints")],
         ...(PROXY_URL ? [["palvelutiski", "#/palvelutiski", t("deskTitle")], ["tilanne", "#/tilanne", t("navStaff")]] : [])];
   nav.innerHTML = navItems.map(([k, href, label]) => `<a href="${href}" data-nav="${k}">${label}</a>`).join("")
-    + (APP_MODE === "staff" && adminUrl() ? `<a href="${esc(adminUrl())}" target="_blank" rel="noopener" data-nav="admin">${t("navAdmin")} ↗</a>` : "");
+    + (APP_MODE === "staff" && adminUrl() ? `<a href="${esc(adminUrl())}" target="_blank" rel="noopener" data-nav="admin">${t("navAdmin")}${extSr()}</a>` : "");
   previewBarSync();
   updateNavCurrent();
   document.getElementById("appFooter").innerHTML = `
@@ -8347,7 +8341,7 @@ function updateChrome() {
       <nav class="foot-col" aria-label="${t("footColService")}">
         <h2>${t("footColService")}</h2>
         ${CONFIG.externalPlanner
-          ? `<a href="${esc(extPlannerUrl())}" target="_blank" rel="noopener">${t("planTitle")} ↗</a>`
+          ? `<a href="${esc(extPlannerUrl())}" target="_blank" rel="noopener">${t("planTitle")}${extSr()}</a>`
           : `<a href="#/reitti">${t("planTitle")}</a>`}
         <a href="#/linjasto">${t("netMapLink")}</a>
         ${CONFIG.hubs ? `<a href="#/laiturit">${t("hubLink")}</a>` : ""}
@@ -10881,8 +10875,8 @@ document.addEventListener("click", e => {
 // Yksi paluupolku kaikkiin näkymiin: Takaisin edelliseen (kun sellainen on) ja Etusivu aina.
 function crumbHtml(extraHtml) {
   const back = navDepth > 0
-    ? `<button type="button" class="linkish crumb-back">← ${t("back")}</button> · ` : "";
-  const home = `<a href="#/">${navDepth > 0 ? "" : "← "}${t("home")}</a>`;
+    ? `<button type="button" class="linkish crumb-back">${t("back")}</button> · ` : "";
+  const home = `<a href="#/">${t("home")}</a>`;
   return `<nav class="crumb">${back}${home}${extraHtml ? " · " + extraHtml : ""}</nav>`;
 }
 
@@ -12486,7 +12480,7 @@ function heroFieldsHtml(extraClass = "") {
               <ul class="plain suggest-list" id="homeToList" hidden></ul>
             </div>
           </div>
-          <button type="button" id="heroSearch" class="sc-cta">${t("heroSearch")} <span aria-hidden="true">→</span></button>
+          <button type="button" id="heroSearch" class="sc-cta">${t("heroSearch")}</button>
         </div>
         <div class="sc-extra">
           <button type="button" id="homeGeoBtn" class="linkish">${icon("pin")} ${t("useMyLocation")}</button>
@@ -12524,7 +12518,7 @@ function heroExtPlannerHtml() {
   return `<div class="hero-journey">
         <h3 class="hero-journey-h">${icon("route")} ${t("heroJourneyHeading")} <span class="ab-badge">A → B</span></h3>
         <p class="muted">${t("extPlannerLead", { name })}</p>
-        <p><a class="btnlink" id="extPlannerLink" href="${esc(extPlannerUrl(planState.to))}" target="_blank" rel="noopener">${icon("route")} ${t("extPlannerOpen", { name })} ↗</a></p>
+        <p><a class="btnlink" id="extPlannerLink" href="${esc(extPlannerUrl(planState.to))}" target="_blank" rel="noopener">${icon("route")} ${t("extPlannerOpen", { name })}${extSr()}</a></p>
         <div class="sc-extra">
           <button type="button" id="nearbyBtn2" class="secondary">${icon("pin")} ${t("showNearby")}</button>
         </div>
@@ -12905,11 +12899,11 @@ function heroLayerHtml() {
             <a class="btnlink" href="#/tulosteet/julisteet">${icon("print")}${t("heroCtaPoster")}</a>
             <a class="btnlink secondary" href="#/tulosteet/vihko">${icon("book")}${t("heroCtaBooklet")}</a>
           </div>
-          <div class="hp-facts">
-            <div class="hp-fact" id="hpFactLines" hidden><b></b><span>${t("heroFactLines")}</span></div>
-            <div class="hp-fact"><b>3</b><span>${t("heroFactLangs")}</span></div>
-            <div class="hp-fact" id="hpFactWatch" hidden><b></b><span></span></div>
-          </div>
+          <ul class="hp-facts">
+            <li class="hp-fact" id="hpFactLines" hidden><b></b> <span>${t("heroFactLines")}</span></li>
+            <li class="hp-fact"><b>3</b> <span>${t("heroFactLangs")}</span></li>
+            <li class="hp-fact" id="hpFactWatch" hidden><b></b> <span></span></li>
+          </ul>
         </div>
         <figure class="hp-papers" id="hpPapers" hidden>
           <img class="hp-poster" id="hpPoster" src="${img("juliste")}" alt="${t("heroPapersAlt")}" width="720" height="1018" decoding="async">
@@ -12950,6 +12944,8 @@ function heroLayerHtml() {
 // (kunnan tunnus tai Cloudflare Access), joten linkki ei avaa mitään ilman sitä.
 // Ylläpidon oma osoite (30.9.2026, worker/wrangler.toml routes). Sama worker kuin PROXY_URL; vanha
 // workers.dev/admin-osoite toimii yhä. Ilman proxya (paikallinen kehitys ilman workeria) linkkiä ei näytetä.
+// Uuteen välilehteen avautuvan linkin merkintä ruudunlukijalle (ennen näkyvä ↗).
+function extSr() { return ` <span class="sr-only">${esc(t("extNewTab"))}</span>`; }
 const ADMIN_BASE = "https://yllapito.reittari.fi";
 // Työtilassa linkkiä ei näytetä: ylläpito on työtilan palkissa vain Ylläpito-roolille, ja asiakaspalvelun
 // käyttäjä saisi tästä linkistä kieltosivun.
@@ -13119,7 +13115,7 @@ async function viewStaff() {
   const base = reprintLoad();
   const tracked = Object.keys(base).filter(id => base[id] && base[id].sig).length;
   const row = (href, thumb, title, desc) => `<a class="st-row" href="${href}">
-      ${thumb}<span class="st-rt"><b>${title}</b><span>${desc}</span></span><span class="st-go">${t("staffOpen")} →</span></a>`;
+      ${thumb}<span class="st-rt"><b>${title}</b><span>${desc}</span></span><span class="st-go">${t("staffOpen")}</span></a>`;
   const img = kind => `<img class="st-thumb" src="img/hero/${cityKey}-${kind}.webp" alt="" loading="lazy">`;
   const ico = name => `<span class="st-thumb st-ico">${icon(name)}</span>`;
   setView(`
@@ -13128,7 +13124,7 @@ async function viewStaff() {
       <div class="st-head"><div><h1>${t("staffTitle", { date: day })}</h1><p class="muted">${t("staffSub")}</p></div>
         <div class="st-acts"><a class="btnlink secondary" href="#/palvelutiski">${icon("desk")}${t("deskTitle")}</a>
           <a class="btnlink" href="#/tulosteet/vihko">${icon("print")}${t("navPrints")}</a>
-          ${adminUrl() ? `<a class="btnlink secondary" id="stAdmin" href="${esc(adminUrl())}" target="_blank" rel="noopener" title="${esc(t("adminLinkDesc"))}">${icon("settings")}${t("navAdmin")} ↗</a>` : ""}</div></div>
+          ${adminUrl() ? `<a class="btnlink secondary" id="stAdmin" href="${esc(adminUrl())}" target="_blank" rel="noopener" title="${esc(t("adminLinkDesc"))}">${icon("settings")}${t("navAdmin")}${extSr()}</a>` : ""}</div></div>
       <div class="st-tiles">
         ${tile("stPosters", "shield", t("staffTilePosters"), "#/tulosteet/muutokset")}
         <a class="st-tile" id="stReprint" href="#/uusintapainatus"><span class="st-k">${icon("repeat")}${t("staffTileReprint")}</span>
@@ -22142,7 +22138,7 @@ async function viewPlan(parts) {
     </section>
     <div class="card">
       ${to ? `<p>${t("extPlannerTo", { place: esc(to.name || "") })}</p>` : ""}
-      <p><a class="btnlink" id="extPlannerLink" href="${esc(extPlannerUrl(to))}" target="_blank" rel="noopener">${icon("route")} ${t("extPlannerOpen", { name })} ↗</a></p>
+      <p><a class="btnlink" id="extPlannerLink" href="${esc(extPlannerUrl(to))}" target="_blank" rel="noopener">${icon("route")} ${t("extPlannerOpen", { name })}${extSr()}</a></p>
     </div>`);
     return;
   }
