@@ -44,14 +44,14 @@ const PALVELUT = [
   {
     id: "jatehuollon-asiointi",
     nimi: "Savikurki Jätehuollon asiointi",
-    url: "https://jatehuolto-osoitteessa.pages.dev/",
+    url: "https://demo.savikurki.fi/jatehuolto/?kunta=lahti",
     otsikko: "Jätehuollon asiointi",
-    esittely: "jatehuolto-osoitteessa.pages.dev",
+    esittely: "demo.savikurki.fi/jatehuolto",
   },
-  // Julkaistut demot (22.10.2026). Työnantajatuilla ja Kesätyöseteleillä on myös datavahti, Avustuksilla vain sivu.
-  { id: "tyonantajatuet", nimi: "Savikurki Työnantajatuet", url: "https://savikurki-tyonantajatuet.pages.dev/", otsikko: "Savikurki Työnantajatuet", esittely: "savikurki-tyonantajatuet.pages.dev", datavahti: "Veikkoville/tyonantajatuet" },
-  { id: "kesatyosetelit", nimi: "Savikurki Kesätyösetelit", url: "https://savikurki-kesatyosetelit.pages.dev/", otsikko: "Savikurki Kesätyösetelit", esittely: "savikurki-kesatyosetelit.pages.dev", datavahti: "Veikkoville/kesaseteli" },
-  { id: "avustukset", nimi: "Savikurki Avustukset", url: "https://savikurki-avustukset.pages.dev/", otsikko: "Savikurki Avustukset", esittely: "savikurki-avustukset.pages.dev" },
+  // Julkaistut demot (22.10.2026; osoitteet demo.savikurki.fi:n alle 4.11.2026). Työnantajatuilla ja Kesätyöseteleillä on myös datavahti, Avustuksilla vain sivu.
+  { id: "tyonantajatuet", nimi: "Savikurki Työnantajatuet", url: "https://demo.savikurki.fi/tyonantajatuet/", otsikko: "Savikurki Työnantajatuet", esittely: "demo.savikurki.fi/tyonantajatuet", datavahti: "Veikkoville/tyonantajatuet" },
+  { id: "kesatyosetelit", nimi: "Savikurki Kesätyösetelit", url: "https://demo.savikurki.fi/kesatyosetelit/", otsikko: "Savikurki Kesätyösetelit", esittely: "demo.savikurki.fi/kesatyosetelit", datavahti: "Veikkoville/kesaseteli" },
+  { id: "avustukset", nimi: "Savikurki Avustukset", url: "https://demo.savikurki.fi/avustukset/", otsikko: "Savikurki Avustukset", esittely: "demo.savikurki.fi/avustukset" },
   // Demo esitellään pyynnöstä (url null): tila datavahdista. id = savikurki.fi:n palvelusivun polku.
   { id: "de-minimis-rekisteri", nimi: "Savikurki De minimis -rekisteri", url: null, datavahti: "Veikkoville/deminimis-vahti" },
   { id: "tapahtumaluvat", nimi: "Savikurki Tapahtumaluvat", url: null, datavahti: "Veikkoville/tapahtumaluvat" },
