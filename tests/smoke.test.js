@@ -3378,6 +3378,22 @@ async function minuuttiLinjaus(page, rootSel, media) {
       document.body.classList.contains("monitor-mode") && !!document.getElementById("mClock"));
     monMode ? ok("monitori: kioskitila päällä (kello + monitor-mode)")
             : fail("monitori: kioskitila ei aktivoitunut");
+    // ?eink=1: e-paper-tila. Ilman parametria luokkaa ei ole; parametrilla luokka on, animaatioita ei ole ja
+    // kello on muotoa HH:MM (ei sekunteja). Assertoi rakennetta.
+    const einkOff = await page.evaluate(() => !document.body.classList.contains("monitor-eink"));
+    await page.goto(BASE + "/" + monitorHref + "?eink=1", { waitUntil: "networkidle2" });
+    await expect("#mRows tr", "monitori ?eink=1: lähtötaulu latautuu");
+    const einkInfo = await page.evaluate(() => ({
+      cls: document.body.classList.contains("monitor-eink") && document.body.classList.contains("monitor-mode"),
+      anims: document.getAnimations().length,
+      clock: /^\d\d:\d\d$/.test((document.getElementById("mClock") || {}).textContent || ""),
+      gray: getComputedStyle(document.querySelector(".monitor")).filter.includes("grayscale"),
+    }));
+    (einkOff && einkInfo.cls && einkInfo.anims === 0 && einkInfo.clock && einkInfo.gray)
+      ? ok("monitori ?eink=1: harmaasävy, ei animaatioita, kello ilman sekunteja; ilman parametria tila pois")
+      : fail(`monitori ?eink=1: odotettu tila puuttuu (ilman parametria pois ${einkOff}, ${JSON.stringify(einkInfo)})`);
+    await page.goto(BASE + "/" + monitorHref, { waitUntil: "networkidle2" });
+    await expect("#mRows tr", "monitori: lähtötaulu latautuu uudelleen ilman eink-parametria");
     // Yhteyskatko: taulu ei saa väittää "päivittyy reaaliajassa" vanhalla datalla, vaan
     // näyttää ei yhteyttä -tilan ja säilyttää viimeksi ladatut lähdöt (ei tyhjää, ei valehtele).
     const rowsBefore = await page.$$eval("#mRows tr", trs => trs.length).catch(() => 0);

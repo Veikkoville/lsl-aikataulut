@@ -718,6 +718,10 @@
     gap: 1rem; padding-top: 0.8rem; flex-wrap: wrap; }
   a.m-exit { color: var(--blue); text-decoration: none; padding: 0.5rem 0.9rem;
     border: 1px solid var(--border); border-radius: 8px; }
+  /* e-paper (?eink=1): harmaasävy, ei animaatioita eikä siirtymiä, linjamerkille selvä reunus */
+  body.monitor-eink .monitor { filter: grayscale(1); }
+  body.monitor-eink, body.monitor-eink * { animation: none !important; transition: none !important; }
+  body.monitor-eink .monitor .badge { border: 2px solid #000; }
   .row { display: flex; gap: 0.5rem; align-items: center; }
   ul.plain { list-style: none; margin: 0; padding: 0; }
   ul.plain li { border-top: 1px solid var(--border); }
@@ -15202,7 +15206,7 @@ let monitorTimer = null;   // kellon sekuntipäivitys
 let monitorWakeLock = null;
 
 function exitMonitorMode() {
-  document.body.classList.remove("monitor-mode");
+  document.body.classList.remove("monitor-mode", "monitor-eink");
   if (monitorTimer) { clearInterval(monitorTimer); monitorTimer = null; }
   if (monitorWakeLock) { try { monitorWakeLock.release(); } catch (e) {} monitorWakeLock = null; }
 }
@@ -15263,6 +15267,10 @@ async function viewMonitor(stopId) {
   if (navStale(nav)) return;   // ei myöskään kioskitilaa uudemman näkymän päälle
 
   document.body.classList.add("monitor-mode");
+  // ?eink=1 (#/monitori/<id>?eink=1): e-paper-näytölle harmaasävy, ei animaatioita ja kello ilman sekunteja,
+  // jotta näyttö ei päivity turhaan sekunnin välein.
+  const eink = new URLSearchParams(location.hash.split("?")[1] || "").get("eink") === "1";
+  document.body.classList.toggle("monitor-eink", eink);
   setView(`
     <div class="monitor">
       <div class="m-head">
@@ -15284,7 +15292,7 @@ async function viewMonitor(stopId) {
     const el = document.getElementById("mClock");
     if (el) {
       const d = new Date();
-      el.textContent = [d.getHours(), d.getMinutes(), d.getSeconds()]
+      el.textContent = (eink ? [d.getHours(), d.getMinutes()] : [d.getHours(), d.getMinutes(), d.getSeconds()])
         .map(n => String(n).padStart(2, "0")).join(":");
     }
   };
