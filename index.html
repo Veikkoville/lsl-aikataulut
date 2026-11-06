@@ -428,7 +428,7 @@
   * { box-sizing: border-box; }
   a { color: var(--blue); }
   a:focus-visible, button:focus-visible, input:focus-visible,
-  select:focus-visible, summary:focus-visible {
+  select:focus-visible, summary:focus-visible, .desk-fares-wrap:focus-visible {
     outline: 3px solid var(--blue);
     outline-offset: 2px;
   }
@@ -1491,7 +1491,7 @@
     /* Oletusaksentti kaupungeille joilla ei ole varmennettua brandColoria. Brändikaupungeissa
        deskAccentStyle() ylikirjoittaa nämä inline CONFIG.brandColorista (AA-syvennettynä). */
     --blue: #0033cc; --btn-bg: #0033cc; --btn-hover: #001f99;
-    --rt-bg: #d6f0d6; --rt-text: #00540f;
+    --rt-bg: #d6f0d6; --rt-text: #00540f; --green: #00540f;
     /* REILA F3: tiski on tahallaan pakotettu kirkas korkea kontrasti riippumatta teemasta.
        F3 alkoi kuluttaa Reila-neutraaleja (--field-bg/--line/--accent/--ink) kentissä/napeissa,
        joten ne on pakotettava tässä myös → tumma teema ei vuoda tiskin valkoiselle pinnalle. */
@@ -2052,6 +2052,8 @@
   .sc-seg { border: none; background: transparent; color: var(--ink-muted); font-size: 13.5px;
     font-weight: 700; border-radius: var(--radius-segment); padding: 8px 13px; min-height: 40px; }
   .sc-seg[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-dark); }
+  /* Tummassa teemassa --accent-dark jää tummaa pohjaa vasten liian heikoksi (WCAG 1.4.3). */
+  html[data-theme="dark"] .sc-seg[aria-pressed="true"] { color: var(--ink); }
   .sc-time input[type="datetime-local"] { border: none; background: transparent; min-height: 40px;
     font-weight: 600; color: var(--ink); width: auto; }
   .sc-cta { flex: 0 0 auto; min-height: 52px; background: var(--accent); color: #fff; border: none;
@@ -18518,7 +18520,7 @@ function deskFaresHtml(f) {
   return `<section class="desk-col" aria-labelledby="deskFaresH">
     <h2 id="deskFaresH">${icon("ticket")} ${t("deskFaresTitle")}</h2>
     <p class="desk-fares-single">${t("deskFaresSingle")}</p>
-    <div class="desk-fares-wrap"><table class="deps desk-fares">${head}<tbody>
+    <div class="desk-fares-wrap" role="region" aria-labelledby="deskFaresH" tabindex="0"><table class="deps desk-fares">${head}<tbody>
       ${body}
     </tbody></table></div>${flatBody ? `
     <p class="muted">${flatBody}</p>` : ""}${srcLink ? `
@@ -22714,13 +22716,12 @@ async function viewAccessibilityStatement() {
     <div class="card" lang="fi">
       <h2>Saavutettavuusseloste</h2>
       <p>Tämä seloste koskee epävirallista ${esc(CONFIG.cityGenitive)} bussiaikataulupalvelua
-        ja on laadittu 12.6.2026 (palveluntarjoajan tiedot päivitetty 23.9.2026, arviointitapa 3.10.2026). Palvelun
+        ja on laadittu 12.6.2026 (palveluntarjoajan tiedot päivitetty 23.9.2026, arviointi päivitetty 6.11.2026). Palvelun
         tarjoaa Savikurki Digital Oy. Tämä esittelyversio ei ole viranomaisen julkaisema digipalvelu.</p>
       <h2>Saavutettavuuden tila</h2>
       <p>Tavoitetaso on WCAG 2.1 AA. Palvelu täyttää vaatimukset arvioiduilta osin.
-        Arviointi on tehty itsearviona automaattisilla työkaluilla (axe-core,
-        Lighthouse: ei havaittuja rikkeitä vaaleassa eikä tummassa teemassa,
-        Lighthouse-saavutettavuuspisteet 100/100 kaikissa näkymissä). Suuri teksti ja
+        Arviointi on tehty itsearviona automaattisella työkalulla (axe-core: ei havaittuja
+        rikkeitä vaaleassa eikä tummassa teemassa). Suuri teksti ja
         suuri kontrasti testataan automaattisesti jokaisessa julkaisussa. Näppäimistöllä ja
         ruudunlukijalla palvelua ei ole vielä testattu järjestelmällisesti.</p>
       <h2>Tunnetut rajoitteet</h2>
@@ -24095,6 +24096,39 @@ async function vkEventAtoms(V, vkData, G) {
   }
   return res;
 }
+// PDF:n rakenne (saavutettavuus 6.11.2026). Chrome tagittaa PDF:n saavutettavuuspuusta, joten roolit
+// riittävät eikä ulkoasu muutu: kansi H1, linjat ja muut pääotsikot H2, suunnat H3 (cb-dir:n h3 on jo oikea otsikko).
+// Kuvan figure-kääre saisi oman Figure-tagin ilman Alt-tekstiä, joten se jää pois rakenteesta ja kuvan nimi säilyy.
+// Kuvan nimeen lisätään linja, muuten jokainen kartta on ruudunlukijalle pelkkä "Reittikaavio". Sivunumeroa ei saa piilottaa
+// aria-hiddenillä: Chrome ei merkitse sitä Artifactiksi, vaan teksti jää kokonaan merkitsemättä (mitattu 6.11.2026: 98 lohkoa).
+function vkPdfStructure(wrap) {
+  const heads = [[".vk-cv-title", 1], [".vk-h2, .vk-divider p, .vk-cp-title, .vk-bk-title", 2], [".vk-h3", 3], [".vk-h4", 4]];
+  for (const [sel, level] of heads) wrap.querySelectorAll(sel).forEach(el => {
+    el.setAttribute("role", "heading");
+    el.setAttribute("aria-level", String(level));
+  });
+  let line = "";
+  wrap.querySelectorAll(".vk-h2, figure").forEach(el => {
+    if (el.tagName !== "FIGURE") { line = el.textContent.replace(/\s+/g, " ").trim(); return; }
+    const img = el.querySelector('svg[role="img"][aria-label]');
+    if (!img) return;
+    el.setAttribute("role", "none");
+    const name = img.getAttribute("aria-label");
+    if (line && !name.includes(line)) img.setAttribute("aria-label", `${name} (${line})`);
+  });
+  // Chrome pudottaa tyhjän solun PDF:n rakenteesta, jolloin rivin solut siirtyvät väärien sarakeotsikoiden alle.
+  // Pelkkä välilyönti ei riitä, koska Chrome ei vie sitä rakenteeseen, ja se levensi kylätaulukoiden sarakkeita. Täyte on
+  // siksi oikea merkki irti asettelusta ja lisätään solun perään, jotta sisällysluettelon &nbsp;-väliriville jää korkeus.
+  wrap.querySelectorAll("td, th").forEach(c => {
+    if (!c.textContent.trim()) c.insertAdjacentHTML("beforeend", '<span style="position:absolute;font-size:.1px">–</span>');
+  });
+}
+// PDF:n otsikko kannesta. Chrome ottaa sen document.titlesta, joka olisi muuten "Tulosteet ja näytöt: Reittari <kaupunki> (epävirallinen)".
+function vkPdfTitle(V) {
+  const c = V.cover || {};
+  return [c.title || operatorName(), [c.season, c.years].filter(Boolean).join(" ")].filter(Boolean).join(": ");
+}
+
 function printVihkoNarrow(mode = "pages") {
   const V = CONFIG.vihko;
   const out = document.getElementById("bookletOut");
@@ -24250,10 +24284,14 @@ function printVihkoNarrow(mode = "pages") {
     wrap.dataset.sheets = String(count);
     wrap.dataset.mode = mode;
     wrap.innerHTML = html;
+    vkPdfStructure(wrap);
     document.body.appendChild(wrap);
     document.body.classList.add("vihko-printing");
     setPageOrientation("size:" + size);
+    const prevTitle = document.title;
+    document.title = vkPdfTitle(V);
     const cleanup = () => {
+      document.title = prevTitle;
       document.body.classList.remove("vihko-printing");
       wrap.remove();
       setPageOrientation("portrait");

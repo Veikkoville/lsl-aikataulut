@@ -2949,10 +2949,12 @@ async function minuuttiLinjaus(page, rootSel, media) {
     // joka on kielestä riippumaton.
     kateinen: (document.querySelector("table.desk-fares")?.innerText || "").includes("2,60"),
     lahimaksu: !!document.querySelector("table.desk-fares tr.desk-fares-contactless"),
+    // Vieritettävä hintataulukko on saatava kohdistukseen näppäimistöllä (axe scrollable-region-focusable).
+    kohdistettava: !!document.querySelector('.desk-fares-wrap[role="region"][tabindex="0"]'),
   }));
   (vBlocks.deps && vBlocks.ab && vBlocks.lastBus && vBlocks.alerts && vBlocks.fares
     && vBlocks.hintaSarakkeet === 3 && vBlocks.maksutapaOtsikot === 2
-    && vBlocks.kateinen && vBlocks.lahimaksu)
+    && vBlocks.kateinen && vBlocks.lahimaksu && vBlocks.kohdistettava)
     ? ok(`palvelutiski (Vaasa): vyöhykehinnat maksutavoittain (${vBlocks.hintaSarakkeet} vyöhykesaraketta, ${vBlocks.maksutapaOtsikot} maksutapalohkoa, käteinen ja lähimaksu mukana)`)
     : fail("palvelutiski (Vaasa): lohkot puuttuvat / hintamatriisi väärin: " + JSON.stringify(vBlocks));
   // Brändipariteetti (25.8.2026): tiski oli ainoa näkymä josta kaupungin väri katosi, koska
@@ -4607,9 +4609,18 @@ async function minuuttiLinjaus(page, rootSel, media) {
             vara: p.querySelectorAll(".vk-netmap g.pm-par, .vk-netmap [data-lanes-error]").length,
             suurennos: p.querySelectorAll(".vk-netinset figure.print-map > svg > g.pm-lanes").length,
             alue: p.querySelectorAll(".vk-netmain .pm-inset-area").length }));
+          // PDF:n rakenne (vkPdfStructure, saavutettavuus 6.11.2026). Chrome tagittaa PDF:n näistä rooleista.
+          const reitit = [...w.querySelectorAll('.vk-np-flow figure.print-map svg[role="img"]')].map(s => s.getAttribute("aria-label"));
+          const pdf = { h1: w.querySelectorAll('[role="heading"][aria-level="1"]').length,
+            tasoton: w.querySelectorAll(".vk-h2:not([aria-level]), .vk-h3:not([aria-level])").length,
+            kaareet: [...w.querySelectorAll("figure")].filter(f => f.getAttribute("role") !== "none").length,
+            reitteja: reitit.length, yleiset: reitit.filter(n => !/\(.+\)$/.test(n)).length,
+            piilossa: w.querySelectorAll('.vk-foot[aria-hidden="true"]').length,
+            tyhjat: [...w.querySelectorAll("td, th")].filter(c => !c.textContent.trim()).length,
+            otsikko: document.title.startsWith(CONFIG.vihko.cover.title) };
           const res = { sivuja: pages.length, kansi: kind("cover"), taka: kind("back"), kaupunki: kind("city"),
             leikkautuu: clipped, toc, koko: pages[0]?.style.width + " " + pages[0]?.style.height,
-            page: document.getElementById("pageOrient")?.textContent || "", kartat };
+            page: document.getElementById("pageOrient")?.textContent || "", kartat, pdf };
           w.remove(); document.body.classList.remove("vihko-printing");
           return res;
         });
@@ -4639,6 +4650,10 @@ async function minuuttiLinjaus(page, rootSel, media) {
       && vn.a4?.tila === "a4" && vn.a4.arkkeja * 2 === vn.sivuja && /297mm 210mm/.test(vn.a4.page))
       ? ok(`kapea vihko: ${vn.sivuja} sivua 100 x 200 mm, 0 leikkautuu, 13 kaupungin sivun paikkaa, sisällysluettelo osuu (${vn.toc.length} linjaa); painotalolle ${vn.bleed.arkkeja} arkkia 116 x 216 mm leikkuumerkein, A4-arkitus ${vn.a4.arkkeja} arkkia`)
       : fail("kapea vihko: rakenne pielessä: " + JSON.stringify(vn));
+    const vp = vn?.pdf;
+    (vp && vp.h1 === 1 && vp.tasoton === 0 && vp.kaareet === 0 && vp.reitteja > 0 && vp.yleiset === 0 && vp.piilossa === 0 && vp.tyhjat === 0 && vp.otsikko)
+      ? ok(`kapea vihko: PDF:n rakenne (kansi H1, otsikkotasot, ${vp.reitteja} reittikaavion nimessä linja, ei tyhjiä soluja, otsikko kannesta)`)
+      : fail("kapea vihko: PDF:n rakenne pielessä: " + JSON.stringify(vp));
     const km = vn && !vn.puuttuu ? vn.kartat || [] : [];
     const lprKartta = km.find(k => /Lappeenrannan paikallisliikenne/.test(k.otsikko)), imaKartta = km.find(k => /Imatran/.test(k.otsikko));
     (lprKartta && imaKartta && km.every(k => k.vara === 0 && k.kaistat.length > 0 && k.kaistat.every(n => n > 0))
