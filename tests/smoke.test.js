@@ -3990,7 +3990,16 @@ async function minuuttiLinjaus(page, rootSel, media) {
             : el.classList.contains("vk-h3") ? !(i === 0 || (i === 1 && kids[0].classList.contains("vk-h2")))
             : false) ? [n + 1] : [];
         }),
+        // PDF:n rakenne (vkPdfStructure) myös A5-vihkossa, jota lähetetään näytteinä.
+        pdf: { h1: document.querySelectorAll('#vihkoPrint [aria-level="1"]').length,
+          tasoton: document.querySelectorAll("#vihkoPrint .vk-h2:not([aria-level]), #vihkoPrint .vk-h3:not([aria-level])").length,
+          kaareet: [...document.querySelectorAll("#vihkoPrint figure")].filter(f => f.getAttribute("role") !== "none").length,
+          tyhjat: [...document.querySelectorAll("#vihkoPrint td, #vihkoPrint th")].filter(c => !c.textContent.trim()).length,
+          otsikko: !document.title.includes(t("appTitleTag")) },
       }));
+      (vk.pdf.h1 === 1 && vk.pdf.tasoton === 0 && vk.pdf.kaareet === 0 && vk.pdf.tyhjat === 0 && vk.pdf.otsikko)
+        ? ok("vihko A5: PDF:n rakenne (kansi H1, otsikkotasot, kuvien nimet, ei tyhjiä soluja, otsikko)")
+        : fail("vihko A5: PDF:n rakenne pielessä: " + JSON.stringify(vk.pdf));
       vk.otsikkoKesken.length === 0
         ? ok("vihko: jokainen linja ja suunta alkaa A5-sivun yläreunasta")
         : fail(`vihko: linja tai suunta alkaa kesken A5-sivun (paikat ${vk.otsikkoKesken.join(", ")})`);
