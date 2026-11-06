@@ -236,14 +236,14 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 = 5
       Mittari: smoke-tarkistus (CSV:n otsikkorivi ja vähintään yksi datarivi) vihreä CI:ssä
       · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
-- [ ] index.html: saavutettavuus, näppäimistö ja ruudunlukija. (1) "Siirry sisältöön" -ohituslinkki ensimmäiseksi
+- [x] index.html: saavutettavuus, näppäimistö ja ruudunlukija. (1) "Siirry sisältöön" -ohituslinkki ensimmäiseksi
       fokusoitavaksi; (2) reittihaun ja hakukentän fokus 3 px renkaaksi kuten muualla (nyt `outline:none`, rivit noin 1879
       ja 2007); (3) reaaliaikamerkille "●" tekstivastine (`sr-only` "reaaliaikainen" + `aria-hidden` merkille, rivit noin
       11627, 11660, 13731). Todennus: smoke: ensimmäinen Tab vie ohituslinkkiin, hakukentän `:focus`-tilan outline- tai
       box-shadow-leveys on vähintään 2 px, reaaliaikamerkin vieressä on sr-only-elementti. (tuotekehityksen kärki 2026-10-08, P5, lähde: auditointi)
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
       Mittari: smoke-tarkistus (ensimmäinen Tab ohituslinkkiin, hakukentän fokus vähintään 2 px, reaaliaikamerkillä
-      sr-teksti) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
+      sr-teksti) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-11-06)
 - [ ] index.html: saavutettavuus, kapea näyttö ja ehdotuslistat. (1) Suurimmalla tekstikoolla 320 px:ssä lähtötaulukko
       `table.deps` ei saa vieriä vaakasuunnassa (WCAG 1.4.10): pinoutuva asettelu kapealla. (2) Etusivun ja reittihaun
       ehdotuslistoille combobox-semantiikka tiskin mallin mukaan (rivit noin 18076 ja 19875: role, aria-expanded,

@@ -1900,7 +1900,7 @@
   .hs-field { display: flex; align-items: center; gap: 0.5rem;
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 0 0.7rem; }
-  .home-search:focus-within .hs-field { border-color: var(--blue); }
+  .home-search:focus-within .hs-field { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue); }
   .hs-field .ic { color: var(--muted); flex: none; }
   .hs-field input { flex: 1; min-width: 0; border: 0; background: transparent;
     padding: 0.65rem 0; font: inherit; color: var(--text); }
@@ -2026,7 +2026,7 @@
   .sc-box { position: relative; display: flex; align-items: center; gap: 8px;
     background: var(--field-bg); border: 1px solid var(--line); border-radius: var(--radius-control);
     padding: 0 12px; min-height: 52px; }
-  .sc-box:focus-within { border-color: var(--accent); }
+  .sc-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
   .sc-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
   .sc-dot.from { background: var(--accent); }
   /* F4: Minne-piste = --dest (Kotka vihreä, muut coral). 1px --dest-edge -reuna takaa
@@ -14589,7 +14589,7 @@ async function viewRoute(routeId, patternCode, date, autoPrint) {
       hours.get(h).push(`<button type="button" class="${cls}" data-dep="${st.scheduledDeparture}" data-depkey="${st.scheduledDeparture}" aria-pressed="false"` +
         ` aria-label="${t("depSelectAria", { time: fmtSec(dep) })}${fromTitle ? ", " + esc(fromTitle) : ""}${school ? ", " + esc(t("depSchoolLegend")) : ""}"` +
         `${st.realtime && !past ? ` title="${t("rtTitleAttr")}"` : fromTitle ? ` title="${esc(fromTitle)}"` : ""}>` +
-        `${fmtSec(dep).slice(3)}${school ? " " + t("depSchoolMark") : ""}${st._to ? " " + t("depShortMark") : ""}${st.realtime && !past ? " ●" : ""}${st._from ? "*" : ""}</button>`);
+        `${fmtSec(dep).slice(3)}${school ? " " + t("depSchoolMark") : ""}${st._to ? " " + t("depShortMark") : ""}${st.realtime && !past ? rtMarkHtml() : ""}${st._from ? "*" : ""}</button>`);
     });
     const grid = [...hours].map(([h, b]) =>
       `<div class="tg-row"><b class="tg-h" aria-hidden="true">${h}</b><div class="tg-mins">${b.join("")}</div></div>`).join("");
@@ -15252,7 +15252,7 @@ async function viewMonitor(stopId) {
         <td class="m-line"><span class="badge"${style}>${esc(r.shortName || "")}</span></td>
         <td class="m-dest">${esc(st.headsign || "")}</td>
         ${d.canceled ? `<td class="m-when dep-cancel-cell">${canceledCellHtml(st)}</td>` :
-        `<td class="m-when${d.rt ? " rt" : ""}">${d.day ? esc(d.day) + " " : ""}${esc(d.when)}${d.rt ? " ●" : ""}</td>`}
+        `<td class="m-when${d.rt ? " rt" : ""}">${d.day ? esc(d.day) + " " : ""}${esc(d.when)}${d.rt ? rtMarkHtml() : ""}</td>`}
       </tr>`;
     }).join("");
   };
@@ -20079,7 +20079,7 @@ async function viewServiceDesk() {
       const day = mins < 60 ? "" : depDayLabel(at);
       return `<li>${badgeHtml(st.trip?.route) || "<span></span>"} <span class="desk-show-plat">${esc(st._plat?.code || "")}</span> ` +
         `<span class="desk-show-dest">${esc(st.headsign || "")}</span> ` +
-        `<span class="desk-show-time">${day ? esc(day) + " " : ""}${fmtSec(dep)}${rel ? ` <span class="desk-show-rel">(${esc(rel)})</span>` : ""}${st.realtime ? " ●" : ""}</span></li>`;
+        `<span class="desk-show-time">${day ? esc(day) + " " : ""}${fmtSec(dep)}${rel ? ` <span class="desk-show-rel">(${esc(rel)})</span>` : ""}${st.realtime ? rtMarkHtml() : ""}</span></li>`;
     }).join("");
     const qrOn = !stop.terminal && !!stop.gtfsId;
     const day = upFirst(new Date().toLocaleDateString(deskLoc(), { weekday: "long", day: "numeric", month: "numeric" }));
@@ -21916,7 +21916,7 @@ function timelineHtml(node) {
           <div class="tl-body">
             ${modeMarkHtml(leg.mode)}${badgeHtml(leg.route, leg.mode)}
             ${esc(leg.trip?.tripHeadsign ? "→ " + leg.trip.tripHeadsign : "")}${occupancyHtml(leg.trip)}
-            ${rt ? `<span class="rt"> ●</span>` : ""}
+            ${rt ? `<span class="rt">${rtMarkHtml()}</span>` : ""}
             <details class="tl-stops">
               <summary>${midLabel} · ${fmtDur(leg.duration)}</summary>
               ${mids.length ? `<ul>${mids.map(s => {

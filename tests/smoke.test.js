@@ -179,6 +179,23 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (layer && layer.hls >= 2 && layer.bilingual && layer.print && layer.journeyFields)
     ? ok(`etusivu (Lahti, layer): arvolupaus-hero + ${layer.hls} nostoa + A->B toissijaisena`)
     : fail("etusivu (Lahti, layer): layer-hero puuttuu/vajaa: " + JSON.stringify(layer));
+  // Saavutettavuus (näppäimistö): ensimmäinen Tab vie ohituslinkkiin, hakukentän fokus näkyy vähintään 2 px
+  // renkaana (kentän outline on pois, rengas on kehyksessä) ja reaaliaikamerkillä on sr-only-vastine.
+  await page.evaluate(() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); });
+  await page.keyboard.press("Tab");
+  const kb = await page.evaluate(() => {
+    const first = document.activeElement && document.activeElement.id;
+    const inp = document.getElementById("homeFromInput"); if (inp) inp.focus();
+    const box = inp && inp.closest(".sc-box, .hs-field");
+    const bs = box ? getComputedStyle(box).boxShadow : "";
+    const ringPx = Math.max(0, ...(bs.match(/(\d+(?:\.\d+)?)px/g) || []).map(parseFloat));
+    const outlinePx = inp ? parseFloat(getComputedStyle(inp).outlineWidth) || 0 : 0;
+    const wrap = document.createElement("div"); wrap.innerHTML = rtMarkHtml();
+    return { first, ringPx, outlinePx, srOnly: !!wrap.querySelector(".sr-only"), hidden: !!wrap.querySelector('[aria-hidden="true"]') };
+  });
+  (kb.first === "skipLink") ? ok("saavutettavuus: ensimmäinen Tab vie ohituslinkkiin") : fail("saavutettavuus: ensimmäinen Tab ei vie ohituslinkkiin: " + kb.first);
+  (kb.ringPx >= 2 || kb.outlinePx >= 2) ? ok("saavutettavuus: hakukentän fokusrengas vähintään 2 px") : fail("saavutettavuus: hakukentän fokusrengas puuttuu: " + JSON.stringify(kb));
+  (kb.srOnly && kb.hidden) ? ok("saavutettavuus: reaaliaikamerkillä sr-only-vastine") : fail("saavutettavuus: reaaliaikamerkin vastine puuttuu");
   // Ilme 25.9.2026: pääkuvassa kaupungin esimerkkijuliste + vihon sivu (staattiset kuvat, ei kyselyjä),
   // kuvateksti luettelosta, linjamäärä samasta loadRoutes-hausta kuin linjalista; kaupungin väri tokeneina
   // (#cityTheme) ja päävalikossa Etusivu aktiivisena.
