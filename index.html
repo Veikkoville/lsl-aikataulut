@@ -943,8 +943,8 @@
   .vihko-page-content .vk-h2 { font-size: 11pt; font-weight: 700; color: #0a3d7a; margin: 2.5mm 0 1mm; }
   .vihko-page-content .vk-h3 { font-size: 9.5pt; font-weight: 600; margin: 1.5mm 0 0.5mm; }
   .vihko-page-content .vk-h4 { font-size: 8pt; color: #555; margin: 1mm 0 0.3mm; }
-  .vihko-page-content .vk-cont { font-size: 7pt; color: #888; margin: 0 0 0.5mm; font-style: italic; }
-  .vihko-page-content .vk-note { font-size: 8pt; color: #777; margin: 0 0 1mm; }
+  .vihko-page-content .vk-cont { font-size: 7pt; color: #666; margin: 0 0 0.5mm; font-style: italic; }
+  .vihko-page-content .vk-note { font-size: 8pt; color: #666; margin: 0 0 1mm; }
   .vihko-page-content .vk-tbl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; margin: 0 0 1mm; }
   .vihko-page-content .vk-tbl th, .vihko-page-content .vk-tbl td { border-bottom: 0.2mm solid #bbb; padding: 0.5mm 1mm; text-align: left; font-size: 8pt; }
   .vihko-page-content .vk-tbl td { white-space: nowrap; }
@@ -2053,7 +2053,8 @@
     font-weight: 700; border-radius: var(--radius-segment); padding: 8px 13px; min-height: 40px; }
   .sc-seg[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-dark); }
   /* Tummassa teemassa --accent-dark jää tummaa pohjaa vasten liian heikoksi (WCAG 1.4.3). */
-  html[data-theme="dark"] .sc-seg[aria-pressed="true"] { color: var(--ink); }
+  html[data-theme="dark"] .sc-seg[aria-pressed="true"], html[data-theme="dark"] .sc-swap:hover,
+  html[data-theme="dark"] .sc-box .field-mic:hover { color: var(--ink); }
   .sc-time input[type="datetime-local"] { border: none; background: transparent; min-height: 40px;
     font-weight: 600; color: var(--ink); width: auto; }
   .sc-cta { flex: 0 0 auto; min-height: 52px; background: var(--accent); color: #fff; border: none;
@@ -23753,10 +23754,14 @@ function printVihko(readingOrder) {
     const wrap = document.createElement("div");
     wrap.id = "vihkoPrint";
     wrap.innerHTML = readingOrder === true ? vkReadingOrder(pages) : vkImpose(pages);
+    vkPdfStructure(wrap);
     document.body.appendChild(wrap);
     document.body.classList.add("vihko-printing");
     setPageOrientation("vihko");
+    const prevTitle = document.title;
+    document.title = vkPdfTitle(CONFIG.vihko || { cover: { title: wrap.querySelector(".vk-cover h2")?.textContent.trim(), season: seasonText() } });
     const cleanup = () => {
+      document.title = prevTitle;
       document.body.classList.remove("vihko-printing");
       wrap.remove();
       setPageOrientation("portrait");
@@ -24102,7 +24107,7 @@ async function vkEventAtoms(V, vkData, G) {
 // Kuvan nimeen lisätään linja, muuten jokainen kartta on ruudunlukijalle pelkkä "Reittikaavio". Sivunumeroa ei saa piilottaa
 // aria-hiddenillä: Chrome ei merkitse sitä Artifactiksi, vaan teksti jää kokonaan merkitsemättä (mitattu 6.11.2026: 98 lohkoa).
 function vkPdfStructure(wrap) {
-  const heads = [[".vk-cv-title", 1], [".vk-h2, .vk-divider p, .vk-cp-title, .vk-bk-title", 2], [".vk-h3", 3], [".vk-h4", 4]];
+  const heads = [[".vk-cv-title, .vk-cover h2", 1], [".vk-h2, .vk-divider p, .vk-cp-title, .vk-bk-title", 2], [".vk-h3", 3], [".vk-h4", 4]];
   for (const [sel, level] of heads) wrap.querySelectorAll(sel).forEach(el => {
     el.setAttribute("role", "heading");
     el.setAttribute("aria-level", String(level));
