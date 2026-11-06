@@ -2725,6 +2725,57 @@
   /* Ruudun kartat harmaana (2.10.2026, ennen saturate 0.45): OSM-pohjan oranssit tiet ja värialueet kilpailivat
      linjavärien kanssa. Reitti, pysäkit ja ajoneuvot ovat kuvan ainoat värit. Sama laatta, vain suodin. */
   .leaflet-tile-pane { filter: grayscale(1) contrast(0.92) brightness(1.06); }
+  /* ---------- Savikurjen demojen yhteinen ilme (6.11.2026): avauskaista ja leveä näyttö ----------
+     Vain näytölle (@media screen), joten tulosteet eivät muutu. Palvelutiski, monitori ja ?eink=1 ovat jo koko ruudun
+     levyisiä omilla säännöillään (max-width: none), eikä tämä lohko koske niihin.
+     Avauskaista: etusivun ylin osa tummalla täysleveällä kaistalla. Layer-kaupungeissa kaistalla on arvolupaus ja
+     esimerkkitulosteet (.hp-grid), muissa reittihaun otsikko, jonka päälle hakukortti limittyy kuten ennen. Väri on
+     kaupungin teemaväri, kun kaupungilla on oma väri (#cityTheme): napin väri --btn-bg tummennettuna kuten
+     --accent-dark ja --btn-hover (78 %), jolloin valkoinen teksti on yli 5,5:1 kaikissa teemoissa. Muuten muste #1c3640.
+     Ei kuviota eikä tunnusta. Täysi leveys tulee border-imagen ulkoreunasta, joka ei levennä sivua eikä
+     tuo vaakavieritystä. Sama väri on myös taustavärinä, koska axe ei näe border-imagea. Kaista ulottuu ylätunnisteeseen
+     vain, kun häiriö- ja lomarivi ovat tyhjiä. Reittihaun (#/reitti) otsikko on työnäkymä: sen edellä on murupolku eikä
+     #lomaNotice, joten se ei saa kaistaa.
+     Leveä näyttö (vähintään 1 600 px): palsta kasvaa 980 px:stä ilman hyppyä (sisältö 1 920 px:ssä 1 220 px ja
+     2 560 px:ssä 1 360 px), ylä- ja alatunniste samassa (--page-max). Reittihaun kaksisarakenäkymä ei jää muita sivuja
+     kapeammaksi. Otsikot kasvavat vain avauskaistassa ja etusivun Tulosteet-otsikossa; työnäkymissä vain palsta levenee. */
+  :root { --avauskaista: #1c3640; }
+  :root:has(#cityTheme) { --avauskaista: var(--btn-bg); }
+  @supports (color: color-mix(in srgb, red 50%, blue)) {
+    :root:has(#cityTheme) { --avauskaista: color-mix(in srgb, var(--btn-bg) 78%, #000); }
+  }
+  /* Turku: Fölin keltaisesta tummennettu ruskea ei näytä Fölin väriltä, joten kaista on muste (Ville 6.11.2026). */
+  :root[data-city="turku"]:has(#cityTheme) { --avauskaista: #1c3640; }
+  @media screen {
+    .reila-hero.hero-paper { padding-top: 0; }
+    .hero-paper > .hp-grid,
+    #lomaNotice + .reila-hero:not(.hero-paper) {
+      --kaista-lisa: clamp(0rem, 2.5vw - 2.5rem, 1.5rem);
+      border-image: linear-gradient(var(--avauskaista), var(--avauskaista)) fill 0 // 0 100vw;
+      background-color: var(--avauskaista); border-radius: 0; color: #fff;
+    }
+    .hero-paper > .hp-grid { padding-block: calc(1.75rem + var(--kaista-lisa)); }
+    #alertsBox:empty + #lomaNotice:empty + .reila-hero > .hp-grid,
+    #alertsBox:empty + #lomaNotice:empty + .reila-hero:not(.hero-paper) { border-image-outset: 1rem 100vw 0; }
+    .hero-paper > .hp-grid :is(.reila-hero-h1, .hp-fact b),
+    #lomaNotice + .reila-hero:not(.hero-paper) .reila-hero-h1 { color: #fff; }
+    .hero-paper > .hp-grid :is(.hp-eyebrow, .reila-hero-sub, .hp-facts, .hp-tag),
+    #lomaNotice + .reila-hero:not(.hero-paper) .reila-hero-sub { color: #f0f5f5; }
+    html[data-contrast="high"] .hero-paper > .hp-grid :is(.hp-eyebrow, .reila-hero-sub, .hp-facts, .hp-tag),
+    html[data-contrast="high"] #lomaNotice + .reila-hero:not(.hero-paper) .reila-hero-sub { color: #fff; }
+    .hero-paper > .hp-grid .hp-cta a.btnlink:not(.secondary) { background: #fff; color: var(--avauskaista); }
+    .hero-paper > .hp-grid .hp-cta a.btnlink:not(.secondary):hover { background: #f0f5f5; }
+    .hero-paper > .hp-grid .hp-cta a.btnlink.secondary { background: transparent; color: #fff; border-color: #fff; }
+    .hero-paper > .hp-grid .hp-cta a.btnlink.secondary:hover { background: rgba(0, 0, 0, 0.22); }
+    .hero-paper > .hp-grid :focus-visible { outline-color: #fff; }
+  }
+  @media screen and (min-width: 1600px) {
+    :root { --page-max: clamp(980px, 85vw - 380px, 1392px); --container-max: max(1180px, var(--page-max)); }
+    .hero-paper .reila-hero-h1 { font-size: clamp(2.9rem, 2vw + 0.9rem, 4rem); }
+    .hero-paper .hp-h2 { font-size: clamp(1.35rem, 0.75vw + 0.6rem, 1.75rem); }
+    #lomaNotice + .reila-hero:not(.hero-paper) { padding-top: calc(2.75rem + var(--kaista-lisa)); }
+    #lomaNotice + .reila-hero:not(.hero-paper) .reila-hero-h1 { font-size: clamp(2.375rem, 2vw + 0.375rem, 3.25rem); }
+  }
 </style>
 </head>
 <body>
