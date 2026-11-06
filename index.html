@@ -2744,6 +2744,8 @@
   @supports (color: color-mix(in srgb, red 50%, blue)) {
     :root:has(#cityTheme) { --avauskaista: color-mix(in srgb, var(--btn-bg) 78%, #000); }
   }
+  /* Turku: Fölin keltaisesta tummennettu ruskea ei näytä Fölin väriltä, joten kaista on muste (Ville 6.11.2026). */
+  :root[data-city="turku"]:has(#cityTheme) { --avauskaista: #1c3640; }
   @media screen {
     .reila-hero.hero-paper { padding-top: 0; }
     .hero-paper > .hp-grid,
