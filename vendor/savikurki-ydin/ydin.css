@@ -459,6 +459,41 @@ html.sy-esitys :is(.two, .form-layout, .twocol, .cols2) > * { min-width: 0; }
   html.sy-esitys .tbl--pino :is(td, th) { overflow-wrap: anywhere; }
   .sy-esitys-ala { flex-direction: column; }
 }
+/* ---------- Esittelytila: avauskaista ja leveä näyttö (6.11.2026) ----------
+   Vain näytölle (@media screen), joten tulosteet eivät muutu, ja vain esittelytilassa (html.sy-esitys, .sy--esitys).
+   Avauskaista: Yleiskuvan otsikko, johdanto ja jakson valinta täysleveällä tummalla kaistalla. Väri on kunnan teemaväri
+   (?esitys=1, --sy-esitys-vari), muuten muste #1C3640. Ei kuviota eikä tunnusta: Savikurjen tunnus on demoissa vain
+   alatunnisteessa. Täysi leveys tulee border-imagen ulkoreunasta (outset), joka ei levennä sivua eikä tuo vaakavieritystä,
+   joten HTML:ään ei tarvita käärettä. Sama väri on myös elementin taustavärinä, koska axe ei näe border-imagea ja laskisi
+   kontrastin valkoista vasten. Tavallisella näytöllä kaista on tiivis (kaavio ja määrärahapalkki näkyvät 720 px
+   korkeassa ikkunassa, Teams-jako), ja leveällä näytöllä se väljenee.
+   Leveä näyttö (vähintään 1 600 px): palsta kasvaa demon omasta leveydestä (--shell) ilman hyppyä (1 920 px:ssä noin 1 210-1 230 px,
+   2 560 px:ssä 1 360 px), samoin Yleiskuvan ja esittelysivun otsikot. Työnäkymissä (jonot, taulukot, lomakkeet) vain palsta levenee. */
+@media screen {
+  .sy--esitys #sy-nakyma[data-nakyma="yleiskuva"] > .sy-nakymapaa,
+  .sy--esitys #sy-nakyma[data-nakyma="yleiskuva"] > .sy-nakymapaa + .sy-tyokalut {
+    --sy-kaista: var(--sy-esitys-vari, #1C3640);
+    --sy-kaista-lisa: clamp(0rem, 2.5vw - 2.5rem, 1.5rem);
+    border-image: linear-gradient(var(--sy-kaista), var(--sy-kaista)) fill 0 // 0 100vw;
+    background-color: var(--sy-kaista); color: #FFFFFF; margin-block: 0;
+  }
+  .sy--esitys #sy-nakyma[data-nakyma="yleiskuva"] > .sy-nakymapaa {
+    display: flow-root; padding-top: var(--sy-kaista-lisa);
+    border-image-outset: 1.25rem 100vw 1px;
+  }
+  .sy--esitys #sy-nakyma[data-nakyma="yleiskuva"] > .sy-nakymapaa :is(h1, h2) { color: #FFFFFF; }
+  .sy--esitys #sy-nakyma[data-nakyma="yleiskuva"] > .sy-nakymapaa .sy-johdanto { color: #F0F5F5; margin-bottom: .5rem; }
+  .sy--esitys #sy-nakyma[data-nakyma="yleiskuva"] > .sy-nakymapaa + .sy-tyokalut { padding-bottom: calc(1rem + var(--sy-kaista-lisa)); }
+  .sy--esitys #sy-nakyma[data-nakyma="yleiskuva"] > .sy-nakymapaa + .sy-tyokalut label { color: #FFFFFF; }
+  .sy--esitys #sy-nakyma[data-nakyma="yleiskuva"] > :is(.sy-nakymapaa, .sy-tyokalut) :focus-visible { outline-color: #FFFFFF; }
+  .sy--esitys #sy-nakyma[data-nakyma="yleiskuva"] > .sy-nakymapaa + .sy-tyokalut + * { margin-top: clamp(1rem, 2.5vw - 1.5rem, 2rem); }
+}
+@media screen and (min-width: 100rem) {
+  html.sy-esitys .shell { max-width: min(var(--shell, 74rem) + 25vw - 25rem, 87rem); }
+  html.sy-esitys .hero h1 { font-size: clamp(3rem, 1rem + 2vw, 4rem); }
+  .sy--esitys #sy-nakyma[data-nakyma="yleiskuva"] > .sy-nakymapaa :is(h1, h2) { font-size: clamp(2.25rem, 1rem + 1.25vw, 3rem); }
+  .sy--esitys #sy-nakyma[data-nakyma="yleiskuva"] .sy-osio > :is(h2, h3) { font-size: clamp(1.25rem, .5rem + .75vw, 1.6rem); }
+}
 @media print {
   html.sy-esitys .topbar, html.sy-esitys .footer { display: none; }
   .sy-esitys-kaaviot, .sy-vaiheet, .sy-vaiheet__napit { display: none; }
