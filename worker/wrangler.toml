@@ -14,7 +14,7 @@ routes = [
 # Yksityinen avain on salaisuus: npx wrangler secret put VAPID_PRIVATE_JWK
 [vars]
 VAPID_PUBLIC = "BL0Ah2TowfE75fO8V6b8hncoh4Au-br_ycKHLGD1C6ohfXZV3Jpr863PHFWWd3qpU4wASUdJsuBLwhufuZMKx74"
-VAPID_SUBJECT = "mailto:vvsaarinen@gmail.com"
+VAPID_SUBJECT = "mailto:ville@reittari.fi"
 
 # Sähköpostipohjainen häiriötilaus (Resend). Nämä ovat SALAISUUKSIA (wrangler secret),
 # EIVÄT [vars]:issa (vältetään secret/var-nimikläshi):
