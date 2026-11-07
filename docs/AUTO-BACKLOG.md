@@ -252,6 +252,17 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
       Mittari: smoke 320 px suurimmalla tekstikoolla (scrollWidth enintään innerWidth, combobox- ja listbox-roolit)
       vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
+  - ⚠️ EHDOTUS/KYSYMYS (agentti 2026-11-07): kohta 2 vaatii päätöksen. Jaettu `bindPlaceInput` (index.html noin
+    rivi 17666) rakentaa ehdotukset muodossa `li > button.item`, ja nuolinäppäimet siirtävät oikean fokuksen
+    painikkeisiin (rivit noin 17729-17767). `role="listbox"` vaatii lapsiksi `role="option"`, ja
+    `aria-activedescendant` tarkoittaa, että fokus pysyy kentässä: se on uusi näppäinmalli, jonka tiskin haku
+    (rivi noin 21159) jo toteuttaa, mutta jonka kopiointi viiteen kenttään (etusivun lähtö ja määränpää,
+    reittihaun lähtö ja määränpää, pysäkkihaut) ilman selainta on riski julkaistavalle sovellukselle.
+    Vaihtoehdot: (a) jaa tiskin combobox-apufunktio ja siirrä `bindPlaceInput` siihen (L, jaetaan vaiheisiin:
+    ensin etusivun kaksi kenttää); (b) pidä painikemalli ja lisää vain `role="combobox"`, `aria-expanded`,
+    `aria-controls` ja `aria-autocomplete="list"` kenttään, ilman `listbox`-roolia (S, mutta ei täytä rivin
+    todennusta `role="listbox"`). Kohta 1 (`table.deps` ei vieri 320 px:ssä) on päätöksestä riippumaton ja
+    voidaan irrottaa omaksi S-riviksi. Kerro valittu vaihtoehto, niin rivi jaetaan.
 - [ ] worker/admin-page.js: suunnittelijan näkymä tuloksettomiin hakuihin. Tarkista ensin, mitä tilastonäkymä jo näyttää
       (`admin/api/stats`, `failedSearches`, admin-page.js rivi noin 1036). Lisää tai täydennä: 30 päivän 20 yleisintä
       tuloksetonta hakua määrineen, vertailu edelliseen 30 päivään ja CSV-vienti. Vain `searchSignal`-säännön läpäisseet
