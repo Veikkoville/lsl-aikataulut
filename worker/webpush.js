@@ -102,7 +102,7 @@ export async function sendPush(subscription, payloadString, env) {
     ? JSON.parse(env.VAPID_PRIVATE_JWK) : env.VAPID_PRIVATE_JWK;
   const vh = await vapidHeaders(
     subscription.endpoint, vapidPrivateJwk, env.VAPID_PUBLIC,
-    env.VAPID_SUBJECT || "mailto:vvsaarinen@gmail.com");
+    env.VAPID_SUBJECT || "mailto:ville@reittari.fi");
   const res = await fetch(subscription.endpoint, {
     method: "POST",
     headers: {
