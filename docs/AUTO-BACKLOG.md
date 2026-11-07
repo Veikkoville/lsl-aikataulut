@@ -244,25 +244,22 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
       Mittari: smoke-tarkistus (ensimmäinen Tab ohituslinkkiin, hakukentän fokus vähintään 2 px, reaaliaikamerkillä
       sr-teksti) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-11-06)
-- [ ] index.html: saavutettavuus, kapea näyttö ja ehdotuslistat. (1) Suurimmalla tekstikoolla 320 px:ssä lähtötaulukko
-      `table.deps` ei saa vieriä vaakasuunnassa (WCAG 1.4.10): pinoutuva asettelu kapealla. (2) Etusivun ja reittihaun
-      ehdotuslistoille combobox-semantiikka tiskin mallin mukaan (rivit noin 18076 ja 19875: role, aria-expanded,
-      aria-controls, aria-activedescendant). Todennus: smoke 320 px + suurin tekstikoko: `document.documentElement.scrollWidth
-      <= innerWidth`; hakukentällä `role="combobox"` ja listalla `role="listbox"` kun ehdotuksia näkyy. (tuotekehityksen kärki 2026-10-08, P5, lähde: auditointi)
-      Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
-      Mittari: smoke 320 px suurimmalla tekstikoolla (scrollWidth enintään innerWidth, combobox- ja listbox-roolit)
-      vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
-  - ⚠️ EHDOTUS/KYSYMYS (agentti 2026-11-07): kohta 2 vaatii päätöksen. Jaettu `bindPlaceInput` (index.html noin
-    rivi 17666) rakentaa ehdotukset muodossa `li > button.item`, ja nuolinäppäimet siirtävät oikean fokuksen
-    painikkeisiin (rivit noin 17729-17767). `role="listbox"` vaatii lapsiksi `role="option"`, ja
-    `aria-activedescendant` tarkoittaa, että fokus pysyy kentässä: se on uusi näppäinmalli, jonka tiskin haku
-    (rivi noin 21159) jo toteuttaa, mutta jonka kopiointi viiteen kenttään (etusivun lähtö ja määränpää,
-    reittihaun lähtö ja määränpää, pysäkkihaut) ilman selainta on riski julkaistavalle sovellukselle.
-    Vaihtoehdot: (a) jaa tiskin combobox-apufunktio ja siirrä `bindPlaceInput` siihen (L, jaetaan vaiheisiin:
-    ensin etusivun kaksi kenttää); (b) pidä painikemalli ja lisää vain `role="combobox"`, `aria-expanded`,
-    `aria-controls` ja `aria-autocomplete="list"` kenttään, ilman `listbox`-roolia (S, mutta ei täytä rivin
-    todennusta `role="listbox"`). Kohta 1 (`table.deps` ei vieri 320 px:ssä) on päätöksestä riippumaton ja
-    voidaan irrottaa omaksi S-riviksi. Kerro valittu vaihtoehto, niin rivi jaetaan.
+- [ ] index.html: saavutettavuus, kapea näyttö. Suurimmalla tekstikoolla 320 px:ssä lähtötaulukko `table.deps` ei saa
+      vieriä vaakasuunnassa (WCAG 1.4.10): pinoutuva asettelu kapealla. Todennus: smoke 320 px + suurin tekstikoko:
+      `document.documentElement.scrollWidth <= innerWidth`. (tuotekehityksen kärki 2026-10-08, P5, lähde: auditointi)
+      Pisteet: arvo 3/3 · kiire 1/3 · työ S · myynti 1/3 · uutuus 0/2 = 8
+      Mittari: smoke 320 px suurimmalla tekstikoolla vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 7.11.)
+- [ ] index.html: ehdotuslistojen combobox, vaihe 1 (ylläpitäjän päätös 2026-11-07, vaihtoehto a). Jaa tiskin haun combobox-
+      apufunktio (rivi noin 21159) ja siirrä `bindPlaceInput` (rivi noin 17666) siihen etusivun lähtö- ja määränpääkentässä:
+      fokus pysyy kentässä, `aria-activedescendant`, lista `role="listbox"`, rivit `role="option"`. Muut kentät säilyvät
+      ennallaan tässä vaiheessa. Todennus: smoke etusivulla: kentällä `role="combobox"`, listalla `role="listbox"` kun
+      ehdotuksia näkyy, nuolinäppäimet ja Enter valitsevat ehdotuksen. (P5, lähde: auditointi)
+      Pisteet: arvo 3/3 · kiire 1/3 · työ L · myynti 1/3 · uutuus 0/2 = 6
+      Mittari: combobox- ja listbox-roolit ja näppäinpolku vihreänä smokessa CI:ssä · tarkistus 2026-12-07 (pisteet ja mittari: CoS 7.11.)
+- [ ] index.html: ehdotuslistojen combobox, vaihe 2: reittihaun lähtö- ja määränpääkenttä ja pysäkkihaut samaan apufunktioon.
+      Aloita vasta, kun vaihe 1 on tuotannossa.
+      Pisteet: arvo 3/3 · kiire 1/3 · työ L · myynti 1/3 · uutuus 0/2 = 6
+      Mittari: sama smoke näille kentille vihreä CI:ssä · tarkistus 2027-01-11 (pisteet ja mittari: CoS 7.11.)
 - [ ] worker/admin-page.js: suunnittelijan näkymä tuloksettomiin hakuihin. Tarkista ensin, mitä tilastonäkymä jo näyttää
       (`admin/api/stats`, `failedSearches`, admin-page.js rivi noin 1036). Lisää tai täydennä: 30 päivän 20 yleisintä
       tuloksetonta hakua määrineen, vertailu edelliseen 30 päivään ja CSV-vienti. Vain `searchSignal`-säännön läpäisseet
