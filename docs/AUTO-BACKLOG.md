@@ -547,8 +547,24 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       lista. Todennus: smoke `page.evaluate` syöttää kiinteän häiriölistan: 14 vrk pysäkkihäiriö -> listalla; 3 vrk -> ei;
       linjahäiriö ilman pysäkkiä -> ei; loppu puuttuu ja alku 20 vrk sitten -> listalla; virhetila -> virheteksti, ei
       onnistumista. (tutkimuskierros 2026-10-30, lähde: Digitransitin häiriörajapinta 2026-10-30 ja julistekoodi)
-      Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 2/3 · uutuus 1/2 = 7
+      Pisteet: (lukittu) arvo 2/3 · kiire 1/3 · työ M · myynti 2/3 · uutuus 1/2 = 7 (lukitus: ylläpitäjä 2026-11-11, retro 9.11.: virhe näkyy
+      tuotannossa, muutosvahti 8.11. piti Kuopion poistuneen pysäkin muuttumattomana)
       Mittari: Muutosvahti-välilehdellä lohko näkyy tuotannossa vähintään kahdessa kaupungissa · tarkistus 2026-12-06 (pisteet ja mittari: CoS 30.10.)
+- [ ] tests/kausivalidointi.js: uusi tarkistus 5, hinnaston tarkistuspäivä. Lippujen hinnat ovat CONFIGSissa käsin luettuja:
+      19 kaupungin `fares.checked` on 25.8.-11.10.2026, kahdessa muodossa ("4.10.2026" ja "2026-09-23"), ja tiski tulostaa ne
+      (`table.desk-fares`). Mikään ajo ei kerro, kun hinnasto vanhenee: yksi CONFIGS-kaupunki käsitteli 3.11.2026 lippujen
+      asiakashinnat 1.1.2027 alkaen, ja saman kaupungin kaksi edellistä korotusta tulivat voimaan vuodenvaihteessa. Lisää puhdas
+      funktio `hinnastoTulos(checked, tanaan)` ja vie se `module.exports`iin (rivi noin 366); runCity kutsuu sitä jokaiselle
+      kaupungille, jolla on `fares`, ilman verkkokutsuja. Päätös: päivä ei jäsenny -> WARN; tarkistettu ennen kuluvan vuoden 1.1. ja
+      tänään on 1.1.-31.3. -> WARN "vuodenvaihde: hinnat tarkistamatta (tarkistettu X)"; yli 180 vrk vanha -> WARN; yli 365 vrk -> FAIL;
+      muuten PASS ja päivä. Älä muuta hintoja äläkä `checked`-päiviä (ne ovat ylläpitäjän). Todennus: uusi
+      tests/kausivalidointi-hinnasto.test.js tests/package.json:n test-ketjuun: ("4.10.2026", 10.11.2026) -> PASS;
+      ("4.10.2026", 5.1.2027) -> WARN vuodenvaihde; ("2026-09-23", 1.4.2027) -> WARN yli 180 vrk; ("1.1.2025", 1.3.2026) -> FAIL;
+      ("syksy 2026", mikä tahansa) -> WARN; `node --check tests/kausivalidointi.js`. (tutkimuskierros 2026-11-09, lähde: päätösvahti
+      2026-11-02 ja index.html CONFIGS `fares.checked`)
+      Pisteet: arvo 2/3 · kiire 2/3 · työ S · myynti 1/3 · uutuus 0/2 = 7
+      Mittari: kausivalidoinnin lokissa on hinnastorivi jokaiselle kaupungille, jolla on `fares`, ja ti 5.1.2027 ajossa vuodenvaihde-WARN
+      näkyy jokaiselle kaupungille, jonka hintoja ei ole tarkistettu 1.1. jälkeen · tarkistus 2027-01-12 (pisteet ja mittari: CoS 9.11.)
 
 ## Tehdyt
 

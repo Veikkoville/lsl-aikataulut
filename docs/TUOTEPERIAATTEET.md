@@ -130,6 +130,9 @@ Jokaisen avoimen rivin loppuun tulee kaksi kenttää omille riveilleen:
   jälkeen). Lähteen on oltava jo olemassa: käyttötilasto (Analytics Engine: `view`, `line`, `stop` ja `search_fail`,
   admin-näkymän tilastot), smoke, prod-smoke, CI, kausivalidointi, muutosvahti tai uusintapainatusvahti. Jos
   muutoksen vaikutusta ei voi lukea käytöstä, mittari on testi tai tarkistus, ja se sanotaan suoraan.
+  "Smoke vihreä CI:ssä" ei ole mittari vaan hyväksymiskriteeri, ja se kuuluu Todennus-kenttään (2026-11-11, kuukausiretro
+  9.11.). Mittari on tuotannon havainto tai käyttö: käyttötilasto, prod-smoke, kausivalidointi, muutosvahti tai
+  uusintapainatusvahti tuotantodataa vasten.
 
 ### Kärkivuoro ja signaalit (2026-10-14)
 
