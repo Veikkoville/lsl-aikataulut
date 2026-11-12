@@ -5403,6 +5403,12 @@ const STRINGS = {
     changesIntro: "Vahti vertaa jokaisen pysäkin julisteen sisältöä viikoittain: ensi viikko, neljän viikon päästä ja edellinen tarkistus. Yhden viikon poikkeus (esimerkiksi syysloma) ei laukaise hälytystä: se ei muuta julistetta pysyvästi, ja koulupäivien ja loma-ajan vuorot tulostuvat omina lohkoinaan, kun ne osuvat tulostusikkunaan.",
     changesLoading: "Haetaan muutosvahdin tulosta…",
     changesNone: "Muutosvahtia ei ole vielä ajettu tälle kaupungille.",
+    closedTitle: "Pysäkit poissa käytöstä tai siirretty",
+    closedIntro: "Live-häiriöiden mukaan pysäkki on pois käytöstä tai siirretty vähintään 14 vuorokautta. Aikataulusyöte voi silti antaa sille lähtöjä, joten tarkista juliste ennen tulostusta.",
+    closedUntil: "häiriö päättyy {date}",
+    closedOpen: "päättymisaika ei tiedossa",
+    closedPoster: "juliste",
+    closedFail: "Häiriötietoja ei saatu.",
     changesSummary: "Tarkistettu {date}: {n} pysäkkiä. Vanhentuneita julisteita {now}, vanhenemassa {soon}{eff}.{week}",
     changesWeek: " Yhden viikon poikkeus viikolla {date}: {n} pysäkkiä (ei pysyvä muutos, ei tulosteta uudelleen).",
     changesEffective: " (voimaan {date})",
@@ -6367,6 +6373,12 @@ const STRINGS = {
     changesIntro: "The watch compares every stop's poster content weekly: next week, four weeks ahead and the previous check. A single-week exception (such as autumn break) does not raise an alert: it is not a permanent change to the poster, and school-day and holiday services print as separate blocks when they fall within the print window.",
     changesLoading: "Loading the change watch result…",
     changesNone: "The change watch has not run for this city yet.",
+    closedTitle: "Stops out of service or moved",
+    closedIntro: "Live disruption notices say the stop is out of service or moved for at least 14 days. The timetable feed may still give it departures, so check the poster before printing.",
+    closedUntil: "notice ends {date}",
+    closedOpen: "end date not known",
+    closedPoster: "poster",
+    closedFail: "Disruption notices could not be loaded.",
     changesSummary: "Checked {date}: {n} stops. Out-of-date posters {now}, expiring {soon}{eff}.{week}",
     changesWeek: " Single-week exception in the week of {date}: {n} stops (not a permanent change, no reprint needed).",
     changesEffective: " (effective {date})",
@@ -7300,6 +7312,12 @@ const STRINGS = {
     changesIntro: "Vakten jämför varje hållplats affischinnehåll veckovis: nästa vecka, fyra veckor framåt och föregående kontroll. Ett undantag på en vecka (till exempel höstlovet) utlöser inget larm: det ändrar inte affischen varaktigt, och skoldagarnas och lovtidens turer skrivs ut som egna block när de faller inom utskriftsfönstret.",
     changesLoading: "Hämtar ändringsvaktens resultat…",
     changesNone: "Ändringsvakten har inte körts för den här staden ännu.",
+    closedTitle: "Hållplatser ur bruk eller flyttade",
+    closedIntro: "Enligt störningsmeddelandena är hållplatsen ur bruk eller flyttad i minst 14 dygn. Tidtabellsflödet kan ändå ge den avgångar, så kontrollera affischen före utskrift.",
+    closedUntil: "meddelandet upphör {date}",
+    closedOpen: "slutdatum okänt",
+    closedPoster: "affisch",
+    closedFail: "Störningsmeddelanden kunde inte hämtas.",
     changesSummary: "Kontrollerat {date}: {n} hållplatser. Föråldrade affischer {now}, föråldras snart {soon}{eff}.{week}",
     changesWeek: " Undantag på en vecka, veckan {date}: {n} hållplatser (ingen varaktig ändring, ingen ny utskrift behövs).",
     changesEffective: " (gäller från {date})",
@@ -17111,6 +17129,51 @@ async function printNearbyPack(place, radius, days, st, out) {
   window.print();
 }
 
+/* Pitkät pysäkkihäiriöt (tulostekeskuksen Muutosvahti-välilehti). Julistekoodi ja muutosvahti lukevat vain
+   aikataulusyötettä, joten kuukausiksi suljettu pysäkki näyttää ajan tasalla olevalta, jos syöte antaa sille yhä
+   lähtöjä. Tämä lukee häiriöt (loadAlerts, ei uutta palvelinkutsua): häiriö, jonka kohteena on pysäkki ja jonka
+   kesto on vähintään 14 vrk (tai loppu puuttuu ja alku on yli 14 vrk sitten). Ajat sekunteina (GTFS-RT).
+   Palauttaa [{ stopId, otsikko, alku, loppu }] loppupäivän mukaan, loppumaton viimeiseksi. */
+function pitkatPysakkihairiot(raw, nytSek) {
+  const PITKA = 14 * 86400, out = [], seen = new Set();
+  for (const a of raw || []) {
+    const alku = a.effectiveStartDate || 0, loppu = a.effectiveEndDate || 0;
+    const kesto = loppu ? loppu - alku : nytSek - alku;
+    if (!alku || kesto < PITKA) continue;
+    const otsikko = a.alertHeaderText || "";
+    for (const stopId of alertTargets(a).stops) {
+      const key = stopId + "|" + otsikko;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ stopId, otsikko, alku, loppu: loppu || null });
+    }
+  }
+  return out.sort((x, y) => (x.loppu ?? Infinity) - (y.loppu ?? Infinity) || x.stopId.localeCompare(y.stopId));
+}
+// Lohkon HTML: virhe -> virheteksti (ei tyhjää listaa); tyhjä lista -> ei lohkoa. names: Map stopId -> { name, code }.
+function pitkatHairiotHtml(items, names, virhe) {
+  if (virhe) return `<p class="muted" data-closed-fail>${t("closedFail")}</p>`;
+  if (!items.length) return "";
+  const iso = sec => { const d = new Date(sec * 1000); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  return `<div class="closed-stops" data-closed-stops><h3>${t("closedTitle")}</h3><p class="muted">${t("closedIntro")}</p>
+    <ul class="plain">${items.map(x => { const n = names && names.get(x.stopId);
+      return `<li data-closed-stop="${esc(x.stopId)}"><a href="#/pysakki/${encodeURIComponent(x.stopId)}">${esc((n && n.name) || x.stopId)}</a>
+        <span class="muted">${esc((n && n.code) || "")}</span> ${esc(x.otsikko)}
+        <span class="muted">(${x.loppu ? t("closedUntil", { date: fmtDateLong(iso(x.loppu)) }) : t("closedOpen")}) <a href="#/pysakki/${encodeURIComponent(x.stopId)}">${t("closedPoster")}</a></span></li>`; }).join("")}</ul></div>`;
+}
+async function bindClosedStops(box) {
+  try {
+    const items = pitkatPysakkihairiot(await loadAlerts(), Date.now() / 1000);
+    const names = new Map();
+    if (items.length) {
+      const ids = [...new Set(items.map(x => x.stopId))].slice(0, 50);
+      const d = await gql(`query ($ids: [String]) { stops(ids: $ids) { gtfsId name code } }`, { ids }).catch(() => null);
+      for (const s of (d && d.stops) || []) if (s) names.set(s.gtfsId, s);
+    }
+    box.innerHTML = pitkatHairiotHtml(items, names, false);
+  } catch (e) { box.innerHTML = pitkatHairiotHtml([], null, true); }
+}
+
 // Muutosvahti-välilehti: lukee viikkoajon tuloksen (docs/muutosvahti/<city>.json, sama origin)
 // ja tarjoaa vanhentuneiden tai vanhenevien julisteiden erätulostuksen. Tiedosto puuttuu →
 // "ei vielä ajettu"; se ei ole virhe eikä estä muita välilehtiä.
@@ -17120,6 +17183,8 @@ function bindChangesTab() {
   if (!list || !sum) return;
   const st = document.getElementById("chgStatus");
   const out = document.getElementById("chgOut");
+  const closedBox = document.getElementById("chgClosed");
+  if (closedBox) bindClosedStops(closedBox);
   let rows = [];
   const cbs = () => [...list.querySelectorAll(".chgCb")];
   (async () => {
@@ -26489,6 +26554,7 @@ async function viewPrintCenter(tab, query) {
         <h2>${icon("calendar")} ${t("changesTitle")}</h2>
         <p class="muted">${t("changesIntro")}</p>
         <p class="muted" id="chgSummary" role="status">${t("changesLoading")}</p>
+        <div id="chgClosed"></div>
         <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
           <input type="search" id="chgFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
           <button type="button" id="chgSelNow" class="linkish">${t("changesSelectNow")}</button>
