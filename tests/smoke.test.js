@@ -3209,6 +3209,24 @@ async function minuuttiLinjaus(page, rootSel, media) {
     } else {
       info("pysäkkisivu: vain yksi linja, suodatinta ei näytetä");
     }
+    // Kapea näyttö (WCAG 1.4.10): 320 px + suurin tekstikoko, lähtötaulukko ei vieri vaakasuunnassa
+    // ja rivi pinoutuu (kohde-solu omalla rivillään). Rakenne, ei tekstiä.
+    await page.setViewport({ width: 320, height: 700 });
+    await page.evaluate(() => { localStorage.setItem("textSize", "larger"); window.applyTextSize?.(); });
+    await sleep(300);
+    const narrow = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll("#depRows tr")];
+      const tr = rows.find(r => r.children.length === 3);
+      const gap = tr ? tr.children[1].getBoundingClientRect().top - tr.children[0].getBoundingClientRect().top : null;
+      return { sw: document.documentElement.scrollWidth, iw: window.innerWidth, rows: rows.length, gap,
+        text: document.documentElement.dataset.text };
+    });
+    await page.evaluate(() => { localStorage.removeItem("textSize"); window.applyTextSize?.(); });
+    await page.setViewport({ width: 800, height: 600 });
+    await sleep(200);
+    (narrow.text === "larger" && narrow.rows > 0 && narrow.sw <= narrow.iw && narrow.gap > 0)
+      ? ok(`pysäkkisivu: 320 px + suurin tekstikoko ilman vaakavieritystä, rivi pinoutuu (scrollWidth ${narrow.sw})`)
+      : fail("pysäkkisivu: kapea näyttö: " + JSON.stringify(narrow));
     // Pysäkkijuliste: kokoa tuntikaavio kaikista pysäkin linjoista
     if (await page.$("#stopPosterBtn")) {
       await page.evaluate(() => { window.print = () => {}; });

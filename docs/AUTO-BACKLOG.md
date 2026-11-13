@@ -244,11 +244,11 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
       Mittari: smoke-tarkistus (ensimmäinen Tab ohituslinkkiin, hakukentän fokus vähintään 2 px, reaaliaikamerkillä
       sr-teksti) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-11-06)
-- [ ] index.html: saavutettavuus, kapea näyttö. Suurimmalla tekstikoolla 320 px:ssä lähtötaulukko `table.deps` ei saa
+- [x] index.html: saavutettavuus, kapea näyttö. Suurimmalla tekstikoolla 320 px:ssä lähtötaulukko `table.deps` ei saa
       vieriä vaakasuunnassa (WCAG 1.4.10): pinoutuva asettelu kapealla. Todennus: smoke 320 px + suurin tekstikoko:
       `document.documentElement.scrollWidth <= innerWidth`. (tuotekehityksen kärki 2026-10-08, P5, lähde: auditointi)
       Pisteet: arvo 3/3 · kiire 1/3 · työ S · myynti 1/3 · uutuus 0/2 = 8
-      Mittari: smoke 320 px suurimmalla tekstikoolla vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 7.11.)
+      Mittari: smoke 320 px suurimmalla tekstikoolla vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 7.11.) (PR, 2026-11-13)
 - [ ] index.html: ehdotuslistojen combobox, vaihe 1 (ylläpitäjän päätös 2026-11-07, vaihtoehto a). Jaa tiskin haun combobox-
       apufunktio (rivi noin 21159) ja siirrä `bindPlaceInput` (rivi noin 17666) siihen etusivun lähtö- ja määränpääkentässä:
       fokus pysyy kentässä, `aria-activedescendant`, lista `role="listbox"`, rivit `role="option"`. Muut kentät säilyvät
