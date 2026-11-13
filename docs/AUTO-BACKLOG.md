@@ -534,7 +534,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       lähde: docs/muutosvahti/*.json git-historia 2026-10-04...2026-10-25)
       Pisteet: arvo 2/3 · kiire 1/3 · työ S · myynti 1/3 · uutuus 1/2 = 7
       Mittari: sunnuntain ajon jälkeen jokaisen kaupungin raportissa on kenttä `poistuneet` · tarkistus 2026-12-06 (pisteet ja mittari: CoS 30.10.)
-- [ ] index.html: tulostekeskuksen Muutosvahti-välilehdelle lohko "Pysäkit poissa käytöstä tai siirretty" live-häiriöistä.
+- [x] index.html: tulostekeskuksen Muutosvahti-välilehdelle lohko "Pysäkit poissa käytöstä tai siirretty" live-häiriöistä.
       Julistekoodi (`stopPosterBlocks`, rivi noin 13611) ja muutosvahti eivät lue häiriöitä, joten kuukausiksi suljettu
       pysäkki näyttää tulostekeskuksessa ajan tasalla olevalta, jos aikataulusyöte antaa sille yhä lähtöjä. Mitattu
       Digitransitin häiriörajapinnasta: 59 häiriöstä 22 kohdistuu pysäkkeihin ja kestää vähintään 14 vrk, 9 syötteessä;
@@ -549,7 +549,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       onnistumista. (tutkimuskierros 2026-10-30, lähde: Digitransitin häiriörajapinta 2026-10-30 ja julistekoodi)
       Pisteet: (lukittu) arvo 2/3 · kiire 1/3 · työ M · myynti 2/3 · uutuus 1/2 = 7 (lukitus: ylläpitäjä 2026-11-11, retro 9.11.: virhe näkyy
       tuotannossa, muutosvahti 8.11. piti Kuopion poistuneen pysäkin muuttumattomana)
-      Mittari: Muutosvahti-välilehdellä lohko näkyy tuotannossa vähintään kahdessa kaupungissa · tarkistus 2026-12-06 (pisteet ja mittari: CoS 30.10.)
+      Mittari: Muutosvahti-välilehdellä lohko näkyy tuotannossa vähintään kahdessa kaupungissa · tarkistus 2026-12-06 (pisteet ja mittari: CoS 30.10.) (PR, 2026-11-12)
 - [ ] tests/kausivalidointi.js: uusi tarkistus 5, hinnaston tarkistuspäivä. Lippujen hinnat ovat CONFIGSissa käsin luettuja:
       19 kaupungin `fares.checked` on 25.8.-11.10.2026, kahdessa muodossa ("4.10.2026" ja "2026-09-23"), ja tiski tulostaa ne
       (`table.desk-fares`). Mikään ajo ei kerro, kun hinnasto vanhenee: yksi CONFIGS-kaupunki käsitteli 3.11.2026 lippujen

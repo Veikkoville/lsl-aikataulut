@@ -3604,6 +3604,31 @@ async function minuuttiLinjaus(page, rootSel, media) {
           : fail("poikkeuspäivät: pyhärivin liikennetyyppiä ei tullut 30 sekunnissa");
   }
 
+  // --- Pitkät pysäkkihäiriöt (tulostekeskuksen Muutosvahti-välilehti), kiinteällä häiriölistalla ---
+  const ph = await page.evaluate(() => {
+    const D = 86400, N = 1800000000;
+    const A = (alku, loppu, stops, extra) => Object.assign({ alertHeaderText: "H" + stops.join(","), effectiveStartDate: alku,
+      effectiveEndDate: loppu, entities: stops.map(g => ({ __typename: "Stop", gtfsId: g })) }, extra || {});
+    const raw = [
+      A(N - D, N + 13 * D, ["X:1"]),                       // 14 vrk -> listalla
+      A(N, N + 3 * D, ["X:2"]),                            // 3 vrk -> ei
+      A(N - D, N + 30 * D, [], { route: { gtfsId: "R:1" } }), // linjahäiriö ilman pysäkkiä -> ei
+      A(N - 20 * D, null, ["X:3"]),                        // loppu puuttuu, alku 20 vrk sitten -> listalla
+      A(N - 5 * D, null, ["X:4"]),                         // loppu puuttuu, alku 5 vrk sitten -> ei
+    ];
+    const r = pitkatPysakkihairiot(raw, N);
+    const box = document.createElement("div");
+    box.innerHTML = pitkatHairiotHtml(r, new Map([["X:1", { name: "Testi", code: "T1" }]]), false);
+    return { ids: r.map(x => x.stopId).join(","), loppuNull: r[1] && r[1].loppu === null,
+      rows: box.querySelectorAll("[data-closed-stop]").length,
+      empty: pitkatHairiotHtml([], null, false) === "",
+      failBox: (() => { const b = document.createElement("div"); b.innerHTML = pitkatHairiotHtml([], null, true);
+        return b.querySelectorAll("[data-closed-fail]").length === 1 && b.querySelectorAll("[data-closed-stops]").length === 0; })() };
+  });
+  (ph.ids === "X:1,X:3" && ph.loppuNull && ph.rows === 2 && ph.empty && ph.failBox)
+    ? ok("pitkatPysakkihairiot: 14 vrk pysäkkihäiriö ja päättymätön yli 14 vrk listalla, lyhyt ja linjahäiriö eivät; virhetila ei ole tyhjä lista")
+    : fail(`pitkatPysakkihairiot: ${JSON.stringify(ph)}`);
+
   // --- Datan laaturaportti (#/laatu) ---
   // Oma osio: sivunvaihto keskellä poikkeuspäivien tarkistuksia kaatoi niiden vertailuosion (22.10.2026).
   // Luokittelu kiinteällä aineistolla; reitti on henkilöstöreitti, joka ohjaa
