@@ -624,8 +624,10 @@
   .legal dd { margin: 0.15rem 0 0 0; }
   .legal ul { padding-left: 1.3rem; }
   @media (max-width: 540px) {
-    .foot-cols { grid-template-columns: 1fr 1fr; }
+    /* minmax(0, 1fr): pitkä linkki tai suurin tekstikoko ei levitä saraketta yli näytön (WCAG 1.4.10). */
+    .foot-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .foot-brand { grid-column: 1 / -1; }
+    .foot-col a, .foot-brand { overflow-wrap: anywhere; }
   }
   /* REILA F3: kentät saavat pehmeän harmaan pohjan + 13px pyöristyksen + accent-fokuksen.
      --field-bg/--line ovat teemakohtaisia (tumma/kontrasti/print määritelty) → toimii
@@ -874,6 +876,7 @@
     table.deps:not(.desk-fares) tr { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.1rem 0.6rem;
       align-items: baseline; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
     table.deps:not(.desk-fares) tbody tr:last-child { border-bottom: none; }
+    table.deps:not(.desk-fares) { clear: both; }  /* suosikkitähti ei kavenna ensimmäistä riviä */
     table.deps:not(.desk-fares) td { display: block; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
     table.deps:not(.desk-fares) td:first-child { width: auto; grid-column: 1; grid-row: 1; }
     table.deps:not(.desk-fares) td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
