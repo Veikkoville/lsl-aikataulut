@@ -395,7 +395,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 3/3 · työ M · myynti 1/3 = 9
       Mittari: view-tapahtuma poikkeukset (admin-tilasto) 30 päivää ennen joululomaa vs. 30 päivää ennen syyslomaa; smoke
       vihreä CI:ssä · tarkistus 2027-01-10 (pisteet ja mittari: CoS 11.10.) (PR, 2026-10-14)
-- [ ] tests/kausivalidointi.js: solmupysäkin pulssi ei hälytä yksittäisestä lomaviikosta. Nyt tarkistus 3 vertaa kahta
+- [x] tests/kausivalidointi.js: solmupysäkin pulssi ei hälytä yksittäisestä lomaviikosta. Nyt tarkistus 3 vertaa kahta
       yksittäistä päivää (`dNear` = D+7 ja `dFar` = D+35, rivi noin 280), joten kun D+7 osuu koulujen lomaviikolle, ajo
       raportoi "kausivaihto tulossa", vaikka kausi ei vaihdu: 6.10.2026 ajon 12 WARNista 3 oli tätä (lomaviikon tiistai
       vs. 10.11.). Hae samassa kyselyssä myös D+14 ja D+42 (sama viikonpäivä; kaksi kenttää lisää, ei uusia kutsuja) ja
@@ -408,7 +408,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       kausivalidointi-ajo 37457243951)
       Pisteet: arvo 2/3 · kiire 2/3 · työ S · myynti 1/3 = 7
       Mittari: solmupysäkki-WARNit, joissa vain toinen lähipäivä on lomaviikolla: 0 ajossa, jonka D+7 osuu joululomalle
-      (Actions-loki, kausivalidointi) · tarkistus 2026-12-22 (pisteet ja mittari: CoS 11.10.)
+      (Actions-loki, kausivalidointi) · tarkistus 2026-12-22 (pisteet ja mittari: CoS 11.10.) (PR, 2026-11-14)
 - [x] index.html: linjakohtainen muutosseloste päivävertailuun. Nyt `#/poikkeukset`-sivun päivävertailu
       (`vertaaPaivat`, `exCmpLoad`) kertoo vain, ETTÄ linjan aikataulu muuttuu, ei mitä muuttuu. Lisää puhdas funktio
       `linjanEro(a, b)`, joka saa yhden linjan vuorot suunnittain (suunta = patternin `directionId`, kilpi `headsign`,
