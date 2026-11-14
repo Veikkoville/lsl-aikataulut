@@ -140,6 +140,16 @@ function areaRouteIds(bboxStops, cfg, feed) {
 
 const compact = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 const plusDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+
+// Solmupysäkin pulssin päätös. Kaksi lähipäivää (D+7, D+14) ja kaksi kaukopäivää (D+35, D+42), sama viikonpäivä:
+// suurempi arvo kummastakin pariskunnasta, jotta yksittäinen lomaviikko ei näytä kausivaihdolta.
+function pulssiTulos(n7, n14, f35, f42) {
+  const near = Math.max(n7, n14), far = Math.max(f35, f42);
+  const lomaviikko = Math.max(n7, n14) > 0 && Math.abs(n7 - n14) / Math.max(n7, n14) > 0.4;
+  if (near === 0) return { level: "FAIL", lomaviikko };
+  if (far === 0 || Math.abs(far - near) / near > 0.4) return { level: "WARN", lomaviikko };
+  return { level: "PASS", lomaviikko };
+}
 // Viikkoikkuna (30.9.2026): osa presettien linjoista ajaa vain osan viikkoa (Lappeenrannan 12 on pe- ja
 // la-iltojen linja), joten yksi tarkistuspäivä antoi väärän FAILin. Jos päivän vuorot ovat 0, katsotaan
 // saman viikon muut kuusi päivää ennen FAILia tai WARNia. Tavallisessa tapauksessa kyselyjä ei tule lisää.
@@ -298,19 +308,23 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
       const own = (d.stops || []).filter(s => s.gtfsId.startsWith(feed + ":"));
       return days.map(x => own.reduce((n, s) => n + (s["d" + x] || []).reduce((m, g) => m + (g.stoptimes || []).length, 0), 0));
     };
-    let [near, far] = await stopCounts([dNear, dFar]);
-    const week = near === 0;
+    // D+14 ja D+42 samassa kyselyssä: yksittäinen lomaviikko ei saa näyttää kausivaihdolta (pulssiTulos)
+    const dNear14 = compact(plusDays(14)), dFar42 = compact(plusDays(42));
+    let [n7, n14, f35, f42] = await stopCounts([dNear, dNear14, dFar, dFar42]);
+    const week = Math.max(n7, n14) === 0;
     if (week) {
       await sleep(QUERY_GAP_MS);
       const rest = await stopCounts([...weekRest(dNear), ...weekRest(dFar)]);
-      near += rest.slice(0, 6).reduce((a, b) => a + b, 0);
-      far += rest.slice(6).reduce((a, b) => a + b, 0);
+      n7 += rest.slice(0, 6).reduce((a, b) => a + b, 0);
+      f35 += rest.slice(6).reduce((a, b) => a + b, 0);
     }
     const when = d => week ? `viikolla ${d}-` : d;
-    if (near === 0) log("FAIL", key, "solmupysäkki", `"${stopName}" 0 lähtöä ${when(dNear)}`);
-    else if (far === 0 || Math.abs(far - near) / near > 0.4)
+    const p = pulssiTulos(n7, n14, f35, f42);
+    const near = Math.max(n7, n14), far = Math.max(f35, f42);
+    if (p.level === "FAIL") log("FAIL", key, "solmupysäkki", `"${stopName}" 0 lähtöä ${when(dNear)}`);
+    else if (p.level === "WARN")
       log("WARN", key, "solmupysäkki", `"${stopName}" ${near} lähtöä ${when(dNear)} → ${far} lähtöä ${when(dFar)} — kausivaihto tulossa`);
-    else log("PASS", key, "solmupysäkki", `"${stopName}" ${near} → ${far} lähtöä${week ? ` viikolla (${dNear} ei lähtöjä)` : ""}, vakaa`);
+    else log("PASS", key, "solmupysäkki", `"${stopName}" ${near} → ${far} lähtöä${week ? ` viikolla (${dNear} ei lähtöjä)` : ""}, vakaa${p.lomaviikko ? " (lomaviikko?)" : ""}`);
   }
 
   // 4) keskusterminaalien (#/laiturit) nimihaku elää. CONFIG.hubs[].name on ALKUOSAHAKU
@@ -363,4 +377,4 @@ if (require.main === module) (async () => {
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error("kausivalidointi kaatui: " + e.message); process.exit(2); });
 
-module.exports = { classify, extractConfigs, areaRouteIds, tripServiceId };   // extractConfigs: myös tests/datavahti.js
+module.exports = { classify, pulssiTulos, extractConfigs, areaRouteIds, tripServiceId };   // extractConfigs: myös tests/datavahti.js
