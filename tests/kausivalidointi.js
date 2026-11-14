@@ -319,12 +319,13 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
       f35 += rest.slice(6).reduce((a, b) => a + b, 0);
     }
     const when = d => week ? `viikolla ${d}-` : d;
+    // Viikkotilassa n7 ja f35 ovat viikon summia ja n14 on 0, joten lomaviikko-merkintää ei näytetä (PR #170 katselmus 14.11.2026).
     const p = pulssiTulos(n7, n14, f35, f42);
     const near = Math.max(n7, n14), far = Math.max(f35, f42);
     if (p.level === "FAIL") log("FAIL", key, "solmupysäkki", `"${stopName}" 0 lähtöä ${when(dNear)}`);
     else if (p.level === "WARN")
       log("WARN", key, "solmupysäkki", `"${stopName}" ${near} lähtöä ${when(dNear)} → ${far} lähtöä ${when(dFar)} — kausivaihto tulossa`);
-    else log("PASS", key, "solmupysäkki", `"${stopName}" ${near} → ${far} lähtöä${week ? ` viikolla (${dNear} ei lähtöjä)` : ""}, vakaa${p.lomaviikko ? " (lomaviikko?)" : ""}`);
+    else log("PASS", key, "solmupysäkki", `"${stopName}" ${near} → ${far} lähtöä${week ? ` viikolla (${dNear} ei lähtöjä)` : ""}, vakaa${p.lomaviikko && !week ? " (lomaviikko?)" : ""}`);
   }
 
   // 4) keskusterminaalien (#/laiturit) nimihaku elää. CONFIG.hubs[].name on ALKUOSAHAKU
