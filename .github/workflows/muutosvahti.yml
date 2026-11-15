@@ -60,7 +60,9 @@ jobs:
     needs: tuplavahti
     if: needs.tuplavahti.outputs.ohita != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # 15.11.2026: 120 min loppui Turussa (16/18 kaupunkia valmiina). Kun kausivaihto (21.12.) tulee lähiviikoille, voimaantulopäivä
+    # lasketaan jokaiselle tulossa-pysäkille erikseen, ja ajo hidastuu noin kolminkertaiseksi (Lahti 347 s -> 1270 s). GitHubin yläraja on 360.
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
