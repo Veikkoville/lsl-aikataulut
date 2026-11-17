@@ -565,6 +565,19 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 2/3 · työ S · myynti 1/3 · uutuus 0/2 = 7
       Mittari: kausivalidoinnin lokissa on hinnastorivi jokaiselle kaupungille, jolla on `fares`, ja ti 5.1.2027 ajossa vuodenvaihde-WARN
       näkyy jokaiselle kaupungille, jonka hintoja ei ole tarkistettu 1.1. jälkeen · tarkistus 2027-01-12 (pisteet ja mittari: CoS 9.11.)
+- [x] index.html: pyhäkooste etusivulle, vaihe 1 (kärkivuoro, agentin ehdotus 2026-11-17, lähde: teema 1 poikkeukset ennen kuin
+      matkustaja huomaa ne; `#/poikkeukset`-sivun `pyhaLoad` laskee pyhän liikennetyypin feedistä, mutta kuntalainen näkee sen
+      vain jos osaa avata sivun). Kun nimetty pyhä on 7 vrk:n sisällä, etusivun `#lomaNotice`-elementissä on rivi "Joulupäivä
+      25.12.: Ei liikennettä" (tai arkipäivän, lauantain, sunnuntain tai oma poikkeava aikataulu), linkki `#/poikkeukset`.
+      Kaupungit, joilla on oma `CONFIG.exceptions`-lista, eivät saa riviä. Puhdas `pyhaNoticeHtml`, täyttö `fillPyhaNotice`,
+      smoke-koukku `window.__pyhaTesti`. Todennus: smoke (pyhaNoticeHtml kiinteällä aineistolla ja etusivun rivi koukulla).
+      Pisteet: arvo 3/3 · kiire 3/3 · työ S · myynti 1/3 · uutuus 2/2 = 11
+      Mittari: smoke-tarkistus (pyhaNoticeHtml ja etusivun rivi) vihreä CI:ssä; käsin: joulupäivää edeltävällä viikolla etusivulla
+      on pyhärivi kaupungissa ilman omaa poikkeuslistaa · tarkistus 2026-12-26 (PR, 2026-11-17; kärkivuoro, vaihe 1)
+- [ ] index.html: pyhäkooste vaihe 2, sama rivi monitoriin (`#mLoma`) ja linkki pysäkkisivulle. Käytä `fillPyhaNotice`a ja
+      `pyhaNoticeHtml`ia; monitorin päivitys ei saa hakea pyhää joka kierroksella (pyhaCache). Todennus: smoke koukulla monitorissa.
+      Pisteet: arvo 2/3 · kiire 3/3 · työ S · myynti 2/3 · uutuus 2/2 = 9
+      Mittari: smoke-tarkistus (pyhärivi monitorissa koukulla) vihreä CI:ssä · tarkistus 2027-01-12
 
 ## Tehdyt
 
