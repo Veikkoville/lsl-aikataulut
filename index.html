@@ -9279,7 +9279,48 @@ async function fillLomaNotice(el, stopId) {
   if (!Array.isArray(jaksot)) {
     try { jaksot = await stopLomaJaksot(stopId, today); } catch (e) { return; }
   }
-  if (el.isConnected) el.innerHTML = lomaNoticeHtml(jaksot, today, stopId);
+  if (!el.isConnected) return;
+  // Vain oma rivi vaihtuu: etusivun kooste-elementissä on samassa myös pyhärivi (fillPyhaNotice).
+  el.querySelectorAll("[data-loma-notice]").forEach(n => n.remove());
+  el.insertAdjacentHTML("beforeend", lomaNoticeHtml(jaksot, today, stopId));
+}
+// Pyhäkooste etusivulle: kun nimetty pyhä on 7 vrk:n sisällä, yksi rivi pyhän liikennetyypistä (ei liikennettä,
+// arkipäivän, lauantain tai sunnuntain aikataulu, oma poikkeava aikataulu), laskettuna feedistä (pyhaLoad).
+// pyhat: [{ iso, key, tyyppi }]; nimet: HOLIDAY_NAMES[kieli]. Linkki #/poikkeukset-sivulle. Tyhjä, jos pyhää ei ole.
+function pyhaNoticeHtml(pyhat, todayIso, nimet) {
+  const limit = new Date(todayIso + "T12:00:00");
+  limit.setDate(limit.getDate() + 7);
+  const lim = isoOf(limit);
+  const h = (pyhat || []).filter(x => x && x.tyyppi && x.iso >= todayIso && x.iso <= lim)
+    .sort((a, b) => a.iso.localeCompare(b.iso))[0];
+  if (!h) return "";
+  const nimi = (nimet || {})[h.key] || "";
+  const pvm = fmtDayMonthNum(h.iso.replace(/-/g, ""));
+  const tyyppi = t("exType_" + h.tyyppi.replace("-", ""));
+  return `<a class="loma-notice" data-pyha-notice data-ex-type="${esc(h.tyyppi)}" href="#/poikkeukset">${icon("calendar")} ${esc(`${nimi} ${pvm}: ${tyyppi}`.trim())}</a>`;
+}
+// Täyttää etusivun pyhärivin. window.__pyhaTesti ([{iso, key, tyyppi}]) ohittaa feedin (smoke-koukku).
+// Kaupungit, joilla on oma CONFIG.exceptions-lista, eivät saa riviä: niiden lista on käsin tarkistettu.
+async function fillPyhaNotice(el) {
+  if (!el || (CONFIG.exceptions && (CONFIG.exceptions.days || []).length)) return;
+  const today = todayISO();
+  const names = HOLIDAY_NAMES[lang] || HOLIDAY_NAMES.fi;
+  let pyhat = window.__pyhaTesti;
+  if (!Array.isArray(pyhat)) {
+    const yr = +today.slice(0, 4);
+    const hols = [yr - 1, yr, yr + 1].flatMap(namedHolidays);
+    const limit = new Date(today + "T12:00:00");
+    limit.setDate(limit.getDate() + 7);
+    const next = hols.filter(h => h.iso >= today && h.iso <= isoOf(limit)).sort((a, b) => a.iso.localeCompare(b.iso))[0];
+    if (!next) return;
+    try {
+      const r = await pyhaLoad(next.iso, new Set(hols.map(h => h.iso)));
+      pyhat = [{ iso: next.iso, key: next.key, tyyppi: r.tyyppi }];
+    } catch (e) { console.warn("pyhärivi epäonnistui", e); return; }
+  }
+  if (!el.isConnected) return;
+  el.querySelectorAll("[data-pyha-notice]").forEach(n => n.remove());
+  el.insertAdjacentHTML("afterbegin", pyhaNoticeHtml(pyhat, today, names));
 }
 
 // Ryhmittele patternin vuorot TODELLISEN ajopäivä-patternin mukaan (activeDates).
@@ -13419,6 +13460,7 @@ function viewRoutes() {
     CONFIG.deskHomeStop && (CONFIG.deskHomeStop.id || (CONFIG.deskHomeStop.ids || [])[0])));
   // Uusintapainatus-nosto vasta ensimaalauksen jälkeen: se on ainoa nosto joka voi tehdä
   // verkkokyselyitä (yksi per seurattu tuloste), eikä etusivu saa odottaa niitä.
+  onIdle(() => fillPyhaNotice(document.getElementById("lomaNotice")));
   onIdle(() => fillReprintHighlight());
   initNearby(document.getElementById("nearbyBody"));
   document.getElementById("nearbyBtn2")?.addEventListener("click", () => nearbyLocate

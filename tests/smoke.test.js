@@ -3478,6 +3478,40 @@ async function minuuttiLinjaus(page, rootSel, media) {
     (!lomaKaukana && !lomaEi) ? ok("poikkeuskooste: riviä ei ole, kun jaksoa ei ole tai se alkaa yli 14 vrk päästä")
                               : fail(`poikkeuskooste: rivi näkyy väärin (kaukana ${lomaKaukana}, tyhjä ${lomaEi})`);
     await page.evaluate(() => { delete window.__lomaTesti; });
+    // Pyhäkooste: puhdas pyhaNoticeHtml kiinteällä aineistolla (3 vrk päässä oleva pyhä -> rivi ja tyyppi; 10 vrk
+    // päässä tai tyyppi puuttuu -> ei riviä; lähin pyhä voittaa), ja etusivu testikoukulla window.__pyhaTesti
+    // (rivi on samassa elementissä loma-rivin kanssa, tyhjällä listalla riviä ei ole). Koukku poistetaan lopuksi.
+    const pyhaPure = await page.evaluate(() => {
+      const d = o => { const x = new Date(); x.setDate(x.getDate() + o); return isoOf(x); };
+      const today = todayISO();
+      const nimet = { xmas: "Joulupäivä" };
+      const a = pyhaNoticeHtml([{ iso: d(3), key: "xmas", tyyppi: "ei" }], today, nimet);
+      const kaukana = pyhaNoticeHtml([{ iso: d(10), key: "xmas", tyyppi: "ei" }], today, nimet);
+      const ilmanTyyppia = pyhaNoticeHtml([{ iso: d(3), key: "xmas" }], today, nimet);
+      const lahin = pyhaNoticeHtml([{ iso: d(5), key: "xmas", tyyppi: "su" }, { iso: d(2), key: "xmas", tyyppi: "la" }], today, nimet);
+      return {
+        a: /data-pyha-notice/.test(a) && /data-ex-type="ei"/.test(a), kaukana, ilmanTyyppia,
+        lahin: /data-ex-type="la"/.test(lahin) && !/data-ex-type="su"/.test(lahin),
+      };
+    });
+    (pyhaPure.a && pyhaPure.kaukana === "" && pyhaPure.ilmanTyyppia === "" && pyhaPure.lahin)
+      ? ok("pyhaNoticeHtml: rivi 7 vrk:n sisällä, ei riviä kaukana tai ilman tyyppiä, lähin pyhä voittaa")
+      : fail(`pyhaNoticeHtml: väärä tulos ${JSON.stringify(pyhaPure)}`);
+    await page.evaluate(() => {
+      const x = new Date(); x.setDate(x.getDate() + 3);
+      window.__pyhaTesti = [{ iso: isoOf(x), key: "xmas", tyyppi: "su" }];
+    });
+    // Hashin vaihto toiseen näkymään ja takaisin pakottaa etusivun piirtymään uudelleen (sama URL ei piirrä).
+    const pyhaEtusivu = async sel => {
+      await page.goto(BASE + "/#/asetukset", { waitUntil: "networkidle2" });
+      return lomaNakyy("#/", sel);
+    };
+    const pyhaHome = await pyhaEtusivu("#lomaNotice [data-pyha-notice][data-ex-type='su']");
+    await page.evaluate(() => { window.__pyhaTesti = []; });
+    const pyhaEi = await pyhaEtusivu("#lomaNotice [data-pyha-notice]");
+    await page.evaluate(() => { delete window.__pyhaTesti; });
+    (pyhaHome && !pyhaEi) ? ok("pyhäkooste: etusivun rivi näkyy testikoukulla, tyhjällä listalla ei")
+                          : fail(`pyhäkooste: etusivun rivi väärin (rivi ${pyhaHome}, tyhjä lista ${pyhaEi})`);
     await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   }
 
