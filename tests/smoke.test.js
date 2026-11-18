@@ -3512,6 +3512,19 @@ async function minuuttiLinjaus(page, rootSel, media) {
     await page.evaluate(() => { delete window.__pyhaTesti; });
     (pyhaHome && !pyhaEi) ? ok("pyhäkooste: etusivun rivi näkyy testikoukulla, tyhjällä listalla ei")
                           : fail(`pyhäkooste: etusivun rivi väärin (rivi ${pyhaHome}, tyhjä lista ${pyhaEi})`);
+    // Vaihe 2: sama rivi monitorissa (#mLoma), linkki pysäkkisivulle; tyhjällä listalla riviä ei ole.
+    await page.evaluate(() => {
+      const x = new Date(); x.setDate(x.getDate() + 3);
+      window.__pyhaTesti = [{ iso: isoOf(x), key: "xmas", tyyppi: "su" }];
+    });
+    const pyhaMon = await lomaNakyy(monitorHref, "#mLoma [data-pyha-notice][data-ex-type='su']");
+    const pyhaMonHref = pyhaMon ? await page.$eval("#mLoma [data-pyha-notice]", a => a.getAttribute("href")) : "";
+    await page.evaluate(() => { window.__pyhaTesti = []; });
+    const pyhaMonEi = await lomaNakyy(monitorHref, "#mLoma [data-pyha-notice]");
+    await page.evaluate(() => { delete window.__pyhaTesti; });
+    (pyhaMon && /^#\/pysakki\//.test(pyhaMonHref) && !pyhaMonEi)
+      ? ok("pyhäkooste: monitorin rivi näkyy testikoukulla ja linkittää pysäkkisivulle, tyhjällä listalla ei")
+      : fail(`pyhäkooste: monitorin rivi väärin (rivi ${pyhaMon}, linkki ${pyhaMonHref}, tyhjä lista ${pyhaMonEi})`);
     await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   }
 

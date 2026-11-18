@@ -9287,7 +9287,7 @@ async function fillLomaNotice(el, stopId) {
 // Pyhäkooste etusivulle: kun nimetty pyhä on 7 vrk:n sisällä, yksi rivi pyhän liikennetyypistä (ei liikennettä,
 // arkipäivän, lauantain tai sunnuntain aikataulu, oma poikkeava aikataulu), laskettuna feedistä (pyhaLoad).
 // pyhat: [{ iso, key, tyyppi }]; nimet: HOLIDAY_NAMES[kieli]. Linkki #/poikkeukset-sivulle. Tyhjä, jos pyhää ei ole.
-function pyhaNoticeHtml(pyhat, todayIso, nimet) {
+function pyhaNoticeHtml(pyhat, todayIso, nimet, stopId) {
   const limit = new Date(todayIso + "T12:00:00");
   limit.setDate(limit.getDate() + 7);
   const lim = isoOf(limit);
@@ -9297,11 +9297,13 @@ function pyhaNoticeHtml(pyhat, todayIso, nimet) {
   const nimi = (nimet || {})[h.key] || "";
   const pvm = fmtDayMonthNum(h.iso.replace(/-/g, ""));
   const tyyppi = t("exType_" + h.tyyppi.replace("-", ""));
-  return `<a class="loma-notice" data-pyha-notice data-ex-type="${esc(h.tyyppi)}" href="#/poikkeukset">${icon("calendar")} ${esc(`${nimi} ${pvm}: ${tyyppi}`.trim())}</a>`;
+  return `<a class="loma-notice" data-pyha-notice data-ex-type="${esc(h.tyyppi)}" href="${stopId ? "#/pysakki/" + encodeURIComponent(stopId) : "#/poikkeukset"}">${icon("calendar")} ${esc(`${nimi} ${pvm}: ${tyyppi}`.trim())}</a>`;
 }
 // Täyttää etusivun pyhärivin. window.__pyhaTesti ([{iso, key, tyyppi}]) ohittaa feedin (smoke-koukku).
 // Kaupungit, joilla on oma CONFIG.exceptions-lista, eivät saa riviä: niiden lista on käsin tarkistettu.
-async function fillPyhaNotice(el) {
+// stopId (monitori): linkki pysäkkisivulle #/poikkeukset-sivun sijaan. pyhaLoad välimuistittaa tuloksen (pyhaCache),
+// joten monitorin 30 s päivitys ei hae pyhää uudelleen.
+async function fillPyhaNotice(el, stopId) {
   if (!el || (CONFIG.exceptions && (CONFIG.exceptions.days || []).length)) return;
   const today = todayISO();
   const names = HOLIDAY_NAMES[lang] || HOLIDAY_NAMES.fi;
@@ -9320,7 +9322,7 @@ async function fillPyhaNotice(el) {
   }
   if (!el.isConnected) return;
   el.querySelectorAll("[data-pyha-notice]").forEach(n => n.remove());
-  el.insertAdjacentHTML("afterbegin", pyhaNoticeHtml(pyhat, today, names));
+  el.insertAdjacentHTML("afterbegin", pyhaNoticeHtml(pyhat, today, names, stopId));
 }
 
 // Ryhmittele patternin vuorot TODELLISEN ajopäivä-patternin mukaan (activeDates).
@@ -15426,6 +15428,7 @@ async function viewMonitor(stopId) {
   };
   tickClock();
   fillLomaNotice(document.getElementById("mLoma"), stopId);
+  fillPyhaNotice(document.getElementById("mLoma"), stopId);
   monitorTimer = setInterval(tickClock, 1000);
   requestWakeLock();
 
@@ -15438,6 +15441,7 @@ async function viewMonitor(stopId) {
       if (live) live.innerHTML = liveStatusHtml(fresh.cachedAt);
       // Infonäyttö voi olla auki viikkoja: lomarivi päivittyy päivän vaihtuessa (muuten välimuistista).
       fillLomaNotice(document.getElementById("mLoma"), stopId);
+      fillPyhaNotice(document.getElementById("mLoma"), stopId);
     } catch (err) { /* verkkohikka ilman cachea: säilytetään edelliset, yritetään 30 s päästä */ }
   };
   refreshTimer = setInterval(refreshNow, 30000);

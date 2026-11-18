@@ -574,10 +574,10 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 3/3 · työ S · myynti 1/3 · uutuus 2/2 = 11
       Mittari: smoke-tarkistus (pyhaNoticeHtml ja etusivun rivi) vihreä CI:ssä; käsin: joulupäivää edeltävällä viikolla etusivulla
       on pyhärivi kaupungissa ilman omaa poikkeuslistaa · tarkistus 2026-12-26 (PR, 2026-11-17; kärkivuoro, vaihe 1)
-- [ ] index.html: pyhäkooste vaihe 2, sama rivi monitoriin (`#mLoma`) ja linkki pysäkkisivulle. Käytä `fillPyhaNotice`a ja
+- [x] index.html: pyhäkooste vaihe 2, sama rivi monitoriin (`#mLoma`) ja linkki pysäkkisivulle. Käytä `fillPyhaNotice`a ja
       `pyhaNoticeHtml`ia; monitorin päivitys ei saa hakea pyhää joka kierroksella (pyhaCache). Todennus: smoke koukulla monitorissa.
       Pisteet: arvo 2/3 · kiire 3/3 · työ S · myynti 2/3 · uutuus 2/2 = 9
-      Mittari: smoke-tarkistus (pyhärivi monitorissa koukulla) vihreä CI:ssä · tarkistus 2027-01-12
+      Mittari: smoke-tarkistus (pyhärivi monitorissa koukulla) vihreä CI:ssä · tarkistus 2027-01-12 (PR, 2026-11-18)
 
 ## Tehdyt
 
