@@ -3520,6 +3520,8 @@ async function minuuttiLinjaus(page, rootSel, media) {
     const pyhaMon = await lomaNakyy(monitorHref, "#mLoma [data-pyha-notice][data-ex-type='su']");
     const pyhaMonHref = pyhaMon ? await page.$eval("#mLoma [data-pyha-notice]", a => a.getAttribute("href")) : "";
     await page.evaluate(() => { window.__pyhaTesti = []; });
+    // Sama URL ei piirrä monitoria uudelleen: käydään välillä toisessa näkymässä.
+    await page.goto(BASE + "/#/asetukset", { waitUntil: "networkidle2" });
     const pyhaMonEi = await lomaNakyy(monitorHref, "#mLoma [data-pyha-notice]");
     await page.evaluate(() => { delete window.__pyhaTesti; });
     (pyhaMon && /^#\/pysakki\//.test(pyhaMonHref) && !pyhaMonEi)

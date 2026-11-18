@@ -9314,7 +9314,8 @@ async function fillPyhaNotice(el, stopId) {
     const limit = new Date(today + "T12:00:00");
     limit.setDate(limit.getDate() + 7);
     const next = hols.filter(h => h.iso >= today && h.iso <= isoOf(limit)).sort((a, b) => a.iso.localeCompare(b.iso))[0];
-    if (!next) return;
+    // Pyhä meni ohi: viikkoja auki olevan monitorin vanha rivi poistetaan (päivitys ei piirrä näkymää uudelleen).
+    if (!next) { el.querySelectorAll("[data-pyha-notice]").forEach(n => n.remove()); return; }
     try {
       const r = await pyhaLoad(next.iso, new Set(hols.map(h => h.iso)));
       pyhat = [{ iso: next.iso, key: next.key, tyyppi: r.tyyppi }];
