@@ -9302,7 +9302,9 @@ function pyhaNoticeHtml(pyhat, todayIso, nimet, stopId) {
 // Täyttää etusivun pyhärivin. window.__pyhaTesti ([{iso, key, tyyppi}]) ohittaa feedin (smoke-koukku).
 // Kaupungit, joilla on oma CONFIG.exceptions-lista, eivät saa riviä: niiden lista on käsin tarkistettu.
 // stopId (monitori): linkki pysäkkisivulle #/poikkeukset-sivun sijaan. pyhaLoad välimuistittaa tuloksen (pyhaCache),
-// joten monitorin 30 s päivitys ei hae pyhää uudelleen.
+// joten monitorin 30 s päivitys ei hae pyhää uudelleen. Välimuisti tallentaa vain onnistuneen haun, joten epäonnistunut
+// haku (esim. 429) merkitään pyhaVirhe-karttaan, eikä uutta yritystä tehdä 10 minuuttiin.
+const pyhaVirhe = new Map();
 async function fillPyhaNotice(el, stopId) {
   if (!el || (CONFIG.exceptions && (CONFIG.exceptions.days || []).length)) return;
   const today = todayISO();
@@ -9316,10 +9318,11 @@ async function fillPyhaNotice(el, stopId) {
     const next = hols.filter(h => h.iso >= today && h.iso <= isoOf(limit)).sort((a, b) => a.iso.localeCompare(b.iso))[0];
     // Pyhä meni ohi: viikkoja auki olevan monitorin vanha rivi poistetaan (päivitys ei piirrä näkymää uudelleen).
     if (!next) { el.querySelectorAll("[data-pyha-notice]").forEach(n => n.remove()); return; }
+    if (Date.now() - (pyhaVirhe.get(next.iso) || 0) < 600000) return;
     try {
       const r = await pyhaLoad(next.iso, new Set(hols.map(h => h.iso)));
       pyhat = [{ iso: next.iso, key: next.key, tyyppi: r.tyyppi }];
-    } catch (e) { console.warn("pyhärivi epäonnistui", e); return; }
+    } catch (e) { pyhaVirhe.set(next.iso, Date.now()); console.warn("pyhärivi epäonnistui", e); return; }
   }
   if (!el.isConnected) return;
   el.querySelectorAll("[data-pyha-notice]").forEach(n => n.remove());
