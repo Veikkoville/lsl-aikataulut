@@ -517,7 +517,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 · uutuus 0/2 = 5
       Mittari: datavahdin raportissa tarkistus 9 näkyy joka ajossa (OK tai WARN, ei puuttuvana); seuraava Digitransitin
       deprekointi näkyy WARNina vuorokauden sisällä · tarkistus 2027-01-15 (pisteet ja mittari: CoS 26.10.)
-- [ ] tests/muutosvahti.js + index.html: pysäkit, jotka putoavat pois kaupungin pysäkkijoukosta, omaksi listakseen.
+- [x] tests/muutosvahti.js + index.html: pysäkit, jotka putoavat pois kaupungin pysäkkijoukosta, omaksi listakseen.
       Nyt pysäkkijoukko luetaan joka ajossa nykyisten linjapatternien pysäkeistä (rivi noin 392), rivit suodatetaan
       `depsNear || depsFar` -ehdolla (rivi noin 453) ja `hashes` kirjoitetaan vain nykyisille pysäkeille (rivi noin 470).
       Pysäkki, jonka ainoa linja tai linjaversio lakkaa, katoaa raportista ja historiasta ilman mainintaa, vaikka sen
@@ -533,7 +533,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       raportilla eikä näytä sitä tyhjällä listalla; `node --check tests/muutosvahti.js`. (tutkimuskierros 2026-10-30,
       lähde: docs/muutosvahti/*.json git-historia 2026-10-04...2026-10-25)
       Pisteet: arvo 2/3 · kiire 1/3 · työ S · myynti 1/3 · uutuus 1/2 = 7
-      Mittari: sunnuntain ajon jälkeen jokaisen kaupungin raportissa on kenttä `poistuneet` · tarkistus 2026-12-06 (pisteet ja mittari: CoS 30.10.)
+      Mittari: sunnuntain ajon jälkeen jokaisen kaupungin raportissa on kenttä `poistuneet` · tarkistus 2026-12-06 (pisteet ja mittari: CoS 30.10.) (PR, 2026-11-19)
 - [x] index.html: tulostekeskuksen Muutosvahti-välilehdelle lohko "Pysäkit poissa käytöstä tai siirretty" live-häiriöistä.
       Julistekoodi (`stopPosterBlocks`, rivi noin 13611) ja muutosvahti eivät lue häiriöitä, joten kuukausiksi suljettu
       pysäkki näyttää tulostekeskuksessa ajan tasalla olevalta, jos aikataulusyöte antaa sille yhä lähtöjä. Mitattu

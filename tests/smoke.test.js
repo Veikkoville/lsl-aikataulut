@@ -3696,6 +3696,18 @@ async function minuuttiLinjaus(page, rootSel, media) {
     ? ok("pitkatPysakkihairiot: 14 vrk pysäkkihäiriö ja päättymätön yli 14 vrk listalla, lyhyt ja linjahäiriö eivät; virhetila ei ole tyhjä lista")
     : fail(`pitkatPysakkihairiot: ${JSON.stringify(ph)}`);
 
+  // Muutosvahdin poistuneet pysäkit: lohko näkyy kiinteällä listalla ja puuttuu tyhjällä tai puuttuvalla listalla.
+  const gn = await page.evaluate(() => {
+    const box = document.createElement("div");
+    box.innerHTML = poistuneetHtml([{ id: "X:1", name: "Torikatu", code: "H1", lines: ["4", "7"], poistui: "2026-11-22T06:00:00.000Z" }]);
+    return { rows: box.querySelectorAll("[data-gone-stop]").length, block: box.querySelectorAll("[data-gone-stops]").length,
+      link: !!box.querySelector('[data-gone-stop="X:1"] a[href="#/pysakki/X%3A1"]'),
+      empty: poistuneetHtml([]) === "", missing: poistuneetHtml(undefined) === "" };
+  });
+  (gn.rows === 1 && gn.block === 1 && gn.link && gn.empty && gn.missing)
+    ? ok("poistuneetHtml: lohko ja pysäkkirivi linkillä kiinteällä listalla, ei lohkoa tyhjällä tai puuttuvalla listalla")
+    : fail(`poistuneetHtml: ${JSON.stringify(gn)}`);
+
   // --- Datan laaturaportti (#/laatu) ---
   // Oma osio: sivunvaihto keskellä poikkeuspäivien tarkistuksia kaatoi niiden vertailuosion (22.10.2026).
   // Luokittelu kiinteällä aineistolla; reitti on henkilöstöreitti, joka ohjaa
