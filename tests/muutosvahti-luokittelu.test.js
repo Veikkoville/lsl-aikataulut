@@ -2,7 +2,7 @@
 // aluerajatun kaupungin (areaScoped) pysäkkijoukko.
 // Ajo: node tests/muutosvahti-luokittelu.test.js   (osa npm testiä)
 const { classifyNear, firstChangeDay, addDays, areaSelection, inMunicipality, extractConfigs,
-  onPyha, pyhapaivat, representativeDays, prevPyhaviikko, w1Valinta } = require("./muutosvahti.js");
+  onPyha, pyhapaivat, representativeDays, prevPyhaviikko, w1Valinta, poistuneetPysakit } = require("./muutosvahti.js");
 
 let ok = 0, fail = 0;
 function tarkista(nimi, saatu, odotettu) {
@@ -163,6 +163,22 @@ tarkista("Inkoo: Siuntio matkahuolto on suorakaiteessa mutta ei kunnassa",
 tarkista("Inkoo: Kamppi (Helsinki) ei ole kunnassa", inMunicipality(60.1690, 24.9316, inkoo.area), false);
 tarkista("Inkoo: tien 25 pysäkit Svartå vs V ja Salo-Inkoo-liittymä L ovat kunnassa",
   [inMunicipality(60.134422, 23.8682159, inkoo.area), inMunicipality(60.132644, 23.853085, inkoo.area)], [true, true]);
+
+// --- Poistuneet pysäkit ---
+const AJO = "2026-11-22T06:00:00.000Z";
+const rivi = (id, name) => ({ id, name, code: "", lines: ["4"] });
+const prevR = { pysakit: [rivi("A", "Alku"), rivi("B", "Beeta")], poistuneet: [] };
+tarkista("Poistuneet: pysäkki edellisessä, ei uudessa -> listalla",
+  poistuneetPysakit(prevR, [rivi("A", "Alku")], AJO).map(r => [r.id, r.poistui]), [["B", AJO]]);
+tarkista("Poistuneet: palannut pysäkki -> ei listalla",
+  poistuneetPysakit({ pysakit: [rivi("A", "Alku")], poistuneet: [{ ...rivi("B", "Beeta"), poistui: "2026-11-15T06:00:00.000Z" }] },
+    [rivi("A", "Alku"), rivi("B", "Beeta")], AJO), []);
+tarkista("Poistuneet: 27 vrk sitten poistunut säilyy alkuperäisellä päivällä, 29 vrk sitten poistunut pois",
+  poistuneetPysakit({ pysakit: [], poistuneet: [{ ...rivi("C", "Ceeta"), poistui: "2026-10-26T06:00:00.000Z" },
+    { ...rivi("D", "Deeta"), poistui: "2026-10-24T06:00:00.000Z" }] }, [], AJO).map(r => [r.id, r.poistui]),
+  [["C", "2026-10-26T06:00:00.000Z"]]);
+tarkista("Poistuneet: edellinen raportti puuttuu -> tyhjä lista", poistuneetPysakit(null, [rivi("A", "Alku")], AJO), []);
+tarkista("Poistuneet: vanha raportti ilman poistuneet-kenttää ei kaada", poistuneetPysakit({ pysakit: [rivi("A", "Alku")] }, [], AJO).length, 1);
 
 console.log(`\nmuutosvahdin luokittelu: ${ok} OK, ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

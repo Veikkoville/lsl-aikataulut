@@ -372,6 +372,24 @@ async function areaStops(key, cfg, feed, router) {
   return new Map(sel.stops.map(s => [s.id, s]));
 }
 
+// Pysäkit, jotka olivat edellisessä raportissa (lähtöjä) mutta eivät ole nyt: pysäkin ainoa linja tai linjaversio
+// lakkasi, jolloin rivi katoaisi raportista ilman mainintaa vaikka katoksessa on yhä juliste. Edellisen raportin
+// `poistuneet`-rivit säilyvät 28 vrk (kunnes palaavat riveihin). ajettu = ISO-aikaleima.
+const POISTUNUT_SAILYY_MS = 28 * 86400000;
+function poistuneetPysakit(prev, rows, ajettu) {
+  if (!prev) return [];
+  const nyt = new Set((rows || []).map(r => r.id));
+  const out = new Map();
+  for (const r of prev.pysakit || [])
+    if (!nyt.has(r.id)) out.set(r.id, { id: r.id, name: r.name, code: r.code || "", lines: r.lines || [], poistui: ajettu });
+  const raja = new Date(ajettu).getTime() - POISTUNUT_SAILYY_MS;
+  for (const r of prev.poistuneet || []) {
+    const t = new Date(r.poistui).getTime();
+    if (!nyt.has(r.id) && !out.has(r.id) && t > raja) out.set(r.id, { id: r.id, name: r.name, code: r.code || "", lines: r.lines || [], poistui: r.poistui });
+  }
+  return [...out.values()].sort((a, b) => a.name.localeCompare(b.name, "fi") || a.id.localeCompare(b.id));
+}
+
 async function runCity(key, cfg, feedsByRouter) {
   const router = cfg.router || "waltti";
   if (!feedsByRouter[router]) {
@@ -469,19 +487,22 @@ async function runCity(key, cfg, feedsByRouter) {
 
   const hashes = {};
   for (const id of ids) if (baseSig.get(id)) hashes[id] = baseSig.get(id).hash;
+  const ajettu = new Date().toISOString();
+  const poistuneet = poistuneetPysakit(prev, rows, ajettu);
   const report = {
-    city: key, ajettu: new Date().toISOString(), edellinen: prev?.ajettu || null, pyhasaanto: 1,
+    city: key, ajettu, edellinen: prev?.ajettu || null, pyhasaanto: 1,
     paivat: { near: { tue: iso(near.sig.tue), sat: iso(near.sig.sat), sun: iso(near.sig.sun) }, near2: iso(near2.tue),
       far: { tue: iso(far.sig.tue), sat: iso(far.sig.sat), sun: iso(far.sig.sun) }, far2: iso(far2.tue),
       korvattu: Object.fromEntries(Object.entries({ near, near2, far, far2 }).filter(([, h]) => Object.keys(h.korvattu).length).map(([n, h]) => [n, h.korvattu])) },
     yhteenveto: { pysakkeja: rows.length, tulossa: changedIds.length, muuttunut: rows.filter(r => r.muuttunut).length,
-      poikkeus: rows.filter(r => r.poikkeus).length,
+      poikkeus: rows.filter(r => r.poikkeus).length, poistuneet: poistuneet.length,
       poikkeusviikot: { near: { pvm: iso(near.tue), n: rows.filter(r => r.poikkeus === "near").length },
                         near2: { pvm: iso(near2.tue), n: rows.filter(r => r.poikkeus === "near2").length },
                         far: { pvm: iso(far.tue), n: rows.filter(r => r.poikkeus === "far").length },
                         far2: { pvm: iso(far2.tue), n: rows.filter(r => r.poikkeus === "far2").length } },
       voimaan, voimaanTarkka },
     pysakit: rows,
+    poistuneet,
     hashes,
   };
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -490,7 +511,7 @@ async function runCity(key, cfg, feedsByRouter) {
 }
 
 module.exports = { classifyNear, firstChangeDay, addDays, pointInRing, inMunicipality, areaSelection, extractConfigs,
-  onPyha, pyhapaivat, representativeDays, prevPyhaviikko, w1Valinta };
+  onPyha, pyhapaivat, representativeDays, prevPyhaviikko, w1Valinta, poistuneetPysakit };
 
 if (require.main === module) (async () => {
   const configs = extractConfigs();

@@ -5427,6 +5427,9 @@ const STRINGS = {
     closedOpen: "päättymisaika ei tiedossa",
     closedPoster: "juliste",
     closedFail: "Häiriötietoja ei saatu.",
+    goneTitle: "Pysäkit ilman lähtöjä: poista tai vaihda juliste",
+    goneIntro: "Näillä pysäkeillä oli lähtöjä edellisessä tarkistuksessa, mutta ei enää. Jos katoksessa on juliste, poista se tai vaihda se.",
+    goneSince: "poistui {date}",
     changesSummary: "Tarkistettu {date}: {n} pysäkkiä. Vanhentuneita julisteita {now}, vanhenemassa {soon}{eff}.{week}",
     changesWeek: " Yhden viikon poikkeus viikolla {date}: {n} pysäkkiä (ei pysyvä muutos, ei tulosteta uudelleen).",
     changesEffective: " (voimaan {date})",
@@ -6397,6 +6400,9 @@ const STRINGS = {
     closedOpen: "end date not known",
     closedPoster: "poster",
     closedFail: "Disruption notices could not be loaded.",
+    goneTitle: "Stops without departures: remove or replace the poster",
+    goneIntro: "These stops had departures in the previous check but no longer do. If the shelter has a poster, remove or replace it.",
+    goneSince: "gone since {date}",
     changesSummary: "Checked {date}: {n} stops. Out-of-date posters {now}, expiring {soon}{eff}.{week}",
     changesWeek: " Single-week exception in the week of {date}: {n} stops (not a permanent change, no reprint needed).",
     changesEffective: " (effective {date})",
@@ -7336,6 +7342,9 @@ const STRINGS = {
     closedOpen: "slutdatum okänt",
     closedPoster: "affisch",
     closedFail: "Störningsmeddelanden kunde inte hämtas.",
+    goneTitle: "Hållplatser utan avgångar: ta bort eller byt affisch",
+    goneIntro: "Dessa hållplatser hade avgångar vid förra kontrollen men inte längre. Om hållplatsen har en affisch, ta bort eller byt den.",
+    goneSince: "borta sedan {date}",
     changesSummary: "Kontrollerat {date}: {n} hållplatser. Föråldrade affischer {now}, föråldras snart {soon}{eff}.{week}",
     changesWeek: " Undantag på en vecka, veckan {date}: {n} hållplatser (ingen varaktig ändring, ingen ny utskrift behövs).",
     changesEffective: " (gäller från {date})",
@@ -17229,6 +17238,14 @@ function pitkatHairiotHtml(items, names, virhe) {
         <span class="muted">${esc((n && n.code) || "")}</span> ${esc(x.otsikko)}
         <span class="muted">(${x.loppu ? t("closedUntil", { date: fmtDateLong(iso(x.loppu)) }) : t("closedOpen")}) <a href="#/pysakki/${encodeURIComponent(x.stopId)}">${t("closedPoster")}</a></span></li>`; }).join("")}</ul></div>`;
 }
+// Muutosvahdin `poistuneet`-lista (tests/muutosvahti.js): pysäkit, jotka putosivat pois lähtöjä tarjoavien joukosta.
+// Tyhjä tai puuttuva lista -> ei lohkoa. items: [{ id, name, code, lines, poistui }].
+function poistuneetHtml(items) {
+  if (!items || !items.length) return "";
+  return `<div class="gone-stops" data-gone-stops><h3>${t("goneTitle")}</h3><p class="muted">${t("goneIntro")}</p>
+    <ul class="plain">${items.map(x => `<li data-gone-stop="${esc(x.id)}"><a href="#/pysakki/${encodeURIComponent(x.id)}">${esc(x.name || x.id)}</a>
+      <span class="muted">${esc(x.code || "")} ${(x.lines || []).map(esc).join(", ")} (${t("goneSince", { date: fmtDateLong(String(x.poistui || "").slice(0, 10)) })})</span></li>`).join("")}</ul></div>`;
+}
 async function bindClosedStops(box) {
   try {
     const items = pitkatPysakkihairiot(await loadAlerts(), Date.now() / 1000);
@@ -17266,6 +17283,8 @@ function bindChangesTab() {
       const j = await r.json();
       rows = (j.pysakit || []).slice().sort((a, b) =>
         (b.muuttunut - a.muuttunut) || (b.tulossa - a.tulossa) || a.name.localeCompare(b.name, "fi"));
+      const goneBox = document.getElementById("chgGone");
+      if (goneBox) goneBox.innerHTML = poistuneetHtml(j.poistuneet);
       const y = j.yhteenveto || {};
       sum.textContent = t("changesSummary", {
         date: fmtDateLong((j.ajettu || "").slice(0, 10)), n: y.pysakkeja ?? rows.length,
@@ -26623,6 +26642,7 @@ async function viewPrintCenter(tab, query) {
         <p class="muted">${t("changesIntro")}</p>
         <p class="muted" id="chgSummary" role="status">${t("changesLoading")}</p>
         <div id="chgClosed"></div>
+        <div id="chgGone"></div>
         <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin:0.5rem 0">
           <input type="search" id="chgFilter" placeholder="${t("routeFilterPlaceholder")}" aria-label="${t("routeFilterAria")}">
           <button type="button" id="chgSelNow" class="linkish">${t("changesSelectNow")}</button>
