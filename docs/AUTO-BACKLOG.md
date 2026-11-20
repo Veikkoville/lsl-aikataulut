@@ -550,7 +550,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: (lukittu) arvo 2/3 · kiire 1/3 · työ M · myynti 2/3 · uutuus 1/2 = 7 (lukitus: ylläpitäjä 2026-11-11, retro 9.11.: virhe näkyy
       tuotannossa, muutosvahti 8.11. piti Kuopion poistuneen pysäkin muuttumattomana)
       Mittari: Muutosvahti-välilehdellä lohko näkyy tuotannossa vähintään kahdessa kaupungissa · tarkistus 2026-12-06 (pisteet ja mittari: CoS 30.10.) (PR, 2026-11-12)
-- [ ] tests/kausivalidointi.js: uusi tarkistus 5, hinnaston tarkistuspäivä. Lippujen hinnat ovat CONFIGSissa käsin luettuja:
+- [x] tests/kausivalidointi.js: uusi tarkistus 5, hinnaston tarkistuspäivä. Lippujen hinnat ovat CONFIGSissa käsin luettuja:
       19 kaupungin `fares.checked` on 25.8.-11.10.2026, kahdessa muodossa ("4.10.2026" ja "2026-09-23"), ja tiski tulostaa ne
       (`table.desk-fares`). Mikään ajo ei kerro, kun hinnasto vanhenee: yksi CONFIGS-kaupunki käsitteli 3.11.2026 lippujen
       asiakashinnat 1.1.2027 alkaen, ja saman kaupungin kaksi edellistä korotusta tulivat voimaan vuodenvaihteessa. Lisää puhdas
@@ -564,7 +564,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       2026-11-02 ja index.html CONFIGS `fares.checked`)
       Pisteet: arvo 2/3 · kiire 2/3 · työ S · myynti 1/3 · uutuus 0/2 = 7
       Mittari: kausivalidoinnin lokissa on hinnastorivi jokaiselle kaupungille, jolla on `fares`, ja ti 5.1.2027 ajossa vuodenvaihde-WARN
-      näkyy jokaiselle kaupungille, jonka hintoja ei ole tarkistettu 1.1. jälkeen · tarkistus 2027-01-12 (pisteet ja mittari: CoS 9.11.)
+      näkyy jokaiselle kaupungille, jonka hintoja ei ole tarkistettu 1.1. jälkeen · tarkistus 2027-01-12 (pisteet ja mittari: CoS 9.11.) (PR, 2026-11-20)
 - [x] index.html: pyhäkooste etusivulle, vaihe 1 (kärkivuoro, agentin ehdotus 2026-11-17, lähde: teema 1 poikkeukset ennen kuin
       matkustaja huomaa ne; `#/poikkeukset`-sivun `pyhaLoad` laskee pyhän liikennetyypin feedistä, mutta kuntalainen näkee sen
       vain jos osaa avata sivun). Kun nimetty pyhä on 7 vrk:n sisällä, etusivun `#lomaNotice`-elementissä on rivi "Joulupäivä
