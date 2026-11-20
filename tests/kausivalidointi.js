@@ -17,6 +17,8 @@
 //  4) Keskusterminaalien nimihaku (CONFIG.hubs): jokaisen hub.name-alkuosahaun on
 //     osuttava ≥ 2 pysäkkiin joilla on linjoja (FAIL jos 0, WARN jos 1). Lisätty
 //     14.8.2026 kun #/laiturit laajeni Lahdesta 11 kaupunkiin.
+//  5) Hinnaston tarkistuspäivä (CONFIG.fares.checked, hinnastoTulos): WARN yli 180 vrk
+//     ja vuodenvaihteessa tarkistamattomana, FAIL yli 365 vrk. Ei verkkokutsuja.
 //
 // Kiintiökuri (opit 10.–11.8.): kyselyt ovat kevyitä GraphQL-kutsuja (ei
 // sivulatauksia), kaupunkien välissä tauko, ja ajastus eri päivälle/ajalle kuin
@@ -150,6 +152,27 @@ function pulssiTulos(n7, n14, f35, f42) {
   if (far === 0 || Math.abs(far - near) / near > 0.4) return { level: "WARN", lomaviikko };
   return { level: "PASS", lomaviikko };
 }
+// Hinnaston tarkistuspäivä (CONFIG.fares.checked, käsin kirjattu; muodot "4.10.2026" ja "2026-09-23").
+// Ei verkkokutsuja. Päätös: ei jäsenny -> WARN; yli 365 vrk -> FAIL; yli 180 vrk -> WARN; tarkistettu ennen
+// kuluvan vuoden 1.1. ja tänään on 1.1.-31.3. -> WARN (hintamuutokset tulevat usein vuodenvaihteessa); muuten PASS.
+function hinnastoTulos(checked, tanaan) {
+  const s = String(checked || "").trim();
+  let m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/), y, mo, d;
+  if (m) { d = +m[1]; mo = +m[2]; y = +m[3]; }
+  else if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/))) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else return { level: "WARN", syy: `tarkistuspäivä "${s}" ei jäsenny` };
+  const c = new Date(Date.UTC(y, mo - 1, d));
+  if (c.getUTCFullYear() !== y || c.getUTCMonth() !== mo - 1 || c.getUTCDate() !== d)
+    return { level: "WARN", syy: `tarkistuspäivä "${s}" ei jäsenny` };
+  const t = new Date(Date.UTC(tanaan.getFullYear(), tanaan.getMonth(), tanaan.getDate()));
+  const paivia = Math.floor((t - c) / 86400000);
+  if (paivia > 365) return { level: "FAIL", paivia, syy: `hinnat tarkistettu ${s}, ${paivia} vrk sitten` };
+  if (paivia > 180) return { level: "WARN", paivia, syy: `hinnat tarkistettu ${s}, ${paivia} vrk sitten` };
+  if (t.getUTCMonth() < 3 && c < new Date(Date.UTC(t.getUTCFullYear(), 0, 1)))
+    return { level: "WARN", paivia, syy: `vuodenvaihde: hinnat tarkistamatta (tarkistettu ${s})` };
+  return { level: "PASS", paivia, syy: `hinnat tarkistettu ${s} (${paivia} vrk sitten)` };
+}
+
 // Viikkoikkuna (30.9.2026): osa presettien linjoista ajaa vain osan viikkoa (Lappeenrannan 12 on pe- ja
 // la-iltojen linja), joten yksi tarkistuspäivä antoi väärän FAILin. Jos päivän vuorot ovat 0, katsotaan
 // saman viikon muut kuusi päivää ennen FAILia tai WARNia. Tavallisessa tapauksessa kyselyjä ei tule lisää.
@@ -175,6 +198,11 @@ async function runCity(key, cfg, feedsByRouter, baseline, dNear, dFar) {
   }
   const feeds = feedsByRouter[router];
   const q = (query, variables) => gql(query, variables, router);
+  // 5) hinnaston tarkistuspäivä (ei verkkokutsuja, ajetaan ennen feedihakuja)
+  if (cfg.fares) {
+    const h = hinnastoTulos(cfg.fares.checked, new Date());
+    log(h.level, key, "hinnasto", h.syy);
+  }
   const feed = feeds.find(f => cfg.feedMatch.test(f));
   if (!feed) { log("FAIL", key, "feed", `feedMatch ei osu yhteenkään feediin (router ${router}, ${feeds.length} feediä)`); return; }
 
@@ -378,4 +406,4 @@ if (require.main === module) (async () => {
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error("kausivalidointi kaatui: " + e.message); process.exit(2); });
 
-module.exports = { classify, pulssiTulos, extractConfigs, areaRouteIds, tripServiceId };   // extractConfigs: myös tests/datavahti.js
+module.exports = { classify, pulssiTulos, hinnastoTulos, extractConfigs, areaRouteIds, tripServiceId };   // extractConfigs: myös tests/datavahti.js
