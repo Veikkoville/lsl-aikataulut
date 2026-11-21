@@ -114,7 +114,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
       Mittari: smoke-tarkistus (vastaus 503 -> .err-retry, näkyvässä tekstissä ei HTTP eikä Failed, uusinta palauttaa
       lähdöt) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-10-28)
-- [ ] index.html: kuntalaisnäkymän (`APP_MODE === "resident"`) etusivulla ei näytetä henkilöstön reittejä.
+- [x] index.html: kuntalaisnäkymän (`APP_MODE === "resident"`) etusivulla ei näytetä henkilöstön reittejä.
       Nyt `homeToolGroupsHtml` (rivi noin 11751) näyttää linkit "Tulosteet ja näytöt" (`#/tulosteet/...`) ja
       `#/uusintapainatus`, mutta `route()` (rivi noin 25737) ohjaa `STAFF_ROUTES`-reitit kuntalaistilassa
       etusivulle, joten linkit ovat kuolleita. Suodata `homeToolGroupsHtml`:ssä pois linkit, joiden reitin
@@ -124,7 +124,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       (auditointi 2026-10-08, lähde: tuotantoklikkaus + koodi)
       Pisteet: arvo 2/3 · kiire 1/3 · työ S · myynti 1/3 = 6
       Mittari: smoke-tarkistus kuntalaistilan etusivusta (0 linkkiä STAFF_ROUTES-reitteihin, henkilöstötilassa linkit
-      mukana) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
+      mukana) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-11-21)
 - [ ] tests/smoke.test.js: saavutettavuuden perustarkistus ilman uusia riippuvuuksia. Uusi apufunktio
       `a11yPerus(page, label)` laskee näkyvästä DOMista: (1) `input`, `select` ja `textarea` ilman saavutettavaa
       nimeä (label[for], ympäröivä label, aria-label, aria-labelledby), (2) `button` ja `a[href]` ilman tekstiä tai
