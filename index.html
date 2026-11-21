@@ -12573,7 +12573,12 @@ function initNearby(body) {
 // fares minimi-CONFIG-kaupungeissa) jäävät pois, ja kokonaan tyhjä ryhmä piilotetaan kokonaan
 // (ei tyhjää otsikkoa) — sama tyhjätila-logiikka kuin häiriölohkoilla.
 function homeToolGroupsHtml() {
-  const tool = (href, ic, label) => `<a class="tool" href="${href}">${icon(ic)}<span>${label}</span></a>`;
+  // Kuntalaistilassa henkilöstöreitit ohjataan etusivulle (route()), joten linkki olisi kuollut: jätetään pois.
+  const tool = (href, ic, label) => {
+    const first = href.replace(/^#\//, "").split(/[/?]/)[0];
+    if (APP_MODE === "resident" && STAFF_ROUTES.has(first)) return "";
+    return `<a class="tool" href="${href}">${icon(ic)}<span>${label}</span></a>`;
+  };
   const group = (titleKey, items) => {
     const list = items.filter(Boolean);
     if (!list.length) return "";   // kaikki napit puuttuvat → ei ryhmää lainkaan

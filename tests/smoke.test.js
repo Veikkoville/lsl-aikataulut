@@ -3765,6 +3765,28 @@ async function minuuttiLinjaus(page, rootSel, media) {
     ? (laatuNakyma.hash === "#/" || laatuNakyma.hash === "" ? ok("laatu: kuntalaistilassa reitti ohjaa etusivulle") : fail(`laatu: kuntalaistila ei ohjannut: ${laatuNakyma.hash}`))
     : (laatuNakyma.secs === laatuNakyma.odotetut && laatuNakyma.csv ? ok("laatu: osiot (lähdöttömät, vain saapuvat, kaksikielisessä ruotsinkielinen nimi) ja CSV-nappi") : fail(`laatu: ${JSON.stringify(laatuNakyma)}`));
 
+  // --- Etusivun pikavalinnat: kuntalaistilassa ei linkkejä henkilöstöreiteille, henkilöstötilassa ne ovat mukana ---
+  for (const nakyma of ["kuntalainen", "henkilosto"]) {
+    await page.goto(BASE + "/?city=lahti&nakyma=" + nakyma + "#/", { waitUntil: "networkidle2" });
+    await page.waitForSelector("a.tool", { timeout: 20000 }).catch(() => {});
+    const tl = await page.evaluate(() => {
+      const first = a => a.getAttribute("href").replace(/^#\//, "").split(/[/?]/)[0];
+      const html = homeToolGroupsHtml();
+      const d = document.createElement("div"); d.innerHTML = html;
+      const tulostetut = [...d.querySelectorAll("a.tool")].map(first);
+      return { mode: APP_MODE, henkilosto: tulostetut.filter(p => STAFF_ROUTES.has(p)).length, kaikki: tulostetut.length };
+    });
+    if (nakyma === "kuntalainen") {
+      tl.mode === "resident" && tl.kaikki > 0 && tl.henkilosto === 0
+        ? ok("etusivu: kuntalaistilan pikavalinnoissa ei henkilöstöreittejä")
+        : fail(`etusivu kuntalainen: ${JSON.stringify(tl)}`);
+    } else {
+      tl.mode === "staff" && tl.henkilosto > 0
+        ? ok("etusivu: henkilöstötilan pikavalinnoissa henkilöstöreitit mukana")
+        : fail(`etusivu henkilöstö: ${JSON.stringify(tl)}`);
+    }
+  }
+
   // --- Palaute / vikailmoitus (lomake + tyhjän validointi, ei lähetetä verkkoon) ---
   await page.goto(BASE + "/#/palaute", { waitUntil: "networkidle2" });
   if (await expect("#fbForm #fbMsg", "palaute: lomake latautuu")) {
