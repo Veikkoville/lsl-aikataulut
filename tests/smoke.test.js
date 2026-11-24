@@ -179,6 +179,40 @@ async function minuuttiLinjaus(page, rootSel, media) {
   (layer && layer.hls >= 2 && layer.bilingual && layer.print && layer.journeyFields)
     ? ok(`etusivu (Lahti, layer): arvolupaus-hero + ${layer.hls} nostoa + A->B toissijaisena`)
     : fail("etusivu (Lahti, layer): layer-hero puuttuu/vajaa: " + JSON.stringify(layer));
+  // Ehdotuslistojen combobox (vaihe 1): etusivun Mistä- ja Minne-kentät ovat ARIA-comboboxeja, lista on listbox,
+  // nuoli alas siirtää aktiivista vaihtoehtoa fokuksen pysyessä kentässä ja Enter valitsee sen.
+  const cbRoles = await page.evaluate(() => ["homeFromInput", "homeToInput"].map(id => {
+    const i = document.getElementById(id); const l = i && document.getElementById(i.getAttribute("aria-controls") || "");
+    return !!i && i.getAttribute("role") === "combobox" && !!l && l.getAttribute("role") === "listbox";
+  }));
+  cbRoles.every(Boolean)
+    ? ok("etusivu: Mistä ja Minne ovat combobox + listbox")
+    : fail("etusivu: combobox-roolit puuttuvat: " + JSON.stringify(cbRoles));
+  await page.evaluate(() => { planState.from = null; const f = document.getElementById("homeFromInput"); f.value = ""; f.focus(); });
+  await page.keyboard.type("Kauppatori");
+  const cbOpts = await page.waitForFunction(() => document.querySelectorAll("#homeFromList [role=option]").length >= 2, { timeout: 15000 })
+    .then(() => true).catch(() => false);
+  if (!cbOpts) fail("etusivu: combobox ei näyttänyt vähintään kahta ehdotusta");
+  else {
+    await page.keyboard.press("ArrowDown");
+    const cbNav = await page.evaluate(() => {
+      const f = document.getElementById("homeFromInput");
+      const opts = [...document.querySelectorAll("#homeFromList [role=option]")];
+      const act = document.getElementById(f.getAttribute("aria-activedescendant") || "");
+      return { focusInInput: document.activeElement === f, expanded: f.getAttribute("aria-expanded"),
+        activeIdx: opts.indexOf(act), selected: opts.filter(o => o.getAttribute("aria-selected") === "true").length };
+    });
+    (cbNav.focusInInput && cbNav.expanded === "true" && cbNav.activeIdx === 1 && cbNav.selected === 1)
+      ? ok("etusivu: combobox, nuoli alas siirtää aktiivista vaihtoehtoa fokus kentässä")
+      : fail("etusivu: combobox-nuolinäppäin: " + JSON.stringify(cbNav));
+    await page.keyboard.press("Enter");
+    const cbPick = await page.evaluate(() => ({ list: document.getElementById("homeFromList").hidden,
+      expanded: document.getElementById("homeFromInput").getAttribute("aria-expanded"), picked: !!planState.from }));
+    (cbPick.list && cbPick.expanded === "false" && cbPick.picked)
+      ? ok("etusivu: combobox, Enter valitsee aktiivisen ehdotuksen ja sulkee listan")
+      : fail("etusivu: combobox-Enter: " + JSON.stringify(cbPick));
+  }
+  await page.evaluate(() => { planState.from = null; planState.to = null; document.getElementById("homeFromInput").value = ""; });
   // Saavutettavuus (näppäimistö): ensimmäinen Tab vie ohituslinkkiin, hakukentän fokus näkyy vähintään 2 px
   // renkaana (kentän outline on pois, rengas on kehyksessä) ja reaaliaikamerkillä on sr-only-vastine.
   await page.evaluate(() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); });

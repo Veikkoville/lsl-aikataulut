@@ -249,13 +249,13 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       `document.documentElement.scrollWidth <= innerWidth`. (tuotekehityksen kärki 2026-10-08, P5, lähde: auditointi)
       Pisteet: arvo 3/3 · kiire 1/3 · työ S · myynti 1/3 · uutuus 0/2 = 8
       Mittari: smoke 320 px suurimmalla tekstikoolla vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 7.11.) (PR, 2026-11-13)
-- [ ] index.html: ehdotuslistojen combobox, vaihe 1 (ylläpitäjän päätös 2026-11-07, vaihtoehto a). Jaa tiskin haun combobox-
+- [x] index.html: ehdotuslistojen combobox, vaihe 1 (ylläpitäjän päätös 2026-11-07, vaihtoehto a). Jaa tiskin haun combobox-
       apufunktio (rivi noin 21159) ja siirrä `bindPlaceInput` (rivi noin 17666) siihen etusivun lähtö- ja määränpääkentässä:
       fokus pysyy kentässä, `aria-activedescendant`, lista `role="listbox"`, rivit `role="option"`. Muut kentät säilyvät
       ennallaan tässä vaiheessa. Todennus: smoke etusivulla: kentällä `role="combobox"`, listalla `role="listbox"` kun
       ehdotuksia näkyy, nuolinäppäimet ja Enter valitsevat ehdotuksen. (P5, lähde: auditointi)
       Pisteet: arvo 3/3 · kiire 1/3 · työ L · myynti 1/3 · uutuus 0/2 = 6
-      Mittari: combobox- ja listbox-roolit ja näppäinpolku vihreänä smokessa CI:ssä · tarkistus 2026-12-07 (pisteet ja mittari: CoS 7.11.)
+      Mittari: combobox- ja listbox-roolit ja näppäinpolku vihreänä smokessa CI:ssä · tarkistus 2026-12-07 (pisteet ja mittari: CoS 7.11.) (PR, 2026-11-24)
 - [ ] index.html: ehdotuslistojen combobox, vaihe 2: reittihaun lähtö- ja määränpääkenttä ja pysäkkihaut samaan apufunktioon.
       Aloita vasta, kun vaihe 1 on tuotannossa.
       Pisteet: arvo 3/3 · kiire 1/3 · työ L · myynti 1/3 · uutuus 0/2 = 6

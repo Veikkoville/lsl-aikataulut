@@ -13523,11 +13523,11 @@ function viewRoutes() {
   };
   // Erä C (C4): Enter valitsee ehdotuksen; Mistä -> Minne, ja kun molemmat on valittu, haku käynnistyy.
   // Koko lause Mistä-kentässä jää luonnollisen kielen käsittelijälle (skipEnter).
-  bindPlaceInput(homeFrom, document.getElementById("homeFromList"), p => { planState.from = p; }, { selected: () => planState.from,
+  bindPlaceInput(homeFrom, document.getElementById("homeFromList"), p => { planState.from = p; }, { selected: () => planState.from, combobox: true,
     skipEnter: v => { const pp = parseNlTrip(v); return !!(pp.from && pp.to); },
     onEnter: () => { if (planState.to) runHome(); else homeTo.focus(); },
   });
-  bindPlaceInput(homeTo, document.getElementById("homeToList"), p => { planState.to = p; }, { selected: () => planState.to,
+  bindPlaceInput(homeTo, document.getElementById("homeToList"), p => { planState.to = p; }, { selected: () => planState.to, combobox: true,
     onEnter: () => { if (planState.from) runHome(); else homeFrom.focus(); },
   });
   // Koko lause Mistä-kentässä (esim. "Matkakeskukselta Kauppatorille") → jäsennä + aja heti
@@ -17824,7 +17824,32 @@ function bindPlaceInput(input, listEl, onPick, opts = {}) {
   // current = tämän kentän viimeisin valinta; opts.selected() = kentän paikka tilasta (jaettu linkki, suunnan vaihto).
   let timer = null, seq = 0, current = null, enterWanted = false;
   const selectedNow = () => { const p = opts.selected ? opts.selected() : current; return p && p.name === input.value ? p : null; };
-  const close = () => { listEl.innerHTML = ""; listEl.hidden = true; };
+  // opts.combobox: ARIA-combobox (fokus pysyy kentässä, nuolet liikuttavat aktiivista vaihtoehtoa
+  // aria-activedescendantilla, lista role=listbox, rivit role=option). Ilman lippua vanha toiminta.
+  const cb = !!opts.combobox;
+  if (cb) {
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-expanded", "false");
+    if (listEl.id) input.setAttribute("aria-controls", listEl.id);
+    listEl.setAttribute("role", "listbox");
+  }
+  const optEls = () => [...listEl.querySelectorAll('[role="option"]')];
+  const setActive = el => {
+    optEls().forEach(o => o.setAttribute("aria-selected", String(o === el)));
+    if (el) { input.setAttribute("aria-activedescendant", el.id); el.scrollIntoView({ block: "nearest" }); }
+    else input.removeAttribute("aria-activedescendant");
+  };
+  const optAttrs = key => cb ? ` role="option" id="${listEl.id}Opt${key}" tabindex="-1" aria-selected="false"` : "";
+  const li = cb ? `<li role="presentation">` : `<li>`;
+  const open = () => {
+    listEl.hidden = false;
+    if (cb) input.setAttribute("aria-expanded", "true");
+  };
+  const close = () => {
+    listEl.innerHTML = ""; listEl.hidden = true;
+    if (cb) { input.setAttribute("aria-expanded", "false"); input.removeAttribute("aria-activedescendant"); }
+  };
   const pick = (p, viaEnter) => {
     clearTimeout(timer); seq++; enterWanted = false;   // myöhästyvä ehdotushaku ei avaa listaa uudelleen
     input.value = p.name;
@@ -17838,10 +17863,10 @@ function bindPlaceInput(input, listEl, onPick, opts = {}) {
     if (input.value.trim().length >= 3) return;
     const recents = getRecents();
     if (!recents.length) return;
-    listEl.innerHTML = `<li><p class="muted" style="padding:0.3rem 0.45rem;margin:0">${t("recent")}</p></li>`
-      + recents.map((p, i) => `<li><button type="button" class="item" data-r="${i}">
+    listEl.innerHTML = `${li}<p class="muted" style="padding:0.3rem 0.45rem;margin:0">${t("recent")}</p></li>`
+      + recents.map((p, i) => `${li}<button type="button" class="item" data-r="${i}"${optAttrs("R" + i)}>
           ${icon("clock")}<span>${esc(p.name)}</span></button></li>`).join("");
-    listEl.hidden = false;
+    open();
     listEl.querySelectorAll("button[data-r]").forEach(btn =>
       btn.addEventListener("click", () => pick(recents[Number(btn.dataset.r)])));
   });
@@ -17854,18 +17879,19 @@ function bindPlaceInput(input, listEl, onPick, opts = {}) {
       if (enterWanted && places.length) { pick(places[0], true); return; }
       enterWanted = false;
       listEl.innerHTML = places.length
-        ? places.map((p, i) => `<li><button type="button" class="item" data-i="${i}">
+        ? places.map((p, i) => `${li}<button type="button" class="item" data-i="${i}"${optAttrs(i)}>
             ${icon(PLACE_ICONS[p.layer] || "pin")}
             <span>${esc(p.name)}${placeHint(p)}</span></button></li>`).join("")
-        : `<li><p class="muted" style="padding:0.4rem">${t("noPlacesFor", { q: esc(q) })}</p></li>`;
-      listEl.hidden = false;
+        : `${li}<p class="muted" style="padding:0.4rem">${t("noPlacesFor", { q: esc(q) })}</p></li>`;
+      open();
       listEl.querySelectorAll("button[data-i]").forEach(btn =>
         btn.addEventListener("click", () => pick(places[Number(btn.dataset.i)])));
+      if (cb) setActive(optEls()[0] || null);
     } catch (err) {
       if (my !== seq) return;
       enterWanted = false;
-      listEl.innerHTML = `<li><div class="error">${esc(err.message)}</div></li>`;
-      listEl.hidden = false;
+      listEl.innerHTML = `${li}<div class="error">${esc(err.message)}</div></li>`;
+      open();
     }
   };
   input.addEventListener("input", () => {
@@ -17884,7 +17910,14 @@ function bindPlaceInput(input, listEl, onPick, opts = {}) {
     if (!wrap.contains(e.relatedTarget)) setTimeout(close, 150);
   });
   input.addEventListener("keydown", e => {
-    if (e.key === "ArrowDown") {
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && cb) {
+      const opts2 = listEl.hidden ? [] : optEls();
+      if (!opts2.length) return;
+      e.preventDefault();
+      const cur = opts2.findIndex(o => o.getAttribute("aria-selected") === "true");
+      const next = e.key === "ArrowDown" ? Math.min(cur + 1, opts2.length - 1) : Math.max(cur - 1, 0);
+      setActive(opts2[next]);
+    } else if (e.key === "ArrowDown") {
       const first = listEl.querySelector("button");
       if (first) { e.preventDefault(); first.focus(); }
     } else if (e.key === "Escape") {
@@ -17894,7 +17927,8 @@ function bindPlaceInput(input, listEl, onPick, opts = {}) {
       // "Valitse lähtöpaikka ja määränpää ehdotuslistasta" (mitattu 26/26 hakusanalla).
       const v = input.value.trim();
       if (opts.skipEnter && opts.skipEnter(v)) return;
-      const first = listEl.hidden ? null : listEl.querySelector("button[data-i]");
+      const first = listEl.hidden ? null
+        : cb ? listEl.querySelector('[role="option"][aria-selected="true"][data-i]') : listEl.querySelector("button[data-i]");
       if (first) { e.preventDefault(); first.click(); if (current && opts.onEnter) opts.onEnter(current); return; }
       const sel = selectedNow();
       if (sel) {
