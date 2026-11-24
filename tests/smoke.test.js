@@ -3499,6 +3499,9 @@ async function minuuttiLinjaus(page, rootSel, media) {
     }, jaksot);
     const lomaNakyy = async (hash, sel) => {
       await page.goto(BASE + "/" + hash, { waitUntil: "networkidle2" });
+      // Monitori piirtää #mLoma-säiliön vasta lähtöjen haun jälkeen. Pelkkä hashin vaihto ei odota hakua, ja CI:ssä haku
+      // kesti 24.11.2026 yli 1,5 s (pyhäkoosteen monitoririvi FAIL, sama commit vihreä rinnakkaisajossa): odotetaan säiliötä ensin.
+      await page.waitForSelector(sel.split(" ")[0], { timeout: 15000 }).catch(() => {});
       await new Promise(r => setTimeout(r, 1500));
       return page.$(sel).then(h => !!h);
     };
