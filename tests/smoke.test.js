@@ -107,6 +107,49 @@ async function minuuttiLinjaus(page, rootSel, media) {
   return r;
 }
 
+// Saavutettavuuden perustarkistus (ilman axea): laskee nykyisen näkymän näkyvästä DOMista viisi
+// rikkoluokkaa ja palauttaa rikkojat selektoreineen. Rakenne, ei UI-teksti. Luokat: (1) lomakekenttä
+// ilman saavutettavaa nimeä, (2) painike tai linkki ilman tekstiä ja aria-nimeä, (3) img ilman
+// alt-attribuuttia, (4) toistuva id, (5) <html lang> ei ole fi, sv tai en (index.html asettaa
+// sen käyttöliittymän kielestä funktiossa, joka kirjoittaa document.documentElement.lang).
+async function a11yPerus(page) {
+  return page.evaluate(() => {
+    const nakyy = el => {
+      const r = el.getBoundingClientRect();
+      if (!r.width && !r.height) return false;
+      for (let e = el; e; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.display === "none" || cs.visibility === "hidden" || e.hidden || e.getAttribute("aria-hidden") === "true") return false;
+      }
+      return true;
+    };
+    const sel = el => el.tagName.toLowerCase() + (el.id ? "#" + el.id : "") +
+      (el.classList.length ? "." + [...el.classList].slice(0, 2).join(".") : "");
+    const idTeksti = ids => (ids || "").split(/\s+/).map(i => (document.getElementById(i) || {}).textContent || "").join("").trim();
+    const nimi = el => (el.getAttribute("aria-label") || "").trim() || idTeksti(el.getAttribute("aria-labelledby")) ||
+      (el.title || "").trim();
+    const viat = { kentta: [], painike: [], img: [], id: [], lang: [] };
+    document.querySelectorAll("input, select, textarea").forEach(el => {
+      if (el.type === "hidden" || !nakyy(el)) return;
+      const nimetty = nimi(el) || (el.labels && [...el.labels].some(l => l.textContent.trim())) ||
+        (el.type === "submit" || el.type === "button") && el.value;
+      if (!nimetty) viat.kentta.push(sel(el));
+    });
+    document.querySelectorAll("button, a[href]").forEach(el => {
+      if (!nakyy(el)) return;
+      const teksti = [...el.querySelectorAll(".sr-only")].map(e => e.textContent).join("") + el.textContent;
+      const imgAlt = [...el.querySelectorAll("img[alt]")].some(i => i.alt.trim());
+      if (!teksti.trim() && !nimi(el) && !imgAlt) viat.painike.push(sel(el));
+    });
+    document.querySelectorAll("img").forEach(el => { if (nakyy(el) && !el.hasAttribute("alt")) viat.img.push(sel(el)); });
+    const ids = new Map();
+    document.querySelectorAll("[id]").forEach(el => ids.set(el.id, (ids.get(el.id) || 0) + 1));
+    ids.forEach((n, id) => { if (n > 1) viat.id.push("#" + id + " x" + n); });
+    if (!/^(fi|sv|en)$/.test(document.documentElement.lang || "")) viat.lang.push("html lang=" + document.documentElement.lang);
+    return viat;
+  });
+}
+
 (async () => {
   // Lähdekoodi-tarkistus: em dash (—, U+2014) ei saa esiintyä UI-stringeissä eikä muissa
   // koodiliteraaleissa. Sallitaan vain kommenteissa (kehittäjähuomiot) — ne riisutaan ennen
@@ -6215,6 +6258,34 @@ async function minuuttiLinjaus(page, rootSel, media) {
     }
 
     await page.setViewport(vp || { width: 800, height: 600 });
+    await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+  }
+
+  // --- Saavutettavuuden perustarkistus viidessä näkymässä (a11yPerus) ---
+  // Rikkojat ovat INFO-rivejä (enintään 5 selektoria), kunnes ne on korjattu; 0 rikkojaa = OK.
+  {
+    await page.setViewport({ width: 1280, height: 900 });
+    const kaikkiNakymat = [["etusivu", "#/", "#homeFromInput"],
+      ["pysäkkisivu", "#/pysakki/Lahti:181342", "table.deps, .err-retry"],
+      ["linjasivu", null, "#app h1, #app h2"],
+      ["palvelutiski", "#/palvelutiski", "#deskFrom"],
+      ["tulostekeskus", "#/tulosteet", "#app h1, #app h2"]];
+    for (const [nimi, polku, odotus] of kaikkiNakymat) {
+      let osoite = polku;
+      if (!osoite) {
+        await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
+        await page.waitForSelector('#routeList a.route-tile', { timeout: 25000 }).catch(() => {});
+        osoite = await page.evaluate(() => (document.querySelector('#routeList a.route-tile') || {}).getAttribute?.("href") || "");
+      }
+      if (!osoite) { info("a11yPerus (" + nimi + "): näkymän osoitetta ei löytynyt, ohitettu"); continue; }
+      await page.goto(BASE + "/" + osoite, { waitUntil: "networkidle2" });
+      await page.waitForSelector(odotus, { timeout: 25000 }).catch(() => {});
+      const viat = await a11yPerus(page);
+      const rikkojat = Object.entries(viat).flatMap(([luokka, lista]) => lista.map(s => luokka + ":" + s));
+      rikkojat.length === 0
+        ? ok(`a11yPerus (${nimi}): ei nimettömiä kenttiä, tyhjiä painikkeita, alt-puutteita, toistuvia id:itä eikä väärää lang-arvoa`)
+        : info(`a11yPerus (${nimi}): ${rikkojat.length} rikkojaa, esim. ` + rikkojat.slice(0, 5).join(" | "));
+    }
     await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   }
 
