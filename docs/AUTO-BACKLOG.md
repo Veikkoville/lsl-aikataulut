@@ -125,7 +125,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 1/3 · työ S · myynti 1/3 = 6
       Mittari: smoke-tarkistus kuntalaistilan etusivusta (0 linkkiä STAFF_ROUTES-reitteihin, henkilöstötilassa linkit
       mukana) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-11-21)
-- [ ] tests/smoke.test.js: saavutettavuuden perustarkistus ilman uusia riippuvuuksia. Uusi apufunktio
+- [x] tests/smoke.test.js: saavutettavuuden perustarkistus ilman uusia riippuvuuksia. Uusi apufunktio
       `a11yPerus(page, label)` laskee näkyvästä DOMista: (1) `input`, `select` ja `textarea` ilman saavutettavaa
       nimeä (label[for], ympäröivä label, aria-label, aria-labelledby), (2) `button` ja `a[href]` ilman tekstiä tai
       aria-labelia, (3) `img` ilman `alt`-attribuuttia, (4) toistuvat `id`:t, (5) `<html lang>` vastaa
@@ -137,7 +137,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       (auditointi 2026-10-08, lähde: TUOTEPERIAATTEET "Saavutettavuus on osa määritelmää"; smokessa 0 axe-ajoa)
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 = 5
       Mittari: a11yPerus-rikkojien määrä viidessä näkymässä CI:n smoke-lokissa (tavoite 0, muuten INFO-rivit PR:ssä)
-      · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
+      · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-11-25)
 - [x] index.html: julisteen ja vihkon alaviite kertoo seuraavan koulujen loma-ajan, jolloin koulupäivien vuorot eivät aja.
       Nyt juliste sanoo "Ma-Pe · koulupäivinä" (rivi noin 8608), mutta ei sitä, milloin seuraava loma on (esim. syysloma
       19.-23.10.). Lisää puhdas funktio `lomajaksot(paivat)`, joka saa listan arkipäivistä (seuraavat 90 päivää), joina
