@@ -5852,6 +5852,10 @@ const STRINGS = {
     stopPosterCardIntro: "Hae pysäkki nimellä, niin saat julisteen kaikista pysäkiltä lähtevistä linjoista. Tuloste on sama kuin pysäkin omalla sivulla.",
     batchPosterTitle: "Linjan pysäkkijulisteet",
     batchPosterIntro: "Valitse linja, niin saat linjan kaikkien pysäkkien julisteet yhtenä tulosteena kausivaihdosta varten. Jokaisen pysäkin julisteessa ovat kaikki päivätyypit todellisten ajopäivien mukaan.",
+    jakeluTitle: "Julisteiden jakelutieto",
+    jakeluIntro: "CSV painotilausta ja jakelua varten: pysäkin tunnus, nimi, ehdotettu koko, painojärjestys ja muuttunut-sarake muutosvahdin viikkoajosta. Koko on ehdotus linjojen ja lähtöjen määrästä. Juliste sovitetaan arkille pienentämällä tekstiä, ja vain vilkkaimmat pysäkit jatkuvat useammalle arkille.",
+    jakeluOrderLabel: "Painojärjestys", jakeluOrderName: "Pysäkin nimen mukaan", jakeluOrderLine: "Linjan mukaan",
+    jakeluCsv: "Lataa jakelutieto (CSV)", jakeluNone: "Muutosvahdin tietoa ei ole vielä saatavilla tälle kaupungille.",
     batchChooseLine: "Linja",
     batchGenerate: "Kokoa ja tulosta",
     batchProgress: "Kootaan pysäkkejä {done}/{total}…",
@@ -6810,6 +6814,10 @@ const STRINGS = {
     stopPosterCardIntro: "Search for a stop by name to get a poster of every line departing from it. It is the same printout as on the stop's own page.",
     batchPosterTitle: "All stop posters for a line",
     batchPosterIntro: "Choose a line to get the posters for all its stops in one printout for the seasonal change. Each stop's poster has every day type, based on actual days of operation.",
+    jakeluTitle: "Poster distribution list",
+    jakeluIntro: "A CSV for print orders and distribution: stop id, name, suggested size, print order and a changed column from the weekly change watch. The size is a suggestion based on the number of lines and departures. Each poster is fitted to its sheet by reducing the text size, and only the busiest stops continue onto more sheets.",
+    jakeluOrderLabel: "Print order", jakeluOrderName: "By stop name", jakeluOrderLine: "By line",
+    jakeluCsv: "Download distribution list (CSV)", jakeluNone: "No change watch data is available for this city yet.",
     batchChooseLine: "Line",
     batchGenerate: "Build and print",
     batchProgress: "Collecting stops {done}/{total}…",
@@ -7754,6 +7762,10 @@ const STRINGS = {
     stopPosterCardIntro: "Sök en hållplats med namn så får du en affisch med alla linjer som avgår därifrån. Utskriften är densamma som på hållplatsens egen sida.",
     batchPosterTitle: "Alla hållplatsaffischer för en linje",
     batchPosterIntro: "Välj en linje så får du affischer för alla linjens hållplatser i en utskrift inför periodbytet. Varje hållplats affisch har alla dagtyper enligt faktiska trafikeringsdagar.",
+    jakeluTitle: "Distributionslista för affischer",
+    jakeluIntro: "En CSV för tryckbeställning och utdelning: hållplatsens id, namn, föreslagen storlek, tryckordning och en kolumn för ändrad enligt veckokörningen. Storleken är ett förslag utifrån antalet linjer och avgångar. Affischen anpassas till arket genom att texten görs mindre, och bara de mest trafikerade hållplatserna fortsätter på flera ark.",
+    jakeluOrderLabel: "Tryckordning", jakeluOrderName: "Efter hållplatsnamn", jakeluOrderLine: "Efter linje",
+    jakeluCsv: "Ladda ner distributionslista (CSV)", jakeluNone: "Det finns ännu inga ändringsbevakningsdata för den här staden.",
     batchChooseLine: "Linje",
     batchGenerate: "Sammanställ och skriv ut",
     batchProgress: "Samlar hållplatser {done}/{total}…",
@@ -16897,7 +16909,57 @@ function bindPosterStopSearch() {
   });
 }
 
+/* Julisteiden jakelutieto (CSV). Pohjana muutosvahdin viikkoajo (docs/muutosvahti/<city>.json): sen pysäkkirivillä on
+   linjat (lines), lähtömäärä lähiviikon kolmena otospäivänä yhteensä (depsNear = ti + la + su, ks. paivat.near) ja
+   muuttunut/tulossa. Koko on EHDOTUS luettavuuden mukaan:
+   A4: enintään 4 linjaa ja enintään 150 lähtöä; A3: enintään 8 linjaa ja enintään 400 lähtöä; muuten A2.
+   Sivumäärää ei arvioida: juliste sovitetaan arkille pienentämällä tekstiä (fitPosterSheet), joten lähtömäärästä
+   johdettu arvio oli vilkkailla pysäkeillä 2-3-kertainen (mitattu 26.11.2026: Lahti Ankkurikatu E 304 lähtöä A3:na
+   1 arkki, Kansanopisto E 1 582 lähtöä A2:na 5 arkkia).
+   Painojärjestys: "name" = pysäkin nimen mukaan, "line" = pienimmän linjatunnuksen mukaan (numeerinen), sitten nimi. */
+function jakeluKoko(linjoja, lahtoja) {
+  if (linjoja <= 4 && lahtoja <= 150) return "A4";
+  if (linjoja <= 8 && lahtoja <= 400) return "A3";
+  return "A2";
+}
+function jakeluRivit(pysakit, jarjestys) {
+  const cmp = (a, b) => String(a).localeCompare(String(b), "fi", { numeric: true });
+  const rows = (pysakit || []).filter(p => p && p.id).map(p => {
+    const lines = (p.lines || []).slice().sort(cmp);
+    const deps = +p.depsNear || 0;
+    return { id: p.id, name: p.name || "", code: p.code || "", lines, size: jakeluKoko(lines.length, deps),
+      changed: !!(p.muuttunut || p.tulossa) };
+  });
+  rows.sort(jarjestys === "line"
+    ? (a, b) => cmp(a.lines[0] ?? "￿", b.lines[0] ?? "￿") || cmp(a.name, b.name)
+    : (a, b) => cmp(a.name, b.name) || cmp(a.id, b.id));
+  return rows.map((r, i) => ({ ...r, order: i + 1 }));
+}
+function jakeluCsv(rows) {
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const out = [["jarjestys", "pysakki_id", "nimi", "tunnus", "linjat", "koko_ehdotus", "muuttunut"]];
+  for (const r of rows) out.push([r.order, r.id, r.name, r.code, r.lines.join(" "), r.size, r.changed ? "kylla" : "ei"]);
+  return out.map(r => r.map(q).join(";")).join("\r\n");
+}
+function bindJakeluCsv() {
+  const btn = document.getElementById("jakeluGo");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const st = document.getElementById("jakeluStatus");
+    const watch = await loadChangeWatch().catch(() => null);
+    if (!watch || !Array.isArray(watch.pysakit) || !watch.pysakit.length) { st.textContent = t("jakeluNone"); return; }
+    st.textContent = "";
+    const rows = jakeluRivit(watch.pysakit, document.getElementById("jakeluOrder").value);
+    const url = URL.createObjectURL(new Blob(["﻿" + jakeluCsv(rows)], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = "julisteiden-jakelu-" + cityKey + ".csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  });
+}
+
 function bindPostersTab(routes) {
+  bindJakeluCsv();
   bindPosterStopSearch();
   // Linjatulosteet: sama linjajärjestys kuin erätulostuksen valikossa, ja napit vievät
   // linjan sivulle ?print=-kyselyllä (yksi tulostustoteutus, ks. viewRoute/autoPrint).
@@ -26640,6 +26702,16 @@ async function viewPrintCenter(tab, query) {
           <button type="button" class="linePrintBtn" data-lp="key">${icon("print")} ${t("printKeyStopsPort")}</button>
           <button type="button" class="linePrintBtn" data-lp="all">${icon("print")} ${t("printAllStopsLand")}</button>
         </p>
+      </div>
+      <div class="card no-print" id="jakeluCard">
+        <h2>${icon("print")} ${t("jakeluTitle")}</h2>
+        <p class="muted">${t("jakeluIntro")}</p>
+        <p class="row" style="flex-wrap:wrap;gap:0.5rem;align-items:center">
+          <label class="dtopt">${t("jakeluOrderLabel")} <select id="jakeluOrder">
+            <option value="name">${t("jakeluOrderName")}</option>
+            <option value="line">${t("jakeluOrderLine")}</option></select></label>
+          <button type="button" id="jakeluGo">${t("jakeluCsv")}</button>
+          <span id="jakeluStatus" class="muted" role="status"></span></p>
       </div>
       <div id="batchOut"></div>
     </div>

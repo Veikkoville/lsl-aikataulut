@@ -227,7 +227,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
       Mittari: smoke-tarkistus (tiskin Kauppatori-haun ensimmäinen osuma on lähtöpysäkki, rakenteesta) vihreä CI:ssä
       · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-11-04)
-- [ ] index.html: julisteiden jakelutieto tulostekeskukseen. Weaselin generaattori antaa jakelutiedon (koko pysäkeittäin,
+- [x] index.html: julisteiden jakelutieto tulostekeskukseen. Weaselin generaattori antaa jakelutiedon (koko pysäkeittäin,
       määrät ja painojärjestys); Reittarissa on vain uusintapainatuslista. Lisää tulostekeskuksen julisteosioon CSV-vienti:
       pysäkin tunnus, nimi, ehdotettu koko (A4, A3 tai A2 sivumäärän ja linjojen määrän mukaan, säännöt koodin
       kommenttiin), sivumäärä, painojärjestys (alueittain tai linjoittain) ja muuttunut-sarake muutosvahdista. Todennus:
@@ -235,7 +235,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       (tuotekehityksen kärki 2026-10-08, P4, lähde: auditointi)
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 = 5
       Mittari: smoke-tarkistus (CSV:n otsikkorivi ja vähintään yksi datarivi) vihreä CI:ssä
-      · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
+      · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.) (PR, 2026-11-26)
 - [x] index.html: saavutettavuus, näppäimistö ja ruudunlukija. (1) "Siirry sisältöön" -ohituslinkki ensimmäiseksi
       fokusoitavaksi; (2) reittihaun ja hakukentän fokus 3 px renkaaksi kuten muualla (nyt `outline:none`, rivit noin 1879
       ja 2007); (3) reaaliaikamerkille "●" tekstivastine (`sr-only` "reaaliaikainen" + `aria-hidden` merkille, rivit noin

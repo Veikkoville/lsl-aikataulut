@@ -3847,6 +3847,28 @@ async function a11yPerus(page) {
     ? (laatuNakyma.hash === "#/" || laatuNakyma.hash === "" ? ok("laatu: kuntalaistilassa reitti ohjaa etusivulle") : fail(`laatu: kuntalaistila ei ohjannut: ${laatuNakyma.hash}`))
     : (laatuNakyma.secs === laatuNakyma.odotetut && laatuNakyma.csv ? ok("laatu: osiot (lähdöttömät, vain saapuvat, kaksikielisessä ruotsinkielinen nimi) ja CSV-nappi") : fail(`laatu: ${JSON.stringify(laatuNakyma)}`));
 
+  // Julisteiden jakelutieto (CSV): kiinteällä aineistolla otsikkorivi, koko-säännöt, järjestys ja muuttunut-sarake.
+  const jk = await page.evaluate(() => {
+    const pys = [
+      { id: "X:2", name: "Satama", code: "H2", lines: ["12", "3"], depsNear: 100, muuttunut: false },
+      { id: "X:1", name: "Asema", code: "H1", lines: ["1", "2", "3", "4", "5", "6"], depsNear: 300, tulossa: true },
+      { id: "X:3", name: "Tori \"A\"", code: "H3", lines: ["1", "2", "3", "4", "5", "6", "7", "8", "9"], depsNear: 500 },
+    ];
+    const nimi = jakeluRivit(pys, "name"), linja = jakeluRivit(pys, "line");
+    const csv = jakeluCsv(nimi).split("\r\n");
+    return { otsikko: csv[0], rivit: csv.length, nimiJarj: nimi.map(r => r.id).join(), linjaJarj: linja.map(r => r.id).join(),
+      koot: nimi.map(r => r.size).join(), muuttunut: nimi.map(r => r.changed).join(),
+      lainaus: csv[3].includes('Tori ""A""') };
+  });
+  await page.goto(BASE + "/#/tulosteet/julisteet", { waitUntil: "networkidle2" });
+  // Kuntalaistila ohjaa tulosteet etusivulle, joten siellä nappia EI saa olla; muuten sen pitää olla.
+  const jkNappi = await page.evaluate(() => APP_MODE === "resident" ? !document.querySelector("#jakeluGo") : !!document.querySelector("#jakeluGo"));
+  (jk.otsikko === '"jarjestys";"pysakki_id";"nimi";"tunnus";"linjat";"koko_ehdotus";"muuttunut"' && jk.rivit === 4
+      && jk.nimiJarj === "X:1,X:2,X:3" && jk.linjaJarj === "X:1,X:3,X:2" && jk.koot === "A3,A4,A2"
+      && jk.muuttunut === "true,false,false" && jk.lainaus && jkNappi)
+    ? ok("julisteiden jakelutieto: CSV-otsikko, koko, järjestys ja muuttunut-sarake sekä nappi")
+    : fail(`julisteiden jakelutieto: ${JSON.stringify({ ...jk, jkNappi })}`);
+
   // --- Etusivun pikavalinnat: kuntalaistilassa ei linkkejä henkilöstöreiteille, henkilöstötilassa ne ovat mukana ---
   for (const nakyma of ["kuntalainen", "henkilosto"]) {
     await page.goto(BASE + "/?city=lahti&nakyma=" + nakyma + "#/", { waitUntil: "networkidle2" });
