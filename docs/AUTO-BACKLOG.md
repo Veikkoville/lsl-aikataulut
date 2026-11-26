@@ -178,7 +178,9 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       odotetut rivit rakenteena. (tuotekehityksen kärki 2026-10-08, P2, lähde: auditointi)
       Pisteet: arvo 2/3 · kiire 1/3 · työ L · myynti 1/3 = 4
       Mittari: muutosvahdin seuraavassa ajossa (muutosvahti-työnkulku, docs/muutosvahti/) muuttuneen pysäkin rivillä
-      on eroluettelo, ja smoke vihreä CI:ssä · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
+      on eroluettelo tuotannossa (demo.reittari.fi) · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10., tarkennettu 26.11.)
+      Oikea data: kahdella oikealla muuttuneella pysäkillä (vilkas ja hiljainen) jokainen näytetty ero löytyy kahden
+      peräkkäisen muutosvahtiajon datasta (docs/muutosvahti/<kaupunki>.json, git-historia) tai feedistä samalle päivälle.
 - [ ] index.html + tests/smoke.test.js: julisteen laatuvahti ennen painoa. Auditointi: iso solmupysäkki tulostuu 3 sivuna,
       minuutit 8 pt ja sivu 1 alkaa "jatkuu"-otsakkeella. Korjaa: ensimmäisellä sivulla ei "jatkuu"-otsaketta. Smokeen
       tarkistus print-mediassa (`page.emulateMediaType("print")`) Lahden suurimmalle testipysäkille: (1) ensimmäisen sivun
@@ -186,8 +188,10 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       (3) yhtään tyhjää sivua ei synny (jokaisessa sivulohkossa on vähintään yksi aikarivi). Assertoi rakennetta.
       (tuotekehityksen kärki 2026-10-08, P2, lähde: auditointi)
       Pisteet: arvo 3/3 · kiire 1/3 · työ M · myynti 1/3 = 7
-      Mittari: smoke-tarkistus print-mediassa (sivun 1 alussa ei jatkuu-otsaketta, minuutit vähintään 10,67 px, ei
-      tyhjiä sivuja) vihreä CI:ssä · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10.)
+      Mittari: prod-smoke tuotantoa vasten (sama print-median tarkistus Lahden suurimmalle pysäkille) vihreä
+      viikkoajossa · tarkistus 2026-11-10 (pisteet ja mittari: CoS 10.10., tarkennettu 26.11.)
+      Oikea data: Lahden suurin ja keskikokoinen pysäkki (depsNear) PDF:ksi koossa A4 ja A2 (`node tests/mittaa.cjs`,
+      tulostaPdf): sivumäärä, sivun 1 alku ilman jatkuu-otsaketta ja jokaisella sivulla vähintään yksi aikarivi.
   - ⚠️ EHDOTUS/KYSYMYS (agentti 2026-11-03): "jatkuu"-merkintä lisätään funktiossa `markPosterContinuations`
     (index.html noin rivi 12741) jokaiselle rivilukuun alkavalle päivälohkolle, jonka alareuna ylittää arkin
     (`row.bottom - pageStart > POSTER_SHEET_PX`); vain `data-large="1"` ohittaa ensimmäisen rivin. Ensimmäinen
@@ -196,6 +200,10 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
     (a) ensimmäinen lohko jää sivulle 1 ja saa silti "jatkuu"-rivin, vai (b) lohko siirtyy sivulle 2. Korjaus on
     eri: (a) ohita ensimmäinen rivi aina, (b) pienennä tai jaa ensimmäinen lohko, ettei sivu 1 jää tyhjäksi. Kerro
     pysäkki ja tuloste (sivumäärä ja mikä sivu alkaa "jatkuu"-rivillä), niin rivi voidaan jakaa kahdeksi tehtäväksi.
+  - VASTAUS (CoS 2026-11-26): mittaa itse. Agentilla on nyt selain: `node tests/mittaa.cjs /tmp/mittaus.cjs` ja
+    tulostaPdf (ohje tiedoston alussa). Tulosta Lahden suurin pysäkki (docs/muutosvahti/lahti.json, suurin depsNear,
+    26.11. Kansanopisto E Lahti:103614: A4 6 arkkia, A2 5 arkkia) ja lue PDF:stä, mikä sivu alkaa "jatkuu"-rivillä
+    ja onko sivu 1 pelkkä otsikko. Tilanne (a) -> korjaus (a), tilanne (b) -> korjaus (b). Mittaus PR:n runkoon.
 - [x] (vaihe 1 tehty: reitti, pysäkit ilman linjoja ja ilman tunnusta, CSV; loput vaiheet alla) index.html: datan laaturaportti kunnalle henkilöstönäkymään (uusi reitti `#/laatu`, lisää `STAFF_ROUTES`iin).
       Listaa feedistä: (1) pysäkit, joilta ei lähde yhtään vuoroa seuraavan 7 päivän aikana, (2) pysäkit, joiden kaikki
       vuorot vain saapuvat (pickupType NONE) mutta nimi on sama kuin lähtöpysäkillä (esim. Kauppatori A), (3) kaksikielisessä
@@ -259,7 +267,10 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
 - [ ] index.html: ehdotuslistojen combobox, vaihe 2: reittihaun lähtö- ja määränpääkenttä ja pysäkkihaut samaan apufunktioon.
       Aloita vasta, kun vaihe 1 on tuotannossa.
       Pisteet: arvo 3/3 · kiire 1/3 · työ L · myynti 1/3 · uutuus 0/2 = 6
-      Mittari: sama smoke näille kentille vihreä CI:ssä · tarkistus 2027-01-11 (pisteet ja mittari: CoS 7.11.)
+      Mittari: tuloksettomien hakujen osuus (search_fail suhteessa hakuihin, admin-tilasto) ei kasva 30 päivää ennen
+      ja jälkeen; prod-smoke vihreä · tarkistus 2027-01-11 (pisteet ja mittari: CoS 7.11., tarkennettu 26.11.)
+      Oikea data: oikeilla nimillä (Lahti "Matkakeskus" ja kaksikielisen kaupungin ruotsinkielinen nimi) jokainen kenttä
+      valitsee näppäimistöllä saman pysäkin tai paikan (gtfsId tai koordinaatit) kuin ennen muutosta.
 - [ ] worker/admin-page.js: suunnittelijan näkymä tuloksettomiin hakuihin. Tarkista ensin, mitä tilastonäkymä jo näyttää
       (`admin/api/stats`, `failedSearches`, admin-page.js rivi noin 1036). Lisää tai täydennä: 30 päivän 20 yleisintä
       tuloksetonta hakua määrineen, vertailu edelliseen 30 päivään ja CSV-vienti. Vain `searchSignal`-säännön läpäisseet
@@ -267,7 +278,9 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       sisältävän top-listan ja CSV-napin elementit; `cd worker && npm test` = 0. (tuotekehityksen kärki 2026-10-08, P6, lähde: auditointi)
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 = 5
       Mittari: tuloksettomat haut (search_fail, Analytics Engine) näkyvät admin-näkymän top 20 -listana worker-deployn
-      jälkeen, ja worker-testi vihreä · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
+      jälkeen · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10., tarkennettu 26.11.)
+      Oikea data: näkymän top 20 -listan määrät täsmäävät admin/api/stats-rajapinnan raakavastaukseen samalta 30 päivältä
+      kolmella haulla (suurin ja listan viimeinen mukana). Vaatii admin-tunnuksen: CoS mittaa katselmoinnissa.
 - [ ] worker/admin-page.js: häiriötiedotteen käännösehdotus. Ylläpitäjä kirjoittaa tiedotteen suomeksi; "Ehdota käännös"
       -nappi täyttää ruotsin- ja englanninkieliset kentät (titleSv, titleEn ja vastaavat kuvauskentät, rivi noin 255)
       selaimen omalla käännösrajapinnalla (`Translator`, ominaisuustunnistus), ja ihminen tarkistaa ennen tallennusta. Jos
@@ -275,8 +288,10 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       worker/*.test.js: sivun HTML sisältää napin, joka on oletuksena piilossa, ja skriptin ominaisuustunnistuksen;
       `cd worker && npm test` = 0. (tuotekehityksen kärki 2026-10-08, P7, lähde: auditointi)
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 = 5
-      Mittari: worker-testi (nappi oletuksena piilossa, ominaisuustunnistus) vihreä CI:ssä; käyttöä ei tilastoida
-      · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
+      Mittari: ei tuotantomittaria, koska käyttöä ei tilastoida (worker-testi on hyväksymiskriteeri)
+      · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10., tarkennettu 26.11.)
+      Oikea data: Chromessa, jossa Translator-rajapinta on, kaksi oikeaa aiempaa häiriötiedotetta (lyhyt ja pitkä) täyttävät
+      sv- ja en-kentät eivätkä tallennu ilman ihmisen hyväksyntää; Chromessa ilman rajapintaa nappia ei näy.
 - [ ] index.html: tiski vastaa suoraan yhteyteen. Asiakaspalvelija valitsee kaksi pysäkkiä (mistä, mihin) ja näkee
       seuraavat enintään 5 lähtöä linjoilla, joiden reitti kulkee molempien kautta oikeassa järjestyksessä, saapumisaikoineen
       ja tulostettavana. Vain suorat yhteydet samalla linjalla (TUOTEPERIAATTEET: ei reittiopasta, ei vaihtoja). Data vain
@@ -284,17 +299,20 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       rakenteena; kahdella pysäkillä ilman yhteistä linjaa tulos on tyhjä ja kertoo ohjauksen reittioppaaseen.
       (tuotekehityksen kärki 2026-10-08, P8, lähde: auditointi)
       Pisteet: arvo 2/3 · kiire 1/3 · työ L · myynti 1/3 = 4
-      Mittari: smoke-tarkistus tiskillä (saman linjan pysäkit -> tulosrivi, ei yhteistä linjaa -> ohjaus
-      reittioppaaseen) vihreä CI:ssä · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
+      Mittari: prod-smoke tiskillä tuotantoa vasten (saman linjan pysäkit -> tulosrivi, ei yhteistä linjaa -> ohjaus
+      reittioppaaseen) vihreä viikkoajossa · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10., tarkennettu 26.11.)
+      Oikea data: kolmella pysäkkiparilla (tavallinen, yksisuuntainen linja, väärä järjestys B ennen A) lähtö- ja
+      saapumisajat täsmäävät feedin vastaukseen samalle vuorolle, ja väärä järjestys ei anna tulosriviä.
 - [ ] index.html: monitori valmiiksi infonäytölle. (1) Rivimäärä ruudun korkeudesta, ettei 12. rivi ja alatunniste
       leikkaudu 1920x1080:ssa, ja LÄHTEE-otsikko samaan sarakkeeseen (auditointi L1); (2) kaksikielisessä kaupungissa
       otsikot vuorottelevat fi/sv 10 s välein; (3) voimassa oleva häiriötiedote bannerina; (4) `?eink=1` harmaasävy ilman
       animaatioita e-paper-näytöille. Todennus: smoke 1920x1080: viimeinen rivi ja alatunniste ovat kokonaan näkyvissä;
       `?eink=1` lisää body-luokan ja animaatiot ovat pois (`getAnimations().length === 0`). (tuotekehityksen kärki 2026-10-08, P9, lähde: auditointi)
       Pisteet: arvo 2/3 · kiire 1/3 · työ L · myynti 2/3 = 5
-      Mittari: monitorin avaukset (view-tapahtuma monitori, admin-tilasto Analytics Enginestä) ja smoke 1920x1080
-      (viimeinen rivi ja alatunniste näkyvissä, ?eink=1 ilman animaatioita) vihreä CI:ssä
-      · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
+      Mittari: monitorin avaukset (view-tapahtuma monitori, admin-tilasto Analytics Enginestä); prod-smoke 1920x1080
+      vihreä viikkoajossa · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10., tarkennettu 26.11.)
+      Oikea data: Lahden vilkkaimmalla pysäkillä ja kaksikielisen kaupungin pysäkillä tuotantodatalla 1920x1080:
+      viimeinen rivi ja alatunniste kokonaan ruudussa (getBoundingClientRect), kaksikielisessä otsikko vaihtuu fi/sv.
 - [x] index.html: monitori valmiiksi infonäytölle, vaihe 1: `?eink=1` e-paper-näytöille (kärkivuoro, vaihe 1 yllä olevasta
       monitoririvistä; sen kohdat 1-3 jäävät sen avoimiksi vaiheiksi). `#/monitori/<id>?eink=1` lisää body-luokan
       `monitor-eink`: harmaasävy, animaatiot ja siirtymät pois, kello ilman sekunteja, linjamerkille reunus. Todennus: smoke
@@ -308,9 +326,10 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Henkilöstötila ei muutu. Todennus: smoke 360x780 mobiiliemulaatiolla kuntalaistilassa: pysäkkihaun kentän ja
       lähimmät lähdöt -napin `getBoundingClientRect().top < 780`; yläpalkin korkeus alle 94 px. (tuotekehityksen kärki 2026-10-08, P9, lähde: auditointi)
       Pisteet: arvo 2/3 · kiire 1/3 · työ L · myynti 1/3 = 4
-      Mittari: smoke 360x780 kuntalaistilassa (haku ja lähimmät lähdöt ensimmäisessä ruudussa) vihreä CI:ssä;
-      stop-tapahtumat suhteessa etusivun view-tapahtumiin (admin-tilasto) 30 päivää ennen ja jälkeen
-      · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10.)
+      Mittari: stop-tapahtumat suhteessa etusivun view-tapahtumiin (admin-tilasto) 30 päivää ennen ja jälkeen;
+      prod-smoke 360x780 vihreä · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10., tarkennettu 26.11.)
+      Oikea data: 360x780 mobiiliemulaatiolla kolmessa kaupungissa (Lahti, kaksikielinen ja pisin kaupungin nimi)
+      tuotantodatalla: haun kenttä ja lähimmät lähdöt -nappi ensimmäisessä ruudussa, yläpalkki alle 94 px.
 - [x] tests/prod-smoke.test.js: mikkelin `posterStopId` "Mikkeli:310514" -> "Mikkeli:310523" (Hallitustori 1T)
       ja kommenttiin syy. 310514 (Hallitustori Raatihuone I) antaa pysäkkijulisteeseen vain 1 lähdön,
       koska muut sen vuorot päättyvät viereiselle laiturille, ja julistetarkistus hyväksyy sen
@@ -517,6 +536,8 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 · uutuus 0/2 = 5
       Mittari: datavahdin raportissa tarkistus 9 näkyy joka ajossa (OK tai WARN, ei puuttuvana); seuraava Digitransitin
       deprekointi näkyy WARNina vuorokauden sisällä · tarkistus 2027-01-15 (pisteet ja mittari: CoS 26.10.)
+      Oikea data: introspektio oikeaa proxya vasten tunnistaa tunnetun tapauksen: serviceId (vanhentunut 20.10.2026)
+      näkyy isDeprecated = true ja nousee WARNiksi, kun se poistetaan datavahti-vanhentuneet.json-listalta.
 - [x] tests/muutosvahti.js + index.html: pysäkit, jotka putoavat pois kaupungin pysäkkijoukosta, omaksi listakseen.
       Nyt pysäkkijoukko luetaan joka ajossa nykyisten linjapatternien pysäkeistä (rivi noin 392), rivit suodatetaan
       `depsNear || depsFar` -ehdolla (rivi noin 453) ja `hashes` kirjoitetaan vain nykyisille pysäkeille (rivi noin 470).

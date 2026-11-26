@@ -101,10 +101,12 @@ ei ole valmis.
 
 ### Pisteet ja mittari (2026-10-10)
 
-Jokaisen avoimen rivin loppuun tulee kaksi kenttää omille riveilleen:
+Jokaisen avoimen rivin loppuun tulee kaksi kenttää omille riveilleen, ja laskevalle, arvioivalle, tulostavalle tai
+näyttävälle riville kolmas (Oikea data, ks. alla):
 
       Pisteet: arvo 2/3 · kiire 1/3 · työ M · myynti 1/3 · uutuus 1/2 = 6
       Mittari: <mitä mitataan ja mistä> · tarkistus <vvvv-kk-pp>
+      Oikea data: <mitä tulosta verrataan mihin riippumattomaan lähteeseen, vähintään kaksi tapausta>
 
 - **arvo** (hyöty tiskille, matkustajalle tai joukkoliikennepäällikölle): 3 = korjaa virheen tai esteen, jonka
   käyttäjä kohtaa (väärä tai puuttuva tieto ruudulla tai tulosteessa, hämmentävä näkymä, saavutettavuuseste);
@@ -133,6 +135,13 @@ Jokaisen avoimen rivin loppuun tulee kaksi kenttää omille riveilleen:
   "Smoke vihreä CI:ssä" ei ole mittari vaan hyväksymiskriteeri, ja se kuuluu Todennus-kenttään (2026-11-11, kuukausiretro
   9.11.). Mittari on tuotannon havainto tai käyttö: käyttötilasto, prod-smoke, kausivalidointi, muutosvahti tai
   uusintapainatusvahti tuotantodataa vasten.
+- **Oikea data** (2026-11-26): rivillä, joka laskee, arvioi, tulostaa tai näyttää jotain kunnalle tai matkustajalle,
+  on kolmas kenttä `Oikea data: <mitä tulosta verrataan mihin riippumattomaan lähteeseen>`. Lähde on oikea feed,
+  rajapinnan raakavastaus, tuotannon tuloste (PDF:n sivumäärä ja paperikoko) tai ruudulla näkyvä teksti, ja tapauksia
+  on vähintään kaksi: tavallinen ja ääritapaus (esimerkiksi suurin ja keskikokoinen pysäkki muutosvahdin
+  `depsNear`-kentän mukaan). Mittaus ajetaan ennen PR:ää: `node tests/mittaa.cjs <mittaustiedosto>`. Kiinteä
+  testiaineisto, jonka toteuttaja tekee itse, todentaa vain toteutuksen eikä sääntöä, joten se ei käy. Syy: PR #184:n
+  sivumääräarvio oli vilkkailla pysäkeillä 2-3-kertainen (arvio 11, oikeasti 5 arkkia), vaikka smoke oli vihreä.
 
 ### Kärkivuoro ja signaalit (2026-10-14)
 
