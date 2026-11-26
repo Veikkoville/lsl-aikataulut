@@ -70,6 +70,14 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      # Mittaus oikealla datalla (26.11.2026): agentti ajaa node tests/mittaa.cjs, joka tarvitsee puppeteerin ja Chromen.
+      # PR #184:n smoke oli vihreä, vaikka sivumääräarvio oli 2-3-kertainen: testi ajoi vain agentin omaa aineistoa.
+      - name: Asenna selain agentin mittauksiin
+        run: npm ci
+        working-directory: tests
 
       # ENINTÄÄN KAKSI AVOINTA AUTO-PR:ÄÄ (7.10.2026). Yhden PR:n portti esti toiston, mutta pysäytti
       # silmukan aina katselmoinnin ajaksi: 6.-7.10. agentti ajoi joka aamu ja lopetti tekemättä mitään.
@@ -214,13 +222,28 @@ jobs:
                Jos muutit tests/smoke.test.js:ää, tarkista syntaksi: node --check tests/smoke.test.js
                (selainsmoke ei ole ajettavissa täällä; CI ajaa sen PR:lle automaattisesti).
                Jos muutit index.html:n skriptiä, poimi skriptilohko ja aja sille node --check.
+               MITTAUS OIKEALLA DATALLA (26.11.2026, TUOTEPERIAATTEET.md "Oikea data"): kun muutos laskee, arvioi,
+               tulostaa tai näyttää jotain kunnalle tai matkustajalle (riskiluokka koodi tai julkaiseva), mittaa tulos
+               oikeaa dataa vasten ennen committia. Kirjoita /tmp/mittaus.cjs, joka vie yhden async-funktion, ja aja
+               node tests/mittaa.cjs /tmp/mittaus.cjs. Palvelin ja selain käynnistyvät samassa prosessissa ja sammuvat
+               itse, joten mitään ei ajeta taustalle. Ohje ja apuvälineet ovat tiedoston alussa: tulostaPdf antaa
+               tulosteen todellisen sivumäärän ja paperikoon. Mittaa vähintään yksi tavallinen ja yksi ääritapaus
+               oikeasta datasta (esimerkiksi suurin ja keskikokoinen pysäkki docs/muutosvahti/<kaupunki>.json:n
+               depsNear-kentän mukaan) ja vertaa riippumattomaan totuuteen: PDF:n sivumäärä, feedin tai rajapinnan
+               raakavastaus tai ruudulla näkyvä teksti. Oma kiinteä testiaineistosi todentaa vain toteutuksen, ei
+               sääntöä, joten se ei käy mittaukseksi. Jos backlog-rivillä on "Oikea data:" -kenttä, mittaa juuri se.
+               Jos mittaus on ristiriidassa oletuksesi kanssa, korjaa ennen PR:ää; jos et osaa korjata, avaa
+               kysymys-PR (kohta 1 b) mittaustuloksineen. Jos mittausta ei voi tehdä (verkko tai selain ei toimi),
+               kirjoita syy PR:ään sanalla TODENTAMATTA. Docs- ja testi-luokan PR ei tarvitse mittausta.
             5. Merkitse tehtävä backlogissa "- [x]" ja lisää perään " (PR, <pvm>)".
             6. Committaa (git config user.name "reittari-auto[bot]", user.email "actions@users.noreply.github.com"),
                pushaa haara ja avaa PR: gh pr create --base master --title "auto: <aihe>" --body-file <tiedosto> (kuvaus ensin tiedostoon Write-työkalulla), jonka
                ENSIMMÄINEN rivi on täsmälleen "Riskiluokka: docs", "Riskiluokka: testi", "Riskiluokka: koodi" tai
                "Riskiluokka: julkaiseva" ja TOINEN rivi tehdyn backlog-rivin Mittari-kenttä sellaisenaan yhdelle
                riville ("Mittari: ... · tarkistus <pvm>", tai "Mittari: puuttuu rivistä"). Sen jälkeen tyhjä rivi ja
-               Mitä / Miksi (backlog-rivi ja sen piste) / Miten todennettu / Mitä EI tehty / Riskit.
+               Mitä / Miksi (backlog-rivi ja sen piste) / Miten todennettu / Mittaus oikealla datalla (mitä mitattiin,
+               mistä datasta, tulos luvuin; docs- ja testi-luokassa "ei tarvita") / Oletukset, joita testi ei kata
+               (jokainen sääntö tai raja-arvo, jonka keksit itse, ja mihin se perustuu) / Mitä EI tehty / Riskit.
                Riskiluokka määräytyy PR:n kaikista muutetuista tiedostoista (git diff --name-only origin/master...HEAD):
                docs = vain docs/** ja README.md; testi = vain tests/** (ja docs); koodi = mikä tahansa muu tiedosto;
                julkaiseva = PR muuttaa tiedostoa, jonka GitHub Pages julkaisee sovelluksena heti mergen jälkeen, eli
