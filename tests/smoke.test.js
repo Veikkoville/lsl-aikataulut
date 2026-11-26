@@ -3857,15 +3857,16 @@ async function a11yPerus(page) {
     const nimi = jakeluRivit(pys, "name"), linja = jakeluRivit(pys, "line");
     const csv = jakeluCsv(nimi).split("\r\n");
     return { otsikko: csv[0], rivit: csv.length, nimiJarj: nimi.map(r => r.id).join(), linjaJarj: linja.map(r => r.id).join(),
-      koot: nimi.map(r => r.size).join(), sivut: nimi.map(r => r.pages).join(), muuttunut: nimi.map(r => r.changed).join(),
-      lainaus: csv[3].includes('Tori ""A""'), nappi: false };
+      koot: nimi.map(r => r.size).join(), muuttunut: nimi.map(r => r.changed).join(),
+      lainaus: csv[3].includes('Tori ""A""') };
   });
   await page.goto(BASE + "/#/tulosteet/julisteet", { waitUntil: "networkidle2" });
-  const jkNappi = await page.evaluate(() => APP_MODE === "resident" || !!document.querySelector("#jakeluGo"));
-  (jk.otsikko === '"jarjestys";"pysakki_id";"nimi";"tunnus";"linjat";"koko_ehdotus";"sivuja_arvio";"muuttunut"' && jk.rivit === 4
-      && jk.nimiJarj === "X:1,X:2,X:3" && jk.linjaJarj === "X:1,X:3,X:2" && jk.koot === "A3,A4,A2" && jk.sivut === "2,1,4"
+  // Kuntalaistila ohjaa tulosteet etusivulle, joten siellä nappia EI saa olla; muuten sen pitää olla.
+  const jkNappi = await page.evaluate(() => APP_MODE === "resident" ? !document.querySelector("#jakeluGo") : !!document.querySelector("#jakeluGo"));
+  (jk.otsikko === '"jarjestys";"pysakki_id";"nimi";"tunnus";"linjat";"koko_ehdotus";"muuttunut"' && jk.rivit === 4
+      && jk.nimiJarj === "X:1,X:2,X:3" && jk.linjaJarj === "X:1,X:3,X:2" && jk.koot === "A3,A4,A2"
       && jk.muuttunut === "true,false,false" && jk.lainaus && jkNappi)
-    ? ok("julisteiden jakelutieto: CSV-otsikko, koko, sivuarvio, järjestys ja muuttunut-sarake sekä nappi")
+    ? ok("julisteiden jakelutieto: CSV-otsikko, koko, järjestys ja muuttunut-sarake sekä nappi")
     : fail(`julisteiden jakelutieto: ${JSON.stringify({ ...jk, jkNappi })}`);
 
   // --- Etusivun pikavalinnat: kuntalaistilassa ei linkkejä henkilöstöreiteille, henkilöstötilassa ne ovat mukana ---
