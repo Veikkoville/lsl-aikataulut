@@ -181,7 +181,7 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       on eroluettelo tuotannossa (demo.reittari.fi) · tarkistus 2026-12-10 (pisteet ja mittari: CoS 10.10., tarkennettu 26.11.)
       Oikea data: kahdella oikealla muuttuneella pysäkillä (vilkas ja hiljainen) jokainen näytetty ero löytyy kahden
       peräkkäisen muutosvahtiajon datasta (docs/muutosvahti/<kaupunki>.json, git-historia) tai feedistä samalle päivälle.
-- [ ] index.html + tests/smoke.test.js: julisteen laatuvahti ennen painoa. Auditointi: iso solmupysäkki tulostuu 3 sivuna,
+- [x] (PR, 2026-11-27) index.html + tests/smoke.test.js: julisteen laatuvahti ennen painoa. Auditointi: iso solmupysäkki tulostuu 3 sivuna,
       minuutit 8 pt ja sivu 1 alkaa "jatkuu"-otsakkeella. Korjaa: ensimmäisellä sivulla ei "jatkuu"-otsaketta. Smokeen
       tarkistus print-mediassa (`page.emulateMediaType("print")`) Lahden suurimmalle testipysäkille: (1) ensimmäisen sivun
       alussa ei ole jatkuu-otsakkeen luokkaa, (2) minuuttisolujen laskettu fonttikoko on vähintään 10,67 px (8 pt),
