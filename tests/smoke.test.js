@@ -3338,6 +3338,28 @@ async function a11yPerus(page) {
         : fail(`pysäkkijuliste: tuntikaaviota ei muodostunut (päiväblokkeja ${days})`);
       await printHygiene(page, "Lahti");
 
+      // Julisteen laatuvahti print-medialla (rakenteesta): (1) arkin 1 alussa ei "jatkuu"-merkintää, kun ensimmäinen
+      // päivälohko on korkeampi kuin arkki (Chrome jakaa sen arkilta 1; mitattu PDF:nä 27.11.2026), (2) minuuttisolut
+      // vähintään 8 pt (10,67 px), (3) jokaisessa päivälohkossa on vähintään yksi aikarivi (ei tyhjää lohkoa/sivua).
+      await page.emulateMediaType("print");
+      const laatu = await page.evaluate(() => {
+        const days = [...document.querySelectorAll("#stopPrintOut .poster-day")];
+        const first = days[0];
+        const h = first ? first.getBoundingClientRect().height : 0;
+        const sheet = typeof POSTER_SHEET_PX === "number" ? POSTER_SHEET_PX : 1e9;
+        const tds = [...document.querySelectorAll("#stopPrintOut .poster-day td")].filter(td => td.textContent.trim());
+        return { days: days.length, tooTallFirst: h > sheet, firstCont: !!first?.querySelector(".poster-cont"),
+          minPx: tds.length ? Math.min(...tds.map(td => parseFloat(getComputedStyle(td).fontSize))) : null,
+          empty: days.filter(d => !d.querySelector("tr")).length };
+      });
+      await page.emulateMediaType(null);
+      !(laatu.tooTallFirst && laatu.firstCont) ? ok("julistevahti: arkin 1 alussa ei jatkuu-merkintää (ensimmäinen lohko jaetaan arkilta 1)")
+        : fail("julistevahti: ensimmäisellä päivälohkolla on jatkuu-merkintä arkilla 1: " + JSON.stringify(laatu));
+      (laatu.minPx === null || laatu.minPx >= 10.6) ? ok("julistevahti: minuuttisolut vähintään 8 pt" + (laatu.minPx ? " (" + laatu.minPx + " px)" : ""))
+        : fail("julistevahti: minuuttisolu alle 8 pt: " + laatu.minPx + " px");
+      laatu.days >= 1 && laatu.empty === 0 ? ok("julistevahti: jokaisessa päivälohkossa aikarivejä (" + laatu.days + " lohkoa)")
+        : fail("julistevahti: tyhjä päivälohko tai ei lohkoja: " + JSON.stringify(laatu));
+
       // Loma-jaksot (julisteen alaviite): puhdas funktio kiinteällä päivälistalla. Viikonloppu ei katkaise jaksoa
       // (ma-pe 19.-23.10. on yksi jakso), puuttuva arkipäivä katkaisee (ke 28.10. on toinen).
       const lj = await page.evaluate(() => ({

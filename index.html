@@ -12966,6 +12966,10 @@ function markPosterContinuations(st, box) {
     // Iso teksti (data-large): ensimmäinen päivälohko alkaa aina otsikon alta 1. arkilta (Chrome jakaa
     // sen eikä siirrä, mitattu PDF:stä 4.10.2026), joten "jatkuu" ei kuulu siihen.
     if (st.dataset.large === "1" && row === rows[0]) continue;
+    // Sama kaikissa kooissa (mitattu PDF:nä 27.11.2026, Lahti:103614 A4 6 arkkia, A2 5 arkkia): ensimmäinen lohko, joka
+    // on korkeampi kuin kokonainen arkki, alkaa otsikon alta arkilta 1 ja Chrome jakaa sen, joten "jatkuu" ei kuulu sen
+    // alkuun. Pienempi lohko, joka ei mahdu arkin 1 loppuun, siirtyy arkille 2 ja saa merkinnän kuten ennenkin.
+    if (row === rows[0] && row.top < POSTER_SHEET_PX && row.bottom - row.top > POSTER_SHEET_PX) continue;
     if (row.bottom - pageStart > POSTER_SHEET_PX && row.top > pageStart) {
       pageStart = row.top;
       for (const i of row.idx) {
