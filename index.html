@@ -9271,7 +9271,8 @@ function lomaNoticeHtml(jaksot, todayIso, stopId) {
   const next = (jaksot || []).find(j => j.loppu >= today);
   if (!next || next.alku > num(isoOf(limit))) return "";
   const period = next.alku === next.loppu ? fmtDayMonthNum(next.alku) : `${fmtDayMonthNum(next.alku)}–${fmtDayMonthNum(next.loppu)}`;
-  return `<a class="loma-notice" data-loma-notice href="#/pysakki/${encodeURIComponent(stopId)}">${icon("calendar")} ${esc(t("lomaNotice", { period }))}</a>`;
+  // stopId puuttuu (pysäkkisivu itse): linkki #/poikkeukset-sivulle, ei omalle sivulle.
+  return `<a class="loma-notice" data-loma-notice href="${stopId ? "#/pysakki/" + encodeURIComponent(stopId) : "#/poikkeukset"}">${icon("calendar")} ${esc(t("lomaNotice", { period }))}</a>`;
 }
 // Pysäkin lomajaksot koostetta varten: vain vuoron tunniste ja ajopäivät yhdellä kyselyllä ja tulos päivän
 // välimuistiin. stopPosterBlocks hakee koko aikataulun pysäytysaikoineen (Lahti Trio 18 kutsua, noin
@@ -9293,7 +9294,8 @@ async function stopLomaJaksot(stopId, today) {
   return jaksot;
 }
 // Täyttää kooste-elementin pysäkin lomajaksoilla. window.__lomaTesti ([{alku, loppu}]) ohittaa feedin (smoke-koukku).
-async function fillLomaNotice(el, stopId) {
+// omaSivu (pysäkkisivu): rivi linkittää #/poikkeukset-sivulle eikä pysäkkisivulle itselleen.
+async function fillLomaNotice(el, stopId, omaSivu) {
   if (!el || !stopId) return;
   const today = todayISO();
   let jaksot = window.__lomaTesti;
@@ -9303,7 +9305,7 @@ async function fillLomaNotice(el, stopId) {
   if (!el.isConnected) return;
   // Vain oma rivi vaihtuu: etusivun kooste-elementissä on samassa myös pyhärivi (fillPyhaNotice).
   el.querySelectorAll("[data-loma-notice]").forEach(n => n.remove());
-  el.insertAdjacentHTML("beforeend", lomaNoticeHtml(jaksot, today, stopId));
+  el.insertAdjacentHTML("beforeend", lomaNoticeHtml(jaksot, today, omaSivu ? null : stopId));
 }
 // Pyhäkooste etusivulle: kun nimetty pyhä on 7 vrk:n sisällä, yksi rivi pyhän liikennetyypistä (ei liikennettä,
 // arkipäivän, lauantain tai sunnuntain aikataulu, oma poikkeava aikataulu), laskettuna feedistä (pyhaLoad).
@@ -15151,6 +15153,7 @@ async function viewStop(stopId, autoPrint) {
     <div class="card no-print">
       ${favButtonHtml(stopId)}<h2>${esc(stop.name)} <span class="muted">${esc(stop.code || "")}</span></h2>
       ${accNote}
+      <div id="stopNotice" class="stop-notice no-print"></div>
       ${stopRoutesHtml(stop)}
       <div id="staleNote">${cachedAt ? staleNoteHtml(cachedAt) : ""}</div>
       <table class="deps" aria-label="${t("depsTableAria")}">
@@ -15179,6 +15182,10 @@ async function viewStop(stopId, autoPrint) {
     <div id="stopPrintOut"></div>`);
 
   bindFavButton({ type: "stop", id: stopId, name: stop.name });
+  // Poikkeuskooste pysäkkisivulle: sama pyhä- ja lomarivi kuin etusivulla ja monitorissa, jotta lähtölista ei
+  // näytä tavalliselta arjelta pyhän tai koulujen loman alla. Täyttö ei estä sivun piirtoa eikä virhe näy.
+  fillPyhaNotice(document.getElementById("stopNotice"));
+  fillLomaNotice(document.getElementById("stopNotice"), stopId, true);
 
   // Lähestyvä bussi -hälytys: kun pysäkin linjojen ajoneuvon seuraava pysäkki
   // (MQTT-topicin nextStop) on TÄMÄ pysäkki, bussi on lähestymässä (yhden pysäkin

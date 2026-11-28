@@ -599,6 +599,14 @@ markkinavuoropuhelut). Agentti käsittelee ne samoin kuin tapaamisista kirjatut 
       `pyhaNoticeHtml`ia; monitorin päivitys ei saa hakea pyhää joka kierroksella (pyhaCache). Todennus: smoke koukulla monitorissa.
       Pisteet: arvo 2/3 · kiire 3/3 · työ S · myynti 2/3 · uutuus 2/2 = 9
       Mittari: smoke-tarkistus (pyhärivi monitorissa koukulla) vihreä CI:ssä · tarkistus 2027-01-12 (PR, 2026-11-18)
+- [x] index.html: pyhä- ja lomarivi pysäkkisivulle (kärkivuoro, agentin ehdotus 2026-11-28, lähde: teema 1 poikkeukset ennen kuin
+      matkustaja huomaa ne; etusivu ja monitori näyttävät rivin, mutta pysäkkisivun lähtölista, jonne QR-koodi ja haku vievät, ei).
+      Pysäkkisivun kortissa on `#stopNotice`, jonka täyttävät `fillPyhaNotice` ja `fillLomaNotice` (omaSivu: linkki
+      `#/poikkeukset`, ei pysäkkisivulle itselleen). Todennus: smoke pysäkkisivulla koukuilla `__pyhaTesti` ja `__lomaTesti`: molemmat
+      rivit ja linkit `#/poikkeukset`; tyhjillä koukuilla ei riviä.
+      Pisteet: arvo 3/3 · kiire 3/3 · työ S · myynti 1/3 · uutuus 1/2 = 11
+      Mittari: smoke-tarkistus (pysäkkisivun pyhä- ja lomarivi koukuilla) vihreä CI:ssä; käsin: joulupäivää edeltävällä viikolla
+      Lahden pysäkkisivulla on pyhärivi · tarkistus 2026-12-26 (PR, 2026-11-28; kärkivuoro)
 
 ## Tehdyt
 

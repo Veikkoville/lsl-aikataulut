@@ -3631,6 +3631,24 @@ async function a11yPerus(page) {
     (pyhaMon && /^#\/pysakki\//.test(pyhaMonHref) && !pyhaMonEi)
       ? ok("pyhäkooste: monitorin rivi näkyy testikoukulla ja linkittää pysäkkisivulle, tyhjällä listalla ei")
       : fail(`pyhäkooste: monitorin rivi väärin (rivi ${pyhaMon}, linkki ${pyhaMonHref}, tyhjä lista ${pyhaMonEi})`);
+    // Pysäkkisivu: sama pyhä- ja lomarivi #stopNotice-säiliössä, linkki #/poikkeukset (ei pysäkkisivulle itselleen);
+    // tyhjillä koukuilla riviä ei ole. stopHref on testipysäkin sivu (määritelty ylempänä).
+    await page.evaluate(() => {
+      const n = o => { const d = new Date(); d.setDate(d.getDate() + o); return d; };
+      const num = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+      window.__pyhaTesti = [{ iso: isoOf(n(3)), key: "xmas", tyyppi: "su" }];
+      window.__lomaTesti = [{ alku: num(n(3)), loppu: num(n(5)) }];
+    });
+    const stopPyha = await lomaNakyy(stopHref, "#stopNotice [data-pyha-notice][data-ex-type='su']");
+    const stopLoma = await page.$("#stopNotice [data-loma-notice]").then(h => !!h);
+    const stopHrefs = await page.$$eval("#stopNotice a", as => as.map(a => a.getAttribute("href")));
+    await page.evaluate(() => { window.__pyhaTesti = []; window.__lomaTesti = []; });
+    await page.goto(BASE + "/#/asetukset", { waitUntil: "networkidle2" });
+    const stopEi = await lomaNakyy(stopHref, "#stopNotice a");
+    await page.evaluate(() => { delete window.__pyhaTesti; delete window.__lomaTesti; });
+    (stopPyha && stopLoma && stopHrefs.length === 2 && stopHrefs.every(h => h === "#/poikkeukset") && !stopEi)
+      ? ok("poikkeuskooste: pysäkkisivulla pyhä- ja loma-rivi linkittävät #/poikkeukset-sivulle, tyhjillä koukuilla ei riviä")
+      : fail(`poikkeuskooste: pysäkkisivun rivit väärin (pyhä ${stopPyha}, loma ${stopLoma}, linkit ${JSON.stringify(stopHrefs)}, tyhjä ${stopEi})`);
     await page.goto(BASE + "/#/", { waitUntil: "networkidle2" });
   }
 
