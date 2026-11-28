@@ -1,0 +1,147 @@
+{
+  "versio": 1,
+  "paivitetty": "2026-11-28T15:23:33.177Z",
+  "vanhenee_tuntia": 12,
+  "palvelut": [
+    {
+      "id": "reittari",
+      "nimi": "Reittari",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-11-28T15:23:33.177Z",
+      "lahde": "Saatavuustarkistus ja Tuotanto-smoke",
+      "kuvaus": "Esittelysivu demo.reittari.fi vastasi. Viimeisin tuotanto-smoke 26.11.2026 klo 20.23 meni läpi."
+    },
+    {
+      "id": "luvat-ja-kuulutukset",
+      "nimi": "Savikurki Luvat ja kuulutukset",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-11-28T15:23:33.177Z",
+      "lahde": "Saatavuustarkistus ja aineiston haun syke",
+      "kuvaus": "Esittelysivu demo.savikurki.fi/luvat vastasi. Aineisto haettu viimeksi 28.11.2026 klo 13.26."
+    },
+    {
+      "id": "jatehuollon-asiointi",
+      "nimi": "Savikurki Jätehuollon asiointi",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-11-28T15:23:33.177Z",
+      "lahde": "Saatavuustarkistus",
+      "kuvaus": "Esittelysivu demo.savikurki.fi/jatehuolto vastasi."
+    },
+    {
+      "id": "tyonantajatuet",
+      "nimi": "Savikurki Työnantajatuet",
+      "tila": "hairio",
+      "viimeisin_tarkistus": "2026-11-28T15:23:33.177Z",
+      "lahde": "Saatavuustarkistus ja datavahti",
+      "kuvaus": "Esittelysivu demo.savikurki.fi/tyonantajatuet vastasi. Datavahti 28.11.2026 klo 10.28 löysi vian: demo tai sen ulkoinen lähde on muuttunut, ja selvitys on kesken."
+    },
+    {
+      "id": "kesatyosetelit",
+      "nimi": "Savikurki Kesätyösetelit",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-11-28T15:23:33.177Z",
+      "lahde": "Saatavuustarkistus ja datavahti",
+      "kuvaus": "Esittelysivu demo.savikurki.fi/kesatyosetelit vastasi. Datavahti 28.11.2026 klo 10.29: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "avustukset",
+      "nimi": "Savikurki Avustukset",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-11-28T15:23:33.177Z",
+      "lahde": "Saatavuustarkistus",
+      "kuvaus": "Esittelysivu demo.savikurki.fi/avustukset vastasi."
+    },
+    {
+      "id": "de-minimis-rekisteri",
+      "nimi": "Savikurki De minimis -rekisteri",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-11-28T15:23:33.177Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 28.11.2026 klo 11.23: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "tapahtumaluvat",
+      "nimi": "Savikurki Tapahtumaluvat",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-11-28T15:23:33.177Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 28.11.2026 klo 12.23: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "uimavesitiedotus",
+      "nimi": "Savikurki Uimavesitiedotus",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-11-28T15:23:33.177Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 28.11.2026 klo 14.23: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "kulttuurivierailut",
+      "nimi": "Savikurki Kulttuurivierailut",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-11-28T15:23:33.177Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 28.11.2026 klo 15.23: demo ja sen ulkoiset lähteet olivat kunnossa."
+    },
+    {
+      "id": "elinvoimapaketti",
+      "nimi": "Savikurki Elinvoimapaketti",
+      "tila": "toimii",
+      "viimeisin_tarkistus": "2026-11-28T15:23:33.177Z",
+      "lahde": "Datavahti",
+      "kuvaus": "Demo esitellään pyynnöstä, joten julkista sivua ei ole. Datavahti 28.11.2026 klo 16.23: demo ja sen ulkoiset lähteet olivat kunnossa."
+    }
+  ],
+  "tapahtumat": [
+    {
+      "aika": "2026-11-25T09:23:31.891Z",
+      "palvelu": "kesatyosetelit",
+      "teksti": "Savikurki Kesätyösetelit: toimii (aiemmin häiriö)."
+    },
+    {
+      "aika": "2026-11-25T00:39:55.923Z",
+      "palvelu": "kesatyosetelit",
+      "teksti": "Savikurki Kesätyösetelit: häiriö (aiemmin toimii). Esittelysivu demo.savikurki.fi/kesatyosetelit vastasi. Datavahti 25.11.2026 klo 02.23 löysi vian: demo tai sen ulkoinen lähde on muuttunut, ja selvitys on kesken."
+    },
+    {
+      "aika": "2026-11-24T01:23:44.761Z",
+      "palvelu": "tyonantajatuet",
+      "teksti": "Savikurki Työnantajatuet: häiriö (aiemmin toimii). Esittelysivu demo.savikurki.fi/tyonantajatuet vastasi. Datavahti 24.11.2026 klo 02.23 löysi vian: demo tai sen ulkoinen lähde on muuttunut, ja selvitys on kesken."
+    },
+    {
+      "aika": "2026-11-23T06:57:34.506Z",
+      "palvelu": "reittari",
+      "teksti": "Reittari: toimii (aiemmin häiriö)."
+    },
+    {
+      "aika": "2026-11-23T05:23:31.443Z",
+      "palvelu": "reittari",
+      "teksti": "Reittari: häiriö (aiemmin toimii). Esittelysivu demo.reittari.fi vastasi. Viimeisin tuotanto-smoke 23.11.2026 klo 06.23 löysi vian, ja sen selvitys on kesken."
+    },
+    {
+      "aika": "2026-11-20T10:23:33.279Z",
+      "palvelu": "kesatyosetelit",
+      "teksti": "Savikurki Kesätyösetelit: toimii (aiemmin häiriö)."
+    },
+    {
+      "aika": "2026-11-20T01:23:40.842Z",
+      "palvelu": "kesatyosetelit",
+      "teksti": "Savikurki Kesätyösetelit: häiriö (aiemmin toimii). Esittelysivu demo.savikurki.fi/kesatyosetelit vastasi. Datavahti 20.11.2026 klo 02.23 löysi vian: demo tai sen ulkoinen lähde on muuttunut, ja selvitys on kesken."
+    },
+    {
+      "aika": "2026-11-18T21:23:33.816Z",
+      "palvelu": "luvat-ja-kuulutukset",
+      "teksti": "Savikurki Luvat ja kuulutukset: toimii (aiemmin häiriö)."
+    },
+    {
+      "aika": "2026-11-18T20:23:33.383Z",
+      "palvelu": "luvat-ja-kuulutukset",
+      "teksti": "Savikurki Luvat ja kuulutukset: häiriö (aiemmin toimii). Esittelysivu demo.savikurki.fi/luvat ei vastannut (yhteysvirhe)."
+    },
+    {
+      "aika": "2026-11-18T06:23:36.002Z",
+      "palvelu": "tapahtumaluvat",
+      "teksti": "Savikurki Tapahtumaluvat: toimii (aiemmin häiriö)."
+    }
+  ]
+}
